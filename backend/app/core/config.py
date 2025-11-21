@@ -1,8 +1,10 @@
 import json
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+    
     PROJECT_NAME: str = "Perspective Prism MVP"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden via .env
@@ -11,7 +13,7 @@ class Settings(BaseSettings):
     GOOGLE_SEARCH_TIMEOUT: float = 10.0  # Timeout in seconds for Google Search API requests
     GOOGLE_SEARCH_MAX_CONCURRENT: int = 3  # Max concurrent Google Search API requests
     SEARCH_PROVIDER: str = "google"
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: list[str] | str = ["http://localhost:5173", "http://localhost:3000"]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -24,7 +26,14 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             # JSON array or object
             if v.startswith("[") or v.startswith("{"):
-                parsed = json.loads(v)
+                try:
+                    parsed = json.loads(v)
+                except (json.JSONDecodeError, ValueError) as e:
+                    raise ValueError(
+                        f"BACKEND_CORS_ORIGINS: invalid JSON - {e}. "
+                        f"Offending value: {v}"
+                    ) from e
+                
                 if not isinstance(parsed, list):
                     raise ValueError(
                         f"BACKEND_CORS_ORIGINS: JSON parsed value must be a list, "
@@ -40,8 +49,5 @@ class Settings(BaseSettings):
             f"BACKEND_CORS_ORIGINS: expected list or string, "
             f"got {type(v).__name__}: {v}"
         )
-
-    class Config:
-        env_file = ".env"
 
 settings = Settings()

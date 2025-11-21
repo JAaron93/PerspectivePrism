@@ -90,10 +90,33 @@ def escape_special_characters(text: str) -> str:
 
 
 def truncate_text(text: str, max_length: int) -> str:
-    """Truncate text to max_length, adding ellipsis if truncated."""
+    """
+    Truncate text to max_length, adding ellipsis if truncated.
+    
+    Handles the edge case where truncation might leave a trailing backslash
+    that would escape the ellipsis characters.
+    """
     if len(text) <= max_length:
         return text
-    return text[:max_length - 3] + "..."
+    
+    # Calculate the cut point
+    cut_point = max_length - 3
+    truncated = text[:cut_point]
+    
+    # Count consecutive backslashes from the end
+    backslash_count = 0
+    for i in range(len(truncated) - 1, -1, -1):
+        if truncated[i] == '\\':
+            backslash_count += 1
+        else:
+            break
+    
+    # If odd number of backslashes at the end, the last one would escape the ellipsis
+    # Shift the cut back by one to remove the problematic backslash
+    if backslash_count % 2 == 1:
+        truncated = truncated[:-1]
+    
+    return truncated + "..."
 
 
 def sanitize_input(

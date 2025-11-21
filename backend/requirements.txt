@@ -7,3 +7,5 @@ openai==2.8.1
 httpx==0.28.1
 beautifulsoup4==4.14.2
 youtube-transcript-api==1.2.3
+pytest==8.3.4
+pytest-asyncio==0.25.3

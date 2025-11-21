@@ -47,7 +47,7 @@ async def analyze_video(request: VideoRequest):
         transcript = claim_extractor.get_transcript(video_id)
         
         # 2. Extract Claims
-        claims = claim_extractor.extract_claims(transcript)
+        claims = await claim_extractor.extract_claims(transcript)
         
         # Limit claims for MVP to avoid hitting rate limits or long processing times
         # Let's process the first 3 claims for now

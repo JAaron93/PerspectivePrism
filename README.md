@@ -19,7 +19,7 @@ An advanced AI agent that processes YouTube video transcripts to analyze claims 
 ## 📋 Prerequisites
 
 - Python 3.10+
-- Node.js 16+
+- Node.js 18+ (LTS) or Node.js 20+ (recommended)
 - OpenAI API Key
 - Google Custom Search JSON API Key & Search Engine ID
 

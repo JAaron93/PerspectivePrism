@@ -140,6 +140,41 @@ class TestTextTruncation:
         text = "A" * 20
         result = truncate_text(text, 20)
         assert result == text
+    
+    def test_truncation_with_trailing_backslash_odd(self):
+        """Truncation should handle odd number of trailing backslashes to prevent escaping ellipsis."""
+        # Create text that would have a trailing backslash at the cut point
+        # If max_length is 20, cut point is 17, so we want a backslash at position 16
+        text = "A" * 16 + "\\" + "B" * 100
+        result = truncate_text(text, 20)
+        # Should end with "..." and not "\..." 
+        assert result.endswith("...")
+        # The backslash should be removed to prevent escaping
+        assert not result.endswith("\\...")
+        # Length should be at most max_length
+        assert len(result) <= 20
+    
+    def test_truncation_with_trailing_backslash_even(self):
+        """Truncation should preserve even number of trailing backslashes."""
+        # Two backslashes at the end - the last one doesn't escape the ellipsis
+        text = "A" * 15 + "\\\\" + "B" * 100
+        result = truncate_text(text, 20)
+        # Should end with "..." 
+        assert result.endswith("...")
+        # Should have the double backslash preserved
+        assert "\\\\" in result
+        assert len(result) <= 20
+    
+    def test_truncation_with_multiple_trailing_backslashes(self):
+        """Truncation should handle multiple trailing backslashes correctly."""
+        # Three backslashes at the cut point - odd count, so one is removed
+        # Leaving 2 backslashes (even), which is safe
+        text = "A" * 14 + "\\\\\\" + "B" * 100
+        result = truncate_text(text, 20)
+        assert result.endswith("...")
+        # After removing the problematic backslash, should have 2 backslashes before ellipsis
+        assert result == "AAAAAAAAAAAAAA\\\\..."
+        assert len(result) <= 20
 
 
 class TestClaimTextSanitization:
@@ -255,13 +290,12 @@ class TestPerspectiveValueSanitization:
     
     def test_oversized_perspective_truncated(self):
         """Perspective exceeding MAX_PERSPECTIVE_LENGTH should be truncated."""
-        # Create a string longer than MAX_PERSPECTIVE_LENGTH (50 chars)
+        # Create a string longer than MAX_PERSPECTIVE_LENGTH
         perspective = "A" * 60
         result = sanitize_perspective_value(perspective)
         # Should be truncated to max length (with ellipsis)
-        assert len(result) <= 50
+        assert len(result) == 50
         assert result.endswith("...")
-    
     def test_perspective_at_max_length_accepted(self):
         """Perspective at exactly MAX_PERSPECTIVE_LENGTH should be accepted."""
         # MAX_PERSPECTIVE_LENGTH is 50
