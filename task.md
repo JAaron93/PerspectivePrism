@@ -5,3 +5,4 @@
 - [x] Increase frontend timeout to 120s
 - [x] Reduce backend processing load (1 claim instead of 3)
 - [x] Verify fix with browser test
+- [x] Update walkthrough.md with verification results
