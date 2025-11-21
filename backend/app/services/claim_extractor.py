@@ -125,7 +125,8 @@ OUTPUT FORMAT (JSON):
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.3
+                temperature=0.3,
+                timeout=30.0
             )
             
             content = response.choices[0].message.content
@@ -137,25 +138,76 @@ OUTPUT FORMAT (JSON):
             
             claims = []
             for i, item in enumerate(claims_data):
-                claims.append(Claim(
-                    id=f"claim_{i}",
-                    text=item.get("text", ""),
-                    timestamp_start=item.get("start_time"),
-                    timestamp_end=item.get("end_time"),
-                    context=item.get("context", "")
-                ))
+                # Validate required fields
+                try:
+                    # Validate text: must be non-empty string
+                    text = item.get("text", "")
+                    if not isinstance(text, str) or not text.strip():
+                        logger.warning(
+                            f"Skipping claim at index {i}: missing or empty 'text' field",
+                            extra={"claim_index": i, "claim_data": item}
+                        )
+                        continue
+                    
+                    # Validate start_time: must be numeric or castable to float
+                    start_time_raw = item.get("start_time")
+                    if start_time_raw is None:
+                        logger.warning(
+                            f"Skipping claim at index {i}: missing 'start_time' field",
+                            extra={"claim_index": i, "claim_data": item}
+                        )
+                        continue
+                    
+                    try:
+                        start_time = float(start_time_raw)
+                    except (ValueError, TypeError):
+                        logger.warning(
+                            f"Skipping claim at index {i}: 'start_time' is not numeric",
+                            extra={"claim_index": i, "start_time": start_time_raw, "claim_data": item}
+                        )
+                        continue
+                    
+                    # Validate end_time: must be numeric or castable to float
+                    end_time_raw = item.get("end_time")
+                    if end_time_raw is None:
+                        logger.warning(
+                            f"Skipping claim at index {i}: missing 'end_time' field",
+                            extra={"claim_index": i, "claim_data": item}
+                        )
+                        continue
+                    
+                    try:
+                        end_time = float(end_time_raw)
+                    except (ValueError, TypeError):
+                        logger.warning(
+                            f"Skipping claim at index {i}: 'end_time' is not numeric",
+                            extra={"claim_index": i, "end_time": end_time_raw, "claim_data": item}
+                        )
+                        continue
+                    
+                    # Optional context: default to empty string
+                    context = item.get("context", "")
+                    if not isinstance(context, str):
+                        context = ""
+                    
+                    # All validations passed, create Claim
+                    claims.append(Claim(
+                        id=f"claim_{i}",
+                        text=text.strip(),
+                        timestamp_start=start_time,
+                        timestamp_end=end_time,
+                        context=context
+                    ))
+                    
+                except Exception as e:
+                    # Catch any unexpected errors during claim construction
+                    logger.warning(
+                        f"Unexpected error creating claim at index {i}: {e}",
+                        extra={"claim_index": i, "claim_data": item, "error": str(e)}
+                    )
+                    continue
             
             return claims
-
         except Exception as e:
             logger.error(f"Error extracting claims with LLM: {e}")
-            # Fallback to heuristic if LLM fails? 
-            # For now, return empty list or re-raise. 
-            # Let's return a basic fallback claim to not break the app.
-            return [Claim(
-                id="fallback_1",
-                text="Error extracting claims. Please try again.",
-                timestamp_start=0.0,
-                timestamp_end=0.0,
-                context="Extraction failed."
-            )]
+            return []
