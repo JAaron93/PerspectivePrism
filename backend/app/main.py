@@ -40,22 +40,26 @@ async def analyze_video(request: VideoRequest):
     Analyzes a YouTube video for claims, bias, and perspective-based truth.
     """
     try:
+        
         # 1. Extract Video ID and Transcript
         video_id = claim_extractor.extract_video_id(str(request.url))
         if not video_id:
             raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
+        
         transcript = claim_extractor.get_transcript(video_id)
         
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)
         
         # Limit claims for MVP to avoid hitting rate limits or long processing times
-        # Let's process the first 3 claims for now
-        claims_to_process = claims[:3]
+        # Limit claims for MVP to avoid hitting rate limits or long processing times
+        # Process only 1 claim to ensure we stay within timeout limits
+        claims_to_process = claims[:1]
         
         truth_profiles = []
         
         for claim in claims_to_process:
+            
             # 3. Retrieve Evidence (Parallelize perspectives)
             perspectives = [
                 PerspectiveType.SCIENTIFIC,

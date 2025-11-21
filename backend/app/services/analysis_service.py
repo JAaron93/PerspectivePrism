@@ -49,7 +49,7 @@ class AnalysisService:
             sanitized_claim = sanitize_claim_text(claim.text)
             sanitized_perspective = sanitize_perspective_value(perspective.value)
             sanitized_evidence = "\n".join([
-                sanitize_evidence_text(f"- {e.text}") for e in evidence_list
+                sanitize_evidence_text(f"- {e.title}: {e.snippet}") for e in evidence_list
             ])
         except SanitizationError as e:
             logger.error("Sanitization error in perspective analysis for %s: %s", perspective.value, e)

@@ -56,9 +56,9 @@ class ClaimExtractor:
             # Convert to our schema
             segments = [
                 TranscriptSegment(
-                    text=item['text'],
-                    start=item['start'],
-                    duration=item['duration']
+                    text=item.text,
+                    start=item.start,
+                    duration=item.duration
                 ) for item in fetched_transcript
             ]
             
@@ -125,8 +125,7 @@ OUTPUT FORMAT (JSON):
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.3,
-                timeout=30.0
+                timeout=60.0
             )
             
             content = response.choices[0].message.content
