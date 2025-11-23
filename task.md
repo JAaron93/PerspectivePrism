@@ -1,7 +1,6 @@
-# Generating Architecture Diagram
+# Updating Extension Specs
 
-- [x] Explore codebase structure
-- [x] Analyze backend services and flow
-- [x] Analyze frontend components and flow
-- [x] Generate Mermaid diagram
-- [x] Save diagram to `architecture.md`
+- [x] Locate `.kiro/specs/youtube-chrome-extension/tasks.md`
+- [x] Read current content of task 5.4
+- [x] Update task 5.4 with debounce, retry logic, and SPA navigation cleanup
+- [ ] Verify changes

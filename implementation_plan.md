@@ -1,151 +1,56 @@
-Below is a detailed **implementation plan** for a simple MVP (Minimum Viable Product) of the perspectivalist dis/misinformation agent in Markdown format. This is designed so a software engineering agent (like Cursor) can directly start breaking down tasks, drafting architecture, and scoping dependencies.
+# Refactoring to Async Job Flow
 
-***
+## Goal
+Replace the current synchronous long-polling analysis request with an asynchronous job-based flow. This will prevent timeouts for long-running analyses and provide a better user experience with progress feedback.
 
-# Implementation Plan: Perspectivalist Dis/Misinformation Detection MVP
+## User Review Required
+> [!IMPORTANT]
+> This is a breaking API change. The `POST /analyze` endpoint will be replaced/augmented with `POST /analyze/jobs` and `GET /analyze/jobs/{job_id}`. The frontend will need to be updated to support this new flow.
 
-## 1. **Project Overview**
+## Proposed Changes
 
-**Goal:**  
-Build an MVP agent that processes YouTube video transcripts, analyzes claims across multiple perspectives, detects types of bias and potential deception, and outputs a rich "truth profile" per claim.
-  
-## 2. **System Architecture**
-
-- **Input:**  
-  - YouTube Video URL (to fetch transcript) or raw transcript text
-  
-- **Processing Pipeline:**  
-  1. **Claim Extraction**
-  2. **Evidence Retrieval (per Perspective)**
-  3. **Perspective-aware Evaluation**
-  4. **Bias and Deception Classification**
-  5. **Aggregation and Output Formatting**
-  
-- **Output:**  
-  - JSON or Markdown with:  
-    - Perspective-specific truth scores per claim
-    - Bias tags with explanations
-    - Deception/intent assessment
-    - Evidence & source references
-  
-## 3. **MVP Features & Tasks**
-
-### 3.1. **Claim Extraction**
-- Use an open-source claim extraction library or basic regex rules for MVP.
-- Split text into atomic factual claims; store with text+position.
-- [Optional: Use LLM prompt for "extract claims from this text."]
-
-### 3.2. **Perspectives Definition**
-Define 2–3 initial perspectives:
-- **Mainstream Scientific**
-- **Mainstream Journalistic**
-- **Partisan (Left or Right)**  
-  *(default to US context, customize later)*
-
-### 3.3. **Evidence Retrieval (RAG)**
-- For each claim and each perspective:
-  - Query a web search API (e.g., Bing Web Search, NewsAPI, SerpAPI).
-  - Filter or tag sources by perspective using pre-set lists of domains.
-- Store retrieved evidence snippets and their sources.
-
-### 3.4. **Perspective-local Evaluation**
-- For each (claim, perspective, snippet):
-  - Use an LLM (e.g., OpenAI GPT-3.5/4, open-source models) to generate a support/refute/uncertain judgment with confidence.
-  - Prompt format:  
+### Backend (`backend/app/main.py`)
+1.  **Introduce `JobStore`**: A simple in-memory dictionary to store job status and results.
+    ```python
+    jobs = {} # {job_id: {"status": "pending"|"processing"|"completed"|"failed", "result": ..., "error": ...}}
     ```
-    Given the following claim and evidence from [perspective], does the evidence support, refute, or is it ambiguous? Explain briefly.
-    ```
+2.  **Create Background Task Function**: Move the core logic of `analyze_video` into a new `process_analysis(job_id, request)` function.
+3.  **Add `POST /analyze/jobs`**:
+    - Generates a UUID `job_id`.
+    - Initializes job state in `jobs`.
+    - Starts `process_analysis` as a background task using `asyncio.create_task`.
+    - Returns `{"job_id": "..."}`.
+4.  **Add `GET /analyze/jobs/{job_id}`**:
+    - Looks up `job_id` in `jobs`.
+    - Returns the current status and result (if completed).
 
-### 3.5. **Bias and Deception Detection**
-- For each claim/video:
-  - Use prompt-based or open-source ML models for:
-    - Framing/loaded language
-    - Sourcing bias
-    - Omission/cherry-picking
-    - Clickbait/headline sensationalism
-  - Output bias categories present (with text highlights or evidence).
-  - Deception estimation: If repeating falsehoods or using multiple bias tactics, raise intent suspicion flag.
+### Frontend (`frontend/src/App.tsx`)
+1.  **Update `handleSubmit`**:
+    - Call `POST /analyze/jobs` to get a `job_id`.
+    - Set state to `loading` and store `job_id`.
+2.  **Implement Polling**:
+    - Use `useEffect` or a recursive function to poll `GET /analyze/jobs/{job_id}` every 2 seconds.
+    - Update UI based on status:
+        - `pending`/`processing`: Show "Processing..." (maybe with a spinner).
+        - `completed`: Set results and stop polling.
+        - `failed`: Set error and stop polling.
+3.  **Update UI**:
+    - Show a clear "Processing" state.
+    - Handle the new async flow errors.
 
-### 3.6. **Aggregation and Output Formatting**
-- Aggregate results into a "Truth Profile" per claim:
-  - Table or JSON block per claim:
-    - Each perspective’s stance, confidence, and explanation
-    - Bias tags + examples
-    - Deception/intent flags + brief rationale
-  - Provide links to evidence and sources
+## Verification Plan
 
-### 3.7. **API & UI**
-- MVP UI:  
-  - Simple CLI, notebook, or single-page web interface (React/Vue/Svelte) for uploading/entering text and viewing results.
-- API:  
-  - REST endpoint to POST YouTube URL and return truth profiles as JSON.
+### Automated Tests
+- **Backend**:
+    - Create a test script `tests/test_async_flow.py` (or run manually via curl) to:
+        1.  POST to create a job.
+        2.  Poll status until completion.
+        3.  Verify result structure.
 
-***
-
-## 4. **Suggested Tech Stack**
-
-- **Backend:** Python (FastAPI, Flask) or Node.js (Express)
-- **Claim Extraction:** Regular expressions, spaCy, or LLM API
-- **RAG:** Google Custom Search JSON API; source classifier for perspective tagging
-  - **Client:** `httpx` (lightweight) or `google-api-python-client` (official)
-- **LLMs:** OpenAI GPT-3.5/4, HuggingFace models (for local/dev work)
-- **Bias detection:** Prompt-based GPT, `transformers` for sentiment/stance analysis
-- **Frontend:** Streamlit (fastest), or basic React app
-- **Data store:** In-memory (dict/json) for MVP; extend to SQLite or Postgres if needed
-
-***
-
-## 5. **MVP Task Breakdown**
-
-### Required
-- [ ] Set up processing pipeline skeleton (input → claims → retrieval → analysis → output)
-- [ ] Implement or integrate basic claim extraction
-- [ ] Curate perspective-domain lists (hardcode for MVP)
-- [ ] Integrate web search API for RAG
-- [ ] Implement perspective-wise evidence filtering/ranking
-- [ ] Implement LLM calls for perspective-based stance judgment
-- [ ] Implement prompt-based bias and intent detectors
-- [ ] Output structured JSON or Markdown summary
-- [ ] Minimal frontend/CLI to run a sample and inspect output
-
-### Optional (for MVP+)
-- [ ] Add confidence visualization
-- [ ] Annotate output text with highlights for bias patterns
-- [ ] Extend perspective list and allow configuration
-- [ ] Persist data for analytics
-
-***
-
-## 6. **Dependencies and Setup**
-
-- Python 3.10+  
-- OpenAI API key (or alternative LLM provider)  
-- Web search API key(s)  
-- `requests` or `httpx` (recommended), `fastapi`, `spacy`, `openai`, `transformers`, `streamlit`, `youtube-transcript-api` (as required)
-- **Google Custom Search API Setup:**
-  1. **Enable API:** Go to [Google Cloud Console](https://console.cloud.google.com/), create a project, and enable the "Custom Search API".
-  2. **Create API Key:** In "Credentials", create an API Key.
-  3. **Create Search Engine:** Go to [Programmable Search Engine](https://programmablesearchengine.google.com/), create a new search engine.
-     - Select "Search the entire web" (or specific sites if preferred).
-     - **Get Search Engine ID (cx):** Copy the "Search engine ID" from the overview page.
-  4. **Environment Variables:**
-     ```bash
-     export GOOGLE_API_KEY="your_api_key_here"
-     export GOOGLE_CSE_ID="your_search_engine_id_here"
-     ```
-  5. **Quotas & Billing:** The free tier allows 100 queries/day. Enable billing for higher quotas if needed.
-  > [!TIP]
-  > If you encounter 429 (Quota Exceeded) errors, check your usage in the Cloud Console.  
-
-***
-
-## 7. **Deliverables**
-
-- README with setup & usage instructions
-- Source code (modular, basic test coverage)
-- Example input/output for 1–2 articles
-- List of known limitations and recommended scaling/upgrades
-
-***
-
-**END OF PLAN**
+### Manual Verification
+- **Browser Test**:
+    - Open the app.
+    - Submit a video URL.
+    - Verify the UI shows "Processing" immediately.
+    - Verify the UI eventually shows results without a timeout error.
+    - Check Network tab to see the polling requests.

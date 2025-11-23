@@ -59,3 +59,18 @@ class TruthProfile(BaseModel):
 class AnalysisResponse(BaseModel):
     video_id: str
     truth_profiles: List[TruthProfile]
+
+class JobResponse(BaseModel):
+    job_id: str
+
+class JobStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: JobStatus
+    result: Optional[AnalysisResponse] = None
+    error: Optional[str] = None

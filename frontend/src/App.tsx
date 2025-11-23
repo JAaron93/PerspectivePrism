@@ -48,42 +48,59 @@ function App() {
     setError(null)
     setResults(null)
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 120000) // 120s timeout
-
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/analyze`, {
+
+      // 1. Create Job
+      const createResponse = await fetch(`${apiUrl}/analyze/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url }),
-        signal: controller.signal,
       })
 
-      if (!response.ok) {
-        let errorMessage = 'Failed to analyze video'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.detail || errorMessage
-        } catch {
-          // Response is not JSON, use default message
-        }
-        throw new Error(errorMessage)
+      if (!createResponse.ok) {
+        throw new Error('Failed to start analysis job')
       }
 
-      const data: AnalysisResponse = await response.json()
-      setResults(data)
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setError('Request timed out. Please try again.')
-      } else {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+      const { job_id } = await createResponse.json()
+
+      // 2. Poll for Status
+      const pollInterval = 2000 // 2 seconds
+
+      const checkStatus = async () => {
+        try {
+          const statusResponse = await fetch(`${apiUrl}/analyze/jobs/${job_id}`)
+
+          if (!statusResponse.ok) {
+            throw new Error('Failed to check job status')
+          }
+
+          const statusData = await statusResponse.json()
+
+          if (statusData.status === 'completed') {
+            setResults(statusData.result)
+            setLoading(false)
+          } else if (statusData.status === 'failed') {
+            setError(statusData.error || 'Analysis failed')
+            setLoading(false)
+          } else {
+            // Still processing, poll again
+            setTimeout(checkStatus, pollInterval)
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Error checking status')
+          setLoading(false)
+        }
       }
-    } finally {
+
+      // Start polling
+      checkStatus()
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
-      clearTimeout(timeoutId) // Ensure timeout is cleared in case of error
     }
   }
 
@@ -140,7 +157,7 @@ function App() {
       {loading && (
         <div className="loading">
           <div className="spinner"></div>
-          <p>Analyzing video transcript... This may take a minute.</p>
+          <p>Analyzing video transcript... This may take a few minutes. Please wait.</p>
         </div>
       )}
 

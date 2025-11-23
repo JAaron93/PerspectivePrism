@@ -1,0 +1,786 @@
+# Implementation Plan
+
+- [ ] 1. Set up extension project structure and manifest
+  - Create extension directory structure (icons, scripts, styles, pages)
+  - Write manifest.json with Manifest V3 configuration
+  - Add placeholder icons (16px, 48px, 128px)
+  - Configure permissions (storage, activeTab)
+  - Configure host_permissions with comprehensive YouTube URL patterns:
+    - `https://*.youtube.com/*` (desktop, all subdomains)
+    - `https://youtu.be/*` (short links)
+    - `https://*.youtube-nocookie.com/*` (embedded videos)
+    - `https://m.youtube.com/*` (mobile site)
+  - _Requirements: 1.1, 1.2_
+
+- [ ] 2. Implement configuration management and validation
+  - [ ] 2.1 Create ConfigValidator class with URL validation
+    - Implement isValidUrl() with HTTPS enforcement (except localhost)
+    - Add optional developer flag `allowInsecureUrls` (default: false)
+      - When enabled, permits HTTP URLs for dev/staging environments
+      - Document: Only enable for development/testing, never in production
+      - Show warning in UI when enabled
+    - Implement getUrlError() for user-friendly error messages
+    - Add validation for cacheEnabled and cacheDuration fields
+    - _Requirements: 1.3, 1.4, 1.5, 7.3, 7.4_
+  
+  - [ ] 2.2 Create ConfigManager class for settings persistence
+    - Implement load() with chrome.storage.sync and explicit fallback conditions:
+      - Fallback to chrome.storage.local when:
+        - chrome.storage.sync throws exception (quota exceeded, sync disabled)
+        - Stored config is missing required keys
+        - Stored config timestamp is older than 30 days (stale data)
+        - Browser is in offline/private mode
+      - Log each fallback condition with specific error details
+      - Attempt chrome.storage.local.get() with try-catch
+      - If both fail, use DEFAULT_CONFIG and log critical error
+    - Implement save() with validation and dual-write strategy:
+      - Try chrome.storage.sync.set() first
+      - On failure, fall back to chrome.storage.local.set()
+      - Log which storage was used
+    - Add notifyInvalidConfig() for user notifications
+    - Handle default configuration values
+    - _Requirements: 1.6_
+
+- [ ] 3. Implement background service worker core functionality with MV3 lifecycle handling
+  - [ ] 3.1 Create PerspectivePrismClient class with persistent state
+    - Implement analyzeVideo() with video ID validation
+    - Implement executeAnalysisRequest() with retry logic (2 retries, exponential backoff)
+    - Implement makeAnalysisRequest() with 120s timeout and AbortController
+    - Add request deduplication with pendingRequests Map
+    - **MV3 Lifecycle Handling:**
+      - Persist in-flight request state to chrome.storage.local:
+        - Key format: `pending_request_{videoId}`
+        - Store: videoId, startTime, attemptCount, lastError, status
+      - On service worker startup, recover persisted requests:
+        - Load all `pending_request_*` keys from chrome.storage.local
+        - Resume requests that haven't exceeded max retry time (5 minutes)
+        - Clean up stale requests (>5 minutes old)
+      - Use chrome.alarms API for retry scheduling:
+        - Create alarm: `retry_{videoId}_{attemptCount}`
+        - Alarms survive service worker termination
+        - On alarm trigger, resume request from persisted state
+      - Clean up persisted state on completion:
+        - Remove `pending_request_{videoId}` on success
+        - Remove `pending_request_{videoId}` on terminal failure
+        - Clear associated alarms
+    - Add progress tracking for long-running requests:
+      - Emit progress events at 10s, 30s, 60s, 90s intervals
+      - Allow UI to show "Still analyzing..." message after 10-15s
+      - Provide cancellation mechanism via AbortController
+    - _Requirements: 3.1, 3.4_
+  
+  - [ ] 3.2 Implement response validation
+    - Create validateAnalysisData() method with comprehensive schema validation
+    - Validate video_id format (exactly 11 characters)
+    - Validate claims array and truth_profile structure
+    - Validate perspectives and bias_indicators
+    - Throw ValidationError for invalid responses
+    - _Requirements: 3.3_
+  
+  - [ ] 3.3 Implement error handling and user-friendly messages
+    - Create custom error classes (HttpError, TimeoutError, ValidationError)
+    - Implement shouldRetryError() logic (retry on timeout/5xx, not on 4xx)
+    - Implement formatUserError() for user-facing error messages
+    - Add error logging with sanitization (no URLs, tokens, or PII)
+    - _Requirements: 3.2, 3.3, 6.1, 6.2, 6.3, 6.4_
+
+- [ ] 4. Implement cache management with versioning and migration
+  - [ ] 4.1 Define cache key strategy
+    - **Cache key design decision:**
+      - Primary strategy: Simple key = `cache_{videoId}`
+      - Rationale: One analysis per video (latest overwrites previous)
+      - Alternative considered: Composite key = `cache_{videoId}_{timestamp}`
+        - Rejected: Would allow multiple analyses per video (storage bloat)
+        - Rejected: Complicates eviction and lookup
+    - **Key implications:**
+      - Uniqueness: One cached result per video ID
+      - Eviction: LRU based on timestamp field within entry
+      - Indexing: Direct lookup by video ID (O(1))
+      - Refresh: New analysis overwrites existing cache entry
+    - Document key format in code comments and design doc
+    - _Requirements: 5.1, 5.2_
+  
+  - [ ] 4.2 Implement schema migration registry
+    - **Migration function pattern:**
+      - Define migration interface: `(entry: any) => AnalysisData | null`
+      - Return transformed entry on success
+      - Return null to discard incompatible entries
+    - **Migration registry:**
+      - Create `SCHEMA_MIGRATIONS` object mapping versions to functions
+      - Example: `{ 0: migrateV0ToV1, 1: migrateV1ToV2 }`
+      - Apply migrations sequentially from stored version to current
+    - **Migration functions:**
+      - `migrateV0ToV1(entry)`: Add schemaVersion field, validate structure
+      - Future migrations: Add as needed (e.g., V1→V2 for new fields)
+    - **Migration behavior:**
+      - On null return: Delete corrupted entry, log warning
+      - On success: Save migrated entry with new version
+      - On error: Catch exception, delete entry, log error
+    - Test migration with mock data for each version
+    - _Requirements: 5.1, 5.7_
+  
+  - [ ] 4.3 Create CacheManager class with migration
+    - Implement get() with expiration checking and migration:
+      - Load entry from chrome.storage.local
+      - Check schemaVersion field
+      - If version < CURRENT_SCHEMA_VERSION, apply migrations
+      - If migration fails, delete entry and return null
+      - If migration succeeds, save migrated entry
+    - Implement set() with data validation before caching
+    - Implement validateDataForCache() for secondary validation
+    - Add schema versioning with CURRENT_SCHEMA_VERSION = 1
+    - _Requirements: 5.1, 5.2, 5.7_
+  
+  - [ ] 4.4 Implement entry size policy
+    - **Size policy decision:**
+      - Max entry size: 1 MB (reasonable for analysis results)
+      - Behavior for oversized entries: Reject with error
+      - Rationale: Prevents single entry from consuming quota
+      - Alternative considered: Segmentation (rejected: complexity)
+    - **Implementation:**
+      - Check entry size before set() using estimateSize()
+      - If size > 1 MB, throw error: "Entry too large to cache"
+      - Log oversized entry attempts with video ID and size
+      - Return error to caller (don't cache)
+    - **Integration with QuotaManager:**
+      - QuotaManager.ensureSpace() checks available space
+      - If entry size > available space after eviction, reject
+      - Prevents cache thrashing from oversized entries
+    - Document size limits in user-facing error messages
+    - _Requirements: 5.1, 8.1, 8.2_
+  
+  - [ ] 4.5 Implement cache operations
+    - Implement clear() to remove all cached data
+    - Implement clearExpired() for automatic cleanup
+    - Implement remove() for single entry deletion
+    - Add isExpired() helper method
+    - _Requirements: 5.6_
+  
+  - [ ] 4.6 Implement cache statistics and quota management
+    - Implement getStats() returning totalEntries, totalSize, lastCleanup
+    - Create QuotaManager class for storage monitoring
+    - Implement checkQuota() with warning/critical thresholds (80%, 95%)
+    - Implement ensureSpace() with automatic eviction (LRU):
+      - Check if entry size fits in available space
+      - If not, evict oldest entries until space available
+      - If still not enough space, reject entry (oversized)
+      - Log eviction events with video IDs and sizes
+    - _Requirements: 5.1, 8.1, 8.2, 8.3, 8.4, 8.5_
+  
+  - [ ]* 4.7 Add quota monitoring metrics
+    - Track storage usage over time
+    - Log eviction events
+    - Monitor cache hit/miss rates
+    - _Requirements: 8.5_
+
+- [ ] 5. Implement content script for YouTube integration
+  - [ ] 5.1 Create video ID extraction with multiple URL formats
+    - Implement extractVideoId() supporting watch, shorts, embed, legacy formats
+    - Implement isValidVideoId() with 11-character regex validation
+    - Add extraction strategy logging for monitoring
+    - _Requirements: 2.4_
+  
+  - [ ] 5.2 Implement DOM injection with fallback selectors
+    - Create button injection logic with primary and fallback selectors
+    - Implement duplication prevention with data-pp-analysis-button attribute
+    - Implement graceful degradation for injection failures
+    - _Requirements: 2.1, 2.2_
+  
+  - [ ]* 5.3 Add selector monitoring and metrics
+    - Track selector success/failure rates
+    - Log selector used and YouTube layout variant
+    - Store metrics for future selector updates
+    - _Requirements: 2.1_
+  
+  - [ ] 5.4 Configure MutationObserver for dynamic content
+    - Set up observer for specific container (childList: true, subtree: false)
+    - Implement fallback observer for document.body (subtree: true)
+    - **Debounce logic:**
+      - Use debounce (not throttle) with 500ms delay
+      - Ensure handler runs 500ms after mutations stop
+      - Cancel pending debounced timers on disconnect
+    - **Retry mechanism:**
+      - Add retry flag/queued-run logic
+      - If mutation arrives during debounce window, schedule another run
+      - Retry if previous attempt failed to find selector
+    - **SPA Navigation:**
+      - Explicitly disconnect and reconnect observer on navigation
+      - Hook into section 12 navigation cleanup to avoid accumulating missed mutations
+    - _Requirements: 2.5_
+  
+  - [ ] 5.5 Implement Analysis Button component
+    - Create button element with proper ARIA attributes
+    - Implement button states (idle, loading, error, success)
+    - Add click handler to trigger analysis
+    - Style button to match YouTube UI
+    - _Requirements: 2.2, 2.3_
+
+- [ ] 6. Implement message passing between content script and background with MV3 recovery
+  - [ ] 6.1 Define message interfaces
+    - Create TypeScript interfaces for AnalysisRequest, CacheCheckRequest
+    - Create interfaces for AnalysisResponse, CacheCheckResponse
+    - Define AnalysisData and related types
+    - Add RequestRecoveryState interface for persisted state
+    - _Requirements: 3.1, 5.2_
+  
+  - [ ] 6.2 Implement message reliability with retry and chrome.alarms
+    - Add per-request timeout (3-5 seconds) for message responses
+    - Implement exponential backoff retry (500ms, 1s, 2s, max 4 attempts)
+    - **MV3-safe retry scheduling:**
+      - Use chrome.alarms for retry delays instead of setTimeout
+      - Alarm names: `msg_retry_{requestId}_{attempt}`
+      - Max exponential backoff wait: 8 seconds (2^3)
+      - Document: Alarms survive service worker termination
+    - Handle service worker unloads:
+      - Queue incoming messages during recovery
+      - Respond with retry-after if recovery in progress
+    - Surface user-facing error after retry exhaustion
+    - _Requirements: 3.1, 3.2_
+  
+  - [ ] 6.3 Implement message handlers in background service worker with startup recovery
+    - **Service worker startup handler:**
+      - On chrome.runtime.onStartup or first message:
+        - Load persisted pending requests from chrome.storage.local
+        - Reconstruct pendingRequests Map from persisted state
+        - Resume in-flight requests that haven't timed out
+        - Clean up stale requests (>5 minutes old)
+        - Set recoveryComplete flag when done
+    - **Message queueing during recovery:**
+      - Queue incoming ANALYZE_VIDEO messages if recovery in progress
+      - Process queued messages after recovery completes
+      - Respond with {status: 'retry-after', delay: 1000} if queue is full
+    - Handle ANALYZE_VIDEO messages:
+      - Check pendingRequests Map for deduplication
+      - Consult persisted state on startup
+      - Persist new requests to chrome.storage.local
+    - Handle CHECK_CACHE messages
+    - Send responses back to content script
+    - Add error handling for message passing failures
+    - **Cleanup on completion:**
+      - Remove persisted state on success/terminal failure
+      - Clear associated chrome.alarms
+      - Update pendingRequests Map
+    - _Requirements: 3.1, 5.2_
+
+- [ ] 7. Implement Analysis Panel UI component
+  - [ ] 7.1 Create panel structure with Shadow DOM
+    - Create panel container with role="dialog" and aria-modal="true"
+    - Implement style isolation with Shadow DOM
+    - Add panel header with title and close button
+    - Create scrollable content area
+    - _Requirements: 4.1, 4.5_
+  
+  - [ ] 7.2 Implement panel states
+    - Create loading state with spinner and progress indicator
+    - Add long-running analysis feedback:
+      - Show "Analyzing video..." message initially
+      - After 10-15 seconds, update to "Still analyzing... This may take up to 2 minutes"
+      - Add "Cancel" button that appears after 15 seconds
+      - Cancel button aborts the request and closes panel
+      - Show elapsed time counter (optional)
+    - Create success state (fresh vs cached indicator)
+    - Create empty results state
+    - Create error state with retry/settings buttons
+    - Add refreshing state (show previous results during refresh)
+    - _Requirements: 4.2, 4.3, 4.4, 4.6_
+  
+  - [ ] 7.3 Implement claims rendering
+    - Create claim article elements with role="article"
+    - Add aria-label with "Claim X of Y: {text}"
+    - Implement expand/collapse functionality with aria-expanded
+    - Render perspectives (scientific, journalistic, partisan left/right)
+    - Render bias indicators (fallacies, manipulation, deception score)
+    - Display confidence bars with percentage text
+    - _Requirements: 4.2, 4.3_
+  
+  - [ ] 7.4 Implement Refresh button functionality
+    - Create refresh button with aria-label
+    - Implement bypass cache logic (force fresh analysis)
+    - Update cache with new results on success
+    - Show previous results during refresh
+    - Handle refresh errors gracefully
+    - _Requirements: 5.4_
+
+- [ ] 8. Implement accessibility features for Analysis Panel
+  - [ ] 8.1 Implement basic keyboard navigation
+    - Add Escape key handler to close panel
+    - Implement Tab key focus cycling within panel
+    - Return focus to Analysis Button on close
+    - _Requirements: 4.7_
+  
+  - [ ] 8.2 Implement basic focus management
+    - Move focus to Close button on panel open
+    - Implement focus trapping within panel
+    - _Requirements: 4.7_
+  
+  - [ ]* 8.3 Implement advanced claim navigation
+    - Add Arrow Up/Down for claim navigation
+    - Add Arrow Right/Left for expand/collapse
+    - Add Home/End for first/last claim
+    - Manage tabindex programmatically for claims
+    - _Requirements: 4.7_
+  
+  - [ ]* 8.4 Create ClaimNavigator class
+    - Implement moveTo() for claim navigation
+    - Implement expandClaim() and collapseClaim()
+    - Add screen reader announcements
+    - Handle keyboard events (Arrow keys, Home, End)
+    - _Requirements: 4.7_
+  
+  - [ ]* 8.5 Add ARIA live regions and announcements
+    - Create claims container with role="region" aria-live="assertive"
+    - Add hidden announcer element for dynamic updates
+    - Announce state changes (loading, complete, error)
+    - Announce claim navigation feedback
+    - Announce expansion state changes
+    - _Requirements: 4.7_
+
+- [ ] 9. Implement popup UI
+  - [ ] 9.1 Create popup HTML structure
+    - Add status display area
+    - Add cache statistics display
+    - Add "Open Settings" button
+    - Add "Clear Cache" button
+    - _Requirements: 1.2, 1.7_
+  
+  - [ ] 9.2 Implement popup states
+    - Create "Not on YouTube" state
+    - Create "On YouTube - Idle" state
+    - Create "Analysis in Progress" state with progress bar
+    - Create "Analysis Complete" states (fresh vs cached)
+    - Create "Error" state
+    - Create "Not Configured" state
+    - _Requirements: 1.7, 6.1_
+  
+  - [ ] 9.3 Implement popup functionality
+    - Load and display current status
+    - Load and display cache statistics from CacheManager.getStats()
+    - Implement "Clear Cache" button handler
+    - Implement "Open Settings" button handler
+    - Add ARIA attributes for accessibility
+    - _Requirements: 1.2_
+
+- [ ] 10. Implement options page
+  - [ ] 10.1 Create options page HTML structure
+    - Add backend URL input field with label
+    - Add "Test Connection" button
+    - Add cache settings (enable checkbox, duration input)
+    - Add "Save Settings" button
+    - Add privacy controls section
+    - _Requirements: 1.2, 1.3_
+  
+  - [ ] 10.2 Implement backend URL validation
+    - Add real-time validation on input change
+    - Show validation errors inline
+    - Enforce HTTPS for non-localhost addresses
+    - Display user-friendly error messages using ConfigValidator.getUrlError()
+    - Disable Test/Save buttons when invalid
+    - _Requirements: 1.3, 1.4, 1.5, 7.3, 7.4_
+  
+  - [ ] 10.3 Implement Test Connection functionality
+    - Create testConnection() method pinging /health endpoint
+    - Implement 10-second timeout
+    - Show loading state (disable button, show spinner)
+    - Display success/failure messages
+    - Handle network errors, timeouts, HTTP errors
+    - _Requirements: 1.3_
+  
+  - [ ] 10.4 Implement settings persistence
+    - Load settings on page load using ConfigManager
+    - Implement save() handler with validation
+    - Show success message after save
+    - Handle save errors gracefully
+    - _Requirements: 1.6_
+  
+  - [ ] 10.5 Add privacy controls
+    - Add "Allow video analysis" checkbox
+    - Display backend URL warning
+    - Add "Clear All Cached Data" button
+    - Add "View Privacy Policy" link
+    - _Requirements: 7.1, 7.2, 7.7_
+
+- [ ] 11. Implement privacy and consent flow with versioning
+  - [ ] 11.1 Create privacy notice dialog with "Learn More" functionality
+    - Create first-time consent dialog HTML
+    - Add "Learn More", "Deny", "Allow and Continue" buttons
+    - Implement "Learn More" button behavior:
+      - Default: Open local privacy.html in new tab (chrome.tabs.create)
+      - Optional: Allow configuration of external privacy policy URL in settings
+      - If external URL configured, open that instead
+      - Log which privacy policy was shown (local vs external)
+    - Implement consent storage in chrome.storage.sync:
+      - Store: consentGiven (boolean), consentDate (timestamp), policyVersion (string)
+      - Current policy version: "1.0.0"
+    - Show dialog before first analysis attempt
+    - _Requirements: 7.7_
+  
+  - [ ] 11.2 Create privacy policy page with backend policies
+    - Write privacy.html with comprehensive privacy policy
+    - Document data transmission (video URLs to backend)
+    - Explain backend processing and retention
+    - Describe local caching and storage (24-hour default)
+    - **Backend data retention policy:**
+      - Document: Backend may log requests for debugging/analytics
+      - Document: Backend retention period (if known, or state "varies by backend")
+      - Document: User responsibility when using third-party backends
+      - Recommend: Configure backend to not retain data
+    - **User data deletion request flow:**
+      - Provide instructions for requesting data deletion
+      - For self-hosted: User controls their own data
+      - For third-party: Contact backend administrator
+      - Include template email/request form
+      - Document: Extension cannot delete backend data
+    - Add contact information for privacy questions
+    - Include policy version number at top: "Privacy Policy v1.0.0"
+    - _Requirements: 7.1, 7.2_
+  
+  - [ ] 11.3 Implement consent enforcement with revocation handling
+    - Check consent before allowing analysis
+    - Show settings link if consent denied
+    - **Consent revocation in settings:**
+      - Add "Revoke Consent" button in privacy settings section
+      - Show confirmation dialog: "This will cancel any pending analysis and clear all cached data"
+      - On revocation:
+        - Cancel all pending analysis requests (abort via AbortController)
+        - Clear all cached analysis results from chrome.storage.local
+        - Clear persisted request state (pending_request_* keys)
+        - Clear all chrome.alarms related to analysis
+        - Set consentGiven to false in chrome.storage.sync
+        - Log revocation event with timestamp
+    - **Consent revoked error state:**
+      - If analysis is in progress when consent revoked, show specific error:
+        - "Analysis cancelled: Consent revoked"
+        - "You can re-enable analysis in settings"
+      - Close analysis panel if open
+      - Disable analysis button with tooltip: "Consent required"
+    - _Requirements: 7.7_
+  
+  - [ ] 11.4 Implement privacy policy versioning
+    - Store current policy version in chrome.storage.sync:
+      - Key: `privacyPolicyVersion`
+      - Current version: "1.0.0"
+    - On extension startup or settings page load:
+      - Check stored policy version against current version
+      - If versions differ (policy updated):
+        - Show "Privacy Policy Updated" dialog
+        - Display summary of changes
+        - Require user to re-consent or deny
+        - Update stored version on consent
+    - **Version change dialog:**
+      - Title: "Privacy Policy Updated"
+      - Message: "Our privacy policy has been updated to version {new_version}"
+      - Show link to view full policy
+      - Buttons: "View Changes", "Decline", "Accept"
+      - If declined: Revoke consent (same as 11.3)
+      - If accepted: Update consent date and policy version
+    - Log policy version changes for audit trail
+    - _Requirements: 7.7_
+
+- [ ] 12. Implement navigation and cleanup handlers
+  - [ ] 12.1 Add YouTube SPA navigation detection
+    - **Video ID detection strategy decision:**
+      - **Option 1:** Poll current video ID at interval (e.g., every 500ms)
+        - Pros: Simple, reliable
+        - Cons: Continuous polling, slight delay
+      - **Option 2:** Listen for mutations on player container
+        - Pros: Event-driven, no polling
+        - Cons: Fragile (depends on YouTube DOM structure)
+      - **Option 3:** Detect location.pathname change to /watch?v=NEW_ID
+        - Pros: Reliable, event-driven
+        - Cons: Requires history API interception
+      - **Chosen strategy:** Hybrid approach (Option 3 + Option 1 fallback)
+        - Primary: Intercept history.pushState and history.replaceState
+        - Listen for popstate event (browser back/forward)
+        - Fallback: Poll every 1 second to catch missed changes
+        - Rationale: Reliable event-driven with safety net
+    - **Implementation:**
+      - Wrap history.pushState and history.replaceState
+      - Extract video ID from new URL on each change
+      - Compare with previous video ID
+      - If changed, trigger re-injection and panel update
+      - Add 1-second polling as fallback safety net
+    - Re-inject button if needed (check for existing button first)
+    - Update panel state for new video (close old panel, reset state)
+    - _Requirements: 2.5_
+  
+  - [ ] 12.2 Implement cleanup on navigation with explicit sequencing
+    - **Cleanup sequence (must follow this order to avoid races):**
+      1. **Disconnect MutationObserver:**
+         - Call observer.disconnect() for all observers
+         - Prevents new mutations from triggering during cleanup
+      2. **Cancel in-flight requests and clear timers:**
+         - Abort any pending analysis requests (AbortController)
+         - Clear all setTimeout/setInterval timers
+         - Clear announcement timeouts in ClaimNavigator
+         - Cancel any chrome.alarms related to current video
+      3. **Close and clean panel UI if open:**
+         - Call panel cleanup function (dispose/destroy)
+         - Remove panel from DOM
+         - Clear FocusManager and ClaimNavigator
+         - Remove announcer elements
+      4. **Remove event listeners:**
+         - Remove delegated keyboard handlers
+         - Remove button click handlers
+         - Remove history API wrappers
+         - Remove popstate listener
+    - **Race condition prevention:**
+      - Set cleanup flag before starting sequence
+      - Check flag in async callbacks (skip if cleanup in progress)
+      - Use try-finally to ensure cleanup completes
+    - Log cleanup completion for debugging
+    - _Requirements: 8.4_
+  
+  - [ ] 12.3 Add beforeunload handler (best-effort only)
+    - **Important: beforeunload is unreliable in modern browsers**
+      - Modern browsers may not fire beforeunload consistently
+      - Mobile browsers often skip beforeunload entirely
+      - Service workers may be terminated without beforeunload
+      - **Do NOT rely on beforeunload for critical state saving**
+    - **Critical state must be saved proactively:**
+      - Save request state immediately when starting analysis
+      - Update persisted state on each retry attempt
+      - Save consent/config changes immediately on user action
+      - Use chrome.storage.local.set() synchronously during operations
+    - **beforeunload handler (best-effort cleanup only):**
+      - Cancel in-flight requests (may not complete)
+      - Clear non-critical timers
+      - Log cleanup attempt (may not be written)
+      - Do NOT attempt to save critical state here
+    - **Document in code comments:**
+      - "beforeunload is unreliable - critical state saved proactively"
+      - "This handler is best-effort cleanup only"
+    - _Requirements: 8.4_
+
+- [ ]* 13. Implement logging with privacy protection
+  - [ ]* 13.1 Create sanitized logging utility
+    - Implement sanitizeForLog() function
+    - Define SanitizedLogEntry interface
+    - Ban full URLs, tokens, user IDs from logs
+    - Extract only video ID, error codes, endpoint paths
+    - _Requirements: 6.4_
+  
+  - [ ]* 13.2 Add structured logging throughout extension
+    - Log all API requests with sanitized data
+    - Log cache operations (hit/miss/eviction)
+    - Log selector success/failure for monitoring
+    - Log error details for debugging
+    - Store metrics in chrome.storage.local (last 100 entries)
+    - _Requirements: 6.4_
+
+- [ ] 14. Add styling and theming
+  - [ ] 14.1 Create content.css for injected button
+    - Style button to match YouTube UI
+    - Add button states (idle, loading, error, success)
+    - Ensure proper z-index and positioning
+    - Add hover and focus states
+    - _Requirements: 2.2, 2.3_
+  
+  - [ ] 14.2 Create panel styles with Shadow DOM
+    - Style panel container (fixed position, right side)
+    - Add dark mode support matching YouTube theme
+    - Style claims with expand/collapse animations
+    - Style confidence bars with percentage text
+    - Add responsive design (min 320px, max 480px)
+    - Ensure 4.5:1 color contrast ratio
+    - _Requirements: 4.5, 4.6_
+  
+  - [ ] 14.3 Create popup and options page styles
+    - Style popup with consistent branding
+    - Style options page form elements
+    - Add validation error styling
+    - Add loading state styling (spinners, disabled states)
+    - Ensure accessibility (focus indicators, touch targets)
+    - _Requirements: 1.2_
+
+- [ ] 15. Create welcome and onboarding experience
+  - [ ] 15.1 Create welcome page
+    - Design welcome.html with setup instructions
+    - Explain extension features
+    - Guide user to configure backend URL
+    - Add "Get Started" button linking to options page
+    - _Requirements: 1.1_
+  
+  - [ ] 15.2 Implement onboarding flow
+    - Show welcome page on first install
+    - Check if backend URL is configured
+    - Show setup notification if not configured
+    - Guide user through first analysis
+    - _Requirements: 1.1, 1.7_
+
+- [ ] 16. Implement testing and QA strategy
+  - [ ] 16.1 Set up unit testing framework
+    - Choose test framework: Jest or Vitest (recommended for Chrome extensions)
+    - Configure test environment for Chrome extension APIs (mock chrome.* APIs)
+    - Set up test file structure: `tests/unit/`
+    - Configure test coverage reporting (target: 80% coverage)
+    - Add npm scripts: `npm test`, `npm run test:coverage`, `npm run test:watch`
+    - _Requirements: All_
+  
+  - [ ] 16.2 Write unit tests for core components
+    - **ConfigValidator tests:**
+      - Test URL validation (HTTPS enforcement, localhost exception)
+      - Test allowInsecureUrls flag behavior
+      - Test getUrlError() messages
+      - Test cache duration validation (1-168 hours)
+      - Target coverage: 100%
+    - **CacheManager tests:**
+      - Test get/set/clear operations
+      - Test expiration logic (isExpired)
+      - Test cache eviction (LRU, quota exceeded)
+      - Test schema versioning and migration
+      - Test validateDataForCache()
+      - Target coverage: 90%
+    - **PerspectivePrismClient tests:**
+      - Test video ID validation (exactly 11 characters)
+      - Test request deduplication
+      - Test retry logic (2 retries, exponential backoff)
+      - Test timeout handling (120s)
+      - Test error formatting (formatUserError)
+      - Mock fetch API for testing
+      - Target coverage: 85%
+    - **Message handlers tests:**
+      - Test ANALYZE_VIDEO message handling
+      - Test CHECK_CACHE message handling
+      - Test message queueing during recovery
+      - Test retry-after responses
+      - Mock chrome.runtime.sendMessage
+      - Target coverage: 80%
+    - _Requirements: All_
+  
+  - [ ] 16.3 Write integration tests
+    - Set up integration test environment with Puppeteer or Playwright
+    - Configure headless Chrome with extension loaded
+    - **Full analysis flow test:**
+      - Navigate to YouTube video page
+      - Click analysis button
+      - Verify loading state shown
+      - Wait for analysis completion
+      - Verify results displayed in panel
+      - Verify cache hit on second analysis
+    - **Consent flow test:**
+      - Trigger first analysis
+      - Verify consent dialog shown
+      - Test "Deny" button (analysis blocked)
+      - Test "Allow" button (analysis proceeds)
+      - Test "Learn More" button (opens privacy policy)
+    - **Error handling test:**
+      - Test with invalid backend URL
+      - Test with backend timeout
+      - Test with no transcript available
+      - Verify error messages shown
+    - **Cache management test:**
+      - Analyze video (cache miss)
+      - Re-analyze same video (cache hit)
+      - Clear cache
+      - Verify cache cleared
+    - Add npm script: `npm run test:integration`
+    - _Requirements: All_
+  
+  - [ ] 16.4 Create manual testing checklist
+    - **YouTube Layout Variants:**
+      - [ ] Desktop standard layout
+      - [ ] Desktop theater mode
+      - [ ] Desktop fullscreen mode
+      - [ ] Mobile layout (m.youtube.com)
+      - [ ] Embedded videos (youtube-nocookie.com)
+      - [ ] YouTube Shorts
+      - [ ] YouTube with dark theme
+      - [ ] YouTube with light theme
+    - **Browser Compatibility:**
+      - [ ] Chrome (latest)
+      - [ ] Chrome (previous version)
+      - [ ] Edge (Chromium-based)
+      - [ ] Brave
+    - **Regression Scenarios:**
+      - [ ] Button injection after YouTube SPA navigation
+      - [ ] Panel state persistence during navigation
+      - [ ] Service worker recovery after termination
+      - [ ] Cache persistence across browser restarts
+      - [ ] Consent persistence across devices (sync)
+      - [ ] Privacy policy version update flow
+      - [ ] Long-running analysis (>15s) with cancel
+      - [ ] Multiple videos analyzed in sequence
+      - [ ] Rapid navigation between videos
+      - [ ] Analysis with backend offline
+    - **Accessibility Testing:**
+      - [ ] Keyboard navigation (Tab, Arrow keys, Escape)
+      - [ ] Screen reader announcements (NVDA/JAWS)
+      - [ ] Focus management (trap, return)
+      - [ ] Color contrast (WCAG AA)
+      - [ ] Touch targets (44x44px minimum)
+    - **Performance Testing:**
+      - [ ] Extension memory usage (<10MB)
+      - [ ] Page load impact (<100ms)
+      - [ ] Analysis response time (<5s for cached)
+      - [ ] Cache size monitoring
+    - _Requirements: All_
+  
+  - [ ] 16.5 Set up CI/CD testing pipeline
+    - Configure GitHub Actions or similar CI service
+    - **Automated test runs:**
+      - Run unit tests on every commit
+      - Run integration tests on pull requests
+      - Generate coverage reports
+      - Fail build if coverage drops below 75%
+    - **Automated checks:**
+      - Lint JavaScript/TypeScript (ESLint)
+      - Check manifest.json validity
+      - Verify all required permissions declared
+      - Check for console.log statements in production code
+      - Validate privacy policy version matches code
+    - **Test reporting:**
+      - Generate HTML coverage report
+      - Post coverage summary to PR comments
+      - Archive test results as artifacts
+      - Send notifications on test failures
+    - Add CI badge to README.md
+    - _Requirements: All_
+  
+  - [ ] 16.6 Create release QA checklist
+    - **Pre-release validation:**
+      - [ ] All unit tests passing (100%)
+      - [ ] All integration tests passing (100%)
+      - [ ] Manual testing checklist completed
+      - [ ] No console errors in production build
+      - [ ] Privacy policy version updated (if changed)
+      - [ ] Changelog updated with all changes
+      - [ ] Version number bumped in manifest.json
+    - **Build validation:**
+      - [ ] Extension loads without errors
+      - [ ] All icons display correctly
+      - [ ] Minified CSS/JS works correctly
+      - [ ] .zip package size reasonable (<5MB)
+      - [ ] No development code in production build
+    - **Store submission validation:**
+      - [ ] Screenshots up to date
+      - [ ] Store description accurate
+      - [ ] Privacy policy matches extension behavior
+      - [ ] Permissions justified in description
+    - **Acceptance criteria:**
+      - All automated tests pass
+      - Manual testing checklist 100% complete
+      - No critical or high-severity bugs
+      - Performance metrics within targets
+      - Accessibility requirements met (WCAG AA)
+    - _Requirements: All_
+
+- [ ]* 17. Package and prepare for distribution
+  - [ ]* 17.1 Create build process
+    - Minify CSS files
+    - Optimize images
+    - Create .zip package for Chrome Web Store
+    - _Requirements: All_
+  
+  - [ ]* 17.2 Prepare Chrome Web Store listing
+    - Write store description
+    - Create screenshots of extension in action
+    - Prepare promotional images
+    - Write detailed privacy policy for store
+    - _Requirements: All_
+  
+  - [ ]* 17.3 Create documentation
+    - Write README.md with installation instructions
+    - Document configuration options
+    - Add troubleshooting guide
+    - Include privacy and security information
+    - _Requirements: All_

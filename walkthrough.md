@@ -15,10 +15,14 @@ Verify that the Google Custom Search API integration works correctly after updat
 7.  **Verification**: Backend logs confirmed a **200 OK** response. Browser test successful: Analysis results loaded correctly after ~45s. Screenshot:
     ![Analysis Results](assets/analysis_results_final_loaded_1763756448328.png)
 
+8.  **Async Job Flow**: Refactored to use async job submission and polling. Browser test successful: Results loaded via polling after ~60s. Screenshot:
+    ![Async Analysis Results](/Users/pretermodernist/.gemini/antigravity/brain/1771e782-0e3e-466d-85e3-716c6fcc3b88/async_results_loaded_1763888835832.png)
+
 ## Results
 - **Google API**: Working (No longer returning 403 Forbidden).
 - **Backend Processing**: Working (Claims extracted, Evidence retrieved, Analysis completed).
 - **Bug Fixed**: `AttributeError: 'Evidence' object has no attribute 'text'` resolved.
 - **Performance**: Optimized to prevent timeouts.
+- **Async Flow**: Successfully implemented job-based processing to handle long-running tasks.
 
-The application is now ready for end-to-end usage.
+The application is now ready for end-to-end usage with robust async handling.
