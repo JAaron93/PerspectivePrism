@@ -12,6 +12,7 @@ import asyncio
 import logging
 import uuid
 from typing import Dict, Any, Optional
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,9 @@ evidence_retriever = EvidenceRetriever()
 analysis_service = AnalysisService()
 
 # Job Store (In-memory for MVP)
-# Structure: {job_id: {"status": JobStatus, "result": AnalysisResponse | None, "error": str | None}}
+# Structure: {job_id: {"status": JobStatus, "result": AnalysisResponse | None, "error": str | None, "created_at": datetime}}
 jobs: Dict[str, Dict[str, Any]] = {}
+jobs_lock = asyncio.Lock()
 
 @app.get("/")
 def read_root():
@@ -43,18 +45,46 @@ def read_root():
 def health_check():
     return {"status": "healthy"}
 
+async def cleanup_jobs():
+    """
+    Background task to clean up old jobs.
+    """
+    while True:
+        try:
+            await asyncio.sleep(300)  # Run every 5 minutes
+            async with jobs_lock:
+                now = datetime.utcnow()
+                jobs_to_remove = []
+                for job_id, job in jobs.items():
+                    if now - job["created_at"] > timedelta(hours=1):
+                        jobs_to_remove.append(job_id)
+                
+                for job_id in jobs_to_remove:
+                    del jobs[job_id]
+                
+                if jobs_to_remove:
+                    logger.info(f"Cleaned up {len(jobs_to_remove)} old jobs")
+        except Exception as e:
+            logger.error(f"Error in cleanup_jobs task: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_jobs())
+
 async def process_analysis(job_id: str, request: VideoRequest):
     """
     Background task to process the video analysis.
     """
     try:
-        jobs[job_id]["status"] = JobStatus.PROCESSING
+        async with jobs_lock:
+            if job_id in jobs:
+                jobs[job_id]["status"] = JobStatus.PROCESSING
+        
         logger.info(f"Starting analysis for job {job_id}, URL: {request.url}")
         
         # 1. Extract Video ID and Transcript
         video_id = claim_extractor.extract_video_id(str(request.url))
-        if not video_id:
-            raise ValueError("Invalid video URL: could not extract video ID")
+        # Validation is now done in create_analysis_job
         
         transcript = claim_extractor.get_transcript(video_id)
         
@@ -121,26 +151,37 @@ async def process_analysis(job_id: str, request: VideoRequest):
             truth_profiles=truth_profiles
         )
         
-        jobs[job_id]["status"] = JobStatus.COMPLETED
-        jobs[job_id]["result"] = result
+        async with jobs_lock:
+            if job_id in jobs:
+                jobs[job_id]["status"] = JobStatus.COMPLETED
+                jobs[job_id]["result"] = result
         logger.info(f"Job {job_id} completed successfully")
 
     except Exception as e:
         logger.exception(f"Error processing job {job_id}")
-        jobs[job_id]["status"] = JobStatus.FAILED
-        jobs[job_id]["error"] = str(e)
+        async with jobs_lock:
+            if job_id in jobs:
+                jobs[job_id]["status"] = JobStatus.FAILED
+                jobs[job_id]["error"] = str(e)
 
 @app.post("/analyze/jobs", response_model=JobResponse)
 async def create_analysis_job(request: VideoRequest, background_tasks: BackgroundTasks):
     """
     Starts a background job to analyze a YouTube video.
     """
+    # Validate video ID upfront
+    video_id = claim_extractor.extract_video_id(str(request.url))
+    if not video_id:
+        raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
+
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {
-        "status": JobStatus.PENDING,
-        "result": None,
-        "error": None
-    }
+    async with jobs_lock:
+        jobs[job_id] = {
+            "status": JobStatus.PENDING,
+            "result": None,
+            "error": None,
+            "created_at": datetime.utcnow()
+        }
     
     background_tasks.add_task(process_analysis, job_id, request)
     
@@ -151,16 +192,18 @@ async def get_job_status(job_id: str):
     """
     Retrieves the status and result of an analysis job.
     """
-    if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    job = jobs[job_id]
-    return JobStatusResponse(
-        job_id=job_id,
-        status=job["status"],
-        result=job["result"],
-        error=job["error"]
-    )
+    async with jobs_lock:
+        if job_id not in jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+        job = jobs[job_id]
+        # Return a copy or extract fields to avoid race conditions if job is modified after lock release
+        # (Though for simple dict access in this MVP, returning the values is fine)
+        return JobStatusResponse(
+            job_id=job_id,
+            status=job["status"],
+            result=job["result"],
+            error=job["error"]
+        )
 
 # Deprecated synchronous endpoint (kept for backward compatibility if needed, but we'll remove it or wrap it)
 # For now, we'll remove it to force usage of the new flow as per instructions to "replace"

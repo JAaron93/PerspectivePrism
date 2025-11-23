@@ -1,6 +1,8 @@
-# Updating Extension Specs
+# Updating ConfigValidator for Security
 
-- [x] Locate `.kiro/specs/youtube-chrome-extension/tasks.md`
-- [x] Read current content of task 5.4
-- [x] Update task 5.4 with debounce, retry logic, and SPA navigation cleanup
+- [x] Read `.kiro/specs/youtube-chrome-extension/design.md` (ConfigValidator section)
+- [x] Update `ConfigValidator.validate` method
+    - [x] Validate `allowInsecureUrls` type (boolean)
+    - [x] Add production safeguard (error if true in production)
+    - [x] Add warning if enabled in development
 - [ ] Verify changes

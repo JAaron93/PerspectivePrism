@@ -48,11 +48,14 @@ This document defines the requirements for a Chrome browser extension that integ
 
 #### Acceptance Criteria
 
-1. WHEN the user clicks the Analysis Button, THE Background Service Worker SHALL send an analysis request to the Perspective Prism Backend with the Video ID
-2. THE Extension SHALL display a loading indicator while the analysis is in progress
-3. IF the Perspective Prism Backend returns an error, THEN THE Extension SHALL display a user-friendly error message
-4. THE Extension SHALL handle network timeouts with a timeout duration of 120 seconds
-5. WHEN the analysis request is successful, THE Extension SHALL store the analysis results in persistent cache storage with a 24-hour expiration
+1. WHEN the user initiates analysis, THE Extension SHALL first check the persistent cache for existing results.
+2. IF valid cached results exist, THE Extension SHALL display them within 500 milliseconds.
+3. THE Extension SHALL asynchronously send a background analysis request to the Perspective Prism Backend (stale-while-revalidate pattern), respecting a 120-second timeout.
+4. THE Extension SHALL display a non-blocking loading indicator while the background refresh is in progress.
+5. WHEN the fresh analysis response is received, THE Extension SHALL compare its timestamp with the displayed results.
+6. IF the fresh result is newer, THE Extension SHALL replace the displayed results and update the cache with a new 24-hour expiration.
+7. IF the background refresh fails, THE Extension SHALL display a clear error message without removing the cached results (if visible).
+8. IF no cached results exist, THE Extension SHALL display a blocking loading indicator until the fresh analysis completes or fails.
 
 ### Requirement 4: Analysis Results Display
 
@@ -90,9 +93,10 @@ This document defines the requirements for a Chrome browser extension that integ
 
 1. IF the Perspective Prism Backend is unreachable, THEN THE Extension SHALL display an error message indicating connection failure
 2. IF the video has no available transcript, THEN THE Extension SHALL display a message explaining that analysis cannot be performed
-3. IF the analysis request fails, THEN THE Extension SHALL log detailed error information to the browser console for debugging
+3. IF the analysis request fails, THEN THE Extension SHALL log sanitized error metadata (HTTP status codes, error type/messages, timestamps, network timeouts, malformed URL indicators) to the browser console for debugging.
 4. THE Extension SHALL provide actionable error messages that guide users toward resolution
 5. WHEN an error occurs, THE Extension SHALL allow users to retry the analysis request
+6. THE Extension SHALL exclude video data, user information, and potentially sensitive backend responses from console logs and only log sanitized error metadata.
 
 ### Requirement 7: Privacy and Security
 
@@ -106,7 +110,17 @@ This document defines the requirements for a Chrome browser extension that integ
 4. THE Extension SHALL only allow HTTP connections to localhost addresses (127.0.0.1, localhost) for development purposes
 5. THE Extension SHALL store cached results locally in the browser storage only
 6. THE Extension SHALL not inject tracking scripts or third-party analytics
-7. THE Extension SHALL obtain explicit user consent before transmitting any video data to the backend
+7. THE Extension SHALL obtain explicit user consent via a dedicated dialog before the first analysis is performed (this is separate from and in addition to standard browser permission prompts)
+8. THE Consent Dialog SHALL clearly state:
+    - **Data Transmitted:** YouTube Video ID only
+    - **Purpose:** To retrieve analysis and truth profiles
+    - **Retention:** Data is cached locally; backend retention depends on configuration
+9. THE Extension SHALL provide the following consent options:
+    - "Always Allow" (persisted preference)
+    - "Ask Every Time" (per-video prompt)
+    - "Deny" (blocks analysis)
+10. THE Extension SHALL persist the user's consent preference in the extension settings and provide a clear option to revoke or change it at any time
+11. IF consent is refused or revoked, THE Extension SHALL block the analysis request and display a clear UI message: "Analysis cancelled. Consent is required to proceed."
 
 ### Requirement 8: Performance and Resource Management
 

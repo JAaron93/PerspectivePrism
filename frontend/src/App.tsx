@@ -64,7 +64,11 @@ function App() {
         throw new Error('Failed to start analysis job')
       }
 
-      const { job_id } = await createResponse.json()
+      const responseData = await createResponse.json()
+      if (!responseData.job_id) {
+        throw new Error('Invalid response: missing job_id')
+      }
+      const { job_id } = responseData
 
       // 2. Poll for Status
       const pollInterval = 2000 // 2 seconds

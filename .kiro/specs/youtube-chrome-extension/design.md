@@ -347,6 +347,7 @@ interface ExtensionConfig {
   cacheEnabled: boolean;
   cacheDuration: number; // hours
   allowInsecureUrls?: boolean; // Developer flag for HTTP URLs (default: false)
+  privacyPolicyUrl?: string; // Optional external privacy policy URL
 }
 
 // Default configuration values
@@ -354,7 +355,8 @@ const DEFAULT_CONFIG: ExtensionConfig = {
   backendUrl: 'http://localhost:8000',
   cacheEnabled: true,
   cacheDuration: 24,
-  allowInsecureUrls: false // Never enable in production
+  allowInsecureUrls: false, // Never enable in production
+  privacyPolicyUrl: undefined // Use built-in policy by default
 };
 
 // Configuration validator
@@ -383,6 +385,22 @@ class ConfigValidator {
         errors.push('cacheDuration must be a number');
       } else if (config.cacheDuration < 1 || config.cacheDuration > 168) {
         errors.push('cacheDuration must be between 1 and 168 hours');
+      }
+    }
+
+    // Validate allowInsecureUrls
+    if (config.allowInsecureUrls !== undefined) {
+      if (typeof config.allowInsecureUrls !== 'boolean') {
+        errors.push('allowInsecureUrls must be a boolean');
+      } else if (config.allowInsecureUrls === true) {
+        // Production Safeguard: Prevent enabling in production builds
+        // Note: process.env.NODE_ENV is replaced at build time
+        if (process.env.NODE_ENV === 'production') {
+          errors.push('allowInsecureUrls cannot be enabled in production');
+        } else {
+          // Development Warning
+          console.warn('SECURITY WARNING: allowInsecureUrls is enabled. This should only be used for local development.');
+        }
       }
     }
     
@@ -583,6 +601,63 @@ class PerspectivePrismClient {
     
     // Recover persisted requests on startup (MV3 service worker lifecycle)
     this.recoverPersistedRequests();
+    
+    // Setup alarm listener for retries
+    this.setupAlarmListener();
+  }
+  
+  /**
+   * Setup listener for retry alarms
+   * Handles resumption of analysis when alarm fires
+   */
+  private setupAlarmListener(): void {
+    chrome.alarms.onAlarm.addListener(async (alarm) => {
+      if (!alarm.name.startsWith('retry_')) return;
+      
+      try {
+        // Parse alarm name: retry_{videoId}_{attemptCount}
+        const parts = alarm.name.split('_');
+        if (parts.length !== 3) return;
+        
+        const videoId = parts[1];
+        const attemptCount = parseInt(parts[2], 10);
+        
+        console.log(`[PerspectivePrismClient] Retry alarm fired for ${videoId} (attempt ${attemptCount})`);
+        
+        // Get persisted state
+        const state = await this.getPersistedRequestState(videoId);
+        if (!state) {
+          console.warn(`[PerspectivePrismClient] No persisted state found for ${videoId}, aborting retry`);
+          return;
+        }
+        
+        // Resume analysis
+        // Note: executeAnalysisRequest handles the actual retry logic and state updates
+        const result = await this.executeAnalysisRequest(videoId, state.videoUrl);
+        
+        // Send result to tabs
+        // We use sendMessageWithRetry to ensure content scripts receive the update
+        await sendMessageWithRetry({
+          type: 'ANALYSIS_COMPLETE',
+          payload: result
+        }).catch(err => console.warn('Failed to notify tabs of retry result:', err));
+        
+        // Cleanup on success
+        if (result.success) {
+          await this.cleanupPersistedRequest(videoId);
+        } else {
+          // If failed, executeAnalysisRequest already logged it
+          // If max retries reached, it returns success=false
+          // We should cleanup if we're done retrying
+          if (attemptCount >= this.MAX_RETRIES) {
+            await this.cleanupPersistedRequest(videoId);
+          }
+        }
+        
+      } catch (error) {
+        console.error('[PerspectivePrismClient] Error in alarm handler:', error);
+      }
+    });
   }
   
   /**
@@ -1041,6 +1116,29 @@ class PerspectivePrismClient {
   private buildVideoUrl(videoId: string): string {
     return `https://www.youtube.com/watch?v=${videoId}`;
   }
+
+  /**
+   * Sanitize analysis text for display
+   * 
+   * Strategy:
+   * 1. Escape all HTML special characters to prevent XSS
+   * 2. Enforce textContent usage over innerHTML where possible
+   * 3. If HTML formatting is absolutely required, use DOMPurify
+   * 
+   * @param text - Raw text from analysis result
+   * @returns Sanitized text safe for display
+   */
+  private sanitizeAnalysisText(text: string): string {
+    if (!text) return '';
+    
+    // Basic HTML escaping
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
   
   // Get pending request count (for monitoring)
   getPendingRequestCount(): number {
@@ -1063,11 +1161,63 @@ class TimeoutError extends Error {
   }
 }
 
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
     this.name = 'ValidationError';
   }
+}
+
+/**
+ * Shared Messaging Utility
+ * 
+ * Provides robust message passing between content scripts and background service worker.
+ * Handles connection failures, timeouts, and retries with exponential backoff.
+ */
+async function sendMessageWithRetry(message: any): Promise<any> {
+  const MAX_ATTEMPTS = 4;
+  const BACKOFF_DELAYS = [0, 500, 1000, 2000]; // ms
+  
+  let lastError: any;
+  
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+          // Check for runtime errors (e.g., receiver not found)
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          
+          // Check for explicit error response from background
+          if (response && response.error) {
+            // Treat fatal/auth errors as non-retriable
+            if (response.error.code === 'AUTH_ERROR' || response.error.fatal) {
+              reject(new Error(response.error.message)); // Immediate failure
+              return;
+            }
+            reject(new Error(response.error.message));
+            return;
+          }
+          
+          resolve(response);
+        });
+      });
+    } catch (error: any) {
+      lastError = error;
+      
+      // Stop retrying if error is non-retriable (e.g., fatal)
+      if (error.message.includes('AUTH_ERROR') || error.message.includes('fatal')) {
+        break;
+      }
+      
+      // Wait before retry (if not last attempt)
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await new Promise(resolve => setTimeout(resolve, BACKOFF_DELAYS[attempt]));
+      }
+    }
+  }
+  
+  // Final failure: Surface clear error for UI
+  throw new Error(`Communication error: ${lastError?.message || 'Unknown error'}. Please reload the page.`);
 }
 
 // Result types
@@ -2587,9 +2737,6 @@ interface CacheStats {
       // Track timeout for cleanup
       this.announcementTimeouts.add(timeoutId);
       
-      // Wait for announcement to be read (longer for assertive)
-      const delay = priority === 'assertive' ? 1500 : 1000;
-      
       await new Promise(resolve => setTimeout(resolve, delay));
       
       // Clear only if message hasn't changed (prevents clearing queued message)
@@ -3450,8 +3597,9 @@ The extension transmits user data to analyze YouTube videos. Users must understa
 - User must explicitly click "Allow and Continue"
 - "Deny" prevents analysis and shows settings link
 - "Learn More" behavior:
-  - Default: Opens local `privacy.html` in new tab
-  - Optional: Can be configured to open external privacy policy URL
+  - Checks `config.privacyPolicyUrl` first
+  - If present: Opens external URL in new tab
+  - If missing: Opens built-in `privacy.html` in new tab
   - Logs which policy was shown (local vs external)
 - Consent stored in `chrome.storage.sync`:
   - `consentGiven`: boolean
