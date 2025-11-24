@@ -37,15 +37,11 @@ class PerspectivePrismClient {
 
         // Deduplication (Persistent)
         const persistedState = await this.getPersistedRequestState(videoId);
-        if (persistedState) {
+        if (persistedState && persistedState.status !== 'completed') {
             console.log(`[PerspectivePrismClient] Found persisted request for ${videoId}, waiting for completion`);
-            // In a real scenario, we might want to attach to the existing process, 
-            // but since service workers are ephemeral, we mainly rely on the alarm system to drive it.
-            // For the UI, we can return a "pending" status or similar, but for now let's just start a new request 
-            // if it's not in memory, effectively "attaching" to the logical request.
-            // However, to avoid double processing if the alarm is about to fire, we could check status.
-            // For simplicity in this MVP, if it's persisted but not in memory (worker restarted), 
-            // we can treat it as a new call that will update the persistence.
+            // Return a pending response immediately to avoid duplicate processing.
+            // The existing request (driven by alarm/persistence) will eventually complete and broadcast the result.
+            return { success: false, error: 'Analysis in progress (persisted)', videoId, status: 'pending' };
         }
 
         const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -108,8 +104,9 @@ class PerspectivePrismClient {
                     status: 'retrying'
                 });
 
-                // Schedule alarm
-                await chrome.alarms.create(`retry_${videoId}_${attempt + 1}`, {
+                // Schedule alarm with safe naming
+                const alarmName = `retry::${videoId}::${attempt + 1}`;
+                await chrome.alarms.create(alarmName, {
                     when: Date.now() + delay
                 });
 
@@ -192,13 +189,28 @@ class PerspectivePrismClient {
 
     async persistRequestState(state) {
         const key = `pending_request_${state.videoId}`;
-        // Preserve original startTime if possible, or pass it in. 
-        // For now, if we are updating, we might want to read first? 
-        // Or just trust the caller to pass the right state. 
-        // Let's read-modify-write to be safe if we want to keep startTime constant.
-        // But for efficiency, let's assume the caller manages it or we just overwrite.
-        // To be safe, let's just save what we are given.
-        await chrome.storage.local.set({ [key]: state });
+
+        // Read-modify-write to preserve existing fields (like startTime)
+        // This ensures that retries don't reset the original start time if it's not provided in the new state.
+        // Although executeAnalysisRequest currently passes Date.now(), this pattern is safer for future changes.
+        try {
+            const existing = await chrome.storage.local.get(key);
+            const existingState = existing[key] || {};
+
+            // Merge existing state with new state, prioritizing new state values
+            // but preserving startTime from existing if not in new (or if we want to enforce original)
+            // For now, we just merge.
+            const newState = { ...existingState, ...state };
+
+            // If we want to strictly preserve original startTime even if state has a new one:
+            if (existingState.startTime) {
+                newState.startTime = existingState.startTime;
+            }
+
+            await chrome.storage.local.set({ [key]: newState });
+        } catch (error) {
+            console.error(`[PerspectivePrismClient] Failed to persist request state for ${state.videoId}:`, error);
+        }
     }
 
     async getPersistedRequestState(videoId) {
@@ -216,7 +228,7 @@ class PerspectivePrismClient {
         // Or just clear all alarms starting with prefix.
         const alarms = await chrome.alarms.getAll();
         for (const alarm of alarms) {
-            if (alarm.name.startsWith(`retry_${videoId}_`)) {
+            if (alarm.name.startsWith(`retry::${videoId}::`)) {
                 await chrome.alarms.clear(alarm.name);
             }
         }
@@ -235,14 +247,27 @@ class PerspectivePrismClient {
                 await this.cleanupPersistedRequest(state.videoId);
             } else {
                 console.log(`[PerspectivePrismClient] Recovering request ${state.videoId}`);
-                // If it was 'pending' (worker died during request) or 'retrying' (waiting for alarm),
-                // we should ensure the alarm is set or just retry immediately?
-                // If the worker died, the alarm might still be there. 
-                // If the alarm fired and woke the worker, we are good.
-                // If the worker died *during* execution (status 'pending'), we might want to retry.
+
+                // Rate limiting: wait 500ms between recoveries to avoid overwhelming backend
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 if (state.status === 'pending') {
-                    // It was interrupted. Let's schedule a retry immediately or soon.
+                    // Interrupted during execution, retry immediately
                     await this.executeAnalysisRequest(state.videoId, state.videoUrl, state.attemptCount);
+                } else if (state.status === 'retrying') {
+                    // Check if alarm exists
+                    const nextAttempt = state.attemptCount + 1; // Assuming stored attempt is the last failed one
+                    // Actually, in executeAnalysisRequest we store attemptCount: attempt + 1 BEFORE scheduling alarm.
+                    // So state.attemptCount IS the attempt we are waiting for.
+                    const alarmName = `retry::${state.videoId}::${state.attemptCount}`;
+                    const alarm = await chrome.alarms.get(alarmName);
+
+                    if (!alarm) {
+                        console.warn(`[PerspectivePrismClient] Missing alarm for ${state.videoId}, rescheduling immediately`);
+                        // If alarm is missing, we should probably just execute it now or schedule it.
+                        // Let's execute it now to be safe and simple.
+                        await this.executeAnalysisRequest(state.videoId, state.videoUrl, state.attemptCount);
+                    }
                 }
             }
         }
@@ -250,22 +275,29 @@ class PerspectivePrismClient {
 
     setupAlarmListener() {
         chrome.alarms.onAlarm.addListener(async (alarm) => {
-            if (alarm.name.startsWith('retry_')) {
-                const parts = alarm.name.split('_');
-                const videoId = parts[1];
-                const attempt = parseInt(parts[2], 10);
+            if (alarm.name.startsWith('retry::')) {
+                const parts = alarm.name.split('::');
+                // Format: retry::videoId::attempt
+                if (parts.length !== 3) return;
 
-                console.log(`[PerspectivePrismClient] Alarm fired for ${videoId} attempt ${attempt}`);
+                const videoId = parts[1];
+                // We don't rely on the attempt from alarm name anymore, but it's there if needed.
+                const alarmAttempt = parseInt(parts[2], 10);
+
+                console.log(`[PerspectivePrismClient] Alarm fired for ${videoId}`);
                 const state = await this.getPersistedRequestState(videoId);
 
                 if (state) {
-                    const result = await this.executeAnalysisRequest(videoId, state.videoUrl, attempt);
-                    // If successful, we might want to notify the UI/content script.
-                    // But since the original promise is long gone (worker restart), 
-                    // we need a way to push the result.
+                    // Use state.attemptCount to ensure we are in sync with persistence
+                    const result = await this.executeAnalysisRequest(videoId, state.videoUrl, state.attemptCount);
+
                     if (result.success) {
                         this.broadcastResult(videoId, result.data);
                     }
+                } else {
+                    // Fallback for missing state
+                    console.error(`[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`);
+                    this.broadcastResult(videoId, { error: 'Analysis failed: State lost during recovery' });
                 }
             }
         });
