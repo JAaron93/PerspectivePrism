@@ -1,42 +1,52 @@
-# Implementation Plan - Configuration Management
+# Implementation Plan - Background Service Worker Core Functionality
 
 ## Goal Description
-Implement `ConfigValidator` and `ConfigManager` classes to handle extension configuration, validation, and persistence. This ensures that the backend URL and other settings are valid and securely stored.
+Implement the core functionality of the background service worker for the Perspective Prism Chrome Extension. This includes creating the `PerspectivePrismClient` class to handle API requests to the backend, implementing robust retry logic with exponential backoff, handling MV3 service worker lifecycle events (persistence and recovery of in-flight requests), and adding progress tracking.
 
 ## User Review Required
-> [!NOTE]
-> I will be creating a shared `config.js` file that will be used by the background script, content script, and popup/options pages. Since we are not using a bundler, this file will define classes in the global scope.
+> [!IMPORTANT]
+> This implementation relies on `chrome.storage.local` for persisting request state and `chrome.alarms` for retry scheduling to ensure operations survive service worker termination, which is a critical requirement for Manifest V3.
 
 ## Proposed Changes
 
-### Configuration Logic
-#### [NEW] [chrome-extension/config.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/config.js)
-- Create `ConfigValidator` class:
-    - `validate(config)`: Validates backend URL, cache settings, and developer flags.
-    - `isValidUrl(url, allowInsecureUrls)`: Enforces HTTPS (except localhost).
-    - `getUrlError(url)`: Returns user-friendly error messages.
-- Create `ConfigManager` class:
-    - `load()`: Loads config from `chrome.storage.sync` with fallback to `local`.
-    - `save(config)`: Saves config to `chrome.storage.sync` with fallback to `local`.
-    - `notifyInvalidConfig(errors)`: Notifies user of invalid configuration.
-- Define `DEFAULT_CONFIG` constant.
+### Chrome Extension
 
-### Manifest Update
-#### [MODIFY] [chrome-extension/manifest.json](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/manifest.json)
-- Add `config.js` to `content_scripts` js array (before `content.js`).
+#### [NEW] [client.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/client.js)
+- Create `PerspectivePrismClient` class.
+- Implement `analyzeVideo(videoId)` method with validation.
+- Implement `executeAnalysisRequest(videoId, videoUrl)` with retry logic.
+- Implement `makeAnalysisRequest(videoUrl)` with timeout (120s) and `AbortController`.
+- Implement `recoverPersistedRequests()` to load pending requests from `chrome.storage.local` on startup.
+- Implement `setupAlarmListener()` to handle retry alarms.
+- Implement `persistRequestState()` and `cleanupPersistedRequest()`.
+- Add request deduplication using `pendingRequests` Map.
 
-### Background Script Update
-#### [MODIFY] [chrome-extension/background.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/background.js)
-- Use `importScripts('config.js')` to load the configuration logic.
+#### [MODIFY] [background.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/background.js)
+- Import `client.js`.
+- Initialize `PerspectivePrismClient`.
+- Set up message listeners to handle `ANALYZE_VIDEO` requests from content scripts.
+- Integrate `PerspectivePrismClient` with the message handling logic.
 
 ## Verification Plan
 
 ### Automated Tests
-- I will create a test HTML page `test-config.html` that loads `config.js` and runs unit tests in the browser console to verify validation logic.
+- Since this is a Chrome Extension, standard unit tests are tricky without a mock environment. I will rely on manual verification and potentially adding a test HTML page if needed, but the primary verification will be manual.
+- I will create a `test-background.js` (or similar) if possible to run in a browser context, but for now, I will use the existing `test-config.html` pattern if applicable, or just manual testing via the extension.
 
 ### Manual Verification
-1. Load the updated extension.
-2. Open the background script console.
-3. Verify that `ConfigManager` and `ConfigValidator` are available.
-4. Test saving valid and invalid configurations using the console.
-5. Verify that `content.js` has access to these classes by checking the console on a YouTube page.
+1.  **Load Extension**: Load the unpacked extension in Chrome.
+2.  **Trigger Analysis**:
+    - Open a YouTube video.
+    - Click the "Analyze" button (if implemented) or manually trigger the message via DevTools console in the background page.
+    - `chrome.runtime.sendMessage({ type: 'ANALYZE_VIDEO', videoId: '...' })`
+3.  **Verify Persistence**:
+    - Trigger an analysis.
+    - Immediately terminate the service worker (via `chrome://serviceworker-internals/` or DevTools "Stop" button).
+    - Verify that the request resumes (or at least the state is preserved and retry alarm is set) when the service worker restarts (or alarm fires).
+4.  **Verify Retry Logic**:
+    - Simulate a network failure (offline mode).
+    - Trigger analysis.
+    - Verify retries happen with exponential backoff.
+5.  **Verify Deduplication**:
+    - Trigger analysis for the same video ID twice rapidly.
+    - Verify only one network request is made.

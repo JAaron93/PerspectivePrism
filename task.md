@@ -1,8 +1,15 @@
-# Updating ConfigValidator for Security
-
-- [x] Read `.kiro/specs/youtube-chrome-extension/design.md` (ConfigValidator section)
-- [x] Update `ConfigValidator.validate` method
-    - [x] Validate `allowInsecureUrls` type (boolean)
-    - [x] Add production safeguard (error if true in production)
-    - [x] Add warning if enabled in development
-- [ ] Verify changes
+- [ ] Explore existing chrome-extension structure and manifest.json <!-- id: 0 -->
+- [x] Create implementation_plan.md <!-- id: 1 -->
+- [x] Implement PerspectivePrismClient class <!-- id: 2 -->
+    - [x] Implement analyzeVideo() with validation <!-- id: 3 -->
+    - [x] Implement executeAnalysisRequest() with retry logic <!-- id: 4 -->
+    - [x] Implement makeAnalysisRequest() with timeout/abort <!-- id: 5 -->
+    - [x] Add request deduplication <!-- id: 6 -->
+- [x] Implement MV3 Lifecycle Handling <!-- id: 7 -->
+    - [x] Persist in-flight request state to chrome.storage.local <!-- id: 8 -->
+    - [x] Recover persisted requests on startup <!-- id: 9 -->
+    - [x] Use chrome.alarms for retry scheduling <!-- id: 10 -->
+    - [x] Clean up persisted state on completion <!-- id: 11 -->
+- [x] Add progress tracking <!-- id: 12 -->
+    - [x] Emit progress events <!-- id: 13 -->
+    - [x] Handle cancellation <!-- id: 14 -->

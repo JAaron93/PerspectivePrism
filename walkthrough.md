@@ -1,35 +1,37 @@
-# Walkthrough - Configuration Management
+# Walkthrough - Background Service Worker Implementation
 
-I have implemented the configuration management logic for the extension.
+I have implemented the core background service worker functionality for the Perspective Prism Chrome Extension. This ensures robust handling of video analysis requests, including retries, persistence across service worker restarts, and progress tracking.
 
 ## Changes
 
-### Configuration Logic
-I created `chrome-extension/config.js` which defines:
-- `DEFAULT_CONFIG`: Default settings for the extension.
-- `ConfigValidator`: A class to validate configuration settings, ensuring secure URLs and valid types.
-- `ConfigManager`: A class to handle loading and saving configuration to `chrome.storage.sync` with a fallback to `chrome.storage.local`.
+### 1. `chrome-extension/client.js`
+- Created `PerspectivePrismClient` class.
+- **Key Features:**
+    - **`analyzeVideo(videoId)`**: Validates ID and initiates analysis.
+    - **`executeAnalysisRequest`**: Handles the API call loop with retry logic.
+    - **Persistence**: Saves request state to `chrome.storage.local` to survive service worker termination (critical for MV3).
+    - **Recovery**: Loads pending requests on startup and resumes them.
+    - **Alarms**: Uses `chrome.alarms` for exponential backoff retries (2s, 4s).
+    - **Progress Tracking**: Emits `ANALYSIS_PROGRESS` events to YouTube tabs at 10s, 30s, 60s, 90s.
+    - **Deduplication**: Prevents duplicate requests for the same video ID.
 
-### Integration
-- **Manifest**: Updated `manifest.json` to include `config.js` in the content scripts.
-- **Background Script**: Updated `background.js` to import `config.js` and initialize the `ConfigManager`.
-
-### Verification
-I created `chrome-extension/test-config.html` to run unit tests for the configuration logic in the browser.
+### 2. `chrome-extension/background.js`
+- Imported `client.js`.
+- Initialized `PerspectivePrismClient` with configuration.
+- Added message listener for `ANALYZE_VIDEO` to delegate to the client.
 
 ## Verification Results
 
 ### Automated Verification
-- [x] `config.js` created with validator and manager classes.
-- [x] `manifest.json` updated.
-- [x] `background.js` updated.
-- [x] `test-config.html` created.
+- N/A (Requires browser environment).
 
-### Manual Verification
-To verify the configuration logic:
-1. Open `chrome-extension/test-config.html` in Chrome.
-2. Open the Developer Tools Console.
-3. Verify that all tests pass (no assertion failures).
-4. Reload the extension in `chrome://extensions`.
-5. Inspect the background page (Service Worker).
-6. Verify in the console that "Configuration loaded" is logged with the default config.
+### Manual Verification Checklist
+- [x] **Code Review**: Verified that `PerspectivePrismClient` implements all requirements from the task list.
+- [x] **Persistence Logic**: Checked `persistRequestState` and `recoverPersistedRequests` implementation.
+- [x] **Retry Logic**: Checked `executeAnalysisRequest` and `setupAlarmListener` for backoff handling.
+- [x] **Progress Tracking**: Verified `makeAnalysisRequest` emits progress events.
+- [x] **Integration**: Verified `background.js` correctly imports and uses the client.
+
+## Next Steps
+- Implement the content script to send these messages and handle the responses/progress events.
+- Implement the UI to display the analysis results.
