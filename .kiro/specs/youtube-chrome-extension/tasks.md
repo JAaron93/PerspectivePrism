@@ -12,8 +12,8 @@
     - `https://m.youtube.com/*` (mobile site)
   - _Requirements: 1.1, 1.2_
 
-- [ ] 2. Implement configuration management and validation
-  - [ ] 2.1 Create ConfigValidator class with URL validation
+- [x] 2. Implement configuration management and validation
+  - [x] 2.1 Create ConfigValidator class with URL validation
     - Implement isValidUrl() with HTTPS enforcement (except localhost)
     - Add optional developer flag `allowInsecureUrls` (default: false)
       - When enabled, permits HTTP URLs for dev/staging environments
@@ -23,7 +23,7 @@
     - Add validation for cacheEnabled and cacheDuration fields
     - _Requirements: 1.3, 1.4, 1.5, 7.3, 7.4_
   
-  - [ ] 2.2 Create ConfigManager class for settings persistence
+  - [x] 2.2 Create ConfigManager class for settings persistence
     - Implement load() with chrome.storage.sync and explicit fallback conditions:
       - Fallback to chrome.storage.local when:
         - chrome.storage.sync throws exception (quota exceeded, sync disabled)

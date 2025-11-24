@@ -1,51 +1,42 @@
-# Implementation Plan - Initialize Extension Project
+# Implementation Plan - Configuration Management
 
 ## Goal Description
-Initialize the Chrome extension project structure and manifest based on the requirements and design documents. This includes creating the directory structure, `manifest.json`, and placeholder icons.
+Implement `ConfigValidator` and `ConfigManager` classes to handle extension configuration, validation, and persistence. This ensures that the backend URL and other settings are valid and securely stored.
 
 ## User Review Required
 > [!NOTE]
-> I will be creating a new directory `chrome-extension` in the root of the repository.
+> I will be creating a shared `config.js` file that will be used by the background script, content script, and popup/options pages. Since we are not using a bundler, this file will define classes in the global scope.
 
 ## Proposed Changes
 
-### Extension Structure
-#### [NEW] [chrome-extension/manifest.json](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/manifest.json)
-- Create `manifest.json` with Manifest V3 configuration.
-- Configure permissions: `storage`, `activeTab`.
-- Configure host_permissions:
-    - `https://*.youtube.com/*`
-    - `https://youtu.be/*`
-    - `https://*.youtube-nocookie.com/*`
-    - `https://m.youtube.com/*`
+### Configuration Logic
+#### [NEW] [chrome-extension/config.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/config.js)
+- Create `ConfigValidator` class:
+    - `validate(config)`: Validates backend URL, cache settings, and developer flags.
+    - `isValidUrl(url, allowInsecureUrls)`: Enforces HTTPS (except localhost).
+    - `getUrlError(url)`: Returns user-friendly error messages.
+- Create `ConfigManager` class:
+    - `load()`: Loads config from `chrome.storage.sync` with fallback to `local`.
+    - `save(config)`: Saves config to `chrome.storage.sync` with fallback to `local`.
+    - `notifyInvalidConfig(errors)`: Notifies user of invalid configuration.
+- Define `DEFAULT_CONFIG` constant.
 
-#### [NEW] [chrome-extension/icons](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/icons)
-- Create directory for icons.
-- Add placeholder icons: `icon16.png`, `icon48.png`, `icon128.png`.
+### Manifest Update
+#### [MODIFY] [chrome-extension/manifest.json](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/manifest.json)
+- Add `config.js` to `content_scripts` js array (before `content.js`).
 
-#### [NEW] [chrome-extension/background.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/background.js)
-- Create empty background service worker file.
-
-#### [NEW] [chrome-extension/content.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/content.js)
-- Create empty content script file.
-
-#### [NEW] [chrome-extension/content.css](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/content.css)
-- Create empty content script CSS file.
-
-#### [NEW] [chrome-extension/popup.html](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/popup.html)
-- Create basic popup HTML.
-
-#### [NEW] [chrome-extension/options.html](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/options.html)
-- Create basic options HTML.
+### Background Script Update
+#### [MODIFY] [chrome-extension/background.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/background.js)
+- Use `importScripts('config.js')` to load the configuration logic.
 
 ## Verification Plan
 
 ### Automated Tests
-- None for this initial setup.
+- I will create a test HTML page `test-config.html` that loads `config.js` and runs unit tests in the browser console to verify validation logic.
 
 ### Manual Verification
-1. Open Chrome and navigate to `chrome://extensions`.
-2. Enable "Developer mode".
-3. Click "Load unpacked" and select the `chrome-extension` directory.
-4. Verify that the extension loads without errors.
-5. Verify that the permissions and host permissions are correctly listed in the extension details.
+1. Load the updated extension.
+2. Open the background script console.
+3. Verify that `ConfigManager` and `ConfigValidator` are available.
+4. Test saving valid and invalid configurations using the console.
+5. Verify that `content.js` has access to these classes by checking the console on a YouTube page.

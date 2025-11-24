@@ -1,44 +1,35 @@
-# Walkthrough - Extension Initialization
+# Walkthrough - Configuration Management
 
-I have initialized the Chrome extension project structure and manifest.
+I have implemented the configuration management logic for the extension.
 
 ## Changes
 
-### Directory Structure
-I created the `chrome-extension` directory with the following structure:
-- `manifest.json`: Manifest V3 configuration.
-- `background.js`: Empty background service worker.
-- `content.js`: Empty content script.
-- `content.css`: Empty content script CSS.
-- `popup.html`: Basic popup HTML.
-- `options.html`: Basic options HTML.
-- `icons/`: Directory containing `icon16.png`, `icon48.png`, and `icon128.png`.
+### Configuration Logic
+I created `chrome-extension/config.js` which defines:
+- `DEFAULT_CONFIG`: Default settings for the extension.
+- `ConfigValidator`: A class to validate configuration settings, ensuring secure URLs and valid types.
+- `ConfigManager`: A class to handle loading and saving configuration to `chrome.storage.sync` with a fallback to `chrome.storage.local`.
 
-### Manifest Configuration
-The `manifest.json` is configured with:
-- **Permissions**: `storage`, `activeTab`
-- **Host Permissions**:
-    - `https://*.youtube.com/*`
-    - `https://youtu.be/*`
-    - `https://*.youtube-nocookie.com/*`
-    - `https://m.youtube.com/*`
+### Integration
+- **Manifest**: Updated `manifest.json` to include `config.js` in the content scripts.
+- **Background Script**: Updated `background.js` to import `config.js` and initialize the `ConfigManager`.
 
-### Icons
-I generated a placeholder icon and resized it to 16px, 48px, and 128px.
+### Verification
+I created `chrome-extension/test-config.html` to run unit tests for the configuration logic in the browser.
 
 ## Verification Results
 
 ### Automated Verification
-- [x] Directory structure created.
-- [x] Manifest file created with correct permissions.
-- [x] Icons generated and placed in `icons/` directory.
+- [x] `config.js` created with validator and manager classes.
+- [x] `manifest.json` updated.
+- [x] `background.js` updated.
+- [x] `test-config.html` created.
 
 ### Manual Verification
-To manually verify the extension:
-1. Open Chrome and navigate to `chrome://extensions`.
-2. Enable "Developer mode" (toggle in the top right).
-3. Click "Load unpacked".
-4. Select the `chrome-extension` directory in your project.
-5. Verify that the extension loads without errors.
-6. Verify that the icon appears in the toolbar.
-7. Click the extension icon to see the popup.
+To verify the configuration logic:
+1. Open `chrome-extension/test-config.html` in Chrome.
+2. Open the Developer Tools Console.
+3. Verify that all tests pass (no assertion failures).
+4. Reload the extension in `chrome://extensions`.
+5. Inspect the background page (Service Worker).
+6. Verify in the console that "Configuration loaded" is logged with the default config.

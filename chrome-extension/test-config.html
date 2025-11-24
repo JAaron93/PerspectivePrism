@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Config Test</title>
+    <script src="config.js"></script>
+</head>
+
+<body>
+    <h1>Config Test</h1>
+    <p>Open console to see test results.</p>
+    <script>
+        console.log('Running Config Tests...');
+
+        // Test Validator
+        console.group('ConfigValidator Tests');
+
+        // Valid URL
+        console.assert(ConfigValidator.isValidUrl('https://example.com') === true, 'https://example.com should be valid');
+        console.assert(ConfigValidator.isValidUrl('http://localhost:8000') === true, 'http://localhost:8000 should be valid');
+
+        // Invalid URL
+        console.assert(ConfigValidator.isValidUrl('http://example.com') === false, 'http://example.com should be invalid (no HTTPS)');
+        console.assert(ConfigValidator.isValidUrl('ftp://example.com') === false, 'ftp://example.com should be invalid (wrong protocol)');
+
+        // Allow Insecure
+        console.assert(ConfigValidator.isValidUrl('http://example.com', true) === true, 'http://example.com should be valid with allowInsecureUrls=true');
+
+        // Validate Config Object
+        const validConfig = { ...DEFAULT_CONFIG };
+        const validResult = ConfigValidator.validate(validConfig);
+        console.assert(validResult.valid === true, 'Default config should be valid');
+
+        const invalidConfig = { ...DEFAULT_CONFIG, backendUrl: 'http://example.com' };
+        const invalidResult = ConfigValidator.validate(invalidConfig);
+        console.assert(invalidResult.valid === false, 'Config with http backend should be invalid');
+        console.assert(invalidResult.errors.length > 0, 'Should have errors');
+
+        console.groupEnd();
+
+        console.log('Tests Complete');
+    </script>
+</body>
+
+</html>
