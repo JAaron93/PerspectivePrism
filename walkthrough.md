@@ -1,6 +1,6 @@
 # Walkthrough - Background Service Worker Implementation
 
-I have implemented the core background service worker functionality for the Perspective Prism Chrome Extension. This ensures robust handling of video analysis requests, including retries, persistence across service worker restarts, and progress tracking.
+I have implemented the core background service worker functionality for the Perspective Prism Chrome Extension. This ensures robust handling of video analysis requests, including retries, persistence across service worker restarts, progress tracking, and comprehensive error handling.
 
 ## Changes
 
@@ -11,6 +11,7 @@ I have implemented the core background service worker functionality for the Pers
         - **Promise Attachment**: If a persisted request exists, returns a Promise that resolves when the request completes (via `notifyCompletion`), ensuring consistent API behavior.
     - **`executeAnalysisRequest`**: Handles the API call loop with retry logic.
         - **Notification**: Calls `notifyCompletion` on success or terminal failure to resolve attached promises and broadcast to tabs.
+        - **Error Handling**: Uses `formatUserError` to provide user-friendly messages and `logError` for sanitized logging.
     - **Persistence**: Saves request state to `chrome.storage.local` to survive service worker termination (critical for MV3).
         - **Read-Modify-Write**: Implemented safe state updates to preserve original `startTime` and other fields during retries.
     - **Recovery**: Loads pending requests on startup and resumes them.
@@ -20,6 +21,9 @@ I have implemented the core background service worker functionality for the Pers
         - **Safe Naming**: Uses `retry::videoId::attempt` to avoid collisions with video IDs.
     - **Progress Tracking**: Emits `ANALYSIS_PROGRESS` events to YouTube tabs at 10s, 30s, 60s, 90s.
     - **Deduplication**: Prevents duplicate requests for the same video ID (both in-memory and persistent).
+    - **Validation**: Implemented `validateAnalysisData` to ensure API responses match the expected schema.
+    - **Custom Errors**: Added `HttpError`, `TimeoutError`, and `ValidationError` for precise error handling.
+    - **Retry Logic**: Refined `shouldRetryError` to retry on timeouts and server errors (5xx, 429) but fail fast on client errors (4xx) and validation errors.
 
 ### 2. `chrome-extension/background.js`
 - Imported `client.js`.
@@ -38,6 +42,7 @@ I have implemented the core background service worker functionality for the Pers
 - [x] **Progress Tracking**: Verified `makeAnalysisRequest` emits progress events.
 - [x] **Integration**: Verified `background.js` correctly imports and uses the client.
 - [x] **Refinements**: Verified safe alarm naming, rate-limited recovery, proper deduplication, read-modify-write persistence, and Promise-based attachment.
+- [x] **Error Handling**: Verified custom errors, retry logic, user formatting, and sanitized logging.
 
 ## Next Steps
 - Implement the content script to send these messages and handle the responses/progress events.

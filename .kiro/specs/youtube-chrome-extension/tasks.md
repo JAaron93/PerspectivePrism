@@ -77,11 +77,11 @@
     - [x] Throw ValidationError for invalid responses
     - _Requirements: 3.3_
   
-  - [ ] 3.3 Implement error handling and user-friendly messages
-    - Create custom error classes (HttpError, TimeoutError, ValidationError)
-    - Implement shouldRetryError() logic (retry on timeout/5xx, not on 4xx)
-    - Implement formatUserError() for user-facing error messages
-    - Add error logging with sanitization (no URLs, tokens, or PII)
+  - [x] 3.3 Implement error handling and user-friendly messages
+    - [x] Create custom error classes (HttpError, TimeoutError, ValidationError)
+    - [x] Implement shouldRetryError() logic (retry on timeout/5xx, not on 4xx)
+    - [x] Implement formatUserError() for user-facing error messages
+    - [x] Add error logging with sanitization (no URLs, tokens, or PII)
     - _Requirements: 3.2, 3.3, 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 4. Implement cache management with versioning and migration

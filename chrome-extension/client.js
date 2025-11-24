@@ -95,7 +95,7 @@ class PerspectivePrismClient {
             return successResult;
 
         } catch (error) {
-            console.error(`[PerspectivePrismClient] Analysis failed for ${videoId} (attempt ${attempt}):`, error);
+            this.logError(`Analysis failed for ${videoId} (attempt ${attempt})`, error);
 
             // Check if we should retry
             if (attempt < this.MAX_RETRIES && this.shouldRetryError(error)) {
@@ -127,7 +127,8 @@ class PerspectivePrismClient {
             } else {
                 // Terminal failure
                 await this.cleanupPersistedRequest(videoId);
-                const errorResult = { success: false, error: error.message };
+                const userMessage = this.formatUserError(error);
+                const errorResult = { success: false, error: userMessage, originalError: error.message };
                 this.notifyCompletion(videoId, errorResult);
                 return errorResult;
             }
@@ -140,7 +141,9 @@ class PerspectivePrismClient {
      */
     async makeAnalysisRequest(videoUrl, videoId) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, this.TIMEOUT_MS);
 
         // Progress tracking
         const progressIntervals = [10000, 30000, 60000, 90000];
@@ -168,13 +171,17 @@ class PerspectivePrismClient {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                throw new HttpError(response.status, response.statusText);
             }
 
             const data = await response.json();
             this.validateAnalysisData(data);
             return data;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new TimeoutError('Analysis request timed out');
+            }
+            throw error;
         } finally {
             clearTimeout(timeoutId);
             progressTimers.forEach(t => clearTimeout(t));
@@ -195,11 +202,59 @@ class PerspectivePrismClient {
     }
 
     shouldRetryError(error) {
-        // Don't retry on 4xx errors (except 429? maybe, but let's keep it simple)
-        if (error.message.includes('HTTP error 4')) {
+        // Don't retry validation errors
+        if (error instanceof ValidationError) {
             return false;
         }
-        return true; // Retry on network errors, 5xx, timeouts
+
+        // Retry on TimeoutError
+        if (error instanceof TimeoutError) {
+            return true;
+        }
+
+        // Retry on HttpError if 5xx or 429
+        if (error instanceof HttpError) {
+            if (error.status === 429 || error.status >= 500) {
+                return true;
+            }
+            return false; // Don't retry other 4xx errors
+        }
+
+        // Retry on network errors (fetch failures usually don't have status)
+        return true;
+    }
+
+    formatUserError(error) {
+        if (error instanceof ValidationError) {
+            return 'The analysis data received was invalid. Please try again.';
+        }
+        if (error instanceof TimeoutError) {
+            return ' The analysis took too long. Please try again later.';
+        }
+        if (error instanceof HttpError) {
+            if (error.status === 429) {
+                return 'Too many requests. Please wait a moment and try again.';
+            }
+            if (error.status >= 500) {
+                return 'Our servers are experiencing issues. Please try again later.';
+            }
+            return `Unable to complete analysis (Error ${error.status}).`;
+        }
+        return 'An unexpected error occurred. Please try again.';
+    }
+
+    logError(context, error) {
+        // Sanitize error message to remove potential PII or tokens
+        // (Basic implementation: ensure no obvious URL params or long strings that look like tokens)
+        let message = error.message || 'Unknown error';
+
+        // Redact potential URLs
+        message = message.replace(/https?:\/\/[^\s]+/g, '[URL REDACTED]');
+
+        console.error(`[PerspectivePrismClient] ${context}: ${message}`, {
+            name: error.name,
+            stack: error.stack // Stack trace is usually safe in extension context but good to be aware
+        });
     }
 
     // --- Persistence & Lifecycle ---
@@ -423,6 +478,22 @@ class ValidationError extends Error {
     constructor(message) {
         super(message);
         this.name = 'ValidationError';
+    }
+}
+
+class HttpError extends Error {
+    constructor(status, statusText) {
+        super(`HTTP error ${status}: ${statusText}`);
+        this.name = 'HttpError';
+        this.status = status;
+        this.statusText = statusText;
+    }
+}
+
+class TimeoutError extends Error {
+    constructor(message = 'Request timed out') {
+        super(message);
+        this.name = 'TimeoutError';
     }
 }
 
