@@ -16,6 +16,8 @@ class PerspectivePrismClient {
 
         // Setup alarm listener for retries
         this.setupAlarmListener();
+
+        this.pendingResolvers = new Map(); // Map<videoId, Array<{resolve, reject, timeoutId}>>
     }
 
     /**
@@ -38,10 +40,18 @@ class PerspectivePrismClient {
         // Deduplication (Persistent)
         const persistedState = await this.getPersistedRequestState(videoId);
         if (persistedState && persistedState.status !== 'completed') {
-            console.log(`[PerspectivePrismClient] Found persisted request for ${videoId}, waiting for completion`);
-            // Return a pending response immediately to avoid duplicate processing.
-            // The existing request (driven by alarm/persistence) will eventually complete and broadcast the result.
-            return { success: false, error: 'Analysis in progress (persisted)', videoId, status: 'pending' };
+            console.log(`[PerspectivePrismClient] Attaching to persisted request for ${videoId}`);
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    this.removeResolver(videoId, resolve);
+                    // Resolve with error instead of rejecting to match API contract
+                    resolve({ success: false, error: 'Analysis timed out (persisted)', videoId });
+                }, this.TIMEOUT_MS);
+
+                const resolvers = this.pendingResolvers.get(videoId) || [];
+                resolvers.push({ resolve, reject, timeoutId });
+                this.pendingResolvers.set(videoId, resolvers);
+            });
         }
 
         const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -78,8 +88,11 @@ class PerspectivePrismClient {
             const result = await this.makeAnalysisRequest(videoUrl, videoId);
 
             // Success
+            // Success
             await this.cleanupPersistedRequest(videoId);
-            return { success: true, data: result };
+            const successResult = { success: true, data: result };
+            this.notifyCompletion(videoId, successResult);
+            return successResult;
 
         } catch (error) {
             console.error(`[PerspectivePrismClient] Analysis failed for ${videoId} (attempt ${attempt}):`, error);
@@ -113,8 +126,11 @@ class PerspectivePrismClient {
                 return { success: false, error: 'Analysis in progress (retrying)', isRetry: true };
             } else {
                 // Terminal failure
+                // Terminal failure
                 await this.cleanupPersistedRequest(videoId);
-                return { success: false, error: error.message };
+                const errorResult = { success: false, error: error.message };
+                this.notifyCompletion(videoId, errorResult);
+                return errorResult;
             }
         }
     }
@@ -289,11 +305,8 @@ class PerspectivePrismClient {
 
                 if (state) {
                     // Use state.attemptCount to ensure we are in sync with persistence
-                    const result = await this.executeAnalysisRequest(videoId, state.videoUrl, state.attemptCount);
-
-                    if (result.success) {
-                        this.broadcastResult(videoId, result.data);
-                    }
+                    await this.executeAnalysisRequest(videoId, state.videoUrl, state.attemptCount);
+                    // executeAnalysisRequest handles notification on completion
                 } else {
                     // Fallback for missing state
                     console.error(`[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`);
@@ -303,17 +316,42 @@ class PerspectivePrismClient {
         });
     }
 
-    broadcastResult(videoId, data) {
+    notifyCompletion(videoId, result) {
+        // 1. Broadcast to tabs
         chrome.tabs.query({ url: '*://*.youtube.com/*' }, (tabs) => {
             for (const tab of tabs) {
                 chrome.tabs.sendMessage(tab.id, {
                     type: 'ANALYSIS_RESULT',
                     videoId,
-                    data,
-                    success: true
+                    data: result.data,
+                    error: result.error,
+                    success: result.success
                 }).catch(() => { }); // Ignore errors for tabs that don't listen
             }
         });
+
+        // 2. Resolve pending local promises
+        const resolvers = this.pendingResolvers.get(videoId);
+        if (resolvers) {
+            resolvers.forEach(({ resolve, timeoutId }) => {
+                clearTimeout(timeoutId);
+                resolve(result);
+            });
+            this.pendingResolvers.delete(videoId);
+        }
+    }
+
+    removeResolver(videoId, resolve) {
+        const resolvers = this.pendingResolvers.get(videoId);
+        if (resolvers) {
+            const index = resolvers.findIndex(r => r.resolve === resolve);
+            if (index !== -1) {
+                resolvers.splice(index, 1);
+                if (resolvers.length === 0) {
+                    this.pendingResolvers.delete(videoId);
+                }
+            }
+        }
     }
 }
 

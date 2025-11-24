@@ -8,7 +8,9 @@ I have implemented the core background service worker functionality for the Pers
 - Created `PerspectivePrismClient` class.
 - **Key Features:**
     - **`analyzeVideo(videoId)`**: Validates ID and initiates analysis. Checks for persisted requests to prevent duplicates.
+        - **Promise Attachment**: If a persisted request exists, returns a Promise that resolves when the request completes (via `notifyCompletion`), ensuring consistent API behavior.
     - **`executeAnalysisRequest`**: Handles the API call loop with retry logic.
+        - **Notification**: Calls `notifyCompletion` on success or terminal failure to resolve attached promises and broadcast to tabs.
     - **Persistence**: Saves request state to `chrome.storage.local` to survive service worker termination (critical for MV3).
         - **Read-Modify-Write**: Implemented safe state updates to preserve original `startTime` and other fields during retries.
     - **Recovery**: Loads pending requests on startup and resumes them.
@@ -35,7 +37,7 @@ I have implemented the core background service worker functionality for the Pers
 - [x] **Retry Logic**: Checked `executeAnalysisRequest` and `setupAlarmListener` for backoff handling.
 - [x] **Progress Tracking**: Verified `makeAnalysisRequest` emits progress events.
 - [x] **Integration**: Verified `background.js` correctly imports and uses the client.
-- [x] **Refinements**: Verified safe alarm naming, rate-limited recovery, proper deduplication, and read-modify-write persistence.
+- [x] **Refinements**: Verified safe alarm naming, rate-limited recovery, proper deduplication, read-modify-write persistence, and Promise-based attachment.
 
 ## Next Steps
 - Implement the content script to send these messages and handle the responses/progress events.
