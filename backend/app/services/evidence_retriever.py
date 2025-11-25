@@ -95,6 +95,14 @@ class EvidenceRetriever:
                 e.response.text[:200],
                 exc_info=True
             )
+            if e.response.status_code == 429:
+                return [Evidence(
+                    url="https://developers.google.com/custom-search/v1/overview",
+                    title="Search Quota Exceeded",
+                    snippet="The daily quota for Google Custom Search API has been exceeded. Unable to retrieve live evidence for this perspective.",
+                    source="System",
+                    perspective=perspective
+                )]
             return []
         except httpx.TimeoutException:
             # Request timed out - recoverable, can retry later

@@ -1,1 +1,43 @@
-/* Content script CSS */
+/* Perspective Prism Content Styles */
+
+.pp-ext-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f1f1;
+    color: #0f0f0f;
+    border: none;
+    border-radius: 18px;
+    padding: 0 16px;
+    height: 36px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: Roboto, Arial, sans-serif;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: background-color 0.2s;
+}
+
+.pp-ext-button:hover {
+    background-color: #d9d9d9;
+}
+
+.pp-ext-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pp-icon {
+    margin-right: 6px;
+    font-size: 16px;
+}
+
+/* Dark mode support (basic) */
+html[dark] .pp-ext-button {
+    background-color: #272727;
+    color: #f1f1f1;
+}
+
+html[dark] .pp-ext-button:hover {
+    background-color: #3f3f3f;
+}

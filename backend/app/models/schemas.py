@@ -56,9 +56,30 @@ class TruthProfile(BaseModel):
     bias_analysis: BiasAnalysis
     overall_assessment: str
 
+class AnalysisMetadata(BaseModel):
+    analyzed_at: str
+    video_id: str
+
+class BiasIndicators(BaseModel):
+    logical_fallacies: List[str] = []
+    emotional_manipulation: List[str] = []
+    deception_score: float
+
+class ClientTruthProfile(BaseModel):
+    overall_assessment: str
+    perspectives: Dict[str, PerspectiveAnalysis]
+    bias_indicators: BiasIndicators
+
+class ClientClaimAnalysis(BaseModel):
+    claim_text: str
+    video_timestamp_start: Optional[float] = None
+    video_timestamp_end: Optional[float] = None
+    truth_profile: ClientTruthProfile
+
 class AnalysisResponse(BaseModel):
     video_id: str
-    truth_profiles: List[TruthProfile]
+    metadata: AnalysisMetadata
+    claims: List[ClientClaimAnalysis]
 
 class JobResponse(BaseModel):
     job_id: str

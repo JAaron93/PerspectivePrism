@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.models.schemas import (
     VideoRequest, AnalysisResponse, TruthProfile, PerspectiveType,
-    JobResponse, JobStatusResponse, JobStatus
+    JobResponse, JobStatusResponse, JobStatus,
+    AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators
 )
 from app.services.claim_extractor import ClaimExtractor
 from app.services.evidence_retriever import EvidenceRetriever
@@ -27,10 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Initialize services
 claim_extractor = ClaimExtractor()
 evidence_retriever = EvidenceRetriever()
 analysis_service = AnalysisService()
+
 
 # Job Store (In-memory for MVP)
 # Structure: {job_id: {"status": JobStatus, "result": AnalysisResponse | None, "error": str | None, "created_at": datetime}}
@@ -83,6 +86,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
             if job_id in jobs:
                 jobs[job_id]["status"] = JobStatus.PROCESSING
         
+        print(f"DEBUG: Starting analysis for job {job_id}, URL: {request.url}")
         logger.info(f"Starting analysis for job {job_id}, URL: {request.url}")
         
         # 1. Extract Video ID and Transcript
@@ -95,14 +99,16 @@ async def process_analysis(job_id: str, request: VideoRequest):
         claims = await claim_extractor.extract_claims(transcript)
         
         # Process claims with a reasonable limit
-        MAX_CLAIMS_PER_REQUEST = 10  # Consider moving to settings
+        MAX_CLAIMS_PER_REQUEST = 1  # Reduced to 1 for immediate feedback/debugging
         if len(claims) > MAX_CLAIMS_PER_REQUEST:
             logger.warning(f"Video has {len(claims)} claims, limiting to {MAX_CLAIMS_PER_REQUEST}")
         claims_to_process = claims[:MAX_CLAIMS_PER_REQUEST]
         
-        truth_profiles = []
+        claims_to_return = []
         
-        for claim in claims_to_process:
+        for i, claim in enumerate(claims_to_process):
+            print(f"DEBUG: Processing claim {i+1}/{len(claims_to_process)}: {claim.text[:50]}...")
+            logger.info(f"Processing claim {i+1}/{len(claims_to_process)}: {claim.id}")
             
             # 3. Retrieve Evidence (Parallelize perspectives)
             perspectives = [
@@ -142,16 +148,40 @@ async def process_analysis(job_id: str, request: VideoRequest):
             elif bias_analysis.deception_rating > 7:
                 overall_assessment = "Suspicious/Deceptive"
                 
-            truth_profiles.append(TruthProfile(
-                claim=claim,
-                perspectives=perspective_analyses,
-                bias_analysis=bias_analysis,
-                overall_assessment=overall_assessment
+            # Map to ClientClaimAnalysis
+            client_perspectives = {}
+            for p in perspective_analyses:
+                # Convert to dict and add 'assessment' field for UI compatibility
+                p_dict = p.dict()
+                p_dict['assessment'] = p.stance  # UI expects 'assessment'
+                client_perspectives[p.perspective.value] = p_dict
+            
+            bias_indicators = BiasIndicators(
+                logical_fallacies=[], # MVP placeholder
+                emotional_manipulation=[], # MVP placeholder
+                deception_score=bias_analysis.deception_rating
+            )
+            
+            client_truth_profile = ClientTruthProfile(
+                overall_assessment=overall_assessment,
+                perspectives=client_perspectives,
+                bias_indicators=bias_indicators
+            )
+            
+            claims_to_return.append(ClientClaimAnalysis(
+                claim_text=claim.text,
+                video_timestamp_start=claim.timestamp_start,
+                video_timestamp_end=claim.timestamp_end,
+                truth_profile=client_truth_profile
             ))
             
         result = AnalysisResponse(
             video_id=video_id,
-            truth_profiles=truth_profiles
+            metadata=AnalysisMetadata(
+                analyzed_at=datetime.now(timezone.utc).isoformat(),
+                video_id=video_id
+            ),
+            claims=claims_to_return
         )
         
         async with jobs_lock:
@@ -161,6 +191,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
         logger.info(f"Job {job_id} completed successfully")
 
     except Exception as e:
+        print(f"DEBUG: Error processing job {job_id}: {e}")
         logger.exception(f"Error processing job {job_id}")
         async with jobs_lock:
             if job_id in jobs:

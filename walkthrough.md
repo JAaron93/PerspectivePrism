@@ -1,49 +1,38 @@
-# Walkthrough - Background Service Worker Implementation
+# Walkthrough - Cache Management Implementation
 
-I have implemented the core background service worker functionality for the Perspective Prism Chrome Extension. This ensures robust handling of video analysis requests, including retries, persistence across service worker restarts, progress tracking, and comprehensive error handling.
+I have implemented robust cache management for the YouTube Chrome Extension to improve performance and reduce API calls.
 
 ## Changes
 
-### 1. `chrome-extension/client.js`
-- Created `PerspectivePrismClient` class.
-- **Key Features:**
-    - **`analyzeVideo(videoId)`**: Validates ID and initiates analysis. Checks for persisted requests to prevent duplicates.
-        - **Promise Attachment**: If a persisted request exists, returns a Promise that resolves when the request completes (via `notifyCompletion`), ensuring consistent API behavior.
-    - **`executeAnalysisRequest`**: Handles the API call loop with retry logic.
-        - **Notification**: Calls `notifyCompletion` on success or terminal failure to resolve attached promises and broadcast to tabs.
-        - **Error Handling**: Uses `formatUserError` to provide user-friendly messages and `logError` for sanitized logging.
-    - **Persistence**: Saves request state to `chrome.storage.local` to survive service worker termination (critical for MV3).
-        - **Read-Modify-Write**: Implemented safe state updates to preserve original `startTime` and other fields during retries.
-    - **Recovery**: Loads pending requests on startup and resumes them.
-        - **Rate Limiting**: Adds a 500ms delay between recovered requests to prevent backend overload.
-        - **Robustness**: Handles both 'pending' and 'retrying' states, rescheduling alarms if missing.
-    - **Alarms**: Uses `chrome.alarms` for exponential backoff retries (2s, 4s).
-        - **Safe Naming**: Uses `retry::videoId::attempt` to avoid collisions with video IDs.
-    - **Progress Tracking**: Emits `ANALYSIS_PROGRESS` events to YouTube tabs at 10s, 30s, 60s, 90s.
-    - **Deduplication**: Prevents duplicate requests for the same video ID (both in-memory and persistent).
-    - **Validation**: Implemented `validateAnalysisData` to ensure API responses match the expected schema.
-    - **Custom Errors**: Added `HttpError`, `TimeoutError`, and `ValidationError` for precise error handling.
-    - **Retry Logic**: Refined `shouldRetryError` to retry on timeouts and server errors (5xx, 429) but fail fast on client errors (4xx) and validation errors.
+### 1. Cache Logic in `client.js`
+I updated `PerspectivePrismClient` to include:
+- **Cache Key Strategy**: Uses `cache_{videoId}` as the key.
+- **Versioning**: Checks `CACHE_VERSION` ('v1') to invalidate old cache schemas.
+- **Expiration**: Enforces a 24-hour TTL (`CACHE_TTL_MS`).
+- **LRU Eviction**: Maintains a soft limit of 50 items (`MAX_CACHE_ITEMS`), evicting the least recently accessed items when the limit is reached.
 
-### 2. `chrome-extension/background.js`
-- Imported `client.js`.
-- Initialized `PerspectivePrismClient` with configuration.
-- Added message listener for `ANALYZE_VIDEO` to delegate to the client.
+### 2. Startup Cleanup in `background.js`
+I added a listener to `chrome.runtime.onStartup` to automatically clean up expired or invalid cache entries when the browser starts, ensuring the storage doesn't grow indefinitely with stale data.
+
+### 3. Verification Tests
+I created `test-cache.html` to verify the logic in isolation using a mock `chrome.storage.local`.
 
 ## Verification Results
 
-### Automated Verification
-- N/A (Requires browser environment).
+I ran the verification tests in the browser, and all tests passed:
 
-### Manual Verification Checklist
-- [x] **Code Review**: Verified that `PerspectivePrismClient` implements all requirements from the task list.
-- [x] **Persistence Logic**: Checked `persistRequestState` and `recoverPersistedRequests` implementation.
-- [x] **Retry Logic**: Checked `executeAnalysisRequest` and `setupAlarmListener` for backoff handling.
-- [x] **Progress Tracking**: Verified `makeAnalysisRequest` emits progress events.
-- [x] **Integration**: Verified `background.js` correctly imports and uses the client.
-- [x] **Refinements**: Verified safe alarm naming, rate-limited recovery, proper deduplication, read-modify-write persistence, and Promise-based attachment.
-- [x] **Error Handling**: Verified custom errors, retry logic, user formatting, and sanitized logging.
+```
+PASS: Cache miss returns null
+PASS: Cache hit returns data
+PASS: Expired item returns null
+PASS: Expired item removed from storage
+PASS: Version mismatch returns null
+PASS: Version mismatch removed from storage
+PASS: Cache size is 50 (expected 50)
+PASS: Oldest item (vid_000) evicted
+PASS: Newest item (vid_050) retained
+```
 
 ## Next Steps
-- Implement the content script to send these messages and handle the responses/progress events.
-- Implement the UI to display the analysis results.
+- The cache system is now ready for integration with the UI components (Analysis Button/Panel).
+- Future work can include adding a "Clear Cache" button in the options page if needed.

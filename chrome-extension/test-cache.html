@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Cache Management Tests</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .pass {
+            color: green;
+        }
+
+        .fail {
+            color: red;
+        }
+
+        .log {
+            margin-top: 10px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Cache Management Tests</h1>
+    <div id="results"></div>
+    <div class="log" id="log"></div>
+
+    <script>
+        // Mock chrome API
+        const storage = {};
+        window.chrome = {
+            storage: {
+                local: {
+                    get: async (key) => {
+                        if (key === null) return storage;
+                        if (typeof key === 'string') return { [key]: storage[key] };
+                        if (Array.isArray(key)) {
+                            const res = {};
+                            key.forEach(k => res[k] = storage[k]);
+                            return res;
+                        }
+                        return storage;
+                    },
+                    set: async (items) => {
+                        Object.assign(storage, items);
+                    },
+                    remove: async (keys) => {
+                        if (typeof keys === 'string') keys = [keys];
+                        keys.forEach(k => delete storage[k]);
+                    }
+                }
+            },
+            alarms: {
+                create: async () => { },
+                onAlarm: { addListener: () => { } },
+                getAll: async () => [],
+                clear: async () => { }
+            },
+            runtime: {
+                onMessage: { addListener: () => { } }
+            }
+        };
+
+        // Mock console to capture logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        console.log = (...args) => {
+            originalConsoleLog(...args);
+            document.getElementById('log').innerHTML += `<div>INFO: ${args.join(' ')}</div>`;
+        };
+        console.error = (...args) => {
+            originalConsoleError(...args);
+            document.getElementById('log').innerHTML += `<div style="color:red">ERROR: ${args.join(' ')}</div>`;
+        };
+    </script>
+
+    <!-- Load client.js -->
+    <script src="client.js"></script>
+
+    <script>
+        async function runTests() {
+            const resultsDiv = document.getElementById('results');
+            const client = new PerspectivePrismClient('http://localhost:8000');
+
+            // Helper to assert
+            function assert(condition, message) {
+                const div = document.createElement('div');
+                if (condition) {
+                    div.className = 'pass';
+                    div.textContent = `PASS: ${message}`;
+                } else {
+                    div.className = 'fail';
+                    div.textContent = `FAIL: ${message}`;
+                }
+                resultsDiv.appendChild(div);
+                return condition;
+            }
+
+            try {
+                // Test 1: Cache Miss
+                console.log('--- Test 1: Cache Miss ---');
+                const miss = await client.checkCache('video1');
+                assert(miss === null, 'Cache miss returns null');
+
+                // Test 2: Cache Hit
+                console.log('--- Test 2: Cache Hit ---');
+                const data = { foo: 'bar' };
+                await client.saveToCache('video1', data);
+                const hit = await client.checkCache('video1');
+                assert(hit && hit.foo === 'bar', 'Cache hit returns data');
+
+                // Test 3: Expiration
+                console.log('--- Test 3: Expiration ---');
+                // Manually expire
+                const key = 'cache_video1';
+                const entry = storage[key];
+                entry.timestamp = Date.now() - (25 * 60 * 60 * 1000); // 25 hours ago
+                storage[key] = entry;
+
+                const expired = await client.checkCache('video1');
+                assert(expired === null, 'Expired item returns null');
+                assert(!storage[key], 'Expired item removed from storage');
+
+                // Test 4: Versioning
+                console.log('--- Test 4: Versioning ---');
+                await client.saveToCache('video2', data);
+                const key2 = 'cache_video2';
+                storage[key2].version = 'v0'; // Old version
+
+                const versionMismatch = await client.checkCache('video2');
+                assert(versionMismatch === null, 'Version mismatch returns null');
+                assert(!storage[key2], 'Version mismatch removed from storage');
+
+                // Test 5: LRU Eviction
+                console.log('--- Test 5: LRU Eviction ---');
+                // Clear storage
+                for (const k in storage) delete storage[k];
+
+                // Add 51 items (MAX is 50)
+                for (let i = 0; i < 51; i++) {
+                    const id = `vid_${i.toString().padStart(3, '0')}`;
+                    await client.saveToCache(id, { id });
+                    // Mock time passing for lastAccessed
+                    storage[`cache_${id}`].lastAccessed = Date.now() + i;
+                }
+
+                // Force enforcement (it's async in saveToCache, so we call it manually to be sure)
+                await client.enforceCacheLimits();
+
+                const keys = Object.keys(storage).filter(k => k.startsWith('cache_'));
+                assert(keys.length === 50, `Cache size is ${keys.length} (expected 50)`);
+                assert(!storage['cache_vid_000'], 'Oldest item (vid_000) evicted');
+                assert(storage['cache_vid_050'], 'Newest item (vid_050) retained');
+
+            } catch (e) {
+                console.error('Test failed with exception:', e);
+                assert(false, `Exception: ${e.message}`);
+            }
+        }
+
+        runTests();
+    </script>
+</body>
+
+</html>

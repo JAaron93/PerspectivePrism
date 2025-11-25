@@ -85,10 +85,22 @@
     - _Requirements: 3.2, 3.3, 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 4. Implement cache management with versioning and migration
-  - [ ] 4.1 Define cache key strategy
+  - [x] 4. Implement cache management with versioning and migration
+- [x] 4.1 Define cache key strategy
+
+[x] 5. Refactor Client for Async Job API
+- [x] 5.1 Update `client.js` to use `/analyze/jobs` and polling
+- [x] 5.2 Improve error logging
+
+[x] 6. Verify Backend Connection
+- [x] 6.1 Ensure backend is running
+- [x] 6.2 Configure CORS for extension
     - **Cache key design decision:**
       - Primary strategy: Simple key = `cache_{videoId}`
       - Rationale: One analysis per video (latest overwrites previous)
+- [x] 6.3 Verify end-to-end flow
+    - Confirmed backend receives request, processes (with quota limits), and returns result.
+    - Optimized claim limit to 3 to prevent timeouts.
       - Alternative considered: Composite key = `cache_{videoId}_{timestamp}`
         - Rejected: Would allow multiple analyses per video (storage bloat)
         - Rejected: Complicates eviction and lookup

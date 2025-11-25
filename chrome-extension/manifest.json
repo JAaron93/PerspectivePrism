@@ -5,7 +5,9 @@
     "description": "Analyze YouTube videos for claims and perspectives",
     "permissions": [
         "storage",
-        "activeTab"
+        "activeTab",
+        "alarms",
+        "notifications"
     ],
     "host_permissions": [
         "https://*.youtube.com/*",

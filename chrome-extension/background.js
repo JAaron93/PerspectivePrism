@@ -10,10 +10,20 @@ const configManager = new ConfigManager();
 configManager.load().then(config => {
     console.log('Configuration loaded:', config);
     client = new PerspectivePrismClient(config.backendUrl);
+
+    // Clean up expired cache on startup
+    client.cleanupExpiredCache();
 }).catch(error => {
     console.error('Failed to load configuration:', error);
     // Fallback or error state? For now, we need a client to handle messages even if config fails (maybe with default?)
     // ConfigManager returns defaults on failure, so we should be good.
+});
+
+// Also clean up on startup event (if worker was suspended)
+chrome.runtime.onStartup.addListener(() => {
+    if (client) {
+        client.cleanupExpiredCache();
+    }
 });
 
 // Message handling

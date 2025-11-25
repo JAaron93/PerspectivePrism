@@ -11,6 +11,11 @@ class PerspectivePrismClient {
         this.TIMEOUT_MS = 120000; // 120 seconds
         this.MAX_REQUEST_AGE = 300000; // 5 minutes
 
+        // Cache Configuration
+        this.CACHE_VERSION = 'v1';
+        this.CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+        this.MAX_CACHE_ITEMS = 50;
+
         // Recover persisted requests on startup
         this.recoverPersistedRequests();
 
@@ -29,6 +34,13 @@ class PerspectivePrismClient {
         // Validation
         if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
             return { success: false, error: 'Invalid video ID format' };
+        }
+
+        // 1. Check Cache
+        const cachedResult = await this.checkCache(videoId);
+        if (cachedResult) {
+            console.log(`[PerspectivePrismClient] Cache hit for ${videoId}`);
+            return { success: true, data: cachedResult, cached: true };
         }
 
         // Deduplication (In-memory)
@@ -90,6 +102,10 @@ class PerspectivePrismClient {
             // Success
             // Success
             await this.cleanupPersistedRequest(videoId);
+
+            // Save to cache
+            await this.saveToCache(videoId, result);
+
             const successResult = { success: true, data: result };
             this.notifyCompletion(videoId, successResult);
             return successResult;
@@ -136,8 +152,9 @@ class PerspectivePrismClient {
     }
 
     /**
-     * Make the actual HTTP request.
+     * Make the actual HTTP request using the async job API.
      * @param {string} videoUrl 
+     * @param {string} videoId
      */
     async makeAnalysisRequest(videoUrl, videoId) {
         const controller = new AbortController();
@@ -161,22 +178,31 @@ class PerspectivePrismClient {
         });
 
         try {
-            const response = await fetch(`${this.baseUrl}/analyze`, {
+            // 1. Submit Job
+            console.log(`[PerspectivePrismClient] Submitting job for ${videoId}`);
+            const jobResponse = await fetch(`${this.baseUrl}/analyze/jobs`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ video_url: videoUrl }),
+                body: JSON.stringify({ url: videoUrl }), // Backend expects 'url', not 'video_url'
                 signal: controller.signal
             });
 
-            if (!response.ok) {
-                throw new HttpError(response.status, response.statusText);
+            if (!jobResponse.ok) {
+                throw new HttpError(jobResponse.status, jobResponse.statusText);
             }
 
-            const data = await response.json();
-            this.validateAnalysisData(data);
-            return data;
+            const jobData = await jobResponse.json();
+            const jobId = jobData.job_id;
+            console.log(`[PerspectivePrismClient] Job submitted: ${jobId}`);
+
+            // 2. Poll for Completion
+            const result = await this.pollJobStatus(jobId, controller.signal);
+
+            this.validateAnalysisData(result);
+            return result;
+
         } catch (error) {
             if (error.name === 'AbortError') {
                 throw new TimeoutError('Analysis request timed out');
@@ -186,6 +212,47 @@ class PerspectivePrismClient {
             clearTimeout(timeoutId);
             progressTimers.forEach(t => clearTimeout(t));
         }
+    }
+
+    /**
+     * Poll the job status until completion or failure.
+     * @param {string} jobId 
+     * @param {AbortSignal} signal 
+     */
+    async pollJobStatus(jobId, signal) {
+        const POLL_INTERVAL_MS = 2000; // 2 seconds
+
+        while (!signal.aborted) {
+            try {
+                const response = await fetch(`${this.baseUrl}/analyze/jobs/${jobId}`, {
+                    signal
+                });
+
+                if (!response.ok) {
+                    // If 404, maybe job lost? Treat as error.
+                    throw new HttpError(response.status, response.statusText);
+                }
+
+                const statusData = await response.json();
+                console.log(`[PerspectivePrismClient] Job ${jobId} status: ${statusData.status}`);
+
+                if (statusData.status === 'completed') {
+                    return statusData.result;
+                } else if (statusData.status === 'failed') {
+                    throw new Error(statusData.error || 'Job failed without error message');
+                }
+
+                // If pending or processing, wait and retry
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+            } catch (error) {
+                if (signal.aborted) throw error;
+                // If network error during polling, maybe retry a few times? 
+                // For now, let's just throw to trigger the main retry logic if it's a fetch error.
+                throw error;
+            }
+        }
+        throw new TimeoutError('Polling aborted');
     }
 
     broadcastProgress(videoId, progressData) {
@@ -243,17 +310,153 @@ class PerspectivePrismClient {
         return 'An unexpected error occurred. Please try again.';
     }
 
+    // --- Cache Management ---
+
+    /**
+     * Check cache for a video ID.
+     * @param {string} videoId 
+     * @returns {Promise<Object|null>} Cached data or null if miss/expired
+     */
+    async checkCache(videoId) {
+        const key = `cache_${videoId}`;
+        try {
+            const result = await chrome.storage.local.get(key);
+            const entry = result[key];
+
+            if (!entry) return null;
+
+            // Check version
+            if (entry.version !== this.CACHE_VERSION) {
+                console.log(`[PerspectivePrismClient] Cache version mismatch for ${videoId}`);
+                await chrome.storage.local.remove(key);
+                return null;
+            }
+
+            // Check expiration
+            const age = Date.now() - entry.timestamp;
+            if (age > this.CACHE_TTL_MS) {
+                console.log(`[PerspectivePrismClient] Cache expired for ${videoId}`);
+                await chrome.storage.local.remove(key);
+                return null;
+            }
+
+            // Update lastAccessed (async, don't wait)
+            entry.lastAccessed = Date.now();
+            chrome.storage.local.set({ [key]: entry });
+
+            return entry.data;
+        } catch (error) {
+            console.error(`[PerspectivePrismClient] Cache check failed for ${videoId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Save analysis result to cache.
+     * @param {string} videoId 
+     * @param {Object} data 
+     */
+    async saveToCache(videoId, data) {
+        const key = `cache_${videoId}`;
+        const entry = {
+            version: this.CACHE_VERSION,
+            timestamp: Date.now(),
+            lastAccessed: Date.now(),
+            data: data
+        };
+
+        try {
+            await chrome.storage.local.set({ [key]: entry });
+            // Enforce limits asynchronously
+            this.enforceCacheLimits();
+        } catch (error) {
+            console.error(`[PerspectivePrismClient] Failed to save to cache for ${videoId}:`, error);
+        }
+    }
+
+    /**
+     * Enforce LRU cache limits.
+     */
+    async enforceCacheLimits() {
+        try {
+            const all = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
+
+            if (cacheKeys.length <= this.MAX_CACHE_ITEMS) return;
+
+            // Sort by lastAccessed (ascending - oldest first)
+            const entries = cacheKeys.map(key => ({ key, ...all[key] }));
+            entries.sort((a, b) => a.lastAccessed - b.lastAccessed);
+
+            // Remove oldest items
+            const toRemove = entries.slice(0, entries.length - this.MAX_CACHE_ITEMS);
+            const keysToRemove = toRemove.map(e => e.key);
+
+            if (keysToRemove.length > 0) {
+                console.log(`[PerspectivePrismClient] Evicting ${keysToRemove.length} items from cache`);
+                await chrome.storage.local.remove(keysToRemove);
+            }
+        } catch (error) {
+            console.error('[PerspectivePrismClient] Failed to enforce cache limits:', error);
+        }
+    }
+
+    /**
+     * Clean up all expired cache entries.
+     * Can be called on startup.
+     */
+    async cleanupExpiredCache() {
+        try {
+            const all = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
+            const keysToRemove = [];
+
+            for (const key of cacheKeys) {
+                const entry = all[key];
+                // Check version
+                if (entry.version !== this.CACHE_VERSION) {
+                    keysToRemove.push(key);
+                    continue;
+                }
+                // Check expiration
+                const age = Date.now() - entry.timestamp;
+                if (age > this.CACHE_TTL_MS) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            if (keysToRemove.length > 0) {
+                console.log(`[PerspectivePrismClient] Cleaning up ${keysToRemove.length} expired/invalid cache items`);
+                await chrome.storage.local.remove(keysToRemove);
+            }
+        } catch (error) {
+            console.error('[PerspectivePrismClient] Failed to cleanup expired cache:', error);
+        }
+    }
+
     logError(context, error) {
         // Sanitize error message to remove potential PII or tokens
-        // (Basic implementation: ensure no obvious URL params or long strings that look like tokens)
         let message = error.message || 'Unknown error';
+
+        // If error is an object (like from fetch), try to stringify it
+        if (typeof error === 'object' && error !== null) {
+            try {
+                // If it's an Error object, it has message property handled above.
+                // If it's a plain object, stringify it.
+                if (!(error instanceof Error)) {
+                    message = JSON.stringify(error);
+                }
+            } catch (e) {
+                message = '[Circular or Unserializable Object]';
+            }
+        }
 
         // Redact potential URLs
         message = message.replace(/https?:\/\/[^\s]+/g, '[URL REDACTED]');
 
         console.error(`[PerspectivePrismClient] ${context}: ${message}`, {
             name: error.name,
-            stack: error.stack // Stack trace is usually safe in extension context but good to be aware
+            stack: error.stack
         });
     }
 
