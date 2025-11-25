@@ -28,6 +28,11 @@ class PerspectivePrismClient {
         if (typeof QuotaManager !== 'undefined') {
             this.quotaManager = new QuotaManager(this);
         }
+
+        // Initialize MetricsTracker for monitoring cache performance
+        if (typeof MetricsTracker !== 'undefined') {
+            this.metricsTracker = new MetricsTracker();
+        }
     }
 
     /**
@@ -349,6 +354,10 @@ class PerspectivePrismClient {
             if (age > this.CACHE_TTL_MS) {
                 console.log(`[PerspectivePrismClient] Cache expired for ${videoId}`);
                 await chrome.storage.local.remove(key);
+                // Track cache miss due to expiration
+                if (this.metricsTracker) {
+                    await this.metricsTracker.recordCacheMiss(videoId);
+                }
                 return null;
             }
 
@@ -358,6 +367,10 @@ class PerspectivePrismClient {
             if (!migratedEntry) {
                 console.log(`[PerspectivePrismClient] Cache entry corrupted or migration failed for ${videoId}`);
                 await chrome.storage.local.remove(key);
+                // Track cache miss due to migration failure
+                if (this.metricsTracker) {
+                    await this.metricsTracker.recordCacheMiss(videoId);
+                }
                 return null;
             }
 
@@ -372,9 +385,18 @@ class PerspectivePrismClient {
             entry.lastAccessed = Date.now();
             chrome.storage.local.set({ [key]: entry });
 
+            // Track cache hit
+            if (this.metricsTracker) {
+                await this.metricsTracker.recordCacheHit(videoId);
+            }
+
             return entry.data;
         } catch (error) {
             console.error(`[PerspectivePrismClient] Cache check failed for ${videoId}:`, error);
+            // Track cache miss due to error
+            if (this.metricsTracker) {
+                await this.metricsTracker.recordCacheMiss(videoId);
+            }
             return null;
         }
     }

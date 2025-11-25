@@ -180,7 +180,7 @@
       - Log eviction events with video IDs and sizes
     - _Requirements: 5.1, 8.1, 8.2, 8.3, 8.4, 8.5_
   
-  - [ ]* 4.7 Add quota monitoring metrics
+  - [x]* 4.7 Add quota monitoring metrics
     - Track storage usage over time
     - Log eviction events
     - Monitor cache hit/miss rates
