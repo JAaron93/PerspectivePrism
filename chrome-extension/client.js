@@ -22,6 +22,12 @@ class PerspectivePrismClient {
         this.setupAlarmListener();
 
         this.pendingResolvers = new Map(); // Map<videoId, Array<{resolve, reject, timeoutId}>>
+
+        // Initialize QuotaManager for storage quota management
+        // Note: QuotaManager class should be loaded before PerspectivePrismClient
+        if (typeof QuotaManager !== 'undefined') {
+            this.quotaManager = new QuotaManager(this);
+        }
     }
 
     /**
@@ -99,11 +105,15 @@ class PerspectivePrismClient {
             const result = await this.makeAnalysisRequest(videoUrl, videoId);
 
             // Success
-            // Success
             await this.cleanupPersistedRequest(videoId);
 
-            // Save to cache
-            await this.saveToCache(videoId, result);
+            // Save to cache (may fail if entry is too large)
+            try {
+                await this.saveToCache(videoId, result);
+            } catch (cacheError) {
+                // Log but don't fail the request if caching fails due to size
+                console.warn(`[PerspectivePrismClient] Failed to cache result for ${videoId}:`, cacheError.message);
+            }
 
             const successResult = { success: true, data: result };
             this.notifyCompletion(videoId, successResult);
@@ -375,6 +385,14 @@ class PerspectivePrismClient {
      * @param {Object} data 
      */
     async saveToCache(videoId, data) {
+        // Validate data before caching
+        try {
+            this.validateAnalysisData(data);
+        } catch (e) {
+            console.error(`[PerspectivePrismClient] Refusing to cache invalid data for ${videoId}:`, e);
+            return;
+        }
+
         const key = `cache_${videoId}`;
         const entry = {
             schemaVersion: PerspectivePrismClient.CURRENT_SCHEMA_VERSION,
@@ -383,12 +401,61 @@ class PerspectivePrismClient {
             data: data
         };
 
+
+        // Check entry size (1 MB limit)
+        const entrySize = this.estimateSize(entry);
+        const MAX_ENTRY_SIZE = 1 * 1024 * 1024; // 1 MB in bytes
+
+        if (entrySize > MAX_ENTRY_SIZE) {
+            const sizeMB = (entrySize / (1024 * 1024)).toFixed(2);
+            console.error(
+                `[PerspectivePrismClient] Entry too large to cache for ${videoId}: ` +
+                `${sizeMB} MB (max: 1 MB)`
+            );
+            throw new Error('Entry too large to cache');
+        }
+
+        // Check quota and ensure space is available
+        if (this.quotaManager) {
+            const hasSpace = await this.quotaManager.ensureSpace(entrySize);
+            if (!hasSpace) {
+                const sizeMB = (entrySize / (1024 * 1024)).toFixed(2);
+                console.error(
+                    `[PerspectivePrismClient] Cannot cache ${videoId}: ` +
+                    `Entry size (${sizeMB} MB) exceeds available quota after eviction`
+                );
+                throw new Error('Entry too large to fit in quota');
+            }
+        }
+
         try {
             await chrome.storage.local.set({ [key]: entry });
-            // Enforce limits asynchronously
-            this.enforceCacheLimits();
+            // Note: enforceCacheLimits is now handled by QuotaManager.ensureSpace
+            // Only call if QuotaManager is not available (fallback)
+            if (!this.quotaManager) {
+                this.enforceCacheLimits();
+            }
         } catch (error) {
             console.error(`[PerspectivePrismClient] Failed to save to cache for ${videoId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Estimate the size of a cache entry in bytes.
+     * @param {Object} entry - The cache entry to estimate
+     * @returns {number} - Estimated size in bytes
+     */
+    estimateSize(entry) {
+        try {
+            // Convert to JSON string to get a rough size estimate
+            const jsonString = JSON.stringify(entry);
+            // UTF-16 encoding: 2 bytes per character
+            return jsonString.length * 2;
+        } catch (e) {
+            console.error('[PerspectivePrismClient] Failed to estimate entry size:', e);
+            // Return a conservative estimate if stringification fails
+            return 0;
         }
     }
 
@@ -420,8 +487,21 @@ class PerspectivePrismClient {
     }
 
     /**
+     * Check if a cache entry is expired.
+     * @param {Object} entry - The cache entry to check
+     * @returns {boolean} - True if expired, false otherwise
+     */
+    isExpired(entry) {
+        if (!entry || !entry.timestamp) {
+            return true;
+        }
+        const age = Date.now() - entry.timestamp;
+        return age > this.CACHE_TTL_MS;
+    }
+
+    /**
      * Clean up all expired cache entries.
-     * Can be called on startup.
+     * Can be called on startup for automatic cleanup.
      */
     async cleanupExpiredCache() {
         try {
@@ -431,21 +511,83 @@ class PerspectivePrismClient {
 
             for (const key of cacheKeys) {
                 const entry = all[key];
-                // Check expiration
-                const age = Date.now() - entry.timestamp;
-                if (age > this.CACHE_TTL_MS) {
+                if (this.isExpired(entry)) {
                     keysToRemove.push(key);
                 }
-                // Note: We don't check version here anymore, as checkCache handles migration.
-                // However, we could remove really old versions if we wanted to, but migration is better.
             }
 
             if (keysToRemove.length > 0) {
-                console.log(`[PerspectivePrismClient] Cleaning up ${keysToRemove.length} expired/invalid cache items`);
+                console.log(`[PerspectivePrismClient] Cleaning up ${keysToRemove.length} expired cache items`);
                 await chrome.storage.local.remove(keysToRemove);
             }
         } catch (error) {
             console.error('[PerspectivePrismClient] Failed to cleanup expired cache:', error);
+        }
+    }
+
+    /**
+     * Clear all cached data.
+     * Removes all cache entries from storage.
+     */
+    async clear() {
+        try {
+            const all = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
+
+            if (cacheKeys.length > 0) {
+                console.log(`[PerspectivePrismClient] Clearing ${cacheKeys.length} cache items`);
+                await chrome.storage.local.remove(cacheKeys);
+            }
+        } catch (error) {
+            console.error('[PerspectivePrismClient] Failed to clear cache:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Remove a single cache entry by video ID.
+     * @param {string} videoId - The video ID to remove from cache
+     */
+    async remove(videoId) {
+        const key = `cache_${videoId}`;
+        try {
+            await chrome.storage.local.remove(key);
+            console.log(`[PerspectivePrismClient] Removed cache entry for ${videoId}`);
+        } catch (error) {
+            console.error(`[PerspectivePrismClient] Failed to remove cache entry for ${videoId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get cache statistics.
+     * @returns {Promise<Object>} Statistics object with totalEntries, totalSize, lastCleanup
+     */
+    async getStats() {
+        try {
+            const all = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
+
+            let totalSize = 0;
+            for (const key of cacheKeys) {
+                const entry = all[key];
+                totalSize += this.estimateSize(entry);
+            }
+
+            return {
+                totalEntries: cacheKeys.length,
+                totalSize: totalSize,
+                totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+                lastCleanup: Date.now() // Could persist this separately if needed
+            };
+        } catch (error) {
+            console.error('[PerspectivePrismClient] Failed to get cache stats:', error);
+            return {
+                totalEntries: 0,
+                totalSize: 0,
+                totalSizeMB: '0.00',
+                lastCleanup: Date.now()
+            };
         }
     }
 

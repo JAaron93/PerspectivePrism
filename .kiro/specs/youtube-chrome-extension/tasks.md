@@ -113,7 +113,7 @@
   - Document key format in code comments and design doc
   - _Requirements: 5.1, 5.2_
   
-  - [ ] 4.2 Implement schema migration registry
+  - [x] 4.2 Implement schema migration registry
     - **Migration function pattern:**
       - Define migration interface: `(entry: any) => AnalysisData | null`
       - Return transformed entry on success
@@ -132,7 +132,7 @@
     - Test migration with mock data for each version
     - _Requirements: 5.1, 5.7_
   
-  - [ ] 4.3 Create CacheManager class with migration
+  - [x] 4.3 Create CacheManager class with migration
     - Implement get() with expiration checking and migration:
       - Load entry from chrome.storage.local
       - Check schemaVersion field
@@ -144,7 +144,7 @@
     - Add schema versioning with CURRENT_SCHEMA_VERSION = 1
     - _Requirements: 5.1, 5.2, 5.7_
   
-  - [ ] 4.4 Implement entry size policy
+  - [x] 4.4 Implement entry size policy
     - **Size policy decision:**
       - Max entry size: 1 MB (reasonable for analysis results)
       - Behavior for oversized entries: Reject with error
@@ -162,14 +162,14 @@
     - Document size limits in user-facing error messages
     - _Requirements: 5.1, 8.1, 8.2_
   
-  - [ ] 4.5 Implement cache operations
+  - [x] 4.5 Implement cache operations
     - Implement clear() to remove all cached data
     - Implement clearExpired() for automatic cleanup
     - Implement remove() for single entry deletion
     - Add isExpired() helper method
     - _Requirements: 5.6_
   
-  - [ ] 4.6 Implement cache statistics and quota management
+  - [x] 4.6 Implement cache statistics and quota management
     - Implement getStats() returning totalEntries, totalSize, lastCleanup
     - Create QuotaManager class for storage monitoring
     - Implement checkQuota() with warning/critical thresholds (80%, 95%)
