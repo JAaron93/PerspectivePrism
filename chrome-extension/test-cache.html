@@ -151,12 +151,6 @@
                     lastAccessed: item.lastAccessed
                 };
             }
-
-            // Mock expiry by advancing time (not manipulating fields directly)
-            simulateExpiry(videoId, hoursAgo) {
-                // This uses time mocking instead of field manipulation
-                advanceTime(hoursAgo * 60 * 60 * 1000);
-            }
         }
 
         async function runTests() {

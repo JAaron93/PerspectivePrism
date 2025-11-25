@@ -193,14 +193,14 @@ class PerspectivePrismClient {
                 throw new HttpError(jobResponse.status, jobResponse.statusText);
             }
 
+
             const jobData = await jobResponse.json();
             const jobId = jobData.job_id;
 
             // Validate job_id is present before polling
             if (!jobId || typeof jobId !== 'string' || jobId.trim() === '') {
-                console.error(`[PerspectivePrismClient] Invalid job_id received from backend:`, jobData);
-                controller.abort();
-                throw new Error(`Backend returned invalid job_id. Response: ${JSON.stringify(jobData)}`);
+                console.error(`[PerspectivePrismClient] Backend returned invalid job_id (type: ${typeof jobId})`);
+                throw new ValidationError('Backend returned invalid job_id');
             }
 
             console.log(`[PerspectivePrismClient] Job submitted: ${jobId}`);
