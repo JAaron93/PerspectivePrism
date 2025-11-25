@@ -4,6 +4,9 @@
  */
 class QuotaManager {
     constructor(client) {
+        if (!client || typeof client.getStats !== 'function' || typeof client.estimateSize !== 'function') {
+            throw new Error('QuotaManager requires a client with getStats() and estimateSize() methods');
+        }
         this.client = client;
         // Chrome local storage quota is typically 5-10 MB
         this.QUOTA_BYTES = chrome.storage.local.QUOTA_BYTES || 10 * 1024 * 1024; // 10 MB default
@@ -12,12 +15,12 @@ class QuotaManager {
     }
 
     /**
-     * Check current quota usage and return status.
-     * @returns {Promise<Object>} Quota status with usage percentage and threshold level
-     */
     async checkQuota() {
         try {
             const stats = await this.client.getStats();
+            if (typeof stats?.totalSize !== 'number') {
+                throw new Error('Invalid stats object: missing or invalid totalSize');
+            }
             const usagePercentage = stats.totalSize / this.QUOTA_BYTES;
 
             let level = 'normal';
@@ -45,6 +48,9 @@ class QuotaManager {
             };
         }
     }
+            };
+        }
+    }
 
     /**
      * Ensure sufficient space is available for a new entry.
@@ -62,12 +68,12 @@ class QuotaManager {
             }
 
             console.log(`[QuotaManager] Insufficient space. Need ${requiredSize} bytes, have ${quotaStatus.available} bytes`);
-
-            // Try to evict entries to make space
-            const all = await chrome.storage.local.get(null);
-            const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
-
-            // Sort by lastAccessed (oldest first)
+            const entries = cacheKeys.map(key => ({
+                key,
+                ...all[key],
+                size: this.client.estimateSize(all[key])
+            }));
+            entries.sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
             const entries = cacheKeys.map(key => ({
                 key,
                 ...all[key],

@@ -406,6 +406,11 @@ class PerspectivePrismClient {
         const entrySize = this.estimateSize(entry);
         const MAX_ENTRY_SIZE = 1 * 1024 * 1024; // 1 MB in bytes
 
+        if (entrySize === 0) {
+            console.error(`[PerspectivePrismClient] Failed to estimate size for ${videoId}`);
+            throw new Error('Failed to estimate entry size');
+        }
+
         if (entrySize > MAX_ENTRY_SIZE) {
             const sizeMB = (entrySize / (1024 * 1024)).toFixed(2);
             console.error(
