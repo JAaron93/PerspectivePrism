@@ -66,8 +66,6 @@ class QuotaManager {
 
             const quotaStatus = await this.checkQuota();
 
-            const quotaStatus = await this.checkQuota();
-
             // If enough space available, no eviction needed
             if (quotaStatus.available >= requiredSize) {
                 return true;

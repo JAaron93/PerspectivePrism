@@ -1,11 +1,11 @@
-# Implementation Plan - DOM Injection with Fallback Selectors
+# Implementation Plan - Analysis Button Component
 
-This plan addresses the requirement to implement robust DOM injection for the analysis button in the Chrome extension content script.
+This plan addresses the requirement to implement a fully functional and accessible Analysis Button component that integrates seamlessly with YouTube's UI.
 
 ## User Review Required
 
 > [!NOTE]
-> No breaking changes. This is an enhancement to the existing injection logic.
+> No breaking changes. This enhances the existing button with better accessibility and styling.
 
 ## Proposed Changes
 
@@ -14,25 +14,28 @@ This plan addresses the requirement to implement robust DOM injection for the an
 #### [MODIFY] [content.js](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/content.js)
 
 -   **Update `createAnalysisButton`**:
-    -   Add `data-pp-analysis-button="true"` attribute to the button element.
--   **Update `injectButton`**:
-    -   Change duplication check to use `document.querySelector('[data-pp-analysis-button="true"]')` in addition to ID check.
-    -   Refine selector list based on `design.md`:
-        1.  `#top-level-buttons-computed` (Primary)
-        2.  `#menu-container` (Fallback 1)
-        3.  `#info-contents` (Fallback 2)
-    -   Implement injection logic:
-        -   Iterate through selectors.
-        -   If container found, append button.
-        -   If no container found, log a warning (graceful degradation).
+    -   Add `aria-label="Analyze video claims"`.
+    -   Add `role="button"`.
+    -   Add `tabindex="0"`.
+-   **Update `setButtonState`**:
+    -   **Idle**: `aria-label="Analyze video claims"`, enable button.
+    -   **Loading**: `aria-label="Analysis in progress"`, `aria-busy="true"`, disable button.
+    -   **Success**: `aria-label="Analysis complete"`, enable button.
+    -   **Error**: `aria-label="Analysis failed, click to retry"`, enable button.
+
+#### [MODIFY] [content.css](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/content.css)
+
+-   **Refine Styling**:
+    -   Ensure font weights and sizes match YouTube's current design (Roboto, 14px, 500 weight).
+    -   Verify dark mode colors match YouTube's dark theme (`#272727` bg, `#f1f1f1` text).
+    -   Add specific styles for states (e.g., error state red tint, success state green tint).
 
 ## Verification Plan
 
 ### Manual Verification
--   **Duplication Check**:
-    -   Manually call `injectButton()` multiple times in the console and verify only one button exists.
-    -   Verify the button has the `data-pp-analysis-button="true"` attribute.
--   **Selector Verification**:
-    -   Test on a standard YouTube video page.
-    -   Verify the button appears in the correct location (near other buttons).
-    -   (Optional) Manually hide/remove the primary container and verify it falls back to the next one (if possible via DevTools).
+-   **Visual Inspection**:
+    -   Check button appearance in Light and Dark modes.
+    -   Verify states: Click to trigger loading, verify success/error appearance.
+-   **Accessibility**:
+    -   Inspect element to verify ARIA attributes update correctly.
+    -   Test keyboard navigation (Tab to focus, Enter/Space to activate).

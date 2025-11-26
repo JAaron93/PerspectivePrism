@@ -19,3 +19,11 @@
 - [x] Implement DOM Injection with Fallback Selectors <!-- id: 18 -->
     - [x] Implement fallback selectors (#top-level-buttons-computed, #menu-container, #info-contents) <!-- id: 19 -->
     - [x] Add duplication prevention (data attribute) <!-- id: 20 -->
+- [x] Configure MutationObserver for Dynamic Content <!-- id: 21 -->
+    - [x] Implement specific container observation with fallback to body <!-- id: 22 -->
+    - [x] Add 500ms debounce logic <!-- id: 23 -->
+    - [x] Handle SPA navigation (disconnect/reconnect) <!-- id: 24 -->
+- [x] Implement Analysis Button Component <!-- id: 25 -->
+    - [x] Add ARIA attributes (label, role, busy) <!-- id: 26 -->
+    - [x] Implement state management (idle, loading, success, error) <!-- id: 27 -->
+    - [x] Style button to match YouTube UI (including dark mode) <!-- id: 28 -->

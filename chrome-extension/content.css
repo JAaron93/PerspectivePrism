@@ -15,7 +15,7 @@
     font-family: Roboto, Arial, sans-serif;
     cursor: pointer;
     margin-left: 8px;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .pp-ext-button:hover {
@@ -32,6 +32,25 @@
     outline-offset: 2px;
 }
 
+/* State Styles */
+.pp-ext-button.pp-state-success {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.pp-ext-button.pp-state-success:hover {
+    background-color: #ceead6;
+}
+
+.pp-ext-button.pp-state-error {
+    background-color: #fce8e6;
+    color: #c5221f;
+}
+
+.pp-ext-button.pp-state-error:hover {
+    background-color: #fad2cf;
+}
+
 html[dark] .pp-ext-button:focus-visible {
     outline-color: #f1f1f1;
 }
@@ -41,7 +60,7 @@ html[dark] .pp-ext-button:focus-visible {
     font-size: 16px;
 }
 
-/* Dark mode support (basic) */
+/* Dark mode support */
 html[dark] .pp-ext-button {
     background-color: #272727;
     color: #f1f1f1;
@@ -49,4 +68,22 @@ html[dark] .pp-ext-button {
 
 html[dark] .pp-ext-button:hover {
     background-color: #3f3f3f;
+}
+
+html[dark] .pp-ext-button.pp-state-success {
+    background-color: #137333;
+    color: #e6f4ea;
+}
+
+html[dark] .pp-ext-button.pp-state-success:hover {
+    background-color: #0d5224;
+}
+
+html[dark] .pp-ext-button.pp-state-error {
+    background-color: #c5221f;
+    color: #fce8e6;
+}
+
+html[dark] .pp-ext-button.pp-state-error:hover {
+    background-color: #8c1816;
 }
