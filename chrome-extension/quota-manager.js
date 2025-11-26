@@ -19,41 +19,38 @@ class QuotaManager {
      * @returns {Promise<Object>} Quota status with used, quota, usagePercentage, level, and available properties
      */
     async checkQuota() {
-     * @returns { Promise < Object >} Quota status with usage percentage and threshold level
-            */
-    async checkQuota() {
-            try {
-                const stats = await this.client.getStats();
-                if (typeof stats?.totalSize !== 'number') {
-                    throw new Error('Invalid stats object: missing or invalid totalSize');
-                }
-                const usagePercentage = stats.totalSize / this.QUOTA_BYTES;
-
-                let level = 'normal';
-                if (usagePercentage >= this.CRITICAL_THRESHOLD) {
-                    level = 'critical';
-                } else if (usagePercentage >= this.WARNING_THRESHOLD) {
-                    level = 'warning';
-                }
-
-                return {
-                    used: stats.totalSize,
-                    quota: this.QUOTA_BYTES,
-                    usagePercentage: (usagePercentage * 100).toFixed(2),
-                    level: level,
-                    available: this.QUOTA_BYTES - stats.totalSize
-                };
-            } catch (error) {
-                console.error('[QuotaManager] Failed to check quota:', error);
-                return {
-                    used: 0,
-                    quota: this.QUOTA_BYTES,
-                    usagePercentage: '0.00',
-                    level: 'normal',
-                    available: this.QUOTA_BYTES
-                };
+        try {
+            const stats = await this.client.getStats();
+            if (typeof stats?.totalSize !== 'number') {
+                throw new Error('Invalid stats object: missing or invalid totalSize');
             }
+            const usagePercentage = stats.totalSize / this.QUOTA_BYTES;
+
+            let level = 'normal';
+            if (usagePercentage >= this.CRITICAL_THRESHOLD) {
+                level = 'critical';
+            } else if (usagePercentage >= this.WARNING_THRESHOLD) {
+                level = 'warning';
+            }
+
+            return {
+                used: stats.totalSize,
+                quota: this.QUOTA_BYTES,
+                usagePercentage: (usagePercentage * 100).toFixed(2),
+                level: level,
+                available: this.QUOTA_BYTES - stats.totalSize
+            };
+        } catch (error) {
+            console.error('[QuotaManager] Failed to check quota:', error);
+            return {
+                used: 0,
+                quota: this.QUOTA_BYTES,
+                usagePercentage: '0.00',
+                level: 'normal',
+                available: this.QUOTA_BYTES
+            };
         }
+    }
 
     /**
      * Ensure sufficient space is available for a new entry.
@@ -62,68 +59,92 @@ class QuotaManager {
      * @returns {Promise<boolean>} True if space is available, false if entry is oversized
      */
     async ensureSpace(requiredSize) {
-            try {
-                const quotaStatus = await this.checkQuota();
-
-                // If enough space available, no eviction needed
-                if (quotaStatus.available >= requiredSize) {
-                    return true;
-                }
-
-                console.log(`[QuotaManager] Insufficient space. Need ${requiredSize} bytes, have ${quotaStatus.available} bytes`);
-
-                // Try to evict entries to make space
-                const all = await chrome.storage.local.get(null);
-                const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
-
-                // Sort by lastAccessed (oldest first)
-                const entries = cacheKeys.map(key => ({
-                    key,
-                    ...all[key],
-                    size: this.client.estimateSize(all[key])
-                }));
-                entries.sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
-
-                // Evict oldest entries until we have enough space
-                let freedSpace = 0;
-                const keysToRemove = [];
-
-                for (const entry of entries) {
-                    keysToRemove.push(entry.key);
-                    freedSpace += entry.size;
-
-                    console.log(`[QuotaManager] Evicting ${entry.key} (${(entry.size / 1024).toFixed(2)} KB)`);
-
-                    if (quotaStatus.available + freedSpace >= requiredSize) {
-                        break;
+        try {
+            const quotaStatus = await this.checkQuota();
+    async ensureSpace(requiredSize) {
+                try {
+                    if (typeof requiredSize !== 'number' || requiredSize <= 0 || isNaN(requiredSize)) {
+                        throw new Error(`Invalid requiredSize: ${requiredSize}`);
                     }
-                }
 
-                // Remove evicted entries
-                if (keysToRemove.length > 0) {
-                    await chrome.storage.local.remove(keysToRemove);
-                    console.log(`[QuotaManager] Evicted ${keysToRemove.length} entries, freed ${(freedSpace / 1024).toFixed(2)} KB`);
+                    const quotaStatus = await this.checkQuota();
 
-                    // Track eviction event in metrics
-                    if (this.client.metricsTracker) {
-                        const videoIds = keysToRemove.map(k => k.replace('cache_', ''));
-                        await this.client.metricsTracker.recordEviction(videoIds, freedSpace, 'quota_pressure');
+                    // If enough space available, no eviction needed
+                    if (quotaStatus.available >= requiredSize) {
+                        return true;
                     }
+                    const all = await chrome.storage.local.get(null);
+                    const cacheKeys = Object.keys(all).filter(k => k.startsWith('cache_'));
+
+                    // Sort by lastAccessed (oldest first)
+                    const entries = cacheKeys.map(key => {
+                        const entry = all[key];
+                        if (!entry || typeof entry !== 'object') {
+                            console.warn(`[QuotaManager] Skipping invalid cache entry: ${key}`);
+                            return null;
+                        }
+                        const size = this.client.estimateSize(entry);
+                        if (typeof size !== 'number' || isNaN(size) || size < 0) {
+                            console.warn(`[QuotaManager] Invalid size for ${key}, using 0`);
+                            return { key, ...entry, size: 0 };
+                        }
+                        return { key, ...entry, size };
+                    }).filter(e => e !== null);
+                    entries.sort((a, b) => {
+                        const timeA = a.lastAccessed || 0;
+                        const timeB = b.lastAccessed || 0;
+                        if (timeA !== timeB) return timeA - timeB;
+                        // Secondary sort by key for deterministic ordering
+                        return a.key.localeCompare(b.key);
+                    });
+                    entries.sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
+
+                    // If no cache entries exist to evict
+                    if (entries.length === 0) {
+                        console.error(`[QuotaManager] No cache entries available for eviction. Current usage: ${quotaStatus.used} bytes, required: ${requiredSize} bytes`);
+                        return false;
+                    }
+
+                    // Evict oldest entries until we have enough space
+                    let freedSpace = 0;
+                    const keysToRemove = [];
+
+                    for (const entry of entries) {
+                        keysToRemove.push(entry.key);
+                        freedSpace += entry.size;
+
+                        console.log(`[QuotaManager] Evicting ${entry.key} (${(entry.size / 1024).toFixed(2)} KB)`);
+
+                        if (quotaStatus.available + freedSpace >= requiredSize) {
+                            break;
+                        }
+                    }
+
+                    // Remove evicted entries
+                    if (keysToRemove.length > 0) {
+                        await chrome.storage.local.remove(keysToRemove);
+                        console.log(`[QuotaManager] Evicted ${keysToRemove.length} entries, freed ${(freedSpace / 1024).toFixed(2)} KB`);
+
+                        // Track eviction event in metrics
+                        if (this.client.metricsTracker) {
+                            const videoIds = keysToRemove.map(k => k.replace('cache_', ''));
+                            await this.client.metricsTracker.recordEviction(videoIds, freedSpace, 'quota_pressure');
+                        }
+                    }
+
+                    // Check if we have enough space now
+                    const newQuotaStatus = await this.checkQuota();
+                    if (newQuotaStatus.available >= requiredSize) {
+                        return true;
+                    }
+
+                    // If still not enough space, the entry is too large
+                    console.error(`[QuotaManager] Entry is oversized (${(requiredSize / 1024).toFixed(2)} KB). Cannot fit in quota.`);
+                    return false;
+
+                } catch (error) {
+                    console.error('[QuotaManager] Failed to ensure space:', error);
+                    return false;
                 }
-
-                // Check if we have enough space now
-                const newQuotaStatus = await this.checkQuota();
-                if (newQuotaStatus.available >= requiredSize) {
-                    return true;
-                }
-
-                // If still not enough space, the entry is too large
-                console.error(`[QuotaManager] Entry is oversized (${(requiredSize / 1024).toFixed(2)} KB). Cannot fit in quota.`);
-                return false;
-
-            } catch (error) {
-                console.error('[QuotaManager] Failed to ensure space:', error);
-                return false;
             }
         }
-    }

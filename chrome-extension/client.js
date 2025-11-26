@@ -356,7 +356,11 @@ class PerspectivePrismClient {
                 await chrome.storage.local.remove(key);
                 // Track cache miss due to expiration
                 if (this.metricsTracker) {
-                    await this.metricsTracker.recordCacheMiss(videoId);
+                    try {
+                        await this.metricsTracker.recordCacheMiss(videoId);
+                    } catch (metricsError) {
+                        console.warn('[PerspectivePrismClient] Failed to record cache miss metric:', metricsError);
+                    }
                 }
                 return null;
             }
@@ -369,7 +373,11 @@ class PerspectivePrismClient {
                 await chrome.storage.local.remove(key);
                 // Track cache miss due to migration failure
                 if (this.metricsTracker) {
-                    await this.metricsTracker.recordCacheMiss(videoId);
+                    try {
+                        await this.metricsTracker.recordCacheMiss(videoId);
+                    } catch (metricsError) {
+                        console.warn('[PerspectivePrismClient] Failed to record cache miss metric:', metricsError);
+                    }
                 }
                 return null;
             }
@@ -387,7 +395,11 @@ class PerspectivePrismClient {
 
             // Track cache hit
             if (this.metricsTracker) {
-                await this.metricsTracker.recordCacheHit(videoId);
+                try {
+                    await this.metricsTracker.recordCacheHit(videoId);
+                } catch (metricsError) {
+                    console.warn('[PerspectivePrismClient] Failed to record cache hit metric:', metricsError);
+                }
             }
 
             return entry.data;
@@ -395,7 +407,11 @@ class PerspectivePrismClient {
             console.error(`[PerspectivePrismClient] Cache check failed for ${videoId}:`, error);
             // Track cache miss due to error
             if (this.metricsTracker) {
-                await this.metricsTracker.recordCacheMiss(videoId);
+                try {
+                    await this.metricsTracker.recordCacheMiss(videoId);
+                } catch (metricsError) {
+                    console.warn('[PerspectivePrismClient] Failed to record cache miss metric:', metricsError);
+                }
             }
             return null;
         }
