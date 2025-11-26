@@ -40,7 +40,7 @@
     - Handle default configuration values
     - _Requirements: 1.6_
 
-- [ ] 3. Implement background service worker core functionality with MV3 lifecycle handling
+- [x] 3. Implement background service worker core functionality with MV3 lifecycle handling
   - [x] 3.1 Create PerspectivePrismClient class with persistent state
     - Implement analyzeVideo() with video ID validation
     - Implement executeAnalysisRequest() with retry logic (2 retries, exponential backoff)
@@ -177,7 +177,7 @@
     - Monitor cache hit/miss rates
     - _Requirements: 8.5_
 
-- [/] 5. Implement content script for YouTube integration
+- [x] 5. Implement content script for YouTube integration
   - [x] 5.1 Create video ID extraction with multiple URL formats
     - Implement extractVideoId() supporting watch, shorts, embed, legacy formats
     - Implement isValidVideoId() with 11-character regex validation
@@ -260,7 +260,7 @@
       - Update pendingRequests Map
     - _Requirements: 3.1, 5.2_
 
-- [/] 7. Implement Analysis Panel UI component
+- [x] 7. Implement Analysis Panel UI component
   - [x] 7.1 Create panel structure with Shadow DOM
     - Create panel container with role="dialog" and aria-modal="true"
     - Implement style isolation with Shadow DOM
@@ -298,13 +298,13 @@
     - Handle refresh errors gracefully
     - _Requirements: 5.4_
 
-- [ ] 8. Implement accessibility features for Analysis Panel
-  - [ ] 8.1 Implement basic keyboard navigation
+- [/] 8. Implement accessibility features for Analysis Panel
+  - [x] 8.1 Implement basic keyboard navigation
     - Add Escape key handler to close panel
     - Implement Tab key focus cycling within panel
     - Return focus to Analysis Button on close
     - _Requirements: 4.7_
-  - [ ] 8.2 Implement basic focus management
+  - [x] 8.2 Implement basic focus management
     - Move focus to Close button on panel open
     - Implement focus trapping within panel
     - _Requirements: 4.7_

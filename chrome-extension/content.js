@@ -8,6 +8,7 @@ let analysisPanel = null;
 let analysisButton = null;
 let cancelRequest = false;
 let loadingTimer = null;
+let previouslyFocusedElement = null; // Track focus before panel opens
 
 // Constants
 const BUTTON_ID = "pp-analysis-button";
@@ -274,7 +275,83 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// --- Interaction Handling ---
+// --- Keyboard Navigation Helpers ---
+
+/**
+ * Setup keyboard navigation for a panel (Escape to close, Tab cycling)
+ * @param {HTMLElement} panel - The panel element
+ * @param {ShadowRoot} shadow - The shadow root of the panel
+ */
+function setupKeyboardNavigation(panel, shadow) {
+  const handleKeyDown = (e) => {
+    // Handle Escape key to close panel
+    if (e.key === "Escape") {
+      e.preventDefault();
+      removePanel();
+      return;
+    }
+
+    // Handle Tab key for focus cycling
+    if (e.key === "Tab") {
+      handleTabKey(e, shadow);
+    }
+  };
+
+  // Add event listener to the panel
+  panel.addEventListener("keydown", handleKeyDown);
+
+  // Store handler reference for cleanup
+  panel._keydownHandler = handleKeyDown;
+}
+
+/**
+ * Handle Tab key to cycle focus within panel
+ * @param {KeyboardEvent} e - The keyboard event
+ * @param {ShadowRoot} shadow - The shadow root of the panel
+ */
+function handleTabKey(e, shadow) {
+  // Get all focusable elements within the shadow DOM
+  const focusableElements = getFocusableElements(shadow);
+
+  if (focusableElements.length === 0) return;
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+  const activeElement = shadow.activeElement;
+
+  // If Shift+Tab on first element, cycle to last
+  if (e.shiftKey && activeElement === firstElement) {
+    e.preventDefault();
+    lastElement.focus();
+    return;
+  }
+
+  // If Tab on last element, cycle to first
+  if (!e.shiftKey && activeElement === lastElement) {
+    e.preventDefault();
+    firstElement.focus();
+    return;
+  }
+}
+
+/**
+ * Get all focusable elements within a shadow root
+ * @param {ShadowRoot} shadow - The shadow root
+ * @returns {Array<HTMLElement>} Array of focusable elements
+ */
+function getFocusableElements(shadow) {
+  const selector = [
+    "button:not([disabled])",
+    "a[href]",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+    '[role="button"][tabindex="0"]',
+  ].join(", ");
+
+  return Array.from(shadow.querySelectorAll(selector));
+}
 
 async function handleAnalysisClick() {
   if (!currentVideoId) return;
@@ -725,6 +802,10 @@ function showResults(data, isCached = false) {
         .refreshing {
             animation: spin 1s linear infinite;
         }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     `;
 
   // Content Container
@@ -965,8 +1046,21 @@ function showResults(data, isCached = false) {
   shadow.appendChild(style);
   shadow.appendChild(container);
 
+  // Store reference to previously focused element (Analysis Button)
+  previouslyFocusedElement = analysisButton;
+
   document.body.appendChild(panel);
   analysisPanel = panel;
+
+  // Setup keyboard navigation (Escape to close, Tab cycling)
+  setupKeyboardNavigation(panel, shadow);
+
+  // Move focus to close button for accessibility
+  const closeBtn = shadow.querySelector(".close-btn");
+  if (closeBtn) {
+    // Small delay to ensure panel is fully rendered
+    setTimeout(() => closeBtn.focus(), 50);
+  }
 }
 
 function showPanelLoading() {
@@ -1064,8 +1158,23 @@ function showPanelLoading() {
   shadow.appendChild(style);
   shadow.appendChild(container);
 
+  // Store reference to previously focused element (Analysis Button)
+  previouslyFocusedElement = analysisButton;
+
   document.body.appendChild(panel);
   analysisPanel = panel;
+
+  // Setup keyboard navigation (Escape to close, Tab cycling)
+  setupKeyboardNavigation(panel, shadow);
+
+  // Move focus to panel for screen reader announcement
+  // Note: Cancel button will be focused when it becomes visible
+  setTimeout(() => {
+    const cancelBtn = shadow.getElementById("pp-cancel-btn");
+    if (cancelBtn && cancelBtn.classList.contains("visible")) {
+      cancelBtn.focus();
+    }
+  }, 50);
 
   const messageEl = shadow.getElementById("pp-loading-submessage");
   const cancelBtn = shadow.getElementById("pp-cancel-btn");
@@ -1199,12 +1308,24 @@ function showPanelError(errorMessage) {
   shadow.appendChild(style);
   shadow.appendChild(container);
 
+  // Store reference to previously focused element (Analysis Button)
+  previouslyFocusedElement = analysisButton;
+
   document.body.appendChild(panel);
   analysisPanel = panel;
+
+  // Setup keyboard navigation (Escape to close, Tab cycling)
+  setupKeyboardNavigation(panel, shadow);
 
   // Attach event handlers
   shadow.getElementById("pp-retry-btn").onclick = handleAnalysisClick;
   shadow.getElementById("pp-close-btn").onclick = removePanel;
+
+  // Move focus to retry button for accessibility
+  const retryBtn = shadow.getElementById("pp-retry-btn");
+  if (retryBtn) {
+    setTimeout(() => retryBtn.focus(), 50);
+  }
 }
 
 function clearLoadingTimer() {
@@ -1221,8 +1342,29 @@ function showError(msg) {
 function removePanel() {
   clearLoadingTimer();
   if (analysisPanel) {
+    // Remove event listener if it exists
+    if (analysisPanel._keydownHandler) {
+      analysisPanel.removeEventListener(
+        "keydown",
+        analysisPanel._keydownHandler,
+      );
+    }
+
     analysisPanel.remove();
     analysisPanel = null;
+
+    // Return focus to previously focused element (Analysis Button)
+    if (
+      previouslyFocusedElement &&
+      document.contains(previouslyFocusedElement)
+    ) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        previouslyFocusedElement.focus();
+      }, 50);
+    }
+
+    previouslyFocusedElement = null;
   }
 }
 
