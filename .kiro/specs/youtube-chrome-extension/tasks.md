@@ -389,7 +389,7 @@
     - _Requirements: 1.5, 7.3, 7.4_
 
 - [-] 11. Implement privacy and consent flow with versioning
-  - [-] 11.1 Create privacy notice dialog with "Learn More" functionality
+  - [x] 11.1 Create privacy notice dialog with "Learn More" functionality
     - Create first-time consent dialog HTML
     - Add "Learn More", "Deny", "Allow and Continue" buttons
     - Implement "Learn More" button behavior:
@@ -402,7 +402,7 @@
       - Current policy version: "1.0.0"
     - Show dialog before first analysis attempt
     - _Requirements: 7.7_
-  - [ ] 11.2 Create privacy policy page with backend policies
+  - [x] 11.2 Create privacy policy page with backend policies
     - Write privacy.html with comprehensive privacy policy
     - Document data transmission (video URLs to backend)
     - Explain backend processing and retention

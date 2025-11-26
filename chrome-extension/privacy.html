@@ -106,22 +106,80 @@
           extension settings.
         </li>
         <li>
-          <strong>Backend Processing:</strong> Our backend processes the video
-          data to generate the analysis. We may temporarily log the Video ID for
-          debugging and performance monitoring. We do not retain a history of
-          which user analyzed which video.
+          <strong>Backend Data Retention Policy:</strong>
+          <ul>
+            <li>
+              <strong>Logging:</strong> The backend server may temporarily log
+              requests (including Video IDs) for debugging, performance
+              monitoring, and analytics purposes.
+            </li>
+            <li>
+              <strong>Retention Period:</strong> The retention period for these
+              logs varies depending on the backend implementation. If you are
+              using a third-party backend, their specific retention policies
+              apply.
+            </li>
+            <li>
+              <strong>Recommendation:</strong> For maximum privacy, we recommend
+              configuring your self-hosted backend to minimize or disable data
+              retention.
+            </li>
+            <li>
+              <strong>Third-Party Backends:</strong> If you choose to use a
+              third-party backend, you are responsible for reviewing and
+              accepting their data retention policies.
+            </li>
+          </ul>
         </li>
       </ul>
 
       <h2>4. Third-Party Services</h2>
-      <p>
-        The Extension communicates with the Perspective Prism backend. If you
-        are using a self-hosted backend, your data remains within your control.
-        If you are using a third-party backend, please refer to their specific
-        privacy policy.
-      </p>
+      <p></p>
 
-      <h2>5. Your Consent</h2>
+      <h2>5. User Data Deletion</h2>
+      <p>
+        You have the right to request the deletion of your data. However, please
+        note that the Extension itself cannot directly delete data stored on the
+        backend server.
+      </p>
+      <ul>
+        <li>
+          <strong>Self-Hosted Backend:</strong> If you host your own backend,
+          you have full control over your data and can delete logs or database
+          entries directly.
+        </li>
+        <li>
+          <strong>Third-Party Backend:</strong> If you use a third-party
+          backend, you must contact the backend administrator to request data
+          deletion.
+        </li>
+      </ul>
+
+      <h3>Data Deletion Request Template</h3>
+      <p>
+        You can use the following template to request data deletion from a
+        third-party backend administrator:
+      </p>
+      <div
+        style="
+          background: #f0f0f0;
+          padding: 15px;
+          border-radius: 4px;
+          font-family: monospace;
+          white-space: pre-wrap;
+        "
+      >
+        Subject: Data Deletion Request - Perspective Prism To whom it may
+        concern, I am a user of the Perspective Prism Chrome Extension and have
+        used your backend service for video analysis. In accordance with
+        applicable data privacy laws, I hereby request the deletion of all data
+        associated with my usage, including but not limited to: - Server access
+        logs containing my IP address. - Any retained Video IDs or analysis
+        results linked to my requests. Please confirm when this action has been
+        completed. Thank you.
+      </div>
+
+      <h2>6. Your Consent</h2>
       <p>
         By using the Extension, you consent to the processing of Video IDs as
         described in this policy. You can revoke your consent at any time in the
@@ -129,7 +187,7 @@
         locally cached data.
       </p>
 
-      <h2>6. Contact Us</h2>
+      <h2>7. Contact Us</h2>
       <p>
         If you have any questions about this Privacy Policy, please contact us
         through the Chrome Web Store support tab.
