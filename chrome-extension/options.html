@@ -384,6 +384,15 @@
         color: #666;
         font-size: 14px;
       }
+
+      /* Required field indicator */
+      label[for="backend-url"]::after {
+        content: " *";
+        color: #c62828;
+        font-weight: 600;
+        margin-left: 2px;
+        aria-hidden: true;
+      }
     </style>
   </head>
   <body>

@@ -99,6 +99,12 @@
             const container = document.getElementById('url-tests');
             container.innerHTML = '';
 
+            // Defensive check for ConfigValidator dependency
+            if (typeof ConfigValidator === 'undefined' || typeof ConfigValidator.isValidUrl !== 'function') {
+                container.innerHTML = '<div style="color: #c62828; font-weight: 600; padding: 12px; background: #ffebee; border-radius: 4px;">Error: ConfigValidator is not loaded or isValidUrl method is missing. Ensure config.js is loaded before this test file.</div>';
+                return;
+            }
+
             urlTestCases.forEach((testCase, index) => {
                 const result = ConfigValidator.isValidUrl(testCase.url, false);
                 const passed = result === testCase.expected;

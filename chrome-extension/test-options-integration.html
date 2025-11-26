@@ -96,7 +96,7 @@
             <button id="test-btn" disabled>Test Connection</button>
             <button id="save-btn" class="primary" disabled>Save Settings</button>
 
-            <div id="status" class="status info" style="display: none;"></div>
+            <div id="status" class="status info" style="display: none;" aria-live="polite" aria-label="Status message"></div>
         </div>
 
         <div class="test-panel">
@@ -113,6 +113,13 @@
 
     <script src="config.js"></script>
     <script>
+        // Verify ConfigValidator is loaded
+        if (typeof ConfigValidator === 'undefined') {
+            console.error('ConfigValidator not found. Ensure config.js is loaded.');
+            document.getElementById('url-error').textContent = 'Configuration error: validation module not loaded.';
+            document.getElementById('url-error').classList.add('visible');
+        }
+
         const urlInput = document.getElementById('test-url');
         const urlError = document.getElementById('url-error');
         const testBtn = document.getElementById('test-btn');
@@ -143,8 +150,10 @@
             }
 
             // Validate URL
-            if (!ConfigValidator.isValidUrl(url, false)) {
-                const errorMessage = ConfigValidator.getUrlError(url);
+            if (typeof ConfigValidator === 'undefined' || !ConfigValidator.isValidUrl(url, false)) {
+                const errorMessage = typeof ConfigValidator === 'undefined' 
+                    ? 'Validation module not available' 
+                    : ConfigValidator.getUrlError(url);
                 showError(errorMessage);
                 isValid = false;
                 updateButtons();
@@ -188,6 +197,15 @@
                 showStatus('✓ Connection test would be performed here', 'success');
             }, 1000);
         });
+
+        // Save button click
+        saveBtn.addEventListener('click', () => {
+            showStatus('Saving settings...', 'info');
+            setTimeout(() => {
+                showStatus('✓ Settings would be saved here', 'success');
+            }, 500);
+        });
+    </script>
 
         // Save button click
         saveBtn.addEventListener('click', () => {
