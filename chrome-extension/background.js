@@ -62,6 +62,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleGetAnalysisState(message, sendResponse);
     return true; // Indicates async response
   }
+  if (message.type === "OPEN_PRIVACY_POLICY") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("privacy.html") });
+    return false; // No async response needed
+  }
 });
 
 async function handleCacheCheck(message, sendResponse) {
@@ -158,13 +162,15 @@ function setAnalysisState(videoId, state) {
   analysisStates.set(videoId, state);
 
   // Notify popup and content scripts of state change
-  chrome.runtime.sendMessage({
-    type: "ANALYSIS_STATE_CHANGED",
-    videoId: videoId,
-    state: state,
-  }).catch(() => {
-    // Ignore errors if no listeners
-  });
+  chrome.runtime
+    .sendMessage({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: videoId,
+      state: state,
+    })
+    .catch(() => {
+      // Ignore errors if no listeners
+    });
 }
 
 /**
@@ -250,11 +256,13 @@ async function handleClearCache(sendResponse) {
     analysisStates.clear();
 
     // Notify popup of cache update
-    chrome.runtime.sendMessage({
-      type: "CACHE_UPDATED",
-    }).catch(() => {
-      // Ignore errors if no listeners
-    });
+    chrome.runtime
+      .sendMessage({
+        type: "CACHE_UPDATED",
+      })
+      .catch(() => {
+        // Ignore errors if no listeners
+      });
 
     sendResponse({ success: true });
   } catch (error) {

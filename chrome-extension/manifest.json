@@ -20,7 +20,7 @@
         "https://m.youtube.com/watch*",
         "https://youtu.be/*"
       ],
-      "js": ["config.js", "content.js"],
+      "js": ["config.js", "consent.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

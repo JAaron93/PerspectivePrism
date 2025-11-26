@@ -1,388 +1,463 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Test Connection Functionality</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: #f9f9f9;
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #f9f9f9;
+      }
+      h1 {
+        color: #1a1a1a;
+      }
+      .test-section {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .test-section h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      .test-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .test-input.error {
+        border-color: #f44336;
+      }
+      button {
+        padding: 10px 20px;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        background: white;
+        font-size: 14px;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button.primary {
+        background: #2196f3;
+        color: white;
+        border-color: #2196f3;
+      }
+      button.secondary {
+        background: white;
+        color: #2196f3;
+        border-color: #2196f3;
+      }
+      .message {
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        display: none;
+      }
+      .message.visible {
+        display: block;
+      }
+      .error-message {
+        background: #ffebee;
+        border-left: 3px solid #f44336;
+        color: #c62828;
+      }
+      .success-message {
+        background: #e8f5e9;
+        border-left: 3px solid #4caf50;
+        color: #2e7d32;
+      }
+      .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #ccc;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
-        h1 {
-            color: #1a1a1a;
-        }
-        .test-section {
-            background: white;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .test-section h2 {
-            margin-top: 0;
-            color: #333;
-        }
-        .test-input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .test-input.error {
-            border-color: #f44336;
-        }
-        button {
-            padding: 10px 20px;
-            margin-right: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            background: white;
-            font-size: 14px;
-        }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        button.primary {
-            background: #2196f3;
-            color: white;
-            border-color: #2196f3;
-        }
-        button.secondary {
-            background: white;
-            color: #2196f3;
-            border-color: #2196f3;
-        }
-        .message {
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-            display: none;
-        }
-        .message.visible {
-            display: block;
-        }
-        .error-message {
-            background: #ffebee;
-            border-left: 3px solid #f44336;
-            color: #c62828;
-        }
-        .success-message {
-            background: #e8f5e9;
-            border-left: 3px solid #4caf50;
-            color: #2e7d32;
-        }
-        .spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid #ccc;
-            border-top-color: currentColor;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .test-result {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        .test-result.pass {
-            background: #e8f5e9;
-            border-left: 3px solid #4caf50;
-        }
-        .test-result.fail {
-            background: #ffebee;
-            border-left: 3px solid #f44336;
-        }
+      }
+      .test-result {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      .test-result.pass {
+        background: #e8f5e9;
+        border-left: 3px solid #4caf50;
+      }
+      .test-result.fail {
+        background: #ffebee;
+        border-left: 3px solid #f44336;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Test Connection Functionality</h1>
     <p>This page tests the testConnection() method implementation</p>
 
     <div class="test-section">
-        <h2>Manual Test</h2>
-        <label for="backend-url">Backend URL:</label>
-        <input type="text" id="backend-url" class="test-input" placeholder="https://api.example.com" value="http://localhost:8000">
-        <div id="backend-url-error" class="message error-message"></div>
-        <div id="backend-url-success" class="message success-message"></div>
-        <button id="test-connection" class="secondary">Test Connection</button>
+      <h2>Manual Test</h2>
+      <label for="backend-url">Backend URL:</label>
+      <input
+        type="text"
+        id="backend-url"
+        class="test-input"
+        placeholder="https://api.example.com"
+        value="http://localhost:8000"
+      />
+      <div id="backend-url-error" class="message error-message"></div>
+      <div id="backend-url-success" class="message success-message"></div>
+      <button id="test-connection" class="secondary">Test Connection</button>
     </div>
 
     <div class="test-section">
-        <h2>Automated Tests</h2>
-        <button onclick="runAllTests()" class="primary">Run All Tests</button>
-        <div id="test-results"></div>
+      <h2>Automated Tests</h2>
+      <button onclick="runAllTests()" class="primary">Run All Tests</button>
+      <div id="test-results"></div>
     </div>
 
     <div class="test-section">
-        <h2>Test Scenarios</h2>
-        <button onclick="testScenario('http://localhost:8000', 'Valid localhost')">Test localhost:8000</button>
-        <button onclick="testScenario('https://api.example.com', 'Valid HTTPS (will fail - no server)')">Test HTTPS URL</button>
-        <button onclick="testScenario('http://example.com', 'Invalid HTTP non-localhost')">Test Invalid HTTP</button>
-        <button onclick="testScenario('', 'Empty URL')">Test Empty URL</button>
+      <h2>Test Scenarios</h2>
+      <button
+        onclick="testScenario('http://localhost:8000', 'Valid localhost')"
+      >
+        Test localhost:8000
+      </button>
+      <button
+        onclick="testScenario('https://api.example.com', 'Valid HTTPS (will fail - no server)')"
+      >
+        Test HTTPS URL
+      </button>
+      <button
+        onclick="testScenario('http://example.com', 'Invalid HTTP non-localhost')"
+      >
+        Test Invalid HTTP
+      </button>
+      <button onclick="testScenario('', 'Empty URL')">Test Empty URL</button>
     </div>
 
     <script src="config.js"></script>
     <script>
-        // Get DOM elements
-        const backendUrlInput = document.getElementById('backend-url');
-        const testConnectionBtn = document.getElementById('test-connection');
-        const backendUrlError = document.getElementById('backend-url-error');
-        const backendUrlSuccess = document.getElementById('backend-url-success');
-        const testResults = document.getElementById('test-results');
+      // Get DOM elements
+      const backendUrlInput = document.getElementById("backend-url");
+      const testConnectionBtn = document.getElementById("test-connection");
+      const backendUrlError = document.getElementById("backend-url-error");
+      const backendUrlSuccess = document.getElementById("backend-url-success");
+      const testResults = document.getElementById("test-results");
 
-        let isBackendUrlValid = false;
+      let isBackendUrlValid = false;
 
-        // Validation
-        backendUrlInput.addEventListener('input', validateBackendUrl);
-        backendUrlInput.addEventListener('blur', validateBackendUrl);
+      // Validation
+      backendUrlInput.addEventListener("input", validateBackendUrl);
+      backendUrlInput.addEventListener("blur", validateBackendUrl);
 
-        function validateBackendUrl() {
-            const url = backendUrlInput.value.trim();
+      function validateBackendUrl() {
+        const url = backendUrlInput.value.trim();
 
-            backendUrlError.textContent = '';
-            backendUrlError.classList.remove('visible');
-            backendUrlInput.classList.remove('error');
+        backendUrlError.textContent = "";
+        backendUrlError.classList.remove("visible");
+        backendUrlInput.classList.remove("error");
 
-            if (!url) {
-                showBackendUrlError('Backend URL is required');
-                isBackendUrlValid = false;
-                updateButtonStates();
-                return;
-            }
-
-            if (!ConfigValidator.isValidUrl(url, false)) {
-                const errorMessage = ConfigValidator.getUrlError(url);
-                showBackendUrlError(errorMessage);
-                isBackendUrlValid = false;
-                updateButtonStates();
-                return;
-            }
-
-            isBackendUrlValid = true;
-            backendUrlInput.classList.remove('error');
-            updateButtonStates();
+        if (!url) {
+          showBackendUrlError("Backend URL is required");
+          isBackendUrlValid = false;
+          updateButtonStates();
+          return;
         }
 
-        function showBackendUrlError(message) {
-            backendUrlError.textContent = message;
-            backendUrlError.classList.add('visible');
-            backendUrlInput.classList.add('error');
+        if (!ConfigValidator.isValidUrl(url, false)) {
+          const errorMessage = ConfigValidator.getUrlError(url);
+          showBackendUrlError(errorMessage);
+          isBackendUrlValid = false;
+          updateButtonStates();
+          return;
         }
 
-        function showBackendUrlSuccess(message) {
-            backendUrlSuccess.textContent = message;
-            backendUrlSuccess.classList.add('visible');
-            setTimeout(() => {
-                backendUrlSuccess.classList.remove('visible');
-            }, 5000);
+        isBackendUrlValid = true;
+        backendUrlInput.classList.remove("error");
+        updateButtonStates();
+      }
+
+      function showBackendUrlError(message) {
+        backendUrlError.textContent = message;
+        backendUrlError.classList.add("visible");
+        backendUrlInput.classList.add("error");
+      }
+
+      function showBackendUrlSuccess(message) {
+        backendUrlSuccess.textContent = message;
+        backendUrlSuccess.classList.add("visible");
+        setTimeout(() => {
+          backendUrlSuccess.classList.remove("visible");
+        }, 5000);
+      }
+
+      function updateButtonStates() {
+        testConnectionBtn.disabled = !isBackendUrlValid;
+      }
+
+      function clearMessages() {
+        backendUrlSuccess.classList.remove("visible");
+      }
+
+      // Test Connection Implementation (from options.js)
+      async function testConnection() {
+        const url = backendUrlInput.value.trim();
+
+        if (!isBackendUrlValid) {
+          return;
         }
 
-        function updateButtonStates() {
-            testConnectionBtn.disabled = !isBackendUrlValid;
+        clearMessages();
+
+        // Show loading state
+        testConnectionBtn.disabled = true;
+        testConnectionBtn.innerHTML =
+          '<span class="spinner"></span> Testing...';
+
+        try {
+          // Test connection with 10-second timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          const response = await fetch(`${url}/health`, {
+            method: "GET",
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            // Connection successful
+            showBackendUrlSuccess("✓ Connected successfully");
+            console.log("[Test] Connection test successful");
+            return { success: true, message: "Connected successfully" };
+          } else {
+            // Server responded but with error
+            showBackendUrlError(
+              `Connection failed: Server returned ${response.status}`,
+            );
+            console.error("[Test] Connection test failed:", response.status);
+            return {
+              success: false,
+              message: `Server returned ${response.status}`,
+            };
+          }
+        } catch (error) {
+          // Network error or timeout
+          let errorMessage;
+          if (error.name === "AbortError") {
+            errorMessage =
+              "Connection timeout: Server did not respond within 10 seconds";
+          } else if (error.message.includes("fetch")) {
+            errorMessage =
+              "Cannot connect to server. Check the URL and try again.";
+          } else {
+            errorMessage = `Connection failed: ${error.message}`;
+          }
+          showBackendUrlError(errorMessage);
+          console.error("[Test] Connection test error:", error);
+          return { success: false, message: errorMessage };
+        } finally {
+          // Restore button state
+          testConnectionBtn.disabled = false;
+          testConnectionBtn.textContent = "Test Connection";
         }
+      }
 
-        function clearMessages() {
-            backendUrlSuccess.classList.remove('visible');
+      // Event listener
+      testConnectionBtn.addEventListener("click", testConnection);
+
+      // Test scenario helper
+      function testScenario(url, description) {
+        backendUrlInput.value = url;
+        backendUrlInput.dispatchEvent(new Event("input"));
+        setTimeout(() => {
+          if (isBackendUrlValid) {
+            testConnection();
+          }
+        }, 100);
+      }
+
+      // Automated tests
+      async function runAllTests() {
+        testResults.innerHTML = "<p>Running tests...</p>";
+        const results = [];
+
+        // Test 1: Valid localhost URL
+        results.push(
+          await runTest("Test 1: Valid localhost URL", async () => {
+            backendUrlInput.value = "http://localhost:8000";
+            validateBackendUrl();
+            return isBackendUrlValid === true;
+          }),
+        );
+
+        // Test 2: Valid HTTPS URL
+        results.push(
+          await runTest("Test 2: Valid HTTPS URL format", async () => {
+            backendUrlInput.value = "https://api.example.com";
+            validateBackendUrl();
+            return isBackendUrlValid === true;
+          }),
+        );
+
+        // Test 3: Invalid HTTP non-localhost
+        results.push(
+          await runTest("Test 3: Invalid HTTP non-localhost", async () => {
+            backendUrlInput.value = "http://example.com";
+            validateBackendUrl();
+            return isBackendUrlValid === false;
+          }),
+        );
+
+        // Test 4: Empty URL
+        results.push(
+          await runTest("Test 4: Empty URL", async () => {
+            backendUrlInput.value = "";
+            validateBackendUrl();
+            return isBackendUrlValid === false;
+          }),
+        );
+
+        // Test 5: Button disabled when invalid
+        results.push(
+          await runTest(
+            "Test 5: Button disabled when URL invalid",
+            async () => {
+              backendUrlInput.value = "invalid";
+              validateBackendUrl();
+              return testConnectionBtn.disabled === true;
+            },
+          ),
+        );
+
+        // Test 6: Button enabled when valid
+        results.push(
+          await runTest("Test 6: Button enabled when URL valid", async () => {
+            backendUrlInput.value = "http://localhost:8000";
+            validateBackendUrl();
+            return testConnectionBtn.disabled === false;
+          }),
+        );
+
+        // Test 7: Timeout handling (simulated)
+        results.push(
+          await runTest(
+            "Test 7: Timeout handling (simulated 10s timeout)",
+            async () => {
+              const originalFetch = window.fetch;
+              const originalSetTimeout = window.setTimeout;
+
+              try {
+                // Mock fetch to hang indefinitely until aborted
+                window.fetch = (url, options) => {
+                  return new Promise((resolve, reject) => {
+                    if (options.signal?.aborted) {
+                      reject(
+                        new DOMException(
+                          "The user aborted a request.",
+                          "AbortError",
+                        ),
+                      );
+                    } else {
+                      options.signal?.addEventListener("abort", () => {
+                        reject(
+                          new DOMException(
+                            "The user aborted a request.",
+                            "AbortError",
+                          ),
+                        );
+                      });
+                    }
+                  });
+                };
+
+                // Mock setTimeout to trigger immediately for the 10s timeout
+                window.setTimeout = (cb, delay) => {
+                  if (delay === 10000) {
+                    // Execute callback immediately to simulate timeout
+                    cb();
+                    return 12345;
+                  }
+                  return originalSetTimeout(cb, delay);
+                };
+
+                // Set a valid URL so it tries to connect
+                backendUrlInput.value = "http://localhost:8000";
+                isBackendUrlValid = true; // Force valid state
+
+                const result = await testConnection();
+
+                // Verify it failed with timeout message
+                return (
+                  result.success === false &&
+                  result.message.includes("Connection timeout")
+                );
+              } finally {
+                // Restore mocks
+                window.fetch = originalFetch;
+                window.setTimeout = originalSetTimeout;
+              }
+            },
+          ),
+        );
+
+        // Display results
+        displayTestResults(results);
+      }
+
+      async function runTest(name, testFn) {
+        try {
+          const passed = await testFn();
+          return { name, passed, error: null };
+        } catch (error) {
+          return { name, passed: false, error: error.message };
         }
+      }
 
-        // Test Connection Implementation (from options.js)
-        async function testConnection() {
-            const url = backendUrlInput.value.trim();
+      function displayTestResults(results) {
+        const passCount = results.filter((r) => r.passed).length;
+        const totalCount = results.length;
 
-            if (!isBackendUrlValid) {
-                return;
-            }
+        let html = `<h3>Test Results: ${passCount}/${totalCount} passed</h3>`;
 
-            clearMessages();
-
-            // Show loading state
-            testConnectionBtn.disabled = true;
-            testConnectionBtn.innerHTML = '<span class="spinner"></span> Testing...';
-
-            try {
-                // Test connection with 10-second timeout
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                const response = await fetch(`${url}/health`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (response.ok) {
-                    // Connection successful
-                    showBackendUrlSuccess('✓ Connected successfully');
-                    console.log('[Test] Connection test successful');
-                    return { success: true, message: 'Connected successfully' };
-                } else {
-                    // Server responded but with error
-                    showBackendUrlError(`Connection failed: Server returned ${response.status}`);
-                    console.error('[Test] Connection test failed:', response.status);
-                    return { success: false, message: `Server returned ${response.status}` };
-                }
-
-            } catch (error) {
-                // Network error or timeout
-                let errorMessage;
-                if (error.name === 'AbortError') {
-                    errorMessage = 'Connection timeout: Server did not respond within 10 seconds';
-                } else if (error.message.includes('fetch')) {
-                    errorMessage = 'Cannot connect to server. Check the URL and try again.';
-                } else {
-                    errorMessage = `Connection failed: ${error.message}`;
-                }
-                showBackendUrlError(errorMessage);
-                console.error('[Test] Connection test error:', error);
-                return { success: false, message: errorMessage };
-
-            } finally {
-                // Restore button state
-                testConnectionBtn.disabled = false;
-                testConnectionBtn.textContent = 'Test Connection';
-            }
-        }
-
-        // Event listener
-        testConnectionBtn.addEventListener('click', testConnection);
-
-        // Test scenario helper
-        function testScenario(url, description) {
-            backendUrlInput.value = url;
-            backendUrlInput.dispatchEvent(new Event('input'));
-            setTimeout(() => {
-                if (isBackendUrlValid) {
-                    testConnection();
-                }
-            }, 100);
-        }
-
-        // Automated tests
-        async function runAllTests() {
-            testResults.innerHTML = '<p>Running tests...</p>';
-            const results = [];
-
-            // Test 1: Valid localhost URL
-            results.push(await runTest(
-                'Test 1: Valid localhost URL',
-                async () => {
-                    backendUrlInput.value = 'http://localhost:8000';
-                    validateBackendUrl();
-                    return isBackendUrlValid === true;
-                }
-            ));
-
-            // Test 2: Valid HTTPS URL
-            results.push(await runTest(
-                'Test 2: Valid HTTPS URL format',
-                async () => {
-                    backendUrlInput.value = 'https://api.example.com';
-                    validateBackendUrl();
-                    return isBackendUrlValid === true;
-                }
-            ));
-
-            // Test 3: Invalid HTTP non-localhost
-            results.push(await runTest(
-                'Test 3: Invalid HTTP non-localhost',
-                async () => {
-                    backendUrlInput.value = 'http://example.com';
-                    validateBackendUrl();
-                    return isBackendUrlValid === false;
-                }
-            ));
-
-            // Test 4: Empty URL
-            results.push(await runTest(
-                'Test 4: Empty URL',
-                async () => {
-                    backendUrlInput.value = '';
-                    validateBackendUrl();
-                    return isBackendUrlValid === false;
-                }
-            ));
-
-            // Test 5: Button disabled when invalid
-            results.push(await runTest(
-                'Test 5: Button disabled when URL invalid',
-                async () => {
-                    backendUrlInput.value = 'invalid';
-                    validateBackendUrl();
-                    return testConnectionBtn.disabled === true;
-                }
-            ));
-
-            // Test 6: Button enabled when valid
-            results.push(await runTest(
-                'Test 6: Button enabled when URL valid',
-                async () => {
-                    backendUrlInput.value = 'http://localhost:8000';
-                    validateBackendUrl();
-                    return testConnectionBtn.disabled === false;
-                }
-            ));
-
-            // Test 7: Timeout handling (simulated)
-            results.push(await runTest(
-                'Test 7: Timeout is set to 10 seconds',
-                async () => {
-                    // This test verifies the timeout is configured correctly
-                    // We can't easily test the actual timeout without waiting 10s
-                    return true; // Manual verification needed
-                }
-            ));
-
-            // Display results
-            displayTestResults(results);
-        }
-
-        async function runTest(name, testFn) {
-            try {
-                const passed = await testFn();
-                return { name, passed, error: null };
-            } catch (error) {
-                return { name, passed: false, error: error.message };
-            }
-        }
-
-        function displayTestResults(results) {
-            const passCount = results.filter(r => r.passed).length;
-            const totalCount = results.length;
-
-            let html = `<h3>Test Results: ${passCount}/${totalCount} passed</h3>`;
-            
-            results.forEach(result => {
-                const className = result.passed ? 'pass' : 'fail';
-                const icon = result.passed ? '✓' : '✗';
-                html += `<div class="test-result ${className}">
+        results.forEach((result) => {
+          const className = result.passed ? "pass" : "fail";
+          const icon = result.passed ? "✓" : "✗";
+          html += `<div class="test-result ${className}">
                     ${icon} ${result.name}
-                    ${result.error ? `<br>Error: ${result.error}` : ''}
+                    ${result.error ? `<br>Error: ${result.error}` : ""}
                 </div>`;
-            });
+        });
 
-            testResults.innerHTML = html;
-        }
+        testResults.innerHTML = html;
+      }
 
-        // Initial validation
-        validateBackendUrl();
+      // Initial validation
+      validateBackendUrl();
     </script>
-</body>
+  </body>
 </html>

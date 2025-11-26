@@ -353,7 +353,7 @@
     - Add ARIA attributes for accessibility
     - _Requirements: 1.2_
 
-- [ ] 10. Implement options page
+- [x] 10. Implement options page
   - [x] 10.1 Create options page HTML structure
     - Add backend URL input field with label
     - Add "Test Connection" button
@@ -388,8 +388,8 @@
     - [x] Add "View Privacy Policy" link
     - _Requirements: 1.5, 7.3, 7.4_
 
-- [ ] 11. Implement privacy and consent flow with versioning
-  - [ ] 11.1 Create privacy notice dialog with "Learn More" functionality
+- [-] 11. Implement privacy and consent flow with versioning
+  - [-] 11.1 Create privacy notice dialog with "Learn More" functionality
     - Create first-time consent dialog HTML
     - Add "Learn More", "Deny", "Allow and Continue" buttons
     - Implement "Learn More" button behavior:

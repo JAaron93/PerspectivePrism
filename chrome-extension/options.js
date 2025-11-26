@@ -246,7 +246,7 @@ async function testConnection() {
       showBackendUrlError(
         "Connection timeout: Server did not respond within 10 seconds",
       );
-    } else if (error.message.includes("fetch")) {
+    } else if (error.name === "TypeError") {
       showBackendUrlError(
         "Cannot connect to server. Check the URL and try again.",
       );

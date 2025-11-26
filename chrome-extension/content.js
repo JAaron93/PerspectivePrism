@@ -360,6 +360,21 @@ async function handleAnalysisClick() {
   showPanelLoading();
   cancelRequest = false;
 
+  // Check consent
+  const consentManager = new ConsentManager();
+  const hasConsent = await consentManager.checkConsent();
+
+  if (!hasConsent) {
+    setButtonState("idle"); // Reset button state
+    consentManager.showConsentDialog(async (allowed) => {
+      if (allowed) {
+        // Retry analysis with consent
+        handleAnalysisClick();
+      }
+    });
+    return;
+  }
+
   try {
     const response = await sendMessageWithRetry(
       {
