@@ -43,6 +43,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleCacheCheck(message, sendResponse);
     return true; // Indicates async response
   }
+  if (message.type === "GET_CACHE_STATS") {
+    handleGetCacheStats(sendResponse);
+    return true; // Indicates async response
+  }
+  if (message.type === "CLEAR_CACHE") {
+    handleClearCache(sendResponse);
+    return true; // Indicates async response
+  }
 });
 
 async function handleCacheCheck(message, sendResponse) {
@@ -86,6 +94,36 @@ async function handleAnalysisRequest(message, sendResponse) {
     sendResponse(result);
   } catch (error) {
     console.error("Analysis request failed:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleGetCacheStats(sendResponse) {
+  if (!client) {
+    const config = await configManager.load();
+    client = new PerspectivePrismClient(config.backendUrl);
+  }
+
+  try {
+    const stats = await client.getCacheStats();
+    sendResponse({ success: true, stats: stats });
+  } catch (error) {
+    console.error("Failed to get cache stats:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleClearCache(sendResponse) {
+  if (!client) {
+    const config = await configManager.load();
+    client = new PerspectivePrismClient(config.backendUrl);
+  }
+
+  try {
+    await client.clearCache();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("Failed to clear cache:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

@@ -328,8 +328,8 @@
     - Announce expansion state changes
     - _Requirements: 4.7_
 
-- [ ] 9. Implement popup UI
-  - [ ] 9.1 Create popup HTML structure
+- [/] 9. Implement popup UI
+  - [x] 9.1 Create popup HTML structure
     - Add status display area
     - Add cache statistics display
     - Add "Open Settings" button
