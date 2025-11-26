@@ -16,6 +16,14 @@ class ConsentManager {
   async checkConsent() {
     return new Promise((resolve) => {
       chrome.storage.sync.get([this.STORAGE_KEY], (result) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "[Perspective Prism] Failed to check consent:",
+            chrome.runtime.lastError,
+          );
+          resolve(false);
+          return;
+        }
         const consent = result[this.STORAGE_KEY];
         if (
           consent &&
@@ -176,28 +184,66 @@ class ConsentManager {
             </div>
         `;
 
-    shadow.appendChild(container);
-    document.body.appendChild(host);
+    shadow.appendChild(container); // Append container to shadow DOM
 
-    // Event Listeners
     const learnMoreLink = shadow.getElementById("learn-more-link");
     const denyBtn = shadow.getElementById("deny-btn");
     const allowBtn = shadow.getElementById("allow-btn");
 
-    learnMoreLink.onclick = () => {
-      chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" });
+    learnMoreLink.onclick = async () => {
+      try {
+        // Use ConfigManager from config.js to check for custom policy URL
+        const configManager = new ConfigManager();
+        const config = await configManager.load();
+
+        if (config.privacyPolicyUrl) {
+          window.open(config.privacyPolicyUrl, "_blank");
+        } else {
+          chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" }, () => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                "[Perspective Prism] Failed to open privacy policy:",
+                chrome.runtime.lastError,
+              );
+            }
+          });
+        }
+      } catch (error) {
+        console.error(
+          "[Perspective Prism] Failed to handle privacy link:",
+          error,
+        );
+        // Fallback to default
+        chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" });
+      }
     };
 
     denyBtn.onclick = async () => {
-      await this.saveConsent(false);
-      host.remove();
-      callback(false);
+      try {
+        await this.saveConsent(false);
+        host.remove();
+        callback(false);
+      } catch (error) {
+        console.error(
+          "[Perspective Prism] Failed to save deny consent:",
+          error,
+        );
+        alert("Failed to save your consent preference. Please try again.");
+      }
     };
 
     allowBtn.onclick = async () => {
-      await this.saveConsent(true);
-      host.remove();
-      callback(true);
+      try {
+        await this.saveConsent(true);
+        host.remove();
+        callback(true);
+      } catch (error) {
+        console.error(
+          "[Perspective Prism] Failed to save allow consent:",
+          error,
+        );
+        alert("Failed to save your consent preference. Please try again.");
+      }
     };
   }
 }

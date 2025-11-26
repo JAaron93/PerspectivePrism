@@ -361,17 +361,28 @@ async function handleAnalysisClick() {
   cancelRequest = false;
 
   // Check consent
-  const consentManager = new ConsentManager();
-  const hasConsent = await consentManager.checkConsent();
+  try {
+    if (typeof ConsentManager === "undefined") {
+      throw new Error("ConsentManager dependency missing");
+    }
 
-  if (!hasConsent) {
-    setButtonState("idle"); // Reset button state
-    consentManager.showConsentDialog(async (allowed) => {
-      if (allowed) {
-        // Retry analysis with consent
-        handleAnalysisClick();
-      }
-    });
+    const consentManager = new ConsentManager();
+    const hasConsent = await consentManager.checkConsent();
+
+    if (!hasConsent) {
+      setButtonState("idle"); // Reset button state
+      consentManager.showConsentDialog(async (allowed) => {
+        if (allowed) {
+          // Retry analysis with consent
+          handleAnalysisClick();
+        }
+      });
+      return;
+    }
+  } catch (error) {
+    console.error("[Perspective Prism] Consent check failed:", error);
+    setButtonState("error");
+    showPanelError("Failed to check consent. Please try again.");
     return;
   }
 

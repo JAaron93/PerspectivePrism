@@ -63,7 +63,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Indicates async response
   }
   if (message.type === "OPEN_PRIVACY_POLICY") {
-    chrome.tabs.create({ url: chrome.runtime.getURL("privacy.html") });
+    chrome.tabs
+      .create({ url: chrome.runtime.getURL("privacy.html") })
+      .catch((error) => {
+        console.error("Failed to open privacy policy:", error);
+      });
     return false; // No async response needed
   }
 });
