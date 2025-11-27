@@ -112,6 +112,12 @@ function setupEventListeners() {
   // View privacy policy button
   viewPrivacyPolicyBtn.addEventListener("click", viewPrivacyPolicy);
 
+  // Revoke consent button
+  const revokeConsentBtn = document.getElementById("revoke-consent");
+  if (revokeConsentBtn) {
+    revokeConsentBtn.addEventListener("click", revokeConsent);
+  }
+
   // Enable/disable cache duration input based on cache enabled checkbox
   cacheEnabledCheckbox.addEventListener("change", () => {
     cacheDurationInput.disabled = !cacheEnabledCheckbox.checked;
@@ -384,6 +390,42 @@ function viewPrivacyPolicy() {
   chrome.tabs.create({
     url: chrome.runtime.getURL("privacy.html"),
   });
+}
+
+/**
+ * Revoke consent
+ */
+async function revokeConsent() {
+  if (
+    !confirm(
+      "Are you sure you want to revoke your consent? This will cancel any pending analysis, clear all cached data, and disable analysis functionality until you consent again.",
+    )
+  ) {
+    return;
+  }
+
+  try {
+    // Send revocation message to background script
+    await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: "REVOKE_CONSENT" }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else if (response && response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve(response);
+        }
+      });
+    });
+
+    // Update UI to reflect revocation
+    allowAnalysisCheckbox.checked = false;
+    showSaveSuccess("✓ Consent revoked and data cleared");
+    console.log("[Options] Consent revoked");
+  } catch (error) {
+    showSaveError(`Failed to revoke consent: ${error.message}`);
+    console.error("[Options] Failed to revoke consent:", error);
+  }
 }
 
 /**

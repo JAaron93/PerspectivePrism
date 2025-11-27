@@ -421,25 +421,25 @@
     - Add contact information for privacy questions
     - Include policy version number at top: "Privacy Policy v1.0.0"
     - _Requirements: 7.1, 7.2_
-  - [ ] 11.3 Implement consent enforcement with revocation handling
-    - Check consent before allowing analysis
-    - Show settings link if consent denied
-    - **Consent revocation in settings:**
-      - Add "Revoke Consent" button in privacy settings section
-      - Show confirmation dialog: "This will cancel any pending analysis and clear all cached data"
-      - On revocation:
-        - Cancel all pending analysis requests (abort via AbortController)
-        - Clear all cached analysis results from chrome.storage.local
-        - Clear persisted request state (pending*request*\* keys)
-        - Clear all chrome.alarms related to analysis
-        - Set consentGiven to false in chrome.storage.sync
-        - Log revocation event with timestamp
-    - **Consent revoked error state:**
-      - If analysis is in progress when consent revoked, show specific error:
-        - "Analysis cancelled: Consent revoked"
-        - "You can re-enable analysis in settings"
-      - Close analysis panel if open
-      - Disable analysis button with tooltip: "Consent required"
+  - [x] 11.3 Implement consent enforcement with revocation handling
+    - [x] Check consent before allowing analysis
+    - [x] Show settings link if consent denied
+    - [x] **Consent revocation in settings:**
+      - [x] Add "Revoke Consent" button in privacy settings section
+      - [x] Show confirmation dialog: "This will cancel any pending analysis and clear all cached data"
+      - [x] On revocation:
+        - [x] Cancel all pending analysis requests (abort via AbortController)
+        - [x] Clear all cached analysis results from chrome.storage.local
+        - [x] Clear persisted request state (pending*request* keys)
+        - [x] Clear all chrome.alarms related to analysis
+        - [x] Set consentGiven to false in chrome.storage.sync
+        - [x] Log revocation event with timestamp
+    - [x] **Consent revoked error state:**
+      - [x] If analysis is in progress when consent revoked, show specific error:
+        - [x] "Analysis cancelled: Consent revoked"
+        - [x] "You can re-enable analysis in settings"
+      - [x] Close analysis panel if open
+      - [x] Disable analysis button with tooltip: "Consent required"
     - _Requirements: 7.7_
   - [ ] 11.4 Implement privacy policy versioning
     - Store current policy version in chrome.storage.sync:

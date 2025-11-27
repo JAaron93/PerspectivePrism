@@ -70,6 +70,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     return false; // No async response needed
   }
+  if (message.type === "REVOKE_CONSENT") {
+    handleRevokeConsent(sendResponse);
+    return true; // Indicates async response
+  }
 });
 
 async function handleCacheCheck(message, sendResponse) {
@@ -271,6 +275,71 @@ async function handleClearCache(sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     console.error("Failed to clear cache:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleRevokeConsent(sendResponse) {
+  console.log("[Perspective Prism] Revoking consent...");
+
+  try {
+    // 1. Cancel pending analyses (if client supports it, or just clear state)
+    // Since we don't have a direct cancel method on client yet, we rely on clearing state
+    // and the fact that subsequent steps won't find valid state.
+
+    // 2. Clear all cached analysis results
+    if (!client) {
+      const config = await configManager.load();
+      client = new PerspectivePrismClient(config.backendUrl);
+    }
+    await client.clearCache();
+
+    // 3. Clear all analysis states
+    analysisStates.clear();
+
+    // 4. Clear persisted request state (pending*request* keys)
+    const allKeys = await chrome.storage.local.get(null);
+    const pendingKeys = Object.keys(allKeys).filter((key) =>
+      key.startsWith("pending_request_"),
+    );
+    if (pendingKeys.length > 0) {
+      await chrome.storage.local.remove(pendingKeys);
+    }
+
+    // 5. Clear all alarms
+    await chrome.alarms.clearAll();
+
+    // 6. Set consentGiven to false in storage
+    await new Promise((resolve) => {
+      chrome.storage.sync.set(
+        {
+          consent: {
+            given: false,
+            timestamp: Date.now(),
+            revoked: true,
+            policyVersion: "1.0.0", // Keep version for reference
+          },
+        },
+        resolve,
+      );
+    });
+
+    // 7. Notify all tabs (content scripts) to update UI
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      chrome.tabs
+        .sendMessage(tab.id, {
+          type: "CONSENT_REVOKED",
+        })
+        .catch(() => {
+          // Ignore errors for tabs where content script isn't loaded
+        });
+    }
+
+    console.log("[Perspective Prism] Consent revoked successfully");
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[Perspective Prism] Failed to revoke consent:", error);
     sendResponse({ success: false, error: error.message });
   }
 }
