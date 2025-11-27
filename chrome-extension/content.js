@@ -1442,71 +1442,122 @@ function setupObservers() {
   }
 }
 
+  }
+}
+
+// --- Cleanup & Navigation ---
+
+let isCleaningUp = false;
+
+function cleanup() {
+  if (isCleaningUp) return;
+  isCleaningUp = true;
+  console.log("[Perspective Prism] Starting cleanup for navigation...");
+
+  try {
+    // 1. Disconnect MutationObserver
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+
+    // 2. Cancel in-flight requests and timers
+    cancelRequest = true;
+    clearLoadingTimer();
+    
+    // 3. Close and clean panel UI
+    removePanel();
+
+    // 4. Remove button (will be re-injected if needed)
+    if (analysisButton) {
+      analysisButton.remove();
+      analysisButton = null;
+    }
+    const existingBtn = document.getElementById(BUTTON_ID);
+    if (existingBtn) existingBtn.remove();
+
+    // 5. Reset state
+    currentVideoId = null;
+    
+    console.log("[Perspective Prism] Cleanup complete.");
+  } catch (error) {
+    console.error("[Perspective Prism] Error during cleanup:", error);
+  } finally {
+    isCleaningUp = false;
+  }
+}
+
 function handleNavigation() {
+  // If we are currently cleaning up, skip (or queue?)
+  if (isCleaningUp) return;
+
   const vid = extractVideoId();
 
-  // Always re-setup observers on navigation as DOM might have changed significantly
-  setupObservers();
-
   if (vid !== currentVideoId) {
-    currentVideoId = vid;
-    // Re-inject if needed or reset state
+    console.log(`[Perspective Prism] Navigation detected: ${currentVideoId} -> ${vid}`);
+    
+    // Cleanup old video state
     if (currentVideoId) {
-      injectButton();
-      setButtonState("idle");
-      removePanel();
+      cleanup();
     }
-  } else if (currentVideoId && !document.getElementById(BUTTON_ID)) {
-    // Ensure button stays injected
-    injectButton();
+
+    // Setup new video state
+    if (vid) {
+      currentVideoId = vid;
+      // Reset cancel flag for new video
+      cancelRequest = false;
+      
+      // Small delay to ensure DOM is ready for injection
+      setTimeout(() => {
+        injectButton();
+        setupObservers();
+      }, 500);
+    }
+  } else if (currentVideoId) {
+    // Same video, ensure UI is present
+    if (!document.getElementById(BUTTON_ID)) {
+      injectButton();
+    }
+    if (!observer) {
+      setupObservers();
+    }
   }
 }
 
 function init() {
   loadMetrics();
 
-  // Initial check
-  const newVideoId = extractVideoId();
-  if (newVideoId) {
-    currentVideoId = newVideoId;
-    injectButton();
-  }
+  // --- Navigation Detection Strategy ---
+  // Hybrid approach: History API interception + Polling fallback
 
-  // Setup initial observers
-  setupObservers();
-
-  // URL-change detection for YouTube SPA navigation
-  // Track last URL to detect changes
-  let lastUrl = location.href;
-
-  // Debounced handler with 150ms delay
-  let navDebounceTimer = null;
-  const debouncedNavigation = () => {
-    clearTimeout(navDebounceTimer);
-    navDebounceTimer = setTimeout(() => {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        handleNavigation();
-      }
-    }, 150);
-  };
-
-  // Intercept pushState/replaceState (YouTube uses History API)
+  // 1. History API Interception
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
 
   history.pushState = function (...args) {
     originalPushState.apply(this, args);
-    debouncedNavigation();
+    // Small delay to allow URL to update
+    setTimeout(handleNavigation, 0);
   };
 
   history.replaceState = function (...args) {
     originalReplaceState.apply(this, args);
-    debouncedNavigation();
+    setTimeout(handleNavigation, 0);
   };
 
-  // Listen for back/forward navigation
-  window.addEventListener("popstate", debouncedNavigation);
+  // 2. Popstate Event (Back/Forward)
+  window.addEventListener("popstate", handleNavigation);
+
+  // 3. Polling Fallback (1 second)
+  // Catches missed events or delayed DOM updates
+  setInterval(handleNavigation, 1000);
+
+  // Initial check
+  handleNavigation();
 }
 
 // Run

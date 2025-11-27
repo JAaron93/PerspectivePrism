@@ -441,7 +441,7 @@
       - [x] Close analysis panel if open
       - [x] Disable analysis button with tooltip: "Consent required"
     - _Requirements: 7.7_
-  - [-] 11.4 Implement privacy policy versioning
+  - [x] 11.4 Implement privacy policy versioning
     - Store current policy version in chrome.storage.sync:
       - Key: `privacyPolicyVersion`
       - Current version: "1.0.0"
@@ -458,12 +458,12 @@
       - Show link to view full policy
       - Buttons: "View Changes", "Decline", "Accept"
       - If declined: Revoke consent (same as 11.3)
-      - If accepted: Update consent date and policy version
+    - If accepted: Update consent date and policy version
     - Log policy version changes for audit trail
     - _Requirements: 7.7_
 
-- [ ] 12. Implement navigation and cleanup handlers
-  - [ ] 12.1 Add YouTube SPA navigation detection
+- [-] 12. Implement navigation and cleanup handlers
+  - [x] 12.1 Add YouTube SPA navigation detection
     - **Video ID detection strategy decision:**
       - **Option 1:** Poll current video ID at interval (e.g., every 500ms)
         - Pros: Simple, reliable
@@ -480,15 +480,15 @@
         - Fallback: Poll every 1 second to catch missed changes
         - Rationale: Reliable event-driven with safety net
     - **Implementation:**
-      - Wrap history.pushState and history.replaceState
-      - Extract video ID from new URL on each change
-      - Compare with previous video ID
-      - If changed, trigger re-injection and panel update
-      - Add 1-second polling as fallback safety net
-    - Re-inject button if needed (check for existing button first)
-    - Update panel state for new video (close old panel, reset state)
+      - [x] Wrap history.pushState and history.replaceState
+      - [x] Extract video ID from new URL on each change
+      - [x] Compare with previous video ID
+      - [x] If changed, trigger re-injection and panel update
+      - [x] Add 1-second polling as fallback safety net
+      - [x] Re-inject button if needed (check for existing button first)
+      - [x] Update panel state for new video (close old panel, reset state)
     - _Requirements: 2.5_
-  - [ ] 12.2 Implement cleanup on navigation with explicit sequencing
+  - [-] 12.2 Implement cleanup on navigation with explicit sequencing
     - **Cleanup sequence (must follow this order to avoid races):**
       1. **Disconnect MutationObserver:**
          - Call observer.disconnect() for all observers
