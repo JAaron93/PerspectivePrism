@@ -80,6 +80,20 @@ beforeEach(() => {
     return Promise.resolve();
   });
 
+  chrome.storage.sync.remove.mockImplementation((keys, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
+  chrome.storage.sync.clear.mockImplementation((callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
   // Re-apply mock implementations for chrome.storage.local
   chrome.storage.local.get.mockImplementation((keys, callback) => {
     if (callback) {

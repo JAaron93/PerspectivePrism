@@ -194,7 +194,15 @@ class ConfigManager {
   async loadFromLocal() {
     try {
       const stored = await chrome.storage.local.get("config");
-      return stored.config || DEFAULT_CONFIG;
+      if (!stored.config) {
+        return { ...DEFAULT_CONFIG };
+      }
+      const validation = ConfigValidator.validate(stored.config);
+      if (!validation.valid) {
+        console.warn("Invalid local config, using defaults:", validation.errors);
+        return { ...DEFAULT_CONFIG };
+      }
+      return { ...DEFAULT_CONFIG, ...stored.config };
     } catch {
       return DEFAULT_CONFIG;
     }
@@ -217,11 +225,6 @@ class ConfigManager {
   get() {
     return { ...this.config };
   }
-}
-
-// Export for testing if needed (in a non-extension environment)
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { DEFAULT_CONFIG, ConfigValidator, ConfigManager };
 }
 
 // ES Module Exports (for unit testing and modern imports)
