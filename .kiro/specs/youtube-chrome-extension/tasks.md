@@ -587,8 +587,7 @@
     - Guide user through first analysis
     - _Requirements: 1.1, 1.7_
 
-- [ ] 16. Implement testing and QA strategy
-
+- [-] 16. Implement testing and QA strategy
   - [x] 16.1 Set up unit testing framework
     - Choose test framework: Jest or Vitest (recommended for Chrome extensions)
     - Configure test environment for Chrome extension APIs (mock chrome.\* APIs)
@@ -596,7 +595,7 @@
     - Configure test coverage reporting (target: 80% coverage)
     - Add npm scripts: `npm test`, `npm run test:coverage`, `npm run test:watch`
     - _Requirements: All_
-  - [ ] 16.2 Write unit tests for core components
+  - [x] 16.2 Write unit tests for core components
     - **ConfigValidator tests:**
       - Test URL validation (HTTPS enforcement, localhost exception)
       - Test allowInsecureUrls flag behavior
@@ -626,7 +625,7 @@
       - Mock chrome.runtime.sendMessage
       - Target coverage: 80%
     - _Requirements: All_
-  - [ ] 16.3 Write integration tests
+  - [x] 16.3 Write integration tests
     - Set up integration test environment with Puppeteer or Playwright
     - Configure headless Chrome with extension loaded
     - **Full analysis flow test:**
