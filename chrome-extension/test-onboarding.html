@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Onboarding Flow - Perspective Prism</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #065fd4;
+            margin-top: 0;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 3px solid #065fd4;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .test-case p {
+            margin: 8px 0;
+            color: #666;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass {
+            background: #e6f4ea;
+            color: #137333;
+        }
+        .status.pending {
+            background: #fef7e0;
+            color: #b06000;
+        }
+        button {
+            background: #065fd4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0553bf;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .note {
+            background: #e8f0fe;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border-left: 3px solid #1a73e8;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Onboarding Flow Test Suite</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> This page tests the onboarding flow implementation for task 15.2.
+        Load this extension in Chrome and follow the test cases below.
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 1: First Install Experience</h2>
+        <div class="test-case">
+            <h3>1.1 Welcome Page Display <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Install the extension for the first time (or reload unpacked)</li>
+                <li>Verify welcome page opens automatically</li>
+                <li>Check that welcome page shows features, setup instructions, and privacy info</li>
+            </ol>
+            <p><strong>Expected:</strong> Welcome page opens in new tab with complete onboarding content</p>
+            <p><strong>Implemented in:</strong> <span class="code">background.js</span> - chrome.runtime.onInstalled listener</p>
+        </div>
+
+        <div class="test-case">
+            <h3>1.2 Welcome Page Navigation <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>On welcome page, click "Get Started" button</li>
+                <li>Verify options page opens</li>
+                <li>Go back to welcome page, click "View Privacy Policy"</li>
+                <li>Verify privacy policy page opens</li>
+            </ol>
+            <p><strong>Expected:</strong> Both buttons navigate to correct pages</p>
+            <p><strong>Implemented in:</strong> <span class="code">welcome.js</span></p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 2: Backend Configuration Check</h2>
+        <div class="test-case">
+            <h3>2.1 Unconfigured Backend Detection <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Clear extension storage: <span class="code">chrome.storage.sync.clear()</span></li>
+                <li>Navigate to any YouTube video</li>
+                <li>Click the "Analyze with Perspective Prism" button</li>
+                <li>Verify setup notification panel appears</li>
+            </ol>
+            <p><strong>Expected:</strong> Setup notification shows with instructions and "Open Settings" button</p>
+            <p><strong>Implemented in:</strong> <span class="code">content.js</span> - checkBackendConfiguration() and showSetupNotification()</p>
+        </div>
+
+        <div class="test-case">
+            <h3>2.2 Setup Notification Content <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Trigger setup notification (as in 2.1)</li>
+                <li>Verify notification contains:
+                    <ul>
+                        <li>Welcome message</li>
+                        <li>Explanation of what's needed</li>
+                        <li>Step-by-step setup instructions</li>
+                        <li>"Open Settings" button</li>
+                        <li>"View Welcome Guide" button</li>
+                        <li>Close button (×)</li>
+                    </ul>
+                </li>
+            </ol>
+            <p><strong>Expected:</strong> All elements present and properly styled</p>
+        </div>
+
+        <div class="test-case">
+            <h3>2.3 Setup Notification Actions <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>In setup notification, click "Open Settings"</li>
+                <li>Verify options page opens</li>
+                <li>Trigger setup notification again</li>
+                <li>Click "View Welcome Guide"</li>
+                <li>Verify welcome page opens</li>
+                <li>Trigger setup notification again</li>
+                <li>Click close button (×)</li>
+                <li>Verify notification closes and button returns to idle state</li>
+            </ol>
+            <p><strong>Expected:</strong> All buttons work correctly</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 3: Popup Not Configured State</h2>
+        <div class="test-case">
+            <h3>3.1 Popup Shows Setup Required <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Clear extension storage</li>
+                <li>Navigate to YouTube video</li>
+                <li>Click extension icon to open popup</li>
+                <li>Verify popup shows "Setup required" message</li>
+                <li>Verify "Open Settings" button is available</li>
+            </ol>
+            <p><strong>Expected:</strong> Popup clearly indicates setup is needed</p>
+            <p><strong>Implemented in:</strong> <span class="code">popup.js</span> - showNotConfiguredState()</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 4: First Analysis Flow</h2>
+        <div class="test-case">
+            <h3>4.1 Complete Onboarding to First Analysis <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Start with unconfigured extension</li>
+                <li>Click "Analyze" button on YouTube video</li>
+                <li>See setup notification</li>
+                <li>Click "Open Settings"</li>
+                <li>Configure backend URL (e.g., http://localhost:8000)</li>
+                <li>Test connection (should succeed if backend is running)</li>
+                <li>Save settings</li>
+                <li>Return to YouTube video</li>
+                <li>Click "Analyze" button again</li>
+                <li>Should now proceed to consent dialog (if first analysis)</li>
+            </ol>
+            <p><strong>Expected:</strong> Smooth flow from unconfigured → configured → consent → analysis</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 5: Accessibility</h2>
+        <div class="test-case">
+            <h3>5.1 Keyboard Navigation <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Trigger setup notification</li>
+                <li>Press Tab to cycle through focusable elements</li>
+                <li>Verify focus order: Close button → Open Settings → View Welcome Guide</li>
+                <li>Press Escape key</li>
+                <li>Verify notification closes</li>
+            </ol>
+            <p><strong>Expected:</strong> Full keyboard accessibility</p>
+        </div>
+
+        <div class="test-case">
+            <h3>5.2 Screen Reader Support <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Enable screen reader (NVDA/JAWS/VoiceOver)</li>
+                <li>Trigger setup notification</li>
+                <li>Verify dialog is announced with title "Setup Required"</li>
+                <li>Verify all buttons have proper labels</li>
+            </ol>
+            <p><strong>Expected:</strong> Proper ARIA attributes and announcements</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Case 6: Dark Mode</h2>
+        <div class="test-case">
+            <h3>6.1 Setup Notification Dark Mode <span class="status pending">MANUAL</span></h3>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Enable YouTube dark theme</li>
+                <li>Trigger setup notification</li>
+                <li>Verify notification uses dark mode styling</li>
+                <li>Check contrast and readability</li>
+            </ol>
+            <p><strong>Expected:</strong> Dark mode styles applied correctly</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Implementation Checklist</h2>
+        <div class="test-case">
+            <h3>✅ Completed Features</h3>
+            <ul>
+                <li>✅ Welcome page shown on first install (background.js)</li>
+                <li>✅ Backend configuration check (content.js - checkBackendConfiguration)</li>
+                <li>✅ Setup notification panel (content.js - showSetupNotification)</li>
+                <li>✅ Setup notification styling (content.js - PANEL_STYLES)</li>
+                <li>✅ Message handlers for opening pages (background.js)</li>
+                <li>✅ Popup not configured state (popup.js - showNotConfiguredState)</li>
+                <li>✅ Keyboard navigation support</li>
+                <li>✅ Dark mode support</li>
+                <li>✅ ARIA attributes for accessibility</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Quick Test Commands</h2>
+        <div class="test-case">
+            <h3>Console Commands for Testing</h3>
+            <p>Open DevTools console and run these commands:</p>
+            <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto;">
+// Clear all extension storage (reset to unconfigured state)
+chrome.storage.sync.clear();
+chrome.storage.local.clear();
+
+// Check current configuration
+chrome.storage.sync.get('config', (result) => console.log('Config:', result));
+
+// Set a test configuration
+chrome.storage.sync.set({
+    config: {
+        backendUrl: 'http://localhost:8000',
+        cacheEnabled: true,
+        cacheDuration: 24
+    }
+}, () => console.log('Config set'));
+
+// Check consent status
+chrome.storage.sync.get('consent', (result) => console.log('Consent:', result));
+            </pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Requirements Validation</h2>
+        <div class="test-case">
+            <h3>Task 15.2 Requirements</h3>
+            <ul>
+                <li>✅ Show welcome page on first install - <strong>Implemented</strong></li>
+                <li>✅ Check if backend URL is configured - <strong>Implemented</strong></li>
+                <li>✅ Show setup notification if not configured - <strong>Implemented</strong></li>
+                <li>✅ Guide user through first analysis - <strong>Implemented</strong></li>
+            </ul>
+            <p><strong>Requirements Reference:</strong> 1.1, 1.7</p>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactivity for testing
+        console.log('Onboarding test page loaded');
+        console.log('Extension ID:', chrome.runtime?.id || 'Not in extension context');
+        
+        // Helper function to check if extension is configured
+        async function checkConfiguration() {
+            try {
+                const result = await chrome.storage.sync.get('config');
+                console.log('Current configuration:', result.config);
+                return result.config && result.config.backendUrl;
+            } catch (error) {
+                console.error('Failed to check configuration:', error);
+                return false;
+            }
+        }
+        
+        // Log configuration status on page load
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            checkConfiguration().then(isConfigured => {
+                console.log('Extension configured:', isConfigured);
+            });
+        }
+    </script>
+</body>
+</html>

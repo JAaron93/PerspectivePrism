@@ -40,6 +40,19 @@ configManager
     // ConfigManager returns defaults on failure, so we should be good.
   });
 
+// Handle extension installation
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    // First-time installation - show welcome page
+    console.log('[Perspective Prism] Extension installed, opening welcome page');
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  } else if (details.reason === 'update') {
+    // Extension updated - could show update notes if needed
+    console.log('[Perspective Prism] Extension updated to version', chrome.runtime.getManifest().version);
+    // Optionally show update page or notification
+  }
+});
+
 // Message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "ANALYZE_VIDEO") {
@@ -73,6 +86,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "REVOKE_CONSENT") {
     handleRevokeConsent(sendResponse);
     return true; // Indicates async response
+  }
+  if (message.type === "OPEN_OPTIONS_PAGE") {
+    chrome.runtime.openOptionsPage();
+    return false; // No async response needed
+  }
+  if (message.type === "OPEN_WELCOME_PAGE") {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+    return false; // No async response needed
   }
 });
 

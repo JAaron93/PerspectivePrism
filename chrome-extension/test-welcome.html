@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Welcome Page</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #2196f3;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+      }
+      .test-result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .pass {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+      .fail {
+        background: #ffebee;
+        color: #c62828;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 4px;
+        background: #2196f3;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #1976d2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Welcome Page Test Suite</h1>
+    
+    <div class="test-section">
+      <h2>File Existence Tests</h2>
+      <div id="file-tests"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Interactive Tests</h2>
+      <p>Click the buttons below to test the welcome page functionality:</p>
+      <button onclick="openWelcomePage()">Open Welcome Page</button>
+      <button onclick="testGetStartedButton()">Test "Get Started" Flow</button>
+      <button onclick="testPrivacyButton()">Test "Privacy Policy" Flow</button>
+    </div>
+
+    <div class="test-section">
+      <h2>Visual Tests</h2>
+      <div id="visual-tests">
+        <p>Open the welcome page and verify:</p>
+        <ul>
+          <li>✓ Logo displays correctly (128x128 icon)</li>
+          <li>✓ All 4 feature cards are visible</li>
+          <li>✓ Setup steps (1, 2, 3) are clearly numbered</li>
+          <li>✓ Privacy section explains data usage</li>
+          <li>✓ "Get Started" button is prominent and styled</li>
+          <li>✓ Page is responsive on mobile (resize browser)</li>
+          <li>✓ Dark mode works (if system preference is dark)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>Accessibility Tests</h2>
+      <div id="a11y-tests">
+        <p>Manual accessibility checks:</p>
+        <ul>
+          <li>✓ Tab through all interactive elements (buttons)</li>
+          <li>✓ Focus indicators are visible</li>
+          <li>✓ Alt+S opens settings (keyboard shortcut)</li>
+          <li>✓ Alt+P opens privacy policy (keyboard shortcut)</li>
+          <li>✓ Screen reader announces sections properly</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      // Test file existence
+      function testFileExistence() {
+        const files = [
+          'welcome.html',
+          'welcome.css',
+          'welcome.js'
+        ];
+        
+        const resultsDiv = document.getElementById('file-tests');
+        resultsDiv.innerHTML = '';
+        
+        files.forEach(file => {
+          fetch(file)
+            .then(response => {
+              const result = document.createElement('div');
+              result.className = 'test-result ' + (response.ok ? 'pass' : 'fail');
+              result.textContent = `${file}: ${response.ok ? 'PASS ✓' : 'FAIL ✗'}`;
+              resultsDiv.appendChild(result);
+            })
+            .catch(error => {
+              const result = document.createElement('div');
+              result.className = 'test-result fail';
+              result.textContent = `${file}: FAIL ✗ (${error.message})`;
+              resultsDiv.appendChild(result);
+            });
+        });
+      }
+
+      function openWelcomePage() {
+        window.open('welcome.html', '_blank');
+      }
+
+      function testGetStartedButton() {
+        alert('Manual Test:\n\n1. Open welcome.html\n2. Click "Get Started" button\n3. Verify options.html opens in new tab');
+      }
+
+      function testPrivacyButton() {
+        alert('Manual Test:\n\n1. Open welcome.html\n2. Click "View Privacy Policy" button\n3. Verify privacy.html opens in new tab');
+      }
+
+      // Run tests on load
+      window.addEventListener('DOMContentLoaded', () => {
+        testFileExistence();
+      });
+    </script>
+  </body>
+</html>

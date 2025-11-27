@@ -462,7 +462,7 @@
     - Log policy version changes for audit trail
     - _Requirements: 7.7_
 
-- [-] 12. Implement navigation and cleanup handlers
+- [x] 12. Implement navigation and cleanup handlers
   - [x] 12.1 Add YouTube SPA navigation detection
     - **Video ID detection strategy decision:**
       - **Option 1:** Poll current video ID at interval (e.g., every 500ms)
@@ -550,7 +550,7 @@
     - Store metrics in chrome.storage.local (last 100 entries)
     - _Requirements: 6.4_
 
-- [ ] 14. Add styling and theming
+- [x] 14. Add styling and theming
   - [x] 14.1 Create content.css for injected button
     - Style button to match YouTube UI
     - Add button states (idle, loading, error, success)
@@ -573,14 +573,14 @@
     - Ensure accessibility (focus indicators, touch targets)
     - _Requirements: 1.2_
 
-- [ ] 15. Create welcome and onboarding experience
-  - [ ] 15.1 Create welcome page
+- [x] 15. Create welcome and onboarding experience
+  - [x] 15.1 Create welcome page
     - Design welcome.html with setup instructions
     - Explain extension features
     - Guide user to configure backend URL
     - Add "Get Started" button linking to options page
     - _Requirements: 1.1_
-  - [ ] 15.2 Implement onboarding flow
+  - [x] 15.2 Implement onboarding flow
     - Show welcome page on first install
     - Check if backend URL is configured
     - Show setup notification if not configured

@@ -537,7 +537,255 @@ const PANEL_STYLES = `
 @media print {
     :host { display: none !important; }
 }
+
+/* ============================================
+   Setup Notification Styles (Onboarding)
+   ============================================ */
+
+.pp-panel {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.pp-panel-header {
+    padding: 16px;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9f9f9;
+    border-radius: 12px 12px 0 0;
+    flex-shrink: 0;
+}
+
+.pp-panel-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #0f0f0f;
+    margin: 0;
+}
+
+.pp-close-btn {
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    color: #606060;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+}
+
+.pp-close-btn:hover { background: #e5e5e5; }
+.pp-close-btn:focus-visible { outline: 2px solid #065fd4; outline-offset: 2px; }
+
+.pp-panel-content {
+    padding: 24px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.pp-setup-message {
+    text-align: center;
+}
+
+.pp-setup-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.pp-setup-message h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #0f0f0f;
+}
+
+.pp-setup-message p {
+    font-size: 14px;
+    color: #606060;
+    margin: 0 0 24px 0;
+    line-height: 1.5;
+}
+
+.pp-setup-steps {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.pp-setup-steps h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #0f0f0f;
+}
+
+.pp-setup-steps ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 13px;
+    color: #606060;
+    line-height: 1.6;
+}
+
+.pp-setup-steps li {
+    margin-bottom: 6px;
+}
+
+.pp-setup-steps li:last-child {
+    margin-bottom: 0;
+}
+
+.pp-setup-note {
+    background: #fef7e0;
+    border-left: 3px solid #b06000;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: #606060;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.pp-setup-note strong {
+    color: #b06000;
+    font-weight: 600;
+}
+
+.pp-setup-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.pp-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+    min-width: 120px;
+}
+
+.pp-btn:active {
+    transform: scale(0.98);
+}
+
+.pp-btn-primary {
+    background: #065fd4;
+    color: #ffffff;
+}
+
+.pp-btn-primary:hover {
+    background: #0553bf;
+}
+
+.pp-btn-primary:focus-visible {
+    outline: 2px solid #065fd4;
+    outline-offset: 2px;
+}
+
+.pp-btn-secondary {
+    background: #f1f1f1;
+    color: #0f0f0f;
+}
+
+.pp-btn-secondary:hover {
+    background: #d9d9d9;
+}
+
+.pp-btn-secondary:focus-visible {
+    outline: 2px solid #606060;
+    outline-offset: 2px;
+}
+
+/* Dark mode for setup notification */
+:host(.dark-mode) .pp-panel-header {
+    background: #181818;
+    border-bottom-color: #3f3f3f;
+}
+
+:host(.dark-mode) .pp-panel-title {
+    color: #f1f1f1;
+}
+
+:host(.dark-mode) .pp-close-btn {
+    color: #aaaaaa;
+}
+
+:host(.dark-mode) .pp-close-btn:hover {
+    background: #3f3f3f;
+}
+
+:host(.dark-mode) .pp-close-btn:focus-visible {
+    outline-color: #aecbfa;
+}
+
+:host(.dark-mode) .pp-setup-message h3 {
+    color: #f1f1f1;
+}
+
+:host(.dark-mode) .pp-setup-message p {
+    color: #aaaaaa;
+}
+
+:host(.dark-mode) .pp-setup-steps {
+    background: #272727;
+}
+
+:host(.dark-mode) .pp-setup-steps h4 {
+    color: #f1f1f1;
+}
+
+:host(.dark-mode) .pp-setup-steps ol {
+    color: #aaaaaa;
+}
+
+:host(.dark-mode) .pp-setup-note {
+    background: #3d2e00;
+    border-left-color: #fdd663;
+    color: #aaaaaa;
+}
+
+:host(.dark-mode) .pp-setup-note strong {
+    color: #fdd663;
+}
+
+:host(.dark-mode) .pp-btn-primary {
+    background: #aecbfa;
+    color: #0f0f0f;
+}
+
+:host(.dark-mode) .pp-btn-primary:hover {
+    background: #8ab4f8;
+}
+
+:host(.dark-mode) .pp-btn-secondary {
+    background: #3f3f3f;
+    color: #f1f1f1;
+}
+
+:host(.dark-mode) .pp-btn-secondary:hover {
+    background: #4f4f4f;
+}
 `;
+
+
 
 // --- Video ID Extraction ---
 
@@ -878,12 +1126,171 @@ function getFocusableElements(shadow) {
   return Array.from(shadow.querySelectorAll(selector));
 }
 
+/**
+ * Check if backend URL is configured
+ * Part of onboarding flow - ensures user has set up the extension before first use
+ * @returns {Promise<boolean>} - True if backend is configured, false otherwise
+ */
+async function checkBackendConfiguration() {
+  try {
+    const result = await chrome.storage.sync.get('config');
+    const config = result.config;
+    
+    // Check if config exists and has a valid backend URL
+    if (!config || !config.backendUrl) {
+      console.log('[Perspective Prism] Backend URL not configured');
+      return false;
+    }
+    
+    // Check if backend URL is not the default localhost (indicates user hasn't configured)
+    // This is optional - you might want to allow localhost as valid
+    // For now, we'll accept any configured URL including localhost
+    
+    return true;
+  } catch (error) {
+    console.error('[Perspective Prism] Failed to check backend configuration:', error);
+    return false;
+  }
+}
+
+/**
+ * Show setup notification when backend is not configured
+ * Guides user to settings page to complete setup
+ * Part of onboarding flow
+ */
+function showSetupNotification() {
+  console.log('[Perspective Prism] Showing setup notification');
+  
+  // Create notification panel with setup instructions
+  const panel = createPanelContainer();
+  const shadow = panel.attachShadow({ mode: 'open' });
+  
+  // Add styles
+  const style = document.createElement('style');
+  style.textContent = PANEL_STYLES;
+  shadow.appendChild(style);
+  
+  // Create content
+  const content = document.createElement('div');
+  content.className = 'pp-panel';
+  content.setAttribute('role', 'dialog');
+  content.setAttribute('aria-modal', 'true');
+  content.setAttribute('aria-labelledby', 'pp-setup-title');
+  
+  content.innerHTML = `
+    <div class="pp-panel-header">
+      <h2 id="pp-setup-title" class="pp-panel-title">Setup Required</h2>
+      <button class="pp-close-btn" aria-label="Close setup notification">×</button>
+    </div>
+    <div class="pp-panel-content">
+      <div class="pp-setup-message">
+        <div class="pp-setup-icon" aria-hidden="true">⚙️</div>
+        <h3>Welcome to Perspective Prism!</h3>
+        <p>Before you can analyze videos, you need to configure your backend URL.</p>
+        
+        <div class="pp-setup-steps">
+          <h4>Quick Setup:</h4>
+          <ol>
+            <li>Click "Open Settings" below</li>
+            <li>Enter your Perspective Prism backend URL</li>
+            <li>Click "Test Connection" to verify</li>
+            <li>Save your settings</li>
+            <li>Return here and click "Analyze" again</li>
+          </ol>
+        </div>
+        
+        <div class="pp-setup-note">
+          <strong>Note:</strong> You'll need a running Perspective Prism backend server. 
+          This can be a self-hosted instance or a trusted third-party service.
+        </div>
+        
+        <div class="pp-setup-actions">
+          <button class="pp-btn pp-btn-primary" id="pp-open-settings-btn">
+            Open Settings
+          </button>
+          <button class="pp-btn pp-btn-secondary" id="pp-view-welcome-btn">
+            View Welcome Guide
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  shadow.appendChild(content);
+  document.body.appendChild(panel);
+  
+  // Store reference
+  analysisPanel = panel;
+  
+  // Setup keyboard navigation
+  setupKeyboardNavigation(panel, shadow);
+  
+  // Event handlers
+  const closeBtn = shadow.querySelector('.pp-close-btn');
+  const openSettingsBtn = shadow.querySelector('#pp-open-settings-btn');
+  const viewWelcomeBtn = shadow.querySelector('#pp-view-welcome-btn');
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      removePanel();
+      setButtonState('idle');
+    });
+  }
+  
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', () => {
+      // Open settings page
+      chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' }).catch(error => {
+        console.error('[Perspective Prism] Failed to open settings:', error);
+        // Fallback: try to open directly
+        chrome.runtime.openOptionsPage();
+      });
+      removePanel();
+      setButtonState('idle');
+    });
+  }
+  
+  if (viewWelcomeBtn) {
+    viewWelcomeBtn.addEventListener('click', () => {
+      // Open welcome page
+      chrome.runtime.sendMessage({ type: 'OPEN_WELCOME_PAGE' }).catch(error => {
+        console.error('[Perspective Prism] Failed to open welcome page:', error);
+        // Fallback: try to open directly
+        chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+      });
+      removePanel();
+      setButtonState('idle');
+    });
+  }
+  
+  // Move focus to primary action button
+  if (openSettingsBtn) {
+    openSettingsBtn.focus();
+  }
+}
+
 async function handleAnalysisClick() {
   if (!currentVideoId) return;
 
   setButtonState("loading");
   showPanelLoading();
   cancelRequest = false;
+
+  // Check if backend is configured (onboarding step)
+  try {
+    const isConfigured = await checkBackendConfiguration();
+    if (!isConfigured) {
+      setButtonState("idle");
+      removePanel();
+      showSetupNotification();
+      return;
+    }
+  } catch (error) {
+    console.error("[Perspective Prism] Configuration check failed:", error);
+    setButtonState("error");
+    showPanelError("Failed to check configuration. Please try again.");
+    return;
+  }
 
   // Check consent
   try {

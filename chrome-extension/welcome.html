@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Perspective Prism</title>
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="welcome-header">
+        <div class="logo-container">
+          <img src="icons/icon128.png" alt="Perspective Prism Logo" class="logo" />
+        </div>
+        <h1>Welcome to Perspective Prism</h1>
+        <p class="tagline">
+          Analyze YouTube videos for claims, bias, and multiple perspectives
+        </p>
+      </header>
+
+      <main>
+        <!-- Features Section -->
+        <section class="section features-section">
+          <h2 class="section-title">
+            <span aria-hidden="true">✨</span>
+            What This Extension Does
+          </h2>
+          
+          <div class="features-grid">
+            <div class="feature-card">
+              <div class="feature-icon" aria-hidden="true">🔍</div>
+              <h3>Claim Extraction</h3>
+              <p>
+                Automatically identifies key claims made in YouTube videos using
+                advanced AI analysis.
+              </p>
+            </div>
+
+            <div class="feature-card">
+              <div class="feature-icon" aria-hidden="true">🎯</div>
+              <h3>Multi-Perspective Analysis</h3>
+              <p>
+                Evaluates claims from Scientific, Journalistic, and Partisan
+                perspectives to give you a complete picture.
+              </p>
+            </div>
+
+            <div class="feature-card">
+              <div class="feature-icon" aria-hidden="true">⚖️</div>
+              <h3>Bias Detection</h3>
+              <p>
+                Identifies logical fallacies, emotional manipulation, and
+                deception indicators in video content.
+              </p>
+            </div>
+
+            <div class="feature-card">
+              <div class="feature-icon" aria-hidden="true">💾</div>
+              <h3>Smart Caching</h3>
+              <p>
+                Stores analysis results locally so you can instantly view
+                previously analyzed videos.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Setup Instructions Section -->
+        <section class="section setup-section">
+          <h2 class="section-title">
+            <span aria-hidden="true">🚀</span>
+            Getting Started
+          </h2>
+          
+          <div class="setup-steps">
+            <div class="step">
+              <div class="step-number" aria-hidden="true">1</div>
+              <div class="step-content">
+                <h3>Configure Backend URL</h3>
+                <p>
+                  You'll need to connect this extension to a Perspective Prism
+                  backend server. This can be:
+                </p>
+                <ul>
+                  <li>A self-hosted instance running on your own server</li>
+                  <li>A local development server (e.g., http://localhost:8000)</li>
+                  <li>A trusted third-party service</li>
+                </ul>
+                <p class="step-note">
+                  <strong>Note:</strong> The backend URL must use HTTPS for
+                  security, except for localhost addresses.
+                </p>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step-number" aria-hidden="true">2</div>
+              <div class="step-content">
+                <h3>Test Your Connection</h3>
+                <p>
+                  After entering your backend URL, use the "Test Connection"
+                  button to verify that the extension can communicate with your
+                  server.
+                </p>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step-number" aria-hidden="true">3</div>
+              <div class="step-content">
+                <h3>Start Analyzing Videos</h3>
+                <p>
+                  Navigate to any YouTube video and click the "Analyze with
+                  Perspective Prism" button that appears near the video player.
+                  The extension will extract claims and provide detailed
+                  analysis.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Privacy Section -->
+        <section class="section privacy-section">
+          <h2 class="section-title">
+            <span aria-hidden="true">🔒</span>
+            Your Privacy Matters
+          </h2>
+          
+          <div class="privacy-info">
+            <p>
+              Perspective Prism is designed with privacy in mind:
+            </p>
+            <ul>
+              <li>
+                <strong>Minimal Data:</strong> Only YouTube video IDs are sent
+                to the backend for analysis
+              </li>
+              <li>
+                <strong>No Tracking:</strong> We don't collect browsing history,
+                personal information, or user identifiers
+              </li>
+              <li>
+                <strong>Local Storage:</strong> Analysis results are cached
+                locally in your browser
+              </li>
+              <li>
+                <strong>Your Control:</strong> You can clear cached data and
+                revoke consent at any time
+              </li>
+            </ul>
+            <p class="privacy-note">
+              Before your first analysis, you'll be asked to review and accept
+              our privacy policy.
+            </p>
+          </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="section cta-section">
+          <h2 class="section-title">Ready to Get Started?</h2>
+          <p class="cta-description">
+            Configure your backend URL and start analyzing YouTube videos with
+            multiple perspectives.
+          </p>
+          <div class="button-group">
+            <button
+              type="button"
+              id="get-started"
+              class="primary"
+              aria-label="Open settings to configure backend URL"
+            >
+              <span aria-hidden="true">⚙️</span>
+              Get Started
+            </button>
+            <button
+              type="button"
+              id="view-privacy"
+              aria-label="View privacy policy"
+            >
+              <span aria-hidden="true">📄</span>
+              View Privacy Policy
+            </button>
+          </div>
+        </section>
+
+        <!-- Additional Resources -->
+        <section class="section resources-section">
+          <h2 class="section-title">
+            <span aria-hidden="true">📚</span>
+            Need Help?
+          </h2>
+          
+          <div class="resources-grid">
+            <div class="resource-card">
+              <h3>Backend Setup</h3>
+              <p>
+                Need to set up your own Perspective Prism backend? Check the
+                project repository for installation instructions.
+              </p>
+            </div>
+
+            <div class="resource-card">
+              <h3>Troubleshooting</h3>
+              <p>
+                If you encounter connection issues, verify your backend URL is
+                correct and the server is running.
+              </p>
+            </div>
+
+            <div class="resource-card">
+              <h3>Privacy Questions</h3>
+              <p>
+                Have questions about how your data is used? Review our detailed
+                privacy policy for complete information.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="welcome-footer">
+        <p>
+          Perspective Prism Extension v1.0.0
+        </p>
+        <p class="footer-note">
+          This extension requires a Perspective Prism backend to function.
+        </p>
+      </footer>
+    </div>
+
+    <script src="welcome.js"></script>
+  </body>
+</html>
