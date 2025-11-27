@@ -1242,12 +1242,12 @@ function showSetupNotification() {
       // Open settings page
       chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' }).catch(error => {
         console.error('[Perspective Prism] Failed to open settings:', error);
-        // Fallback: try to open directly
-        chrome.runtime.openOptionsPage();
+        // Note: openOptionsPage() not available in content scripts
       });
       removePanel();
       setButtonState('idle');
     });
+  }
   }
   
   if (viewWelcomeBtn) {
@@ -1255,8 +1255,8 @@ function showSetupNotification() {
       // Open welcome page
       chrome.runtime.sendMessage({ type: 'OPEN_WELCOME_PAGE' }).catch(error => {
         console.error('[Perspective Prism] Failed to open welcome page:', error);
-        // Fallback: try to open directly
-        chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+        // Note: chrome.tabs API not available in content scripts
+        // User will need to manually open the welcome page from popup/settings
       });
       removePanel();
       setButtonState('idle');
