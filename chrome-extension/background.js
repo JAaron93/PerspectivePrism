@@ -1,5 +1,6 @@
 // Background service worker
-importScripts("config.js", "client.js");
+import { ConfigManager } from "./config.js";
+import PerspectivePrismClient from "./client.js";
 
 console.log("Perspective Prism background service worker loaded");
 
@@ -42,13 +43,18 @@ configManager
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install') {
+  if (details.reason === "install") {
     // First-time installation - show welcome page
-    console.log('[Perspective Prism] Extension installed, opening welcome page');
-    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
-  } else if (details.reason === 'update') {
+    console.log(
+      "[Perspective Prism] Extension installed, opening welcome page",
+    );
+    chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+  } else if (details.reason === "update") {
     // Extension updated - could show update notes if needed
-    console.log('[Perspective Prism] Extension updated to version', chrome.runtime.getManifest().version);
+    console.log(
+      "[Perspective Prism] Extension updated to version",
+      chrome.runtime.getManifest().version,
+    );
     // Optionally show update page or notification
   }
 });
@@ -92,7 +98,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false; // No async response needed
   }
   if (message.type === "OPEN_WELCOME_PAGE") {
-    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
     return false; // No async response needed
   }
 });

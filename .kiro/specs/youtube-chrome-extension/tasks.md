@@ -589,7 +589,7 @@
 
 - [ ] 16. Implement testing and QA strategy
 
-  - [-] 16.1 Set up unit testing framework
+  - [x] 16.1 Set up unit testing framework
     - Choose test framework: Jest or Vitest (recommended for Chrome extensions)
     - Configure test environment for Chrome extension APIs (mock chrome.\* APIs)
     - Set up test file structure: `tests/unit/`

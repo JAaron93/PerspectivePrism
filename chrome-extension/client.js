@@ -1210,3 +1210,9 @@ class TimeoutError extends Error {
     this.name = "TimeoutError";
   }
 }
+
+// ES Module Exports (for unit testing and modern imports)
+export { PerspectivePrismClient, ValidationError, HttpError, TimeoutError };
+
+// Default export
+export default PerspectivePrismClient;
