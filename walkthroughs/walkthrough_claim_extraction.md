@@ -9,6 +9,7 @@ Refactored the claim extraction service to use an LLM (GPT-3.5-turbo or GPT-4) t
 ## Problem Statement
 
 The original MVP implementation used a basic heuristic that grouped every 5 transcript segments into a "claim". This resulted in:
+
 - Only 2-3 sentences per claim
 - No semantic understanding of what constitutes a claim
 - Random splitting that broke coherent arguments
@@ -27,6 +28,7 @@ The original MVP implementation used a basic heuristic that grouped every 5 tran
 #### Key Updates
 
 **Added Dependencies**:
+
 ```python
 import json
 import logging
@@ -36,6 +38,7 @@ from app.utils.input_sanitizer import wrap_user_data
 ```
 
 **Initialized OpenAI Client**:
+
 ```python
 class ClaimExtractor:
     def __init__(self):
@@ -44,6 +47,7 @@ class ClaimExtractor:
 ```
 
 **Made `extract_claims` Async**:
+
 ```python
 async def extract_claims(self, transcript: Transcript) -> List[Claim]:
 ```
@@ -51,6 +55,7 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
 #### LLM Prompting Strategy
 
 **Transcript Formatting**:
+
 - Each segment formatted with timestamp: `[MM:SS] Text...`
 - Truncated to ~12,000 chars (≈3,000 tokens) to fit context window
 - Example:
@@ -61,6 +66,7 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
   ```
 
 **Prompt Design**:
+
 ```python
 prompt = f"""You are an expert content analyst. Your task is to analyze the following video transcript and extract the key claims made by the speaker.
 
@@ -106,7 +112,7 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
         seconds = int(seg.start % 60)
         timestamp = f"[{minutes:02d}:{seconds:02d}]"
         formatted_transcript += f"{timestamp} {seg.text}\n"
-    
+
     # Truncate to ~12000 chars (approx 3000 tokens)
     if len(formatted_transcript) > 12000:
         formatted_transcript = formatted_transcript[:12000] + "\n...[TRUNCATED]..."
@@ -150,15 +156,18 @@ OUTPUT FORMAT (JSON):
             temperature=0.3,                                     # More deterministic (0.0-1.0)
             timeout=30.0                                         # 30 second timeout
         )
-        
+
         # 4. Parse response
         content = response.choices[0].message.content
         if not content:
             return []
-            
+
         data = json.loads(content)
+            if not isinstance(data, dict):
+            logger.error(f"Invalid LLM response structure: expected dict, got {type(data).__name__}")
+            return []
         claims_data = data.get("claims", [])
-        
+
         # 5. Validate and construct Claim objects
         claims = []
         for i, item in enumerate(claims_data):
@@ -168,51 +177,51 @@ OUTPUT FORMAT (JSON):
                 if not isinstance(text, str) or not text.strip():
                     logger.warning(
                         f"Skipping claim at index {i}: missing or empty 'text' field",
-                        extra={"claim_index": i, "claim_data": item}
+                        extra={"claim_index": i, "missing_fields": ["text"]}
                     )
                     continue
-                
+
                 # Validate start_time: must be numeric or castable to float
                 start_time_raw = item.get("start_time")
                 if start_time_raw is None:
                     logger.warning(
                         f"Skipping claim at index {i}: missing 'start_time' field",
-                        extra={"claim_index": i, "claim_data": item}
+                        extra={"claim_index": i, "missing_fields": ["start_time"]}
                     )
                     continue
-                
+
                 try:
                     start_time = float(start_time_raw)
                 except (ValueError, TypeError):
                     logger.warning(
                         f"Skipping claim at index {i}: 'start_time' is not numeric",
-                        extra={"claim_index": i, "start_time": start_time_raw}
+                        extra={"claim_index": i, "error_type": "invalid_type", "field": "start_time"}
                     )
                     continue
-                
+
                 # Validate end_time: must be numeric or castable to float
                 end_time_raw = item.get("end_time")
                 if end_time_raw is None:
                     logger.warning(
                         f"Skipping claim at index {i}: missing 'end_time' field",
-                        extra={"claim_index": i, "claim_data": item}
+                        extra={"claim_index": i, "missing_fields": ["end_time"]}
                     )
                     continue
-                
+
                 try:
                     end_time = float(end_time_raw)
                 except (ValueError, TypeError):
                     logger.warning(
                         f"Skipping claim at index {i}: 'end_time' is not numeric",
-                        extra={"claim_index": i, "end_time": end_time_raw}
+                        extra={"claim_index": i, "error_type": "invalid_type", "field": "end_time"}
                     )
                     continue
-                
+
                 # Optional context: default to empty string
                 context = item.get("context", "")
                 if not isinstance(context, str):
                     context = ""
-                
+
                 # All validations passed, create Claim
                 claims.append(Claim(
                     id=f"claim_{i}",
@@ -221,22 +230,36 @@ OUTPUT FORMAT (JSON):
                     timestamp_end=end_time,
                     context=context
                 ))
-                
+
             except Exception as e:
                 logger.warning(
                     f"Unexpected error creating claim at index {i}: {e}",
-                    extra={"claim_index": i, "claim_data": item}
+                    extra={"claim_index": i, "error": str(e)}
                 )
                 continue
-        
+
         return claims
-        
+
     except Exception as e:
         logger.error(f"Error extracting claims with LLM: {e}")
-        return []
+        # Return error claim (fallback)
+        return [Claim(
+            id="error_claim",
+            text="Error: Unable to extract claims from video transcript",
+            timestamp_start=0.0,
+            timestamp_end=0.0,
+            context="An error occurred during claim extraction. Please try again.",
+            metadata={
+                "status": "error",
+                "code": "llm_extraction_failed",
+                "message": "Unable to extract claims from transcript",
+                "details": f"{type(e).__name__}: {str(e)}"
+            }
+        )]
 ```
 
 **API Call Parameters Explained**:
+
 - `model`: Configurable via `OPENAI_MODEL` env var (defaults to `gpt-3.5-turbo`)
 - `messages`: System + user messages (prompt includes wrapped transcript for safety)
 - `response_format={"type": "json_object"}`: Forces valid JSON output from GPT-3.5-turbo+
@@ -244,6 +267,7 @@ OUTPUT FORMAT (JSON):
 - `timeout=30.0`: 30-second timeout to prevent hanging requests
 
 **Validation Steps**:
+
 1. ✅ Checks `text` is non-empty string
 2. ✅ Validates `start_time` and `end_time` are numeric (or castable to float)
 3. ✅ Defaults `context` to empty string if missing
@@ -266,6 +290,7 @@ When the LLM invocation fails, the service returns a structured error claim that
 ```
 
 **Error Claim Fields**:
+
 - `status`: Always `"error"` for error claims (consumers check this field to detect failures)
 - `code`: Machine-readable error code (e.g., `llm_extraction_failed`, `invalid_response`, `quota_exceeded`)
 - `message`: User-friendly description suitable for display
@@ -283,11 +308,11 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
             response_format={"type": "json_object"},
             temperature=0.3
         )
-        
+
         # Parse response
         result = json.loads(response.choices[0].message.content)
         return [Claim(**claim_data) for claim_data in result["claims"]]
-        
+
     except Exception as e:
         # Log with context (NO PII - avoid logging transcript content/user data)
         logger.error(
@@ -301,7 +326,7 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
                 "stack_trace": traceback.format_exc()
             }
         )
-        
+
         # Return error claim (fallback)
         return [Claim(
             text="Error: Unable to extract claims from video transcript",
@@ -318,14 +343,17 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
 ```
 
 **Fallback Behavior**:
+
 1. **Safe Default**: Returns a single error claim instead of crashing the pipeline
 2. **Consumer Detection**: Downstream services check `claim.metadata.get("status") == "error"` to detect failures
 3. **Retry Policy**: Currently no automatic retry (transient failures are logged for manual review)
 4. **Metrics**: Error count can be tracked via the `code` field for monitoring
 
 **Logging Sensitivity**:
+
 > [!CAUTION]
 > **Never log PII or user-generated content**. The logging pattern above excludes transcript text, video URLs, and user identifiers. Only log:
+>
 > - Error types and messages
 > - Model names and configuration
 > - Timestamps and request IDs
@@ -338,6 +366,7 @@ async def extract_claims(self, transcript: Transcript) -> List[Claim]:
 **File**: [main.py](backend/app/main.py)
 
 **Change**:
+
 ```python
 # Before
 claims = claim_extractor.extract_claims(transcript)
@@ -355,6 +384,7 @@ Since the endpoint function is already async (`async def analyze_video`), no oth
 **Issue**: The transcript API returns a list of dicts, not objects with `.text`, `.start`, `.duration` attributes.
 
 **Fix**:
+
 ```python
 # Before
 for item in fetched_transcript:
@@ -376,11 +406,13 @@ for item in fetched_transcript:
 **File**: [config.py](backend/app/core/config.py)
 
 #### Added Settings
+
 ```python
 OPENAI_MODEL: str = "gpt-3.5-turbo"  # Configurable via .env
 ```
 
 #### Fixed Pydantic v2 Deprecation
+
 ```python
 # Before
 class Settings(BaseSettings):
@@ -395,6 +427,7 @@ class Settings(BaseSettings):
 ```
 
 #### Fixed CORS Origins Type Hint
+
 ```python
 # Before
 BACKEND_CORS_ORIGINS: list[str] = [...]
@@ -452,7 +485,7 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
         ))
     ]
     mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-    
+
     # Patch AsyncOpenAI constructor to return our mock client
     with patch('app.services.claim_extractor.AsyncOpenAI', return_value=mock_client):
         # Patch only specific settings keys (avoid global settings mock)
@@ -460,16 +493,16 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
             with patch('app.services.claim_extractor.settings.OPENAI_MODEL', 'gpt-3.5-turbo'):
                 # NOW instantiate ClaimExtractor with mocked dependencies
                 extractor = ClaimExtractor()
-                
+
                 # Test extraction
                 claims = await extractor.extract_claims(mock_transcript)
-                
+
                 # Assertions
                 assert len(claims) == 1
                 assert claims[0].text == "Climate change is real and temperatures are rising"
                 assert claims[0].start_time == 0.0
                 assert claims[0].end_time == 10.0
-                
+
                 # Verify OpenAI was called with correct parameters
                 mock_client.chat.completions.create.assert_called_once()
                 call_kwargs = mock_client.chat.completions.create.call_args.kwargs
@@ -479,6 +512,7 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
 ```
 
 **Key Improvements**:
+
 - ✅ **Fixture for mock_transcript**: Defined with proper `Transcript` and `TranscriptSegment` structure
 - ✅ **Patch before instantiation**: `AsyncOpenAI` constructor is patched BEFORE creating `ClaimExtractor`
 - ✅ **Targeted patching**: Only patch specific settings keys, not the entire module (prevents cross-test pollution)
@@ -494,6 +528,7 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
 **File**: [requirements.txt](backend/requirements.txt)
 
 Added testing dependencies:
+
 ```
 pytest==8.3.4
 pytest-asyncio==0.25.3
@@ -506,6 +541,7 @@ pytest-asyncio==0.25.3
 ### Before (Heuristic Chunking)
 
 **Claim 1**:
+
 ```
 Text: "Welcome to the video. Today we'll discuss climate change. The data shows clear trends."
 Timestamp: 0:00 - 0:15
@@ -516,6 +552,7 @@ Timestamp: 0:00 - 0:15
 ### After (LLM Extraction)
 
 **Claim 1**:
+
 ```
 Text: "Global temperatures have increased by 1.5°C since pre-industrial times, with 2023 being the warmest year on record."
 Timestamp: 0:45 - 1:23
@@ -523,6 +560,7 @@ Context: "According to NOAA data, global temperatures have increased by 1.5°C s
 ```
 
 **Improvements**:
+
 - Precise, verifiable claim
 - No filler content
 - Complete argument with context
@@ -533,25 +571,30 @@ Context: "According to NOAA data, global temperatures have increased by 1.5°C s
 ## Benefits
 
 ### ✅ Semantic Understanding
+
 - LLM identifies actual claims vs descriptions/questions
 - Filters out introductions, transitions, filler
 
 ### ✅ Quality Over Quantity
+
 - 3-7 meaningful claims per video
 - Each claim is coherent and verifiable
 - Better for perspective analysis
 
 ### ✅ Contextual Awareness
+
 - Claims include surrounding context
 - Helps with accurate perspective evaluation
 - Preserves speaker's intent
 
 ### ✅ Flexible Configuration
+
 - Model selection via `OPENAI_MODEL` env var
 - Temperature control for consistency
 - Claim count range (3-7) adjustable
 
 ### ✅ Robust Error Handling
+
 - Graceful fallback on LLM failure
 - Logging for debugging
 - Doesn't break the pipeline
@@ -561,17 +604,20 @@ Context: "According to NOAA data, global temperatures have increased by 1.5°C s
 ## Performance Considerations
 
 ### API Costs
+
 - **LLM Call per Video**: 1 call to extract claims
 - **Token Usage**: ~3,000 input tokens + ~500 output tokens
 - **Cost (GPT-3.5-turbo)**: ~$0.005 per video
 - **Cost (GPT-4o)**: ~$0.015 per video
 
 ### Latency
+
 - **Previous (Heuristic)**: <1ms
 - **New (LLM)**: ~2-5 seconds per video
 - **Trade-off**: Worth it for quality improvement
 
 ### Optimization Options
+
 - Cache results per video_id
 - Process longer videos in chunks
 - Use faster models for simple content
@@ -594,6 +640,7 @@ tests/test_claim_extractor.py::test_claim_extraction_with_mocked_llm PASSED [100
 ## Configuration Example
 
 **`.env` file**:
+
 ```bash
 OPENAI_API_KEY=sk-your-key-here
 OPENAI_MODEL=gpt-3.5-turbo  # or gpt-4o for better quality

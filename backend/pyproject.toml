@@ -8,28 +8,23 @@ version = "0.1.0"
 description = "YouTube Perspectivalist dis/misinformation analysis MVP"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-    {name = "Perspective Prism Team"}
-]
+authors = [{ name = "Perspective Prism Team" }]
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "httpx",
-    "pydantic",
-    "pydantic-settings",
-    "youtube-transcript-api",
-    "openai",
+  "fastapi",
+  "uvicorn[standard]",
+  "httpx",
+  "pydantic",
+  "pydantic-settings",
+  "youtube-transcript-api",
+  "openai",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-asyncio",
-]
+dev = ["pytest", "pytest-asyncio"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*", "tests*"]
+include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -32,15 +32,30 @@ test.describe("Cache Management", () => {
 
     // Reload page to test cache
     await page.reload();
+
+    // Track network requests
+    let requestCount = 0;
+    const requestListener = (request) => {
+      if (request.url().includes("/analyze/jobs")) {
+        requestCount++;
+      }
+    };
+    page.on("request", requestListener);
+
     // Remove mocks - cached results should work without network
     await context.unroute("**/analyze/jobs");
     await context.unroute("**/analyze/jobs/job-cache");
+
     await expect(analysisButton).toBeVisible();
     await analysisButton.click();
 
     // Should show results immediately (or very quickly) without new network request
-    // We can verify this by ensuring no new call to /analyze/jobs was made if we were tracking it
-    // Or check for a "Cached" indicator in the UI if it exists
     await expect(page.locator('text="Cached Claim"')).toBeVisible();
+
+    // Assert no network requests were made
+    expect(requestCount).toBe(0);
+
+    // Cleanup listener
+    page.removeListener("request", requestListener);
   });
 });

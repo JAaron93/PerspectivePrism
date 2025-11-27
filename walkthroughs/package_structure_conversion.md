@@ -30,8 +30,10 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*", "tests*"]
+include = ["app*"]
 
+> [!NOTE]
+> Tests are excluded from the package build (`include = ["app*"]`) to keep the distribution clean and lightweight. Tests are still discoverable for development via the `testpaths` configuration.
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -47,6 +49,7 @@ Created `backend/tests/__init__.py` to make the tests directory a package, allow
 Refactored `test_claim_extractor.py` to use standard absolute imports instead of `sys.path` hacks.
 
 **Before:**
+
 ```python
 import sys
 import os
@@ -56,6 +59,7 @@ from app.services.claim_extractor import ClaimExtractor
 ```
 
 **After:**
+
 ```python
 from app.services.claim_extractor import ClaimExtractor
 ```
