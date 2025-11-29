@@ -793,12 +793,7 @@ Fullscreen mode is activated by clicking the fullscreen button (⛶) in YouTube'
 **Total Tests**: 23  
 **Tests Passed**: **\_**  
 **Tests Failed**: **\_**  
-**Tests Skipped**: **\_**  
-**Pass Rate**: **\_**%
-**Tests Passed**: **_  
-**Tests Failed**: _**  
-**Tests Skipped**: **_  
-**Pass Rate**: _**%
+**Tests Skipped**: **\_**
 
 ### Test Suite Results
 
@@ -878,9 +873,9 @@ Suggest improvements for fullscreen mode support:
 
 ### Tester Sign-Off
 
-**Name**: **\*\*****_**\*\***  
-**Date**: **\*\***_****\*\***  
-**Signature**: **\*\***\_\_\_**\*\***
+**Name**: ******\_\_\_******
+**Date**: ******\_\_\_******
+**Signature**: ******\_\_\_******
 
 **Recommendation**: [ ] Approve [ ] Approve with conditions [ ] Reject
 
@@ -894,9 +889,9 @@ Suggest improvements for fullscreen mode support:
 
 ### Reviewer Sign-Off
 
-**Name**: **\*\*****_**\*\***  
-**Date**: **\*\***_****\*\***  
-**Signature**: **\*\***\_\_\_**\*\***
+**Name**: ******\_\_\_******
+**Date**: ******\_\_\_******
+**Signature**: ******\_\_\_******
 
 **Recommendation**: [ ] Approve [ ] Approve with conditions [ ] Reject
 
@@ -914,11 +909,11 @@ Suggest improvements for fullscreen mode support:
 
 ### Test Environment Details
 
-**Browser**: Chrome **_  
-**OS**: _**  
-**Screen Resolution**: **_  
-**Extension Version**: _**  
-**Backend Version**: \_\_\_
+**Browser**: Chrome ******\_\_\_******
+**OS**: ******\_\_\_******
+**Screen Resolution**: ******\_\_\_******
+**Extension Version**: ******\_\_\_******
+**Backend Version**: ******\_\_\_******
 
 ### Test Data
 
@@ -939,5 +934,5 @@ Attach screenshots of any issues or notable behaviors.
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: **\*\*****_**\*\***  
-**Next Review Date**: **\*\***_****\*\***
+**Last Updated**: ******\_\_\_******
+**Next Review Date**: ******\_\_\_******

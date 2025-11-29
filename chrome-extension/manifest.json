@@ -18,7 +18,9 @@
     {
       "matches": [
         "https://www.youtube.com/watch*",
+        "https://www.youtube.com/shorts/*",
         "https://m.youtube.com/watch*",
+        "https://m.youtube.com/shorts/*",
         "https://youtu.be/*"
       ],
       "js": ["config.js", "consent.js", "content.js"],

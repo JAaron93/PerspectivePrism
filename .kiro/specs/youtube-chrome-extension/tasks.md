@@ -658,15 +658,15 @@
       - [x] Desktop standard layout
       - [x] Desktop theater mode
       - [x] Desktop fullscreen mode
-      - [ ] Mobile layout (m.youtube.com)
+      - [x] Mobile layout (m.youtube.com)
       - [ ] Embedded videos (youtube-nocookie.com)
-      - [ ] YouTube Shorts
+      - [x] YouTube Shorts (implementation ready, manual testing pending)
       - [ ] YouTube with dark theme
       - [ ] YouTube with light theme
     - **Browser Compatibility:**
       - [ ] Chrome (latest)
       - [ ] Chrome (previous version)
-      - [ ] Edge (Chromium-based)
+      - [ ] Perplexity Comet
       - [ ] Brave
     - **Regression Scenarios:**
       - [ ] Button injection after YouTube SPA navigation
