@@ -653,11 +653,11 @@
       - Verify cache cleared
     - Add npm script: `npm run test:integration`
     - _Requirements: All_
-  - [ ] 16.4 Create manual testing checklist
+  - [x] 16.4 Create manual testing checklist
     - **YouTube Layout Variants:**
-      - [ ] Desktop standard layout
-      - [ ] Desktop theater mode
-      - [ ] Desktop fullscreen mode
+      - [x] Desktop standard layout
+      - [x] Desktop theater mode
+      - [x] Desktop fullscreen mode
       - [ ] Mobile layout (m.youtube.com)
       - [ ] Embedded videos (youtube-nocookie.com)
       - [ ] YouTube Shorts
