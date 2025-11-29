@@ -661,8 +661,8 @@
       - [x] Mobile layout (m.youtube.com)
       - [ ] Embedded videos (youtube-nocookie.com)
       - [x] YouTube Shorts (implementation ready, manual testing pending)
-      - [ ] YouTube with dark theme
-      - [ ] YouTube with light theme
+      - [x] YouTube with dark theme
+      - [x] YouTube with light theme
     - **Browser Compatibility:**
       - [ ] Chrome (latest)
       - [ ] Chrome (previous version)
