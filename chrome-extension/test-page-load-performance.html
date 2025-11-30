@@ -1,522 +1,690 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Page Load Performance Test - Perspective Prism</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #1a73e8;
-            margin-top: 0;
-        }
-        
-        .section {
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #1a73e8;
-        }
-        
-        .section h2 {
-            margin-top: 0;
-            color: #333;
-        }
-        
-        .test-controls {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        
-        button:active {
-            transform: translateY(0);
-        }
-        
-        .btn-primary {
-            background: #1a73e8;
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #5f6368;
-            color: white;
-        }
-        
-        .btn-success {
-            background: #1e8e3e;
-            color: white;
-        }
-        
-        .btn-warning {
-            background: #f9ab00;
-            color: #202124;
-        }
-        
-        .results {
-            margin-top: 20px;
-        }
-        
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            margin: 8px 0;
-            background: white;
-            border-radius: 4px;
-            border: 1px solid #dadce0;
-        }
-        
-        .metric-label {
-            font-weight: 500;
-            color: #5f6368;
-        }
-        
-        .metric-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: #202124;
-        }
-        
-        .metric-value.good {
-            color: #1e8e3e;
-        }
-        
-        .metric-value.warning {
-            color: #f9ab00;
-        }
-        
-        .metric-value.bad {
-            color: #d93025;
-        }
-        
-        .status {
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-        
-        .status.info {
-            background: #e8f0fe;
-            color: #1967d2;
-            border: 1px solid #d2e3fc;
-        }
-        
-        .status.success {
-            background: #e6f4ea;
-            color: #137333;
-            border: 1px solid #ceead6;
-        }
-        
-        .status.warning {
-            background: #fef7e0;
-            color: #b06000;
-            border: 1px solid #fde293;
-        }
-        
-        .status.error {
-            background: #fce8e6;
-            color: #c5221f;
-            border: 1px solid #f6aea9;
-        }
-        
-        .instructions {
-            background: #fff;
-            padding: 15px;
-            border-radius: 4px;
-            border: 1px solid #dadce0;
-            margin: 15px 0;
-        }
-        
-        .instructions ol {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        
-        .instructions li {
-            margin: 8px 0;
-            line-height: 1.6;
-        }
-        
-        .code {
-            background: #f1f3f4;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-        
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        
-        .comparison-table th,
-        .comparison-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dadce0;
-        }
-        
-        .comparison-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #5f6368;
-        }
-        
-        .comparison-table tr:hover {
-            background: #f8f9fa;
-        }
-        
-        #performanceChart {
-            margin: 20px 0;
-            padding: 20px;
-            background: white;
-            border-radius: 4px;
-            border: 1px solid #dadce0;
-        }
-        
-        .hidden {
-            display: none;
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #1a73e8;
+        margin-top: 0;
+      }
+
+      .section {
+        margin: 30px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #1a73e8;
+      }
+
+      .section h2 {
+        margin-top: 0;
+        color: #333;
+      }
+
+      .test-controls {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .btn-primary {
+        background: #1a73e8;
+        color: white;
+      }
+
+      .btn-secondary {
+        background: #5f6368;
+        color: white;
+      }
+
+      .btn-success {
+        background: #1e8e3e;
+        color: white;
+      }
+
+      .btn-warning {
+        background: #f9ab00;
+        color: #202124;
+      }
+
+      .results {
+        margin-top: 20px;
+      }
+
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        margin: 8px 0;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dadce0;
+      }
+
+      .metric-label {
+        font-weight: 500;
+        color: #5f6368;
+      }
+
+      .metric-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #202124;
+      }
+
+      .metric-value.good {
+        color: #1e8e3e;
+      }
+
+      .metric-value.warning {
+        color: #f9ab00;
+      }
+
+      .metric-value.bad {
+        color: #d93025;
+      }
+
+      .status {
+        padding: 12px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+
+      .status.info {
+        background: #e8f0fe;
+        color: #1967d2;
+        border: 1px solid #d2e3fc;
+      }
+
+      .status.success {
+        background: #e6f4ea;
+        color: #137333;
+        border: 1px solid #ceead6;
+      }
+
+      .status.warning {
+        background: #fef7e0;
+        color: #b06000;
+        border: 1px solid #fde293;
+      }
+
+      .status.error {
+        background: #fce8e6;
+        color: #c5221f;
+        border: 1px solid #f6aea9;
+      }
+
+      .instructions {
+        background: #fff;
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #dadce0;
+        margin: 15px 0;
+      }
+
+      .instructions ol {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+
+      .instructions li {
+        margin: 8px 0;
+        line-height: 1.6;
+      }
+
+      .code {
+        background: #f1f3f4;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+      }
+
+      .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #dadce0;
+      }
+
+      .comparison-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #5f6368;
+      }
+
+      .comparison-table tr:hover {
+        background: #f8f9fa;
+      }
+
+      #performanceChart {
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dadce0;
+      }
+
+      .hidden {
+        display: none;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>📊 Page Load Performance Test</h1>
-        <p>This test measures the impact of the Perspective Prism extension on YouTube page load times.</p>
-        
-        <div class="section">
-            <h2>Test Objective</h2>
-            <p>Verify that the extension adds <strong>less than 100ms</strong> to YouTube page load time (Requirement 8.2).</p>
-            <div class="status info">
-                <strong>Target:</strong> Extension overhead &lt; 100ms<br>
-                <strong>Method:</strong> Compare page load times with and without extension enabled
-            </div>
+      <h1>📊 Page Load Performance Test</h1>
+      <p>
+        This test measures the impact of the Perspective Prism extension on
+        YouTube page load times.
+      </p>
+
+      <div class="section">
+        <h2>Test Objective</h2>
+        <p>
+          Verify that the extension adds <strong>less than 100ms</strong> to
+          YouTube page load time (Requirement 8.2).
+        </p>
+        <div class="status info">
+          <strong>Target:</strong> Extension overhead &lt; 100ms<br />
+          <strong>Method:</strong> Compare page load times with and without
+          extension enabled
         </div>
-        
-        <div class="section">
-            <h2>Manual Testing Instructions</h2>
-            <div class="instructions">
-                <h3>Setup:</h3>
-                <ol>
-                    <li>Open Chrome DevTools (F12 or Cmd+Option+I)</li>
-                    <li>Go to the <span class="code">Performance</span> tab</li>
-                    <li>Ensure "Screenshots" and "Web Vitals" are enabled</li>
-                    <li>Clear browser cache (Cmd+Shift+Delete or Ctrl+Shift+Delete)</li>
-                </ol>
-                
-                <h3>Test Procedure:</h3>
-                <ol>
-                    <li><strong>Baseline Test (Extension Disabled):</strong>
-                        <ul>
-                            <li>Disable the Perspective Prism extension in chrome://extensions</li>
-                            <li>Navigate to a YouTube video (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ)</li>
-                            <li>In DevTools Performance tab, click "Record" (⏺️)</li>
-                            <li>Reload the page (Cmd+R or Ctrl+R)</li>
-                            <li>Wait for page to fully load</li>
-                            <li>Stop recording</li>
-                            <li>Note the <span class="code">DOMContentLoaded</span> and <span class="code">Load</span> event times</li>
-                        </ul>
-                    </li>
-                    <li><strong>Extension Test (Extension Enabled):</strong>
-                        <ul>
-                            <li>Enable the Perspective Prism extension</li>
-                            <li>Clear cache again</li>
-                            <li>Navigate to the same YouTube video</li>
-                            <li>Record performance profile</li>
-                            <li>Reload the page</li>
-                            <li>Wait for page to fully load</li>
-                            <li>Stop recording</li>
-                            <li>Note the <span class="code">DOMContentLoaded</span> and <span class="code">Load</span> event times</li>
-                        </ul>
-                    </li>
-                    <li><strong>Calculate Impact:</strong>
-                        <ul>
-                            <li>Subtract baseline times from extension times</li>
-                            <li>Verify the difference is &lt; 100ms</li>
-                        </ul>
-                    </li>
-                </ol>
-                
-                <h3>What to Look For:</h3>
-                <ul>
-                    <li><strong>DOMContentLoaded:</strong> When HTML is parsed and DOM is ready</li>
-                    <li><strong>Load Event:</strong> When all resources (images, scripts) are loaded</li>
-                    <li><strong>Content Script Execution:</strong> Look for "content.js" in the flame chart</li>
-                    <li><strong>Extension Overhead:</strong> Time between Load event with/without extension</li>
-                </ul>
-            </div>
+      </div>
+
+      <div class="section">
+        <h2>Manual Testing Instructions</h2>
+        <div class="instructions">
+          <h3>Setup:</h3>
+          <ol>
+            <li>Open Chrome DevTools (F12 or Cmd+Option+I)</li>
+            <li>Go to the <span class="code">Performance</span> tab</li>
+            <li>Ensure "Screenshots" and "Web Vitals" are enabled</li>
+            <li>Clear browser cache (Cmd+Shift+Delete or Ctrl+Shift+Delete)</li>
+          </ol>
+
+          <h3>Test Procedure:</h3>
+          <ol>
+            <li>
+              <strong>Baseline Test (Extension Disabled):</strong>
+              <ul>
+                <li>
+                  Disable the Perspective Prism extension in chrome://extensions
+                </li>
+                <li>
+                  Navigate to a YouTube video (e.g.,
+                  https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+                </li>
+                <li>In DevTools Performance tab, click "Record" (⏺️)</li>
+                <li>Reload the page (Cmd+R or Ctrl+R)</li>
+                <li>Wait for page to fully load</li>
+                <li>Stop recording</li>
+                <li>
+                  Note the <span class="code">DOMContentLoaded</span> and
+                  <span class="code">Load</span> event times
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Extension Test (Extension Enabled):</strong>
+              <ul>
+                <li>Enable the Perspective Prism extension</li>
+                <li>Clear cache again</li>
+                <li>Navigate to the same YouTube video</li>
+                <li>Record performance profile</li>
+                <li>Reload the page</li>
+                <li>Wait for page to fully load</li>
+                <li>Stop recording</li>
+                <li>
+                  Note the <span class="code">DOMContentLoaded</span> and
+                  <span class="code">Load</span> event times
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Calculate Impact:</strong>
+              <ul>
+                <li>Subtract baseline times from extension times</li>
+                <li>Verify the difference is &lt; 100ms</li>
+              </ul>
+            </li>
+          </ol>
+
+          <h3>What to Look For:</h3>
+          <ul>
+            <li>
+              <strong>DOMContentLoaded:</strong> When HTML is parsed and DOM is
+              ready
+            </li>
+            <li>
+              <strong>Load Event:</strong> When all resources (images, scripts)
+              are loaded
+            </li>
+            <li>
+              <strong>Content Script Execution:</strong> Look for "content.js"
+              in the flame chart
+            </li>
+            <li>
+              <strong>Extension Overhead:</strong> Time between Load event
+              with/without extension
+            </li>
+          </ul>
         </div>
-        
-        <div class="section">
-            <h2>Automated Performance Measurement</h2>
-            <p>Use the Navigation Timing API to measure page load performance automatically.</p>
-            
-            <div class="test-controls">
-                <button class="btn-primary" onclick="measureCurrentPage()">Measure Current Page</button>
-                <button class="btn-secondary" onclick="openYouTubeTest()">Open YouTube Test Page</button>
-                <button class="btn-success" onclick="runMultipleTests()">Run 5 Tests</button>
-                <button class="btn-warning" onclick="clearResults()">Clear Results</button>
-            </div>
-            
-            <div id="status" class="hidden"></div>
-            
-            <div id="results" class="results hidden">
-                <h3>Performance Metrics</h3>
-                <div id="metricsContainer"></div>
-                
-                <h3>Detailed Timing</h3>
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th>Metric</th>
-                            <th>Time (ms)</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody id="timingTable"></tbody>
-                </table>
-            </div>
-            
-            <div id="multiTestResults" class="hidden">
-                <h3>Multiple Test Results</h3>
-                <div id="statsContainer"></div>
-            </div>
+      </div>
+
+      <div class="section">
+        <h2>Automated Performance Measurement</h2>
+        <p>
+          Use the Navigation Timing API to measure page load performance
+          automatically.
+        </p>
+
+        <div class="test-controls">
+          <button class="btn-primary" onclick="measureCurrentPage()">
+            Measure Current Page
+          </button>
+          <button class="btn-secondary" onclick="openYouTubeTest()">
+            Open YouTube Test Page
+          </button>
+          <button class="btn-success" onclick="runMultipleTests()">
+            Run 5 Tests
+          </button>
+          <button class="btn-warning" onclick="clearResults()">
+            Clear Results
+          </button>
         </div>
-        
-        <div class="section">
-            <h2>Expected Results</h2>
-            <div class="instructions">
-                <h3>✅ Pass Criteria:</h3>
-                <ul>
-                    <li>Extension overhead &lt; 100ms on DOMContentLoaded</li>
-                    <li>Extension overhead &lt; 100ms on Load event</li>
-                    <li>Content script execution time &lt; 50ms</li>
-                    <li>No blocking of main thread during page load</li>
-                    <li>No visible delay in YouTube UI rendering</li>
-                </ul>
-                
-                <h3>⚠️ Warning Signs:</h3>
-                <ul>
-                    <li>Extension overhead 100-200ms (needs optimization)</li>
-                    <li>Content script execution &gt; 50ms</li>
-                    <li>Multiple synchronous operations during load</li>
-                </ul>
-                
-                <h3>❌ Fail Criteria:</h3>
-                <ul>
-                    <li>Extension overhead &gt; 200ms</li>
-                    <li>Blocking main thread for &gt; 100ms</li>
-                    <li>Visible delay in YouTube page rendering</li>
-                    <li>User-perceivable lag when navigating to videos</li>
-                </ul>
-            </div>
+
+        <div id="status" class="hidden"></div>
+
+        <div id="results" class="results hidden">
+          <h3>Performance Metrics</h3>
+          <div id="metricsContainer"></div>
+
+          <h3>Detailed Timing</h3>
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Time (ms)</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="timingTable"></tbody>
+          </table>
         </div>
-        
-        <div class="section">
-            <h2>Optimization Notes</h2>
-            <div class="instructions">
-                <h3>Current Optimizations:</h3>
-                <ul>
-                    <li><strong>run_at: "document_idle"</strong> - Content script runs after page load</li>
-                    <li><strong>Async operations</strong> - All API calls are non-blocking</li>
-                    <li><strong>Lazy initialization</strong> - Panel only created when needed</li>
-                    <li><strong>Debounced observers</strong> - MutationObserver callbacks are debounced</li>
-                    <li><strong>Minimal DOM queries</strong> - Efficient selector strategy</li>
-                </ul>
-                
-                <h3>If Performance Issues Found:</h3>
-                <ul>
-                    <li>Defer non-critical initialization</li>
-                    <li>Use requestIdleCallback for low-priority tasks</li>
-                    <li>Reduce MutationObserver scope</li>
-                    <li>Optimize CSS injection (use Shadow DOM)</li>
-                    <li>Minimize synchronous storage operations</li>
-                </ul>
-            </div>
+
+        <div id="multiTestResults" class="hidden">
+          <h3>Multiple Test Results</h3>
+          <div id="statsContainer"></div>
         </div>
+      </div>
+
+      <div class="section">
+        <h2>Expected Results</h2>
+        <div class="instructions">
+          <h3>✅ Pass Criteria:</h3>
+          <ul>
+            <li>Extension overhead &lt; 100ms on DOMContentLoaded</li>
+            <li>Extension overhead &lt; 100ms on Load event</li>
+            <li>Content script execution time &lt; 50ms</li>
+            <li>No blocking of main thread during page load</li>
+            <li>No visible delay in YouTube UI rendering</li>
+          </ul>
+
+          <h3>⚠️ Warning Signs:</h3>
+          <ul>
+            <li>Extension overhead 100-200ms (needs optimization)</li>
+            <li>Content script execution &gt; 50ms</li>
+            <li>Multiple synchronous operations during load</li>
+          </ul>
+
+          <h3>❌ Fail Criteria:</h3>
+          <ul>
+            <li>Extension overhead &gt; 200ms</li>
+            <li>Blocking main thread for &gt; 100ms</li>
+            <li>Visible delay in YouTube page rendering</li>
+            <li>User-perceivable lag when navigating to videos</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Optimization Notes</h2>
+        <div class="instructions">
+          <h3>Current Optimizations:</h3>
+          <ul>
+            <li>
+              <strong>run_at: "document_idle"</strong> - Content script runs
+              after page load
+            </li>
+            <li>
+              <strong>Async operations</strong> - All API calls are non-blocking
+            </li>
+            <li>
+              <strong>Lazy initialization</strong> - Panel only created when
+              needed
+            </li>
+            <li>
+              <strong>Debounced observers</strong> - MutationObserver callbacks
+              are debounced
+            </li>
+            <li>
+              <strong>Minimal DOM queries</strong> - Efficient selector strategy
+            </li>
+          </ul>
+
+          <h3>If Performance Issues Found:</h3>
+          <ul>
+            <li>Defer non-critical initialization</li>
+            <li>Use requestIdleCallback for low-priority tasks</li>
+            <li>Reduce MutationObserver scope</li>
+            <li>Optimize CSS injection (use Shadow DOM)</li>
+            <li>Minimize synchronous storage operations</li>
+          </ul>
+        </div>
+      </div>
     </div>
-    
+
     <script>
-        // Performance measurement utilities
-        
-        function measureCurrentPage() {
-            const timing = performance.timing;
-            const navigation = performance.getEntriesByType('navigation')[0];
-            
-            if (!navigation) {
-                showStatus('error', 'Navigation timing not available. Please reload the page and try again.');
-                return;
-            }
-            
-            // Calculate key metrics
-            const metrics = {
-                'DNS Lookup': navigation.domainLookupEnd - navigation.domainLookupStart,
-                'TCP Connection': navigation.connectEnd - navigation.connectStart,
-                'Request Time': navigation.responseStart - navigation.requestStart,
-                'Response Time': navigation.responseEnd - navigation.responseStart,
-                'DOM Processing': navigation.domInteractive - navigation.responseEnd,
-                'DOMContentLoaded': navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
-                'Load Event': navigation.loadEventEnd - navigation.loadEventStart,
-                'Total Load Time': navigation.loadEventEnd - navigation.fetchStart
-            };
-            
-            displayResults(metrics, navigation);
-            showStatus('success', 'Performance measurement complete!');
+      // Performance measurement utilities
+
+      function measureCurrentPage() {
+        const navigation = performance.getEntriesByType("navigation")[0];
+
+        if (!navigation) {
+          showStatus(
+            "error",
+            "Navigation timing not available. Please reload the page and try again.",
+          );
+          return;
         }
-        
-        function displayResults(metrics, navigation) {
-            const resultsDiv = document.getElementById('results');
-            const metricsContainer = document.getElementById('metricsContainer');
-            const timingTable = document.getElementById('timingTable');
-            
-            resultsDiv.classList.remove('hidden');
-            
-            // Display key metrics
-            metricsContainer.innerHTML = '';
-            
-            const keyMetrics = [
-                { label: 'Total Load Time', value: metrics['Total Load Time'], threshold: 3000 },
-                { label: 'DOMContentLoaded', value: metrics['DOMContentLoaded'], threshold: 100 },
-                { label: 'Load Event', value: metrics['Load Event'], threshold: 100 }
-            ];
-            
-            keyMetrics.forEach(metric => {
-                const metricDiv = document.createElement('div');
-                metricDiv.className = 'metric';
-                
-                const label = document.createElement('span');
-                label.className = 'metric-label';
-                label.textContent = metric.label;
-                
-                const value = document.createElement('span');
-                value.className = 'metric-value';
-                value.textContent = `${metric.value.toFixed(2)} ms`;
-                
-                // Color code based on threshold
-                if (metric.value < metric.threshold * 0.5) {
-                    value.classList.add('good');
-                } else if (metric.value < metric.threshold) {
-                    value.classList.add('warning');
-                } else {
-                    value.classList.add('bad');
-                }
-                
-                metricDiv.appendChild(label);
-                metricDiv.appendChild(value);
-                metricsContainer.appendChild(metricDiv);
-            });
-            
-            // Display detailed timing
-            timingTable.innerHTML = '';
-            
-            const timingData = [
-                { metric: 'DNS Lookup', time: metrics['DNS Lookup'], desc: 'Time to resolve domain name' },
-                { metric: 'TCP Connection', time: metrics['TCP Connection'], desc: 'Time to establish connection' },
-                { metric: 'Request Time', time: metrics['Request Time'], desc: 'Time waiting for server response' },
-                { metric: 'Response Time', time: metrics['Response Time'], desc: 'Time to receive response' },
-                { metric: 'DOM Processing', time: metrics['DOM Processing'], desc: 'Time to parse HTML and build DOM' },
-                { metric: 'DOMContentLoaded', time: metrics['DOMContentLoaded'], desc: 'DOM ready event duration' },
-                { metric: 'Load Event', time: metrics['Load Event'], desc: 'Window load event duration' },
-                { metric: 'Total Load Time', time: metrics['Total Load Time'], desc: 'Complete page load time' }
-            ];
-            
-            timingData.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
+
+        // Calculate key metrics
+        const metrics = {
+          "DNS Lookup":
+            navigation.domainLookupEnd - navigation.domainLookupStart,
+          "TCP Connection": navigation.connectEnd - navigation.connectStart,
+          "Request Time": navigation.responseStart - navigation.requestStart,
+          "Response Time": navigation.responseEnd - navigation.responseStart,
+          "DOM Processing": navigation.domInteractive - navigation.responseEnd,
+          DOMContentLoaded:
+            navigation.domContentLoadedEventEnd -
+            navigation.domContentLoadedEventStart,
+          "Load Event": navigation.loadEventEnd - navigation.loadEventStart,
+          "Total Load Time": navigation.loadEventEnd - navigation.fetchStart,
+        };
+
+        displayResults(metrics, navigation);
+        showStatus("success", "Performance measurement complete!");
+      }
+
+      function displayResults(metrics, navigation) {
+        const resultsDiv = document.getElementById("results");
+        const metricsContainer = document.getElementById("metricsContainer");
+        const timingTable = document.getElementById("timingTable");
+
+        resultsDiv.classList.remove("hidden");
+
+        // Display key metrics
+        metricsContainer.innerHTML = "";
+
+        const keyMetrics = [
+          {
+            label: "Total Load Time",
+            value: metrics["Total Load Time"],
+            threshold: 3000,
+          },
+          {
+            label: "DOMContentLoaded",
+            value: metrics["DOMContentLoaded"],
+            threshold: 100,
+          },
+          { label: "Load Event", value: metrics["Load Event"], threshold: 100 },
+        ];
+
+        keyMetrics.forEach((metric) => {
+          const metricDiv = document.createElement("div");
+          metricDiv.className = "metric";
+
+          const label = document.createElement("span");
+          label.className = "metric-label";
+          label.textContent = metric.label;
+
+          const value = document.createElement("span");
+          value.className = "metric-value";
+          value.textContent = `${metric.value.toFixed(2)} ms`;
+
+          // Color code based on threshold
+          if (metric.value < metric.threshold * 0.5) {
+            value.classList.add("good");
+          } else if (metric.value < metric.threshold) {
+            value.classList.add("warning");
+          } else {
+            value.classList.add("bad");
+          }
+
+          metricDiv.appendChild(label);
+          metricDiv.appendChild(value);
+          metricsContainer.appendChild(metricDiv);
+        });
+
+        // Display detailed timing
+        timingTable.innerHTML = "";
+
+        const timingData = [
+          {
+            metric: "DNS Lookup",
+            time: metrics["DNS Lookup"],
+            desc: "Time to resolve domain name",
+          },
+          {
+            metric: "TCP Connection",
+            time: metrics["TCP Connection"],
+            desc: "Time to establish connection",
+          },
+          {
+            metric: "Request Time",
+            time: metrics["Request Time"],
+            desc: "Time waiting for server response",
+          },
+          {
+            metric: "Response Time",
+            time: metrics["Response Time"],
+            desc: "Time to receive response",
+          },
+          {
+            metric: "DOM Processing",
+            time: metrics["DOM Processing"],
+            desc: "Time to parse HTML and build DOM",
+          },
+          {
+            metric: "DOMContentLoaded",
+            time: metrics["DOMContentLoaded"],
+            desc: "DOM ready event duration",
+          },
+          {
+            metric: "Load Event",
+            time: metrics["Load Event"],
+            desc: "Window load event duration",
+          },
+          {
+            metric: "Total Load Time",
+            time: metrics["Total Load Time"],
+            desc: "Complete page load time",
+          },
+        ];
+
+        timingData.forEach((item) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
                     <td><strong>${item.metric}</strong></td>
                     <td>${item.time.toFixed(2)} ms</td>
                     <td>${item.desc}</td>
                 `;
-                timingTable.appendChild(row);
+          timingTable.appendChild(row);
+        });
+      }
+
+      function openYouTubeTest() {
+        const testUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        showStatus("info", `Opening YouTube test page: ${testUrl}`);
+        window.open(testUrl, "_blank");
+      }
+
+      function runMultipleTests() {
+        if (sessionStorage.getItem("perfTest_state")) {
+          showStatus("warning", "Test already in progress...");
+          return;
+        }
+
+        if (
+          !confirm(
+            "This will reload the page 5 times to collect accurate performance data. Continue?",
+          )
+        ) {
+          return;
+        }
+
+        showStatus("info", "Starting multiple tests... Page will reload.");
+
+        // Initialize test state
+        const initialState = {
+          active: true,
+          iteration: 0,
+          results: [],
+        };
+
+        sessionStorage.setItem("perfTest_state", JSON.stringify(initialState));
+
+        // Short delay to let user see the message
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      }
+
+      function checkAndContinueMultiTest() {
+        const stateStr = sessionStorage.getItem("perfTest_state");
+        if (!stateStr) return;
+
+        try {
+          const state = JSON.parse(stateStr);
+          if (!state.active) return;
+
+          // Capture current page metrics
+          const navigation = performance.getEntriesByType("navigation")[0];
+          if (navigation) {
+            state.results.push({
+              domContentLoaded:
+                navigation.domContentLoadedEventEnd -
+                navigation.domContentLoadedEventStart,
+              loadEvent: navigation.loadEventEnd - navigation.loadEventStart,
+              totalTime: navigation.loadEventEnd - navigation.fetchStart,
             });
+          }
+
+          state.iteration++;
+
+          if (state.iteration < 5) {
+            // Continue testing
+            sessionStorage.setItem("perfTest_state", JSON.stringify(state));
+            showStatus(
+              "info",
+              `Test iteration ${state.iteration}/5 complete. Reloading...`,
+            );
+            setTimeout(() => {
+              location.reload();
+            }, 500);
+          } else {
+            // Tests complete
+            sessionStorage.removeItem("perfTest_state");
+            displayMultiTestResults(state.results);
+            showStatus(
+              "success",
+              "Multiple tests complete! Results displayed below.",
+            );
+          }
+        } catch (e) {
+          console.error("Error in multi-test:", e);
+          sessionStorage.removeItem("perfTest_state");
+          showStatus("error", "Test failed due to an error. Storage cleared.");
         }
-        
-        function openYouTubeTest() {
-            const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-            showStatus('info', `Opening YouTube test page: ${testUrl}`);
-            window.open(testUrl, '_blank');
-        }
-        
-        async function runMultipleTests() {
-            showStatus('info', 'Running 5 performance tests... Please wait.');
-            
-            const results = [];
-            
-            for (let i = 0; i < 5; i++) {
-                // Wait a bit between tests
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                const navigation = performance.getEntriesByType('navigation')[0];
-                if (navigation) {
-                    results.push({
-                        domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
-                        loadEvent: navigation.loadEventEnd - navigation.loadEventStart,
-                        totalTime: navigation.loadEventEnd - navigation.fetchStart
-                    });
-                }
-            }
-            
-            displayMultiTestResults(results);
-            showStatus('success', 'Multiple tests complete!');
-        }
-        
-        function displayMultiTestResults(results) {
-            const container = document.getElementById('multiTestResults');
-            const statsContainer = document.getElementById('statsContainer');
-            
-            container.classList.remove('hidden');
-            statsContainer.innerHTML = '';
-            
-            // Calculate statistics
-            const metrics = ['domContentLoaded', 'loadEvent', 'totalTime'];
-            const labels = ['DOMContentLoaded', 'Load Event', 'Total Time'];
-            
-            metrics.forEach((metric, index) => {
-                const values = results.map(r => r[metric]);
-                const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                const min = Math.min(...values);
-                const max = Math.max(...values);
-                const stdDev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - avg, 2), 0) / values.length);
-                
-                const statDiv = document.createElement('div');
-                statDiv.className = 'metric';
-                statDiv.innerHTML = `
+      }
+
+      // Check for active test on load
+      window.addEventListener("load", () => {
+        // Run the multi-test check
+        checkAndContinueMultiTest();
+      });
+
+      function displayMultiTestResults(results) {
+        const container = document.getElementById("multiTestResults");
+        const statsContainer = document.getElementById("statsContainer");
+
+        container.classList.remove("hidden");
+        statsContainer.innerHTML = "";
+
+        // Calculate statistics
+        const metrics = ["domContentLoaded", "loadEvent", "totalTime"];
+        const labels = ["DOMContentLoaded", "Load Event", "Total Time"];
+
+        metrics.forEach((metric, index) => {
+          const values = results.map((r) => r[metric]);
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          const stdDev = Math.sqrt(
+            values.reduce((sq, n) => sq + Math.pow(n - avg, 2), 0) /
+              values.length,
+          );
+
+          const statDiv = document.createElement("div");
+          statDiv.className = "metric";
+          statDiv.innerHTML = `
                     <span class="metric-label">${labels[index]}</span>
                     <span class="metric-value">
                         Avg: ${avg.toFixed(2)}ms | 
@@ -525,37 +693,40 @@
                         StdDev: ${stdDev.toFixed(2)}ms
                     </span>
                 `;
-                statsContainer.appendChild(statDiv);
-            });
-        }
-        
-        function showStatus(type, message) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.className = `status ${type}`;
-            statusDiv.textContent = message;
-            statusDiv.classList.remove('hidden');
-            
-            // Auto-hide after 5 seconds for non-error messages
-            if (type !== 'error') {
-                setTimeout(() => {
-                    statusDiv.classList.add('hidden');
-                }, 5000);
-            }
-        }
-        
-        function clearResults() {
-            document.getElementById('results').classList.add('hidden');
-            document.getElementById('multiTestResults').classList.add('hidden');
-            document.getElementById('status').classList.add('hidden');
-            showStatus('info', 'Results cleared.');
-        }
-        
-        // Auto-measure on page load
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                showStatus('info', 'Page loaded. Click "Measure Current Page" to see performance metrics.');
-            }, 1000);
+          statsContainer.appendChild(statDiv);
         });
+      }
+
+      function showStatus(type, message) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = `status ${type}`;
+        statusDiv.textContent = message;
+        statusDiv.classList.remove("hidden");
+
+        // Auto-hide after 5 seconds for non-error messages
+        if (type !== "error") {
+          setTimeout(() => {
+            statusDiv.classList.add("hidden");
+          }, 5000);
+        }
+      }
+
+      function clearResults() {
+        document.getElementById("results").classList.add("hidden");
+        document.getElementById("multiTestResults").classList.add("hidden");
+        document.getElementById("status").classList.add("hidden");
+        showStatus("info", "Results cleared.");
+      }
+
+      // Auto-measure on page load
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          showStatus(
+            "info",
+            'Page loaded. Click "Measure Current Page" to see performance metrics.',
+          );
+        }, 1000);
+      });
     </script>
-</body>
+  </body>
 </html>

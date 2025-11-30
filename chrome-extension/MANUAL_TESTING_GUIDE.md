@@ -44,6 +44,7 @@ The extension includes several HTML test files for manual verification:
 - `test-onboarding.html` - First-time user experience
 - `test-options-integration.html` - Settings page integration
 - `test-options-validation.html` - Settings validation
+- `test-page-load-performance.html` - Measures page load performance metrics (Navigation Timing API)
 - `test-panel-styles.html` - Analysis panel styling
 - `test-policy-version.html` - Privacy policy versioning
 - `test-popup-options-styles.html` - Popup styling
@@ -159,11 +160,13 @@ Test on different YouTube layouts:
 **Objective**: Verify that the extension adds less than 100ms to YouTube page load time (Requirement 8.2).
 
 **Quick Test**:
+
 1. Open `test-page-load-performance.html` in Chrome
 2. Follow the on-screen instructions for automated or manual testing
 3. Compare page load times with and without the extension enabled
 
 **Detailed Guide**: See `PAGE_LOAD_PERFORMANCE_TESTING.md` for comprehensive testing procedures, including:
+
 - Chrome DevTools Performance Profiler method (recommended)
 - Navigation Timing API automated measurements
 - Lighthouse Performance Audit
@@ -173,6 +176,7 @@ Test on different YouTube layouts:
 **Expected Result**: Extension overhead < 100ms on both DOMContentLoaded and Load events.
 
 **Current Optimizations**:
+
 - Content script runs at `document_idle` (after page load)
 - All operations are async and non-blocking
 - Lazy initialization of UI components
