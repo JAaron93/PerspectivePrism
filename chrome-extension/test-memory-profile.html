@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Profile Test - Perspective Prism</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #065fd4;
+            padding-bottom: 10px;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-section h2 {
+            color: #065fd4;
+            margin-top: 0;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .status.idle {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status.running {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status.pass {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status.fail {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        .status.warning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #065fd4;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 5px;
+        }
+        
+        .metric-value.critical {
+            color: #d32f2f;
+        }
+        
+        .metric-value.warning {
+            color: #f57c00;
+        }
+        
+        .metric-value.good {
+            color: #388e3c;
+        }
+        
+        button {
+            background: #065fd4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #0553bf;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        
+        .log-entry.error {
+            color: #f48771;
+        }
+        
+        .log-entry.warning {
+            color: #dcdcaa;
+        }
+        
+        .log-entry.success {
+            color: #4ec9b0;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        canvas {
+            max-width: 100%;
+        }
+        
+        .test-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #065fd4;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Memory Profile Test - Perspective Prism Extension</h1>
+    
+    <div class="test-section">
+        <h2>Test Overview</h2>
+        <p>This test validates that the Perspective Prism extension maintains memory usage below 10MB during normal operation.</p>
+        <p><strong>Target:</strong> &lt; 10MB | <strong>Warning:</strong> &gt; 8MB | <strong>Critical:</strong> &gt; 10MB</p>
+        
+        <div class="status idle" id="overall-status">
+            Status: Ready to test
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Current Memory Metrics</h2>
+        <div class="metrics" id="metrics">
+            <div class="metric">
+                <div class="metric-label">Used Memory</div>
+                <div class="metric-value" id="used-memory">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Total Heap</div>
+                <div class="metric-value" id="total-heap">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Heap Limit</div>
+                <div class="metric-value" id="heap-limit">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">% Used</div>
+                <div class="metric-value" id="percent-used">--</div>
+            </div>
+        </div>
+        
+        <div class="test-controls">
+            <button onclick="measureMemory()">Measure Now</button>
+            <button onclick="startContinuousMonitoring()" id="start-monitor-btn">Start Monitoring</button>
+            <button onclick="stopContinuousMonitoring()" id="stop-monitor-btn" disabled>Stop Monitoring</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Memory Stress Tests</h2>
+        <p>Run various scenarios to test memory usage under different conditions.</p>
+        
+        <div class="test-controls">
+            <button onclick="runTest('baseline')">Baseline Test</button>
+            <button onclick="runTest('panel-creation')">Panel Creation Test</button>
+            <button onclick="runTest('multiple-analyses')">Multiple Analyses Test</button>
+            <button onclick="runTest('navigation-stress')">Navigation Stress Test</button>
+            <button onclick="runTest('full-suite')" style="background: #388e3c;">Run Full Suite</button>
+        </div>
+        
+        <div id="test-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script type="module">
+        import { memoryMonitor } from './memory-monitor.js';
+        
+        let monitoringInterval = null;
+        let testResults = [];
+        
+        // Make functions globally available
+        window.memoryMonitor = memoryMonitor;
+        window.measureMemory = measureMemory;
+        window.startContinuousMonitoring = startContinuousMonitoring;
+        window.stopContinuousMonitoring = stopContinuousMonitoring;
+        window.clearLog = clearLog;
+        window.runTest = runTest;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            
+            console.log(`[MemoryTest] ${message}`);
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared');
+        }
+        
+        async function measureMemory() {
+            log('Taking memory measurement...');
+            const measurement = await memoryMonitor.measure();
+            
+            if (!measurement) {
+                log('Failed to measure memory', 'error');
+                return null;
+            }
+            
+            updateMetrics(measurement);
+            
+            const usedMB = parseFloat(measurement.usedMB);
+            if (usedMB >= 10) {
+                log(`CRITICAL: Memory usage at ${usedMB}MB`, 'error');
+            } else if (usedMB >= 8) {
+                log(`WARNING: Memory usage at ${usedMB}MB`, 'warning');
+            } else {
+                log(`Memory usage: ${usedMB}MB (OK)`, 'success');
+            }
+            
+            return measurement;
+        }
+        
+        function updateMetrics(measurement) {
+            document.getElementById('used-memory').textContent = measurement.usedMB + ' MB';
+            document.getElementById('total-heap').textContent = measurement.totalMB + ' MB';
+            document.getElementById('heap-limit').textContent = measurement.limitMB + ' MB';
+            document.getElementById('percent-used').textContent = measurement.percentUsed + '%';
+            
+            // Color code based on thresholds
+            const usedEl = document.getElementById('used-memory');
+            const usedMB = parseFloat(measurement.usedMB);
+            usedEl.className = 'metric-value';
+            if (usedMB >= 10) {
+                usedEl.classList.add('critical');
+            } else if (usedMB >= 8) {
+                usedEl.classList.add('warning');
+            } else {
+                usedEl.classList.add('good');
+            }
+        }
+        
+        function startContinuousMonitoring() {
+            log('Starting continuous monitoring (5s interval)...');
+            memoryMonitor.startMonitoring(5000);
+            
+            document.getElementById('start-monitor-btn').disabled = true;
+            document.getElementById('stop-monitor-btn').disabled = false;
+            
+            // Update UI every 5 seconds
+            monitoringInterval = setInterval(async () => {
+                const measurement = await memoryMonitor.measure();
+                if (measurement) {
+                    updateMetrics(measurement);
+                }
+            }, 5000);
+        }
+        
+        function stopContinuousMonitoring() {
+            log('Stopping continuous monitoring...');
+            memoryMonitor.stopMonitoring();
+            
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+            }
+            
+            document.getElementById('start-monitor-btn').disabled = false;
+            document.getElementById('stop-monitor-btn').disabled = true;
+            
+            // Print stats
+            const stats = memoryMonitor.getStats();
+            log(`Monitoring stats: Avg ${stats.avgUsedMB}MB, Max ${stats.maxUsedMB}MB, Min ${stats.minUsedMB}MB`);
+        }
+        
+        async function runTest(testName) {
+            log(`\n=== Running Test: ${testName} ===`, 'info');
+            updateStatus('running', `Running: ${testName}`);
+            
+            let passed = false;
+            let maxMemory = 0;
+            
+            try {
+                switch (testName) {
+                    case 'baseline':
+                        passed = await testBaseline();
+                        break;
+                    case 'panel-creation':
+                        passed = await testPanelCreation();
+                        break;
+                    case 'multiple-analyses':
+                        passed = await testMultipleAnalyses();
+                        break;
+                    case 'navigation-stress':
+                        passed = await testNavigationStress();
+                        break;
+                    case 'full-suite':
+                        passed = await runFullSuite();
+                        break;
+                    default:
+                        log(`Unknown test: ${testName}`, 'error');
+                        return;
+                }
+                
+                // Get max memory from recent measurements
+                const stats = memoryMonitor.getStats();
+                maxMemory = parseFloat(stats.maxUsedMB);
+                
+                const result = {
+                    name: testName,
+                    passed,
+                    maxMemory,
+                    timestamp: Date.now()
+                };
+                
+                testResults.push(result);
+                displayTestResult(result);
+                
+                if (passed) {
+                    log(`✓ Test PASSED: ${testName} (Max: ${maxMemory}MB)`, 'success');
+                    updateStatus('pass', `Test passed: ${testName}`);
+                } else {
+                    log(`✗ Test FAILED: ${testName} (Max: ${maxMemory}MB)`, 'error');
+                    updateStatus('fail', `Test failed: ${testName}`);
+                }
+            } catch (error) {
+                log(`Test error: ${error.message}`, 'error');
+                updateStatus('fail', `Test error: ${testName}`);
+            }
+        }
+        
+        async function testBaseline() {
+            log('Test: Baseline memory usage');
+            
+            // Measure initial memory
+            const initial = await measureMemory();
+            if (!initial) return false;
+            
+            const usedMB = parseFloat(initial.usedMB);
+            
+            // Baseline should be well under 10MB (target: < 5MB)
+            if (usedMB < 5) {
+                log(`Baseline memory: ${usedMB}MB (Excellent)`, 'success');
+                return true;
+            } else if (usedMB < 10) {
+                log(`Baseline memory: ${usedMB}MB (Acceptable)`, 'warning');
+                return true;
+            } else {
+                log(`Baseline memory: ${usedMB}MB (Too high!)`, 'error');
+                return false;
+            }
+        }
+        
+        async function testPanelCreation() {
+            log('Test: Panel creation and removal');
+            
+            // Measure before
+            const before = await measureMemory();
+            if (!before) return false;
+            
+            // Simulate panel creation (we can't actually create it here, but we can measure)
+            log('Simulating panel creation...');
+            
+            // Create some DOM elements to simulate panel
+            const testPanel = document.createElement('div');
+            testPanel.id = 'test-panel';
+            testPanel.innerHTML = '<div>'.repeat(100) + '</div>'.repeat(100);
+            document.body.appendChild(testPanel);
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Measure after
+            const after = await measureMemory();
+            if (!after) return false;
+            
+            // Clean up
+            testPanel.remove();
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Measure after cleanup
+            const afterCleanup = await measureMemory();
+            if (!afterCleanup) return false;
+            
+            const beforeMB = parseFloat(before.usedMB);
+            const afterMB = parseFloat(after.usedMB);
+            const afterCleanupMB = parseFloat(afterCleanup.usedMB);
+            
+            const increase = afterMB - beforeMB;
+            const recovered = afterMB - afterCleanupMB;
+            
+            log(`Memory increase: ${increase.toFixed(2)}MB`);
+            log(`Memory recovered: ${recovered.toFixed(2)}MB`);
+            
+            // Panel creation should not increase memory by more than 2MB
+            // And cleanup should recover most of it
+            return afterCleanupMB < 10 && increase < 2;
+        }
+        
+        async function testMultipleAnalyses() {
+            log('Test: Multiple analysis simulations');
+            
+            const iterations = 5;
+            let maxMemory = 0;
+            
+            for (let i = 0; i < iterations; i++) {
+                log(`Iteration ${i + 1}/${iterations}`);
+                
+                // Simulate analysis data
+                const mockData = {
+                    video_id: 'test' + i,
+                    claims: Array(3).fill(null).map((_, idx) => ({
+                        claim_text: `Test claim ${idx}`,
+                        truth_profile: {
+                            overall_assessment: 'Test',
+                            perspectives: {},
+                            bias_indicators: {
+                                logical_fallacies: [],
+                                emotional_manipulation: [],
+                                deception_score: 0
+                            }
+                        }
+                    }))
+                };
+                
+                // Store in memory
+                window[`testData${i}`] = mockData;
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const measurement = await measureMemory();
+                if (measurement) {
+                    maxMemory = Math.max(maxMemory, parseFloat(measurement.usedMB));
+                }
+            }
+            
+            // Clean up
+            for (let i = 0; i < iterations; i++) {
+                delete window[`testData${i}`];
+            }
+            
+            log(`Max memory during test: ${maxMemory.toFixed(2)}MB`);
+            
+            // Should stay under 10MB even with multiple analyses
+            return maxMemory < 10;
+        }
+        
+        async function testNavigationStress() {
+            log('Test: Navigation stress (rapid state changes)');
+            
+            const iterations = 10;
+            let maxMemory = 0;
+            
+            for (let i = 0; i < iterations; i++) {
+                // Simulate navigation by creating and destroying elements
+                const elem = document.createElement('div');
+                elem.id = `nav-test-${i}`;
+                elem.innerHTML = '<div>'.repeat(50) + '</div>'.repeat(50);
+                document.body.appendChild(elem);
+                
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                elem.remove();
+                
+                if (i % 3 === 0) {
+                    const measurement = await measureMemory();
+                    if (measurement) {
+                        maxMemory = Math.max(maxMemory, parseFloat(measurement.usedMB));
+                    }
+                }
+            }
+            
+            // Final measurement
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const final = await measureMemory();
+            if (final) {
+                maxMemory = Math.max(maxMemory, parseFloat(final.usedMB));
+            }
+            
+            log(`Max memory during navigation stress: ${maxMemory.toFixed(2)}MB`);
+            
+            return maxMemory < 10;
+        }
+        
+        async function runFullSuite() {
+            log('\n=== Running Full Test Suite ===\n');
+            
+            const tests = ['baseline', 'panel-creation', 'multiple-analyses', 'navigation-stress'];
+            let allPassed = true;
+            
+            for (let i = 0; i < tests.length; i++) {
+                const progress = ((i + 1) / tests.length) * 100;
+                document.getElementById('progress-fill').style.width = progress + '%';
+                
+                const passed = await runTest(tests[i]);
+                if (!passed) {
+                    allPassed = false;
+                }
+                
+                // Wait between tests
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            log('\n=== Test Suite Complete ===\n');
+            
+            const stats = memoryMonitor.getStats();
+            log(`Overall Stats: Avg ${stats.avgUsedMB}MB, Max ${stats.maxUsedMB}MB`);
+            
+            if (parseFloat(stats.maxUsedMB) >= 10) {
+                log('FAILED: Maximum memory exceeded 10MB threshold', 'error');
+                allPassed = false;
+            }
+            
+            return allPassed;
+        }
+        
+        function displayTestResult(result) {
+            const resultsEl = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `status ${result.passed ? 'pass' : 'fail'}`;
+            resultDiv.textContent = `${result.name}: ${result.passed ? 'PASS' : 'FAIL'} (Max: ${result.maxMemory}MB)`;
+            resultsEl.appendChild(resultDiv);
+        }
+        
+        function updateStatus(type, message) {
+            const statusEl = document.getElementById('overall-status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = `Status: ${message}`;
+        }
+        
+        // Initial measurement on load
+        window.addEventListener('load', async () => {
+            log('Memory profiler loaded');
+            log('Chrome extension memory profiling test ready');
+            await measureMemory();
+        });
+    </script>
+</body>
+</html>

@@ -51,7 +51,7 @@ export default defineConfig({
     },
     
     // Test file patterns
-    include: ['tests/unit/**/*.test.js'],
+    include: ['tests/unit/**/*.test.js', 'tests/integration/**/*.test.js'],
     
     // Test timeout (30 seconds)
     testTimeout: 30000
