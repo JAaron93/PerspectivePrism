@@ -25,14 +25,13 @@ The manifest includes mobile YouTube URLs in both `host_permissions` and `conten
 
 ```json
 {
-"host_permissions": ["https://m.youtube.com/*"],
-"content_scripts": [
-{
-"matches": ["https://m.youtube.com/watch*"]
+  "host_permissions": ["https://m.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://m.youtube.com/watch*"]
+    }
+  ]
 }
-]
-}
-
 ```
 
 **Status**: ✅ Configured correctly (Pending Verification)
@@ -53,7 +52,7 @@ function extractVideoId() {
   }
   // ... additional strategies
 }
-````
+```
 
 **Mobile URL Support**:
 
@@ -628,15 +627,6 @@ These features are planned for future releases and are not required for initial 
 - Lazy loading for long analysis results
 - Optimized rendering for low-end devices
 - Reduced motion for battery savings
-  );
-  }
-
-// Use mobile-specific UI if on mobile
-if (isMobileDevice()) {
-// Apply mobile-specific behavior (e.g., different panel size, gestures)
-}
-
-```
 
 ## Testing Checklist
 
@@ -672,4 +662,7 @@ The Perspective Prism extension includes comprehensive mobile support with respo
 **Priority**: Medium (mobile usage is growing, but desktop is still primary)
 
 **Risk**: Low (implementation is solid, main risk is selector compatibility)
+
+```
+
 ```

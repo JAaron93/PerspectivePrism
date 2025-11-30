@@ -107,22 +107,23 @@ With the implemented recovery mechanisms:
 ```javascript
 async persistRequestState(state) {
   const key = `pending_request_${state.videoId}`;
-  
+
   // Read-modify-write to preserve existing fields
   const existing = await chrome.storage.local.get(key);
   const existingState = existing[key] || {};
-  
+
   // Merge states, preserving original startTime
   const newState = { ...existingState, ...state };
   if (existingState.startTime) {
     newState.startTime = existingState.startTime;
   }
-  
+
   await chrome.storage.local.set({ [key]: newState });
 }
 ```
 
 **State Structure**:
+
 ```javascript
 {
   videoId: string,           // YouTube video ID
@@ -135,11 +136,13 @@ async persistRequestState(state) {
 ```
 
 **When State is Persisted**:
+
 - ✅ Immediately when analysis starts (attempt 0)
 - ✅ Before each retry attempt
 - ✅ After each failure (with error details)
 
 **When State is Cleaned Up**:
+
 - ✅ On successful completion
 - ✅ On terminal failure (max retries exceeded)
 - ✅ On stale request cleanup (>5 minutes old)
@@ -156,33 +159,36 @@ const delay = this.RETRY_DELAYS[attempt]; // [2000, 4000]
 const alarmName = `retry::${videoId}::${attempt + 1}`;
 
 await chrome.alarms.create(alarmName, {
-  when: Date.now() + delay  // Use 'when' for precision
+  when: Date.now() + delay, // Use 'when' for precision
 });
 ```
 
 **Alarm Naming Convention**:
+
 - Format: `retry::{videoId}::{attemptNumber}`
 - Example: `retry::dQw4w9WgXcQ::1`
 - Allows easy identification and cleanup
 
 **Why Alarms Instead of setTimeout**:
+
 - ✅ Alarms survive service worker termination
 - ✅ Chrome manages alarm persistence
 - ✅ Alarms fire even if service worker is stopped
 - ✅ Service worker auto-starts when alarm fires
 
 **Alarm Listener**:
+
 ```javascript
 setupAlarmListener() {
   chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name.startsWith('retry::')) {
       const [_, videoId, attemptStr] = alarm.name.split('::');
       const state = await this.getPersistedRequestState(videoId);
-      
+
       if (state) {
         await this.executeAnalysisRequest(
-          videoId, 
-          state.videoUrl, 
+          videoId,
+          state.videoUrl,
           state.attemptCount
         );
       }
@@ -201,53 +207,53 @@ setupAlarmListener() {
 async recoverPersistedRequests() {
   // 1. Load all persisted requests
   const all = await chrome.storage.local.get(null);
-  const keys = Object.keys(all).filter(k => 
+  const keys = Object.keys(all).filter(k =>
     k.startsWith('pending_request_')
   );
-  
+
   console.log(`[Recovery] Found ${keys.length} persisted requests`);
-  
+
   // 2. Process each request
   for (const key of keys) {
     const state = all[key];
     const age = Date.now() - state.startTime;
-    
+
     // 3. Clean up stale requests (>5 minutes)
     if (age > this.MAX_REQUEST_AGE) {
       console.log(`[Recovery] Cleaning up stale request: ${state.videoId}`);
       await this.cleanupPersistedRequest(state.videoId);
       continue;
     }
-    
+
     // 4. Rate limit recoveries (500ms between requests)
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // 5. Resume request based on status
     if (state.status === 'pending') {
       // Interrupted during execution, retry immediately
       await this.executeAnalysisRequest(
-        state.videoId, 
-        state.videoUrl, 
+        state.videoId,
+        state.videoUrl,
         state.attemptCount
       );
     } else if (state.status === 'retrying') {
       // Check if alarm exists
       const alarmName = `retry::${state.videoId}::${state.attemptCount}`;
       const alarm = await chrome.alarms.get(alarmName);
-      
+
       if (!alarm) {
         // Alarm missing, reschedule immediately
         console.warn(`[Recovery] Missing alarm, rescheduling: ${state.videoId}`);
         await this.executeAnalysisRequest(
-          state.videoId, 
-          state.videoUrl, 
+          state.videoId,
+          state.videoUrl,
           state.attemptCount
         );
       }
       // If alarm exists, it will fire and handle the retry
     }
   }
-  
+
   // 6. Mark recovery complete
   this.recoveryComplete = true;
   this.processRequestQueue();
@@ -255,11 +261,13 @@ async recoverPersistedRequests() {
 ```
 
 **Recovery Triggers**:
+
 - ✅ Service worker startup (constructor)
 - ✅ First message received after restart
 - ✅ Alarm firing (auto-starts service worker)
 
 **Recovery Features**:
+
 - ✅ Stale request cleanup (>5 minutes)
 - ✅ Rate limiting (500ms between recoveries)
 - ✅ Missing alarm detection and rescheduling
@@ -278,12 +286,12 @@ async analyzeVideo(videoId) {
     console.log(`[Dedup] Returning existing promise for ${videoId}`);
     return this.pendingRequests.get(videoId);
   }
-  
+
   // 2. Check persisted pending requests
   const persistedState = await this.getPersistedRequestState(videoId);
   if (persistedState && persistedState.status !== 'completed') {
     console.log(`[Dedup] Attaching to persisted request for ${videoId}`);
-    
+
     // Return promise that resolves when persisted request completes
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -294,28 +302,30 @@ async analyzeVideo(videoId) {
           videoId
         });
       }, this.TIMEOUT_MS);
-      
+
       // Store resolver for notification when request completes
       const resolvers = this.pendingResolvers.get(videoId) || [];
       resolvers.push({ resolve, reject, timeoutId });
       this.pendingResolvers.set(videoId, resolvers);
     });
   }
-  
+
   // 3. Start new request
   const requestPromise = this.executeAnalysisRequest(videoId, videoUrl);
   this.pendingRequests.set(videoId, requestPromise);
-  
+
   return requestPromise;
 }
 ```
 
 **Deduplication Levels**:
+
 1. **In-Memory**: Check `pendingRequests` Map
 2. **Persistent**: Check `chrome.storage.local`
 3. **Promise Attachment**: Multiple callers share same result
 
 **Benefits**:
+
 - ✅ Prevents duplicate backend requests
 - ✅ Saves bandwidth and backend resources
 - ✅ Consistent results for same video
@@ -328,6 +338,11 @@ async analyzeVideo(videoId) {
 **Method**: `analyzeVideo(videoId)`
 
 ```javascript
+/**
+ * Analyzes a video by its ID.
+ * @param {string} videoId - The YouTube video ID
+ * @returns {Promise<Object>} Always returns a Promise that resolves to a result object
+ */
 async analyzeVideo(videoId) {
   // If recovery is in progress, queue the request
   if (!this.recoveryComplete) {
@@ -338,26 +353,27 @@ async analyzeVideo(videoId) {
       });
     } else {
       console.warn(`[Queue] Queue full, rejecting ${videoId}`);
-      return {
+      return Promise.resolve({
         success: false,
         error: 'Service recovering, please try again',
         status: 'retry-after',
         delay: 1000
-      };
+      });
     }
   }
-  
+
   // Normal processing...
 }
 ```
 
 **Queue Processing**:
+
 ```javascript
 async processRequestQueue() {
   if (this.requestQueue.length === 0) return;
-  
+
   console.log(`[Queue] Processing ${this.requestQueue.length} queued requests`);
-  
+
   while (this.requestQueue.length > 0) {
     const { videoId, resolve, reject } = this.requestQueue.shift();
     try {
@@ -371,6 +387,7 @@ async processRequestQueue() {
 ```
 
 **Queue Features**:
+
 - ✅ Max queue size: 50 requests
 - ✅ FIFO processing order
 - ✅ Automatic processing after recovery
@@ -387,7 +404,7 @@ async cleanupPersistedRequest(videoId) {
   // 1. Remove persisted state
   const key = `pending_request_${videoId}`;
   await chrome.storage.local.remove(key);
-  
+
   // 2. Clear all associated alarms
   const alarms = await chrome.alarms.getAll();
   for (const alarm of alarms) {
@@ -399,6 +416,7 @@ async cleanupPersistedRequest(videoId) {
 ```
 
 **Cleanup Triggers**:
+
 - ✅ Successful analysis completion
 - ✅ Terminal failure (max retries exceeded)
 - ✅ Stale request detection (>5 minutes)
@@ -406,6 +424,7 @@ async cleanupPersistedRequest(videoId) {
 - ✅ Consent revocation
 
 **What Gets Cleaned Up**:
+
 - ✅ Persisted request state in storage
 - ✅ All retry alarms for the video
 - ✅ In-memory pending request promises
@@ -417,18 +436,18 @@ async cleanupPersistedRequest(videoId) {
 
 ```javascript
 // Request timeouts
-TIMEOUT_MS = 120000;              // 120 seconds per request
-MAX_REQUEST_AGE = 300000;         // 5 minutes max age for recovery
+TIMEOUT_MS = 120000; // 120 seconds per request
+MAX_REQUEST_AGE = 300000; // 5 minutes max age for recovery
 
 // Retry configuration
-MAX_RETRIES = 2;                  // Maximum retry attempts
-RETRY_DELAYS = [2000, 4000];      // Exponential backoff: 2s, 4s
+MAX_RETRIES = 2; // Maximum retry attempts
+RETRY_DELAYS = [2000, 4000]; // Exponential backoff: 2s, 4s
 
 // Queue configuration
-MAX_QUEUE_SIZE = 50;              // Maximum queued requests during recovery
+MAX_QUEUE_SIZE = 50; // Maximum queued requests during recovery
 
 // Rate limiting
-RECOVERY_RATE_LIMIT = 500;        // 500ms between recovered requests
+RECOVERY_RATE_LIMIT = 500; // 500ms between recovered requests
 ```
 
 ### Storage Keys
@@ -446,11 +465,11 @@ pending_request_jNQXAC9IVRw       // Request for video jNQXAC9IVRw
 
 ```javascript
 // Retry alarms
-retry::{videoId}::{attemptNumber}
+retry::{ videoId }::{ attemptNumber };
 
 // Examples
-retry::dQw4w9WgXcQ::1            // First retry for video dQw4w9WgXcQ
-retry::dQw4w9WgXcQ::2            // Second retry for video dQw4w9WgXcQ
+retry::dQw4w9WgXcQ::1; // First retry for video dQw4w9WgXcQ
+retry::dQw4w9WgXcQ::2; // Second retry for video dQw4w9WgXcQ
 ```
 
 ## Testing
@@ -462,6 +481,7 @@ A comprehensive manual test guide has been created:
 **Location**: `chrome-extension/tests/manual_qa/regression_scenarios/service_worker_recovery_after_termination/TEST_GUIDE.md`
 
 **Test Scenarios**:
+
 1. ✅ Service worker termination during analysis
 2. ✅ Service worker termination during retry
 3. ✅ Multiple pending requests recovery
@@ -483,27 +503,27 @@ A comprehensive manual test guide has been created:
 
 ### Storage Operations
 
-| Operation | Frequency | Duration | Impact |
-|-----------|-----------|----------|--------|
-| Persist state | Per request start | ~5ms | Negligible |
-| Load state | On recovery | ~10ms per request | Low |
-| Cleanup state | Per completion | ~20ms | Negligible |
+| Operation     | Frequency         | Duration          | Impact     |
+| ------------- | ----------------- | ----------------- | ---------- |
+| Persist state | Per request start | ~5ms              | Negligible |
+| Load state    | On recovery       | ~10ms per request | Low        |
+| Cleanup state | Per completion    | ~20ms             | Negligible |
 
 ### Memory Usage
 
-| Component | Size per Request | Max Requests | Total |
-|-----------|------------------|--------------|-------|
-| In-memory Map | ~1KB | 50 | ~50KB |
-| Persisted state | ~1KB | 50 | ~50KB |
-| Alarms | Negligible | 100 | <1KB |
+| Component       | Size per Request | Max Requests | Total |
+| --------------- | ---------------- | ------------ | ----- |
+| In-memory Map   | ~1KB             | 50           | ~50KB |
+| Persisted state | ~1KB             | 50           | ~50KB |
+| Alarms          | Negligible       | 100          | <1KB  |
 
 ### Recovery Performance
 
-| Scenario | Time | Notes |
-|----------|------|-------|
-| Single request | <100ms | Immediate resume |
-| 10 requests | ~5s | Rate limited (500ms each) |
-| 50 requests | ~25s | Rate limited (500ms each) |
+| Scenario       | Time   | Notes                     |
+| -------------- | ------ | ------------------------- |
+| Single request | <100ms | Immediate resume          |
+| 10 requests    | ~5s    | Rate limited (500ms each) |
+| 50 requests    | ~25s   | Rate limited (500ms each) |
 
 ### User Experience Impact
 
@@ -519,6 +539,7 @@ A comprehensive manual test guide has been created:
 **Scenario**: Service worker terminates while writing state to storage
 
 **Handling**:
+
 - Storage write is atomic (Chrome API guarantee)
 - Either fully written or not written at all
 - Next startup will not find partial state
@@ -531,6 +552,7 @@ A comprehensive manual test guide has been created:
 **Scenario**: Alarm fires during service worker initialization
 
 **Handling**:
+
 - Alarm listener is set up in constructor
 - If alarm fires before listener is ready, Chrome queues it
 - Alarm will be processed once listener is registered
@@ -542,6 +564,7 @@ A comprehensive manual test guide has been created:
 **Scenario**: Multiple service worker instances running simultaneously
 
 **Handling**:
+
 - Chrome ensures only one service worker instance per extension
 - Not possible to have multiple instances
 - No race conditions from multiple workers
@@ -553,6 +576,7 @@ A comprehensive manual test guide has been created:
 **Scenario**: Too many persisted requests fill storage quota
 
 **Handling**:
+
 - Each request is ~1KB
 - Chrome.storage.local has ~10MB quota
 - Can store ~10,000 requests
@@ -565,9 +589,10 @@ A comprehensive manual test guide has been created:
 **Scenario**: Too many alarms created
 
 **Handling**:
-- Chrome allows unlimited alarms per extension
-- Each request creates 1-2 alarms max
-- Alarms are cleaned up on completion
+
+- Chrome 117+: Limited to 500 active alarms per extension
+- Each request creates 1 alarm max (or 2 during retry edge cases)
+- Alarms must be cleaned up on completion to avoid hitting limit
 
 **Impact**: None - No practical limit
 
@@ -576,6 +601,7 @@ A comprehensive manual test guide has been created:
 **Scenario**: Browser crashes while analysis is in progress
 
 **Handling**:
+
 - Persisted state survives crash (written to disk)
 - Alarms survive crash (managed by Chrome)
 - On browser restart, recovery process runs
@@ -590,6 +616,7 @@ A comprehensive manual test guide has been created:
 **Limitation**: Requests older than 5 minutes are considered stale
 
 **Rationale**:
+
 - Backend timeout is 120 seconds
 - Max retries add 6 seconds (2s + 4s)
 - Total max time: ~126 seconds
@@ -599,11 +626,11 @@ A comprehensive manual test guide has been created:
 
 ### 2. Alarm Precision
 
-**Limitation**: Chrome alarms have ~1 minute precision
+**Limitation**: Chrome currently enforces a minimum alarm granularity of ~30 seconds (prior to Chrome 120, the documented limit was ~1 minute)
 
 **Workaround**: Use `when` instead of `delayInMinutes` for better precision
 
-**Impact**: Low - Retry delays may be 1-2 seconds longer than specified
+**Impact**: Low - Retry delays may be up to ~30 seconds (or 1+ minute on older Chrome versions) longer than specified
 
 ### 3. Storage Persistence
 

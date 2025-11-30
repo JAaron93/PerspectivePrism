@@ -9,6 +9,7 @@ This document describes the privacy policy versioning system implemented for the
 **Version: 1.0.0**
 
 This version is defined in:
+
 - `consent.js` - `ConsentManager.POLICY_VERSION`
 - `background.js` - `checkPrivacyPolicyVersion()` function
 - `privacy.html` - Displayed at the top of the policy
@@ -34,6 +35,7 @@ When a user gives consent, the following data is stored in `chrome.storage.sync`
 Version checks occur at three key points:
 
 #### A. Extension Startup/Update
+
 - **File**: `background.js`
 - **Function**: `checkPrivacyPolicyVersion()`
 - **Trigger**: `chrome.runtime.onStartup` and `chrome.runtime.onInstalled` (update reason)
@@ -52,6 +54,7 @@ Version checks occur at three key points:
     ```
 
 #### B. Analysis Button Click
+
 - **File**: `content.js`
 - **Function**: `handleAnalysisClick()`
 - **Behavior**:
@@ -60,6 +63,7 @@ Version checks occur at three key points:
   - User must accept or decline before analysis proceeds
 
 #### C. Settings Page Load
+
 - **File**: `options.js`
 - **Function**: `checkPrivacyPolicyVersion()`
 - **Trigger**: `DOMContentLoaded` event
@@ -73,10 +77,12 @@ Version checks occur at three key points:
 The consent dialog (`consent.js`) has two modes:
 
 #### Initial Consent
+
 - Title: "Privacy & Consent"
 - Buttons: "Learn More", "Deny", "Allow and Continue"
 
 #### Policy Update
+
 - Title: "Privacy Policy Updated"
 - Message: "Our privacy policy has been updated to version {new_version}"
 - Buttons: "View Changes", "Decline", "Accept"
@@ -84,13 +90,18 @@ The consent dialog (`consent.js`) has two modes:
 ### 4. User Actions
 
 #### Accept Updated Policy
+
 1. User clicks "Accept" button
 2. `ConsentManager.saveConsent(true, oldVersion)` is called
+   - **Note**: `oldVersion` parameter is **required** in this flow for proper audit logging
+   - It should contain the stored policy version that triggered the update dialog
+   - Example: `saveConsent(true, "0.9.0")` when updating from v0.9.0 to v1.0.0
 3. New consent record is saved with current policy version
-4. Version change is logged to audit trail
+4. Version change is logged to audit trail (requires `oldVersion` to create complete log entry)
 5. User can continue using the extension
 
 #### Decline Updated Policy
+
 1. User clicks "Decline" button
 2. Version change is logged as declined
 3. `REVOKE_CONSENT` message is sent to background script
@@ -110,9 +121,9 @@ All policy version changes are logged to `chrome.storage.local`:
       timestamp: 1234567890,
       oldVersion: "0.9.0",
       newVersion: "1.0.0",
-      accepted: true
-    }
-  ]
+      accepted: true,
+    },
+  ];
 }
 ```
 
@@ -125,6 +136,7 @@ Logs are kept for the last 50 version changes.
 Use the test page: `chrome-extension://[extension-id]/test-policy-version.html`
 
 This page provides buttons to:
+
 1. Check current consent state
 2. Simulate version mismatch (set stored version to 0.9.0)
 3. Show consent dialog manually
@@ -136,12 +148,14 @@ This page provides buttons to:
 ### Test Scenarios
 
 #### Scenario 1: Fresh Install
+
 1. Install extension
 2. Navigate to YouTube video
 3. Click "Analyze Claims"
 4. Should see initial consent dialog (not update dialog)
 
 #### Scenario 2: Policy Update
+
 1. Have extension installed with consent given
 2. Manually set stored version to "0.9.0" (using test page)
 3. Restart extension or reload settings page
@@ -149,6 +163,7 @@ This page provides buttons to:
 5. Accept or decline
 
 #### Scenario 3: Decline Update
+
 1. Trigger policy update dialog
 2. Click "Decline"
 3. Verify:
@@ -158,6 +173,7 @@ This page provides buttons to:
    - Settings page shows warning message
 
 #### Scenario 4: Accept Update
+
 1. Trigger policy update dialog
 2. Click "Accept"
 3. Verify:
@@ -193,6 +209,7 @@ When you need to update the privacy policy:
 - `background.js` - Added startup version checking and message handler
 - `options.js` - Added settings page version checking
 - `options.html` - Added consent.js script tag
+- `privacy.html` - Updated with policy version number and content
 - `test-policy-version.html` - Created manual test page
 
 ## API Reference
@@ -200,7 +217,9 @@ When you need to update the privacy policy:
 ### ConsentManager
 
 #### `checkConsent()`
+
 Returns:
+
 ```javascript
 {
   hasConsent: boolean,
@@ -211,25 +230,51 @@ Returns:
 ```
 
 #### `saveConsent(given, oldVersion)`
+
+Saves user consent and optionally logs version changes.
+
+**Parameters**:
+
 - `given` (boolean): Whether consent was given
-- `oldVersion` (string, optional): Previous policy version for logging
+- `oldVersion` (string, optional): Previous policy version
+  - **Required** when accepting a policy update to enable audit logging
+  - **Optional** for initial consent (first-time users, no version change)
+  - When provided: Calls `logVersionChange()` to record version transition
+  - When omitted: Saves consent without logging version change
+
+**Usage Examples**:
+
+```javascript
+// Policy update flow - oldVersion required for audit trail
+saveConsent(true, "0.9.0"); // Logs: 0.9.0 → 1.0.0, accepted: true
+
+// Initial consent flow - oldVersion omitted
+saveConsent(true); // No version change logged
+```
 
 #### `logVersionChange(oldVersion, newVersion, accepted)`
+
 Logs a policy version change to the audit trail.
 
 #### `showConsentDialog(callback, options)`
+
 - `callback` (function): Called with `true` (accepted) or `false` (declined)
 - `options` (object): Contains `reason`, `storedVersion`, `currentVersion`
 
 ### Background Script Messages
 
 #### `CHECK_POLICY_VERSION`
+
 Request:
+
 ```javascript
-{ type: "CHECK_POLICY_VERSION" }
+{
+  type: "CHECK_POLICY_VERSION";
+}
 ```
 
 Response:
+
 ```javascript
 {
   success: true,
@@ -238,6 +283,30 @@ Response:
   currentVersion?: string
 }
 ```
+
+#### `REVOKE_CONSENT`
+
+**Purpose**: Revoke user consent and disable extension features
+
+**Sender**: Content script / Foreground (consent.js)
+
+**When Emitted**: When user declines an updated privacy policy
+
+**Payload**:
+
+```javascript
+{
+  type: "REVOKE_CONSENT";
+}
+```
+
+**Expected Background Behavior**:
+
+1. Clear all cached analysis data
+2. Cancel any pending analysis requests
+3. Set consent status to `given: false` in storage
+4. Disable analysis features extension-wide
+5. Remove any temporary data or session state
 
 ## Future Enhancements
 

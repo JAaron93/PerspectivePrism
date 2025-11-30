@@ -159,6 +159,28 @@
     <script src="config.js"></script>
     <script src="consent.js"></script>
     <script>
+      // Startup guard: Check if Chrome extension APIs are available
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.runtime) {
+        // Replace body content with error message
+        document.body.innerHTML = `
+          <div class="container">
+            <h1 style="color: #d93025;">❌ Chrome Extension APIs Not Available</h1>
+            <div class="status error">
+              <p><strong>Error:</strong> This test page requires Chrome extension APIs to function.</p>
+              <p><strong>Possible causes:</strong></p>
+              <ul>
+                <li>The page is not loaded as part of a Chrome extension</li>
+                <li>The extension context is not available</li>
+                <li>Required permissions are missing from manifest.json</li>
+              </ul>
+              <p><strong>Solution:</strong> Load this page from within the Chrome extension context (e.g., as an extension page or via chrome-extension:// URL).</p>
+            </div>
+          </div>
+        `;
+        // Halt further execution
+        throw new Error("Chrome extension APIs not available");
+      }
+
       const CURRENT_POLICY_VERSION = "1.0.0";
 
       function log(message, type = "info") {
@@ -277,6 +299,17 @@
           ]);
           const logs = result.policy_version_logs || [];
 
+          // Clear previous log entries before adding new ones
+          const resultsDiv = document.getElementById("test-results");
+          if (!resultsDiv) {
+            console.error("test-results element not found");
+            return;
+          }
+
+          // Clear only the <pre> elements (keep status messages from log())
+          const preElements = resultsDiv.querySelectorAll("pre");
+          preElements.forEach((pre) => pre.remove());
+
           if (logs.length === 0) {
             log("No version change logs found", "info");
           } else {
@@ -291,7 +324,7 @@
                 null,
                 2,
               );
-              document.getElementById("test-results").appendChild(logDiv);
+              resultsDiv.appendChild(logDiv);
             });
           }
         } catch (error) {

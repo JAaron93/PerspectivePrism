@@ -58,7 +58,7 @@ const key = `cache_{videoId}`;
 ### Key Features
 
 1. **Persistent Storage**
-   - Uses `chrome.storage.local` (unlimited quota)
+   - Uses `chrome.storage.local` (~10MB quota per extension)
    - Survives browser restarts
    - Survives system reboots
    - Survives extension updates
@@ -90,19 +90,19 @@ const key = `cache_{videoId}`;
    - Analyze 5 videos → Restart browser → Verify all cached
    - Success criteria: All 5 videos show cached results
 
-3. **Test 4: Cache Expiration**
+3. **Test 3: System Reboot**
+   - Analyze videos → Reboot system → Verify cache persists
+   - Success criteria: Cache survives reboot
+
+4. **Test 4: Cache Expiration**
    - Analyze video → Wait 24+ hours → Verify cache expired
    - Success criteria: New analysis is performed
 
-4. **Test 5: Extension Update**
+5. **Test 5: Extension Update**
    - Analyze videos → Update extension → Verify cache persists
    - Success criteria: Cache survives update
 
 ### Important Tests (Should Pass)
-
-5. **Test 3: System Reboot**
-   - Analyze videos → Reboot system → Verify cache persists
-   - Success criteria: Cache survives reboot
 
 6. **Test 6: Schema Migration**
    - Create legacy entry → Trigger migration → Verify success
@@ -155,11 +155,13 @@ const key = `cache_{videoId}`;
 ```javascript
 // List all cached videos
 chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-  console.log('Cached videos:', cacheKeys.length);
-  cacheKeys.forEach(key => {
+  const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
+  console.log("Cached videos:", cacheKeys.length);
+  cacheKeys.forEach((key) => {
     const entry = items[key];
-    console.log(`${key}: ${entry.data.claims.length} claims, ${new Date(entry.timestamp).toLocaleString()}`);
+    console.log(
+      `${key}: ${entry.data.claims.length} claims, ${new Date(entry.timestamp).toLocaleString()}`,
+    );
   });
 });
 ```
@@ -168,15 +170,19 @@ chrome.storage.local.get(null, (items) => {
 
 ```javascript
 // Check if specific video is cached
-const videoId = 'dQw4w9WgXcQ';
+const videoId = "dQw4w9WgXcQ";
 chrome.storage.local.get(`cache_${videoId}`, (result) => {
   const entry = result[`cache_${videoId}`];
   if (entry) {
-    console.log('✅ Cached');
-    console.log('Claims:', entry.data.claims.length);
-    console.log('Age:', ((Date.now() - entry.timestamp) / (1000 * 60)).toFixed(1), 'minutes');
+    console.log("✅ Cached");
+    console.log("Claims:", entry.data.claims.length);
+    console.log(
+      "Age:",
+      ((Date.now() - entry.timestamp) / (1000 * 60)).toFixed(1),
+      "minutes",
+    );
   } else {
-    console.log('❌ Not cached');
+    console.log("❌ Not cached");
   }
 });
 ```
@@ -217,6 +223,7 @@ This test suite validates the following requirements:
 - **Requirement 5.1**: Extension SHALL use chrome.storage.local for persistent cache
 - **Requirement 5.2**: Extension SHALL check for cached results based on Video ID
 - **Requirement 5.3**: Extension SHALL display cached results within 500ms
+- **Requirement 5.4**: _(Not defined or out of scope for this test suite)_
 - **Requirement 5.5**: Extension SHALL cache results for 24 hours
 - **Requirement 5.6**: Extension SHALL clear expired entries automatically
 - **Requirement 5.7**: Extension SHALL use most recent analysis as source of truth
@@ -232,27 +239,27 @@ This test suite validates the following requirements:
 
 ### Storage Operations
 
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Cache Read | 5-10ms | Per entry |
-| Cache Write | 10-20ms | Per entry |
-| Cache Cleanup | 50ms | For 100 entries |
-| Schema Migration | 5ms | Per entry |
+| Operation        | Time    | Notes           |
+| ---------------- | ------- | --------------- |
+| Cache Read       | 5-10ms  | Per entry       |
+| Cache Write      | 10-20ms | Per entry       |
+| Cache Cleanup    | 50ms    | For 100 entries |
+| Schema Migration | 5ms     | Per entry       |
 
 ### Storage Usage
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Entry Size | 10-50 KB | Depends on claim count |
-| Typical Usage | 500 KB - 1 MB | For 20 videos |
-| Max Entry Size | 1 MB | Enforced by policy |
+| Metric         | Value         | Notes                  |
+| -------------- | ------------- | ---------------------- |
+| Entry Size     | 10-50 KB      | Depends on claim count |
+| Typical Usage  | 500 KB - 1 MB | For 20 videos          |
+| Max Entry Size | 1 MB          | Enforced by policy     |
 
 ### Network Savings
 
-| Scenario | Requests | Backend Load | Bandwidth |
-|----------|----------|--------------|-----------|
-| Cache Hit | 0 | 0% | 0 bytes |
-| Cache Miss | 1 | 100% | ~50-200 KB |
+| Scenario   | Requests | Backend Load | Bandwidth  |
+| ---------- | -------- | ------------ | ---------- |
+| Cache Hit  | 0        | 0%           | 0 bytes    |
+| Cache Miss | 1        | 100%         | ~50-200 KB |
 
 ## Next Steps
 
@@ -280,6 +287,7 @@ This test suite validates the following requirements:
 The cache persistence mechanism is fully implemented and documented. The test suite provides comprehensive coverage of all cache persistence scenarios, including browser restarts, system reboots, extension updates, and edge cases.
 
 **Key Strengths**:
+
 - Reliable persistent storage using `chrome.storage.local`
 - Comprehensive test coverage (10 scenarios)
 - Clear documentation and debugging tools

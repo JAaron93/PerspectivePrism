@@ -12,18 +12,18 @@
 
 ## Verify Cache Entry
 
-```javascript
 // Check if video is cached
-chrome.storage.local.get('cache_{videoId}', (result) => {
-  console.log(result.cache_{videoId} ? '✅ Cached' : '❌ Not cached');
+// Replace {videoId} with actual video ID (e.g., 'dQw4w9WgXcQ')
+const videoId = 'dQw4w9WgXcQ'; // Replace with actual video ID
+chrome.storage.local.get(`cache_${videoId}`, (result) => {
+console.log(result[`cache_${videoId}`] ? '✅ Cached' : '❌ Not cached');
 });
-```
 
 ## Check All Cache Entries
 
 ```javascript
 chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
+  const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
   console.log(`${cacheKeys.length} videos cached`);
 });
 ```
@@ -32,9 +32,9 @@ chrome.storage.local.get(null, (items) => {
 
 ```javascript
 chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
+  const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
   chrome.storage.local.remove(cacheKeys, () => {
-    console.log('Cache cleared');
+    console.log("Cache cleared");
   });
 });
 ```
@@ -42,18 +42,21 @@ chrome.storage.local.get(null, (items) => {
 ## Expected Console Logs
 
 ### Cache Hit
+
 ```
 [PerspectivePrismClient] Cache hit for {videoId}
 [PerspectivePrismClient] Returning cached data for {videoId}
 ```
 
 ### Cache Miss
+
 ```
 [PerspectivePrismClient] Cache miss for {videoId}
 [PerspectivePrismClient] Fetching fresh analysis for {videoId}
 ```
 
 ### Cache Expired
+
 ```
 [PerspectivePrismClient] Cache expired for {videoId}
 [PerspectivePrismClient] Removing expired entry
@@ -62,16 +65,19 @@ chrome.storage.local.get(null, (items) => {
 ## Common Issues
 
 ### Cache Not Persisting
+
 - Check: Is caching enabled in settings?
 - Check: Is `chrome.storage.local` available?
 - Check: Are there any console errors?
 
 ### Results Not Appearing
+
 - Check: Is cache entry expired? (> 24 hours)
 - Check: Was cache cleared manually?
 - Check: Is video ID correct?
 
 ### Slow Cache Retrieval
+
 - Check: Is entry very large? (> 1 MB)
 - Check: Is storage quota exceeded?
 - Check: Are there many cache entries? (> 100)
@@ -103,20 +109,6 @@ chrome.storage.local.get(null, (items) => {
 ❌ Error messages in console
 
 ## Quick Debugging
-
-```javascript
-// Get cache stats
-chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-  let totalSize = 0;
-  cacheKeys.forEach(key => {
-    totalSize += JSON.stringify(items[key]).length;
-  });
-  console.log('Entries:', cacheKeys.length);
-  console.log('Total size:', (totalSize / 1024).toFixed(2), 'KB');
-  console.log('Avg size:', (totalSize / cacheKeys.length / 1024).toFixed(2), 'KB');
-});
-```
 
 ## Related Files
 

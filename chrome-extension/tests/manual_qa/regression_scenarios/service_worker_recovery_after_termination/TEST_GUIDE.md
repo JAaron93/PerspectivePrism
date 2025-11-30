@@ -67,7 +67,7 @@ The extension implements a comprehensive recovery mechanism:
 1. **Start Analysis**
    - Navigate to a YouTube video
    - Click the "Analyze Video" button
-   - Verify loading state is shown
+   - Verify loading state: the "Analyze Video" button is disabled, the panel shows a loading spinner, "Analyzing video..." text is visible, and the button has `aria-busy="true"` attribute
 
 2. **Terminate Service Worker**
    - Open Chrome DevTools
@@ -86,12 +86,14 @@ The extension implements a comprehensive recovery mechanism:
    - Results should be displayed in the panel
 
 **Expected Behavior**:
+
 - ✅ Analysis completes despite service worker termination
 - ✅ No error messages shown to user
 - ✅ Results are cached after completion
 - ✅ Persisted state is cleaned up
 
 **Acceptance Criteria**:
+
 - Analysis completes within 2 minutes
 - User sees no indication of service worker restart
 - Results are identical to non-interrupted analysis
@@ -130,12 +132,14 @@ The extension implements a comprehensive recovery mechanism:
    - Analysis should complete
 
 **Expected Behavior**:
+
 - ✅ Retry alarm survives service worker termination
 - ✅ Retry executes after service worker restarts
 - ✅ Analysis completes successfully
 - ✅ Persisted state is cleaned up
 
 **Acceptance Criteria**:
+
 - Retry executes within 5 seconds of scheduled time
 - No duplicate requests are made
 - User sees successful analysis result
@@ -173,12 +177,14 @@ The extension implements a comprehensive recovery mechanism:
    - Check timestamps in console logs
 
 **Expected Behavior**:
+
 - ✅ All 3 requests are recovered
 - ✅ Rate limiting prevents backend overload (500ms between recoveries)
 - ✅ All analyses complete successfully
 - ✅ Results are displayed in respective tabs
 
 **Acceptance Criteria**:
+
 - All pending requests are recovered
 - No requests are lost
 - Backend is not overwhelmed with simultaneous requests
@@ -196,13 +202,13 @@ The extension implements a comprehensive recovery mechanism:
      ```javascript
      // Run in DevTools console on any page
      chrome.storage.local.set({
-       'pending_request_TEST_VIDEO': {
-         videoId: 'TEST_VIDEO',
-         videoUrl: 'https://www.youtube.com/watch?v=TEST_VIDEO',
-         startTime: Date.now() - (6 * 60 * 1000), // 6 minutes ago
+       pending_request_TEST_VIDEO: {
+         videoId: "TEST_VIDEO",
+         videoUrl: "https://www.youtube.com/watch?v=TEST_VIDEO",
+         startTime: Date.now() - 6 * 60 * 1000, // 6 minutes ago
          attemptCount: 0,
-         status: 'pending'
-       }
+         status: "pending",
+       },
      });
      ```
 
@@ -218,17 +224,19 @@ The extension implements a comprehensive recovery mechanism:
      ```
    - Verify stale request is removed from storage:
      ```javascript
-     chrome.storage.local.get('pending_request_TEST_VIDEO', (result) => {
-       console.log('Stale request:', result); // Should be empty
+     chrome.storage.local.get("pending_request_TEST_VIDEO", (result) => {
+       console.log("Stale request:", result); // Should be empty
      });
      ```
 
 **Expected Behavior**:
+
 - ✅ Stale requests (>5 minutes old) are cleaned up
 - ✅ No attempt to resume stale requests
 - ✅ Storage is kept clean
 
 **Acceptance Criteria**:
+
 - Requests older than 5 minutes are removed
 - No errors are thrown during cleanup
 - Storage does not accumulate stale data
@@ -252,7 +260,7 @@ The extension implements a comprehensive recovery mechanism:
    - Check alarms in DevTools console:
      ```javascript
      chrome.alarms.getAll((alarms) => {
-       console.log('Alarms:', alarms);
+       console.log("Alarms:", alarms);
        // Should see: retry::{videoId}::{attempt}
      });
      ```
@@ -272,12 +280,14 @@ The extension implements a comprehensive recovery mechanism:
    - Retry should execute
 
 **Expected Behavior**:
+
 - ✅ Alarm survives service worker termination
 - ✅ Alarm fires at scheduled time
 - ✅ Service worker restarts when alarm fires
 - ✅ Retry executes successfully
 
 **Acceptance Criteria**:
+
 - Alarms persist across service worker restarts
 - Retry executes within 1 second of scheduled time
 - Analysis completes successfully
@@ -312,12 +322,14 @@ The extension implements a comprehensive recovery mechanism:
    - Both button clicks should resolve to same result
 
 **Expected Behavior**:
+
 - ✅ Duplicate request is detected
 - ✅ Second request attaches to existing promise
 - ✅ Only one backend request is made
 - ✅ Both requests resolve with same result
 
 **Acceptance Criteria**:
+
 - No duplicate backend requests
 - Both button clicks show same result
 - No race conditions or conflicts
@@ -334,13 +346,13 @@ The extension implements a comprehensive recovery mechanism:
    - Manually add persisted state:
      ```javascript
      chrome.storage.local.set({
-       'pending_request_TEST_VIDEO2': {
-         videoId: 'TEST_VIDEO2',
-         videoUrl: 'https://www.youtube.com/watch?v=TEST_VIDEO2',
+       pending_request_TEST_VIDEO2: {
+         videoId: "TEST_VIDEO2",
+         videoUrl: "https://www.youtube.com/watch?v=TEST_VIDEO2",
          startTime: Date.now(),
          attemptCount: 1,
-         status: 'retrying'
-       }
+         status: "retrying",
+       },
      });
      ```
    - Do NOT create corresponding alarm
@@ -358,11 +370,13 @@ The extension implements a comprehensive recovery mechanism:
    - Or new alarm should be created
 
 **Expected Behavior**:
+
 - ✅ Missing alarm is detected
 - ✅ Request is rescheduled or executed immediately
 - ✅ No requests are lost due to missing alarms
 
 **Acceptance Criteria**:
+
 - Orphaned persisted state is handled gracefully
 - Request completes successfully
 - No infinite loops or errors
@@ -378,7 +392,7 @@ The extension implements a comprehensive recovery mechanism:
 1. **Start Long-Running Analysis**
    - Navigate to YouTube video with long transcript
    - Click "Analyze Video"
-   - Wait for analysis to start (loading state shown)
+   - Wait for analysis to start: verify the "Analyze Video" button is disabled, the panel shows a loading spinner, "Analyzing video..." text is visible, and the button has `aria-busy="true"` attribute
 
 2. **Close Browser Completely**
    - Close all Chrome windows
@@ -398,12 +412,14 @@ The extension implements a comprehensive recovery mechanism:
    - Or be marked as stale and cleaned up (if >5 minutes)
 
 **Expected Behavior**:
+
 - ✅ Persisted state survives browser restart
 - ✅ Recent requests (<5 min) are recovered
 - ✅ Old requests (>5 min) are cleaned up
 - ✅ Alarms are restored by Chrome
 
 **Acceptance Criteria**:
+
 - Recent analyses resume after browser restart
 - Old analyses are cleaned up
 - No data loss for recent requests
@@ -444,14 +460,14 @@ Check persisted state:
 // Get all pending requests
 chrome.storage.local.get(null, (items) => {
   const pending = Object.keys(items)
-    .filter(key => key.startsWith('pending_request_'))
-    .map(key => ({ key, ...items[key] }));
+    .filter((key) => key.startsWith("pending_request_"))
+    .map((key) => ({ key, ...items[key] }));
   console.table(pending);
 });
 
 // Get specific request
-chrome.storage.local.get('pending_request_{videoId}', (result) => {
-  console.log('Request state:', result);
+chrome.storage.local.get("pending_request_{videoId}", (result) => {
+  console.log("Request state:", result);
 });
 ```
 
@@ -461,8 +477,8 @@ Check active alarms:
 
 ```javascript
 chrome.alarms.getAll((alarms) => {
-  console.log('Active alarms:', alarms);
-  alarms.forEach(alarm => {
+  console.log("Active alarms:", alarms);
+  alarms.forEach((alarm) => {
     console.log(`- ${alarm.name}: fires at ${new Date(alarm.scheduledTime)}`);
   });
 });
@@ -576,6 +592,7 @@ Multiple methods:
 The service worker recovery mechanism is fully implemented and ready for testing. The implementation uses Chrome's persistent APIs (`chrome.storage.local` and `chrome.alarms`) to ensure that analysis requests survive service worker termination and browser restarts.
 
 **Key Strengths**:
+
 - Comprehensive state persistence
 - Alarm-based retry scheduling
 - Request deduplication
@@ -589,6 +606,7 @@ The service worker recovery mechanism is fully implemented and ready for testing
 **Risk Level**: **LOW** - Implementation follows MV3 best practices and includes extensive error handling
 
 **Next Steps**:
+
 1. Execute all test scenarios
 2. Document any issues found
 3. Fix critical issues (if any)

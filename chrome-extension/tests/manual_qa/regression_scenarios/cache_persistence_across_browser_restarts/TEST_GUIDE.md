@@ -67,8 +67,8 @@ Before starting tests, clear all cached data:
 3. Verify cache is empty in DevTools console:
    ```javascript
    chrome.storage.local.get(null, (items) => {
-     const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-     console.log('Cache entries:', cacheKeys.length); // Should be 0
+     const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
+     console.log("Cache entries:", cacheKeys.length); // Should be 0
    });
    ```
 
@@ -91,11 +91,14 @@ Before starting tests, clear all cached data:
    - Open DevTools console
    - Run:
      ```javascript
-     chrome.storage.local.get('cache_dQw4w9WgXcQ', (result) => {
-       console.log('Cache entry:', result);
-       console.log('Video ID:', result.cache_dQw4w9WgXcQ?.videoId);
-       console.log('Claims count:', result.cache_dQw4w9WgXcQ?.data?.claims?.length);
-       console.log('Timestamp:', new Date(result.cache_dQw4w9WgXcQ?.timestamp));
+     chrome.storage.local.get("cache_dQw4w9WgXcQ", (result) => {
+       console.log("Cache entry:", result);
+       console.log("Video ID:", result.cache_dQw4w9WgXcQ?.videoId);
+       console.log(
+         "Claims count:",
+         result.cache_dQw4w9WgXcQ?.data?.claims?.length,
+       );
+       console.log("Timestamp:", new Date(result.cache_dQw4w9WgXcQ?.timestamp));
      });
      ```
    - Verify cache entry exists with correct data
@@ -122,12 +125,14 @@ Before starting tests, clear all cached data:
      ```
 
 **Expected Behavior**:
+
 - ✅ Cache entry survives browser restart
 - ✅ Results display immediately without network request
 - ✅ Data integrity is maintained (same claims, same analysis)
 - ✅ Timestamp reflects original analysis time
 
 **Acceptance Criteria**:
+
 - Results appear within 500ms
 - No network request to `/analyze` endpoint
 - All claims and perspectives are identical to original analysis
@@ -156,11 +161,15 @@ Before starting tests, clear all cached data:
    - Run:
      ```javascript
      chrome.storage.local.get(null, (items) => {
-       const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-       console.log('Total cache entries:', cacheKeys.length); // Should be 5
-       cacheKeys.forEach(key => {
+       const cacheKeys = Object.keys(items).filter((k) =>
+         k.startsWith("cache_"),
+       );
+       console.log("Total cache entries:", cacheKeys.length); // Should be 5
+       cacheKeys.forEach((key) => {
          const entry = items[key];
-         console.log(`${key}: ${entry.data.claims.length} claims, ${new Date(entry.timestamp).toLocaleString()}`);
+         console.log(
+           `${key}: ${entry.data.claims.length} claims, ${new Date(entry.timestamp).toLocaleString()}`,
+         );
        });
      });
      ```
@@ -177,12 +186,14 @@ Before starting tests, clear all cached data:
    - Check console for 5 cache hit messages
 
 **Expected Behavior**:
+
 - ✅ All 5 cache entries survive browser restart
 - ✅ Each video shows cached results immediately
 - ✅ No data loss or corruption
 - ✅ Cache statistics show correct count
 
 **Acceptance Criteria**:
+
 - All 5 videos show cached results
 - Each result appears within 500ms
 - No network requests for cached videos
@@ -218,11 +229,13 @@ Before starting tests, clear all cached data:
    - Verify cached results are displayed
 
 **Expected Behavior**:
+
 - ✅ Cache survives system reboot
 - ✅ All cached videos show results immediately
 - ✅ No data corruption or loss
 
 **Acceptance Criteria**:
+
 - Cache entries persist across system reboot
 - Results are identical to pre-reboot state
 - No errors or warnings in console
@@ -244,12 +257,12 @@ Before starting tests, clear all cached data:
    - Open DevTools console
    - Run:
      ```javascript
-     chrome.storage.local.get('cache_{videoId}', (result) => {
-       const entry = result['cache_{videoId}'];
+     chrome.storage.local.get("cache_{videoId}", (result) => {
+       const entry = result["cache_{videoId}"];
        // Set timestamp to 25 hours ago
-       entry.timestamp = Date.now() - (25 * 60 * 60 * 1000);
-       chrome.storage.local.set({ 'cache_{videoId}': entry }, () => {
-         console.log('Cache entry backdated to 25 hours ago');
+       entry.timestamp = Date.now() - 25 * 60 * 60 * 1000;
+       chrome.storage.local.set({ "cache_{videoId}": entry }, () => {
+         console.log("Cache entry backdated to 25 hours ago");
        });
      });
      ```
@@ -272,12 +285,14 @@ Before starting tests, clear all cached data:
      ```
 
 **Expected Behavior**:
+
 - ✅ Expired cache entries are detected
 - ✅ Expired entries are removed from storage
 - ✅ New analysis is performed
 - ✅ Fresh results are cached
 
 **Acceptance Criteria**:
+
 - Expired entries are not used
 - New analysis request is made
 - Fresh results are displayed and cached
@@ -311,11 +326,13 @@ Before starting tests, clear all cached data:
    - Verify cached results are displayed
 
 **Expected Behavior**:
+
 - ✅ Cache survives extension reload/update
 - ✅ All cached videos show results immediately
 - ✅ No data loss during update
 
 **Acceptance Criteria**:
+
 - Cache entries persist across extension update
 - Results are identical to pre-update state
 - No errors during or after update
@@ -333,33 +350,35 @@ Before starting tests, clear all cached data:
    - Run:
      ```javascript
      // Create a v0 cache entry (no schemaVersion field)
-     chrome.storage.local.set({
-       'cache_TEST_VIDEO': {
-         videoId: 'TEST_VIDEO',
-         data: {
-           video_id: 'TEST_VIDEO',
-           claims: [
-             {
-               claim_text: 'Test claim',
-               truth_profile: {
-                 perspectives: {},
-                 bias_indicators: {
-                   logical_fallacies: [],
-                   emotional_manipulation: [],
-                   deception_score: 0
+     chrome.storage.local.set(
+       {
+         cache_TEST_VIDEO: {
+           data: {
+             video_id: "TEST_VIDEO",
+             claims: [
+               {
+                 claim_text: "Test claim",
+                 truth_profile: {
+                   perspectives: {},
+                   bias_indicators: {
+                     logical_fallacies: [],
+                     emotional_manipulation: [],
+                     deception_score: 0,
+                   },
+                   overall_assessment: "Test",
                  },
-                 overall_assessment: 'Test'
-               }
-             }
-           ]
+               },
+             ],
+           },
+           timestamp: Date.now(),
+           lastAccessed: Date.now(),
+           // Note: No schemaVersion field (v0)
          },
-         timestamp: Date.now(),
-         lastAccessed: Date.now()
-         // Note: No schemaVersion field (v0)
-       }
-     }, () => {
-       console.log('Legacy cache entry created');
-     });
+       },
+       () => {
+         console.log("Legacy cache entry created");
+       },
+     );
      ```
 
 2. **Trigger Cache Read**
@@ -375,9 +394,9 @@ Before starting tests, clear all cached data:
      ```
    - Verify migrated entry in storage:
      ```javascript
-     chrome.storage.local.get('cache_TEST_VIDEO', (result) => {
-       console.log('Migrated entry:', result);
-       console.log('Schema version:', result.cache_TEST_VIDEO?.schemaVersion); // Should be 1
+     chrome.storage.local.get("cache_TEST_VIDEO", (result) => {
+       console.log("Migrated entry:", result);
+       console.log("Schema version:", result.cache_TEST_VIDEO?.schemaVersion); // Should be 1
      });
      ```
 
@@ -391,12 +410,14 @@ Before starting tests, clear all cached data:
    - No migration should occur (already v1)
 
 **Expected Behavior**:
+
 - ✅ Legacy entries are detected (missing schemaVersion)
 - ✅ Migration is applied automatically
 - ✅ Migrated entry is saved to storage
 - ✅ Migrated entry persists across restart
 
 **Acceptance Criteria**:
+
 - Legacy entries are migrated to current schema
 - Migration is logged in console
 - Migrated entries work correctly
@@ -420,11 +441,11 @@ Before starting tests, clear all cached data:
    - Open DevTools console
    - Run:
      ```javascript
-     chrome.storage.local.get('cache_{videoId}', (result) => {
-       const entry = result['cache_{videoId}'];
+     chrome.storage.local.get("cache_{videoId}", (result) => {
+       const entry = result["cache_{videoId}"];
        const size = JSON.stringify(entry).length;
-       console.log('Cache entry size:', (size / 1024).toFixed(2), 'KB');
-       console.log('Claims count:', entry.data.claims.length);
+       console.log("Cache entry size:", (size / 1024).toFixed(2), "KB");
+       console.log("Claims count:", entry.data.claims.length);
      });
      ```
    - Note the size (should be < 1 MB per entry)
@@ -439,12 +460,14 @@ Before starting tests, clear all cached data:
    - Check that no data was truncated
 
 **Expected Behavior**:
+
 - ✅ Large cache entries are stored successfully
 - ✅ Large entries survive browser restart
 - ✅ No data truncation or corruption
 - ✅ All claims are preserved
 
 **Acceptance Criteria**:
+
 - Entries up to 1 MB are stored successfully
 - Large entries persist across restart
 - No data loss or corruption
@@ -466,14 +489,17 @@ Before starting tests, clear all cached data:
 2. **Check Storage Usage**
    - Open DevTools console
    - Run:
+
      ```javascript
      chrome.storage.local.getBytesInUse(null, (bytes) => {
-       console.log('Storage used:', (bytes / 1024 / 1024).toFixed(2), 'MB');
+       console.log("Storage used:", (bytes / 1024 / 1024).toFixed(2), "MB");
      });
-     
+
      chrome.storage.local.get(null, (items) => {
-       const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-       console.log('Cache entries:', cacheKeys.length);
+       const cacheKeys = Object.keys(items).filter((k) =>
+         k.startsWith("cache_"),
+       );
+       console.log("Cache entries:", cacheKeys.length);
      });
      ```
 
@@ -493,12 +519,14 @@ Before starting tests, clear all cached data:
      ```
 
 **Expected Behavior**:
+
 - ✅ Cache entries persist up to quota limit
 - ✅ LRU eviction occurs when quota exceeded
 - ✅ Most recently accessed entries are preserved
 - ✅ Eviction is logged and transparent
 
 **Acceptance Criteria**:
+
 - Cache respects storage quota limits
 - LRU eviction works correctly
 - Most important (recent) entries are preserved
@@ -544,12 +572,14 @@ Before starting tests, clear all cached data:
    - Check console for cache hit
 
 **Expected Behavior**:
+
 - ✅ Cache is isolated per browser profile
 - ✅ Profile 1 has cached results
 - ✅ Profile 2 has no cached results
 - ✅ No cross-profile data leakage
 
 **Acceptance Criteria**:
+
 - Cache is profile-specific
 - No data sharing between profiles
 - Each profile maintains independent cache
@@ -581,11 +611,13 @@ Before starting tests, clear all cached data:
    - Verify cached results are displayed
 
 **Expected Behavior**:
+
 - ✅ Cache survives browser crash
 - ✅ All cached videos show results immediately
 - ✅ No data corruption or loss
 
 **Acceptance Criteria**:
+
 - Cache entries persist after crash
 - Results are identical to pre-crash state
 - No errors or warnings in console
@@ -627,10 +659,10 @@ Check all cache entries:
 ```javascript
 // Get all cache entries
 chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-  console.log('Total cache entries:', cacheKeys.length);
-  
-  cacheKeys.forEach(key => {
+  const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
+  console.log("Total cache entries:", cacheKeys.length);
+
+  cacheKeys.forEach((key) => {
     const entry = items[key];
     const age = Date.now() - entry.timestamp;
     const ageHours = (age / (1000 * 60 * 60)).toFixed(1);
@@ -638,59 +670,22 @@ chrome.storage.local.get(null, (items) => {
     console.log(`  - Claims: ${entry.data.claims.length}`);
     console.log(`  - Age: ${ageHours} hours`);
     console.log(`  - Schema: v${entry.schemaVersion || 0}`);
-    console.log(`  - Size: ${(JSON.stringify(entry).length / 1024).toFixed(2)} KB`);
+    console.log(
+      `  - Size: ${(JSON.stringify(entry).length / 1024).toFixed(2)} KB`,
+    );
   });
 });
 ```
 
 Check specific cache entry:
 
-```javascript
-chrome.storage.local.get('cache_{videoId}', (result) => {
-  const entry = result['cache_{videoId}'];
-  if (entry) {
-    console.log('Cache entry found:');
-    console.log('  Video ID:', entry.videoId);
-    console.log('  Claims:', entry.data.claims.length);
-    console.log('  Timestamp:', new Date(entry.timestamp).toLocaleString());
-    console.log('  Age:', ((Date.now() - entry.timestamp) / (1000 * 60)).toFixed(1), 'minutes');
-    console.log('  Schema version:', entry.schemaVersion || 0);
-    console.log('  Size:', (JSON.stringify(entry).length / 1024).toFixed(2), 'KB');
-  } else {
-    console.log('No cache entry found for {videoId}');
-  }
-});
-```
-
 Check storage usage:
 
 ```javascript
 // Get total storage usage
 chrome.storage.local.getBytesInUse(null, (bytes) => {
-  console.log('Total storage used:', (bytes / 1024 / 1024).toFixed(2), 'MB');
-});
-
-// Get cache-specific usage
-chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
-  let totalSize = 0;
-  cacheKeys.forEach(key => {
-    totalSize += JSON.stringify(items[key]).length;
-  });
-  console.log('Cache storage used:', (totalSize / 1024 / 1024).toFixed(2), 'MB');
-  console.log('Cache entries:', cacheKeys.length);
-  console.log('Average entry size:', (totalSize / cacheKeys.length / 1024).toFixed(2), 'KB');
-});
-```
-
-### Manually Manipulating Cache
-
-Create test cache entry:
-
-```javascript
 chrome.storage.local.set({
   'cache_TEST_VIDEO': {
-    videoId: 'TEST_VIDEO',
     data: {
       video_id: 'TEST_VIDEO',
       claims: [
@@ -706,7 +701,10 @@ chrome.storage.local.set({
             overall_assessment: 'Test'
           }
         }
-      ]
+      ],
+      metadata: {
+        analyzed_at: new Date().toISOString()
+      }
     },
     timestamp: Date.now(),
     lastAccessed: Date.now(),
@@ -715,13 +713,41 @@ chrome.storage.local.set({
 }, () => {
   console.log('Test cache entry created');
 });
+    cache_TEST_VIDEO: {
+      videoId: "TEST_VIDEO",
+      data: {
+        video_id: "TEST_VIDEO",
+        claims: [
+          {
+            claim_text: "Test claim",
+            truth_profile: {
+              perspectives: {},
+              bias_indicators: {
+                logical_fallacies: [],
+                emotional_manipulation: [],
+                deception_score: 0,
+              },
+              overall_assessment: "Test",
+            },
+          },
+        ],
+      },
+      timestamp: Date.now(),
+      lastAccessed: Date.now(),
+      schemaVersion: 1,
+    },
+  },
+  () => {
+    console.log("Test cache entry created");
+  },
+);
 ```
 
 Delete specific cache entry:
 
 ```javascript
-chrome.storage.local.remove('cache_{videoId}', () => {
-  console.log('Cache entry deleted');
+chrome.storage.local.remove("cache_{videoId}", () => {
+  console.log("Cache entry deleted");
 });
 ```
 
@@ -729,9 +755,9 @@ Clear all cache:
 
 ```javascript
 chrome.storage.local.get(null, (items) => {
-  const cacheKeys = Object.keys(items).filter(k => k.startsWith('cache_'));
+  const cacheKeys = Object.keys(items).filter((k) => k.startsWith("cache_"));
   chrome.storage.local.remove(cacheKeys, () => {
-    console.log('All cache entries cleared:', cacheKeys.length);
+    console.log("All cache entries cleared:", cacheKeys.length);
   });
 });
 ```
@@ -832,6 +858,7 @@ chrome.storage.local.get(null, (items) => {
 The cache persistence mechanism is fully implemented using Chrome's `chrome.storage.local` API, which provides persistent storage that survives browser restarts, system reboots, and extension updates. The implementation includes schema versioning for forward compatibility and automatic cleanup of expired entries.
 
 **Key Strengths**:
+
 - Persistent storage using `chrome.storage.local`
 - Schema versioning and migration support
 - Automatic expiration and cleanup
@@ -845,6 +872,7 @@ The cache persistence mechanism is fully implemented using Chrome's `chrome.stor
 **Risk Level**: **LOW** - Implementation uses stable Chrome APIs with extensive error handling
 
 **Next Steps**:
+
 1. Execute all test scenarios
 2. Document any issues found
 3. Fix critical issues (if any)
