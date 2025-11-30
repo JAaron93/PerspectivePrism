@@ -95,6 +95,7 @@ class MemoryMonitor {
         measurement.domNodes = document.querySelectorAll('[id^="pp-"], [class*="pp-"]').length;
         measurement.shadowRoots =
           document.querySelectorAll('[id^="pp-"]').length;
+        measurement.context = "content_script";
       } else {
         // Background service worker context
         measurement.context = "background";

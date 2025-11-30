@@ -520,48 +520,52 @@
         const iterations = 5;
         let maxMemory = 0;
 
-        for (let i = 0; i < iterations; i++) {
-          log(`Iteration ${i + 1}/${iterations}`);
+        // Use local-scoped container instead of global window
+        const testDataContainer = [];
 
-          // Simulate analysis data
-          const mockData = {
-            video_id: "test" + i,
-            claims: Array(3)
-              .fill(null)
-              .map((_, idx) => ({
-                claim_text: `Test claim ${idx}`,
-                truth_profile: {
-                  overall_assessment: "Test",
-                  perspectives: {},
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
+        try {
+          for (let i = 0; i < iterations; i++) {
+            log(`Iteration ${i + 1}/${iterations}`);
+
+            // Simulate analysis data
+            const mockData = {
+              video_id: "test" + i,
+              claims: Array(3)
+                .fill(null)
+                .map((_, idx) => ({
+                  claim_text: `Test claim ${idx}`,
+                  truth_profile: {
+                    overall_assessment: "Test",
+                    perspectives: {},
+                    bias_indicators: {
+                      logical_fallacies: [],
+                      emotional_manipulation: [],
+                      deception_score: 0,
+                    },
                   },
-                },
-              })),
-          };
+                })),
+            };
 
-          // Store in memory
-          window[`testData${i}`] = mockData;
+            // Store in local container instead of window
+            testDataContainer.push(mockData);
 
-          await new Promise((resolve) => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
-          const measurement = await measureMemory();
-          if (measurement) {
-            maxMemory = Math.max(maxMemory, parseFloat(measurement.usedMB));
+            const measurement = await measureMemory();
+            if (measurement) {
+              maxMemory = Math.max(maxMemory, parseFloat(measurement.usedMB));
+            }
           }
+
+          log(`Max memory during test: ${maxMemory.toFixed(2)}MB`);
+
+          // Should stay under 10MB even with multiple analyses
+          return maxMemory < 10;
+        } finally {
+          // Ensure cleanup happens even if an error occurs
+          testDataContainer.length = 0; // Clear array to allow GC
+          log("Test data container cleared");
         }
-
-        // Clean up
-        for (let i = 0; i < iterations; i++) {
-          delete window[`testData${i}`];
-        }
-
-        log(`Max memory during test: ${maxMemory.toFixed(2)}MB`);
-
-        // Should stay under 10MB even with multiple analyses
-        return maxMemory < 10;
       }
 
       async function testNavigationStress() {
