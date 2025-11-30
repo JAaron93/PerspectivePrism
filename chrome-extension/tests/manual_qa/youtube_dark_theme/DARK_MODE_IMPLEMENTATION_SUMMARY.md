@@ -103,7 +103,30 @@ The Analysis Panel uses Shadow DOM with the `.dark-mode` class applied to the `:
 | Badge Error            | `#f28b82` | `#8c1816` | 3.89:1  | ⚠️ Fail (<4.5:1) |
 
 > [!TODO]
-> **Badge Error** contrast (3.89:1) needs improvement to meet WCAG AA 4.5:1 minimum for small text.
+> **Badge Error Contrast Remediation Plan**
+> 
+> **Issue:** Current contrast ratio (3.89:1) fails WCAG AA 4.5:1 minimum for small text.
+> 
+> **Owner:** @pretermodernist  
+> **Target Fix Date:** 2025-12-06  
+> **Tracking:** Issue [#TBD] / PR [#TBD]
+> 
+> **Remediation Approach:**
+> - **Option Selected:** Adjust foreground color from `#f28b82` to `#f6aea9`
+> - **Expected Contrast Ratio:** 5.11:1 (✅ meets WCAG AA)
+> - **Files to Update:**
+>   - `chrome-extension/panel-styles.js` (Badge error styles)
+>   - This document (table row 103, update FG to `#f6aea9`, ratio to `5.11:1`, status to `✅ Pass`)
+> 
+> **Alternative Approaches Considered:**
+> - Darken background: Would break consistency with button error state (`#8c1816`)
+> - Use larger/bold text: Badge size constraints prevent this option
+> 
+> **Post-Fix Verification:**
+> - [ ] Run automated contrast tests in `test-panel-styles.html`
+> - [ ] Manual QA using DARK_MODE_QUICK_CHECK.md
+> - [ ] Update table entry above (line 103) with new values
+> - [ ] Link final PR number for traceability
 
 **Focus Indicators:**
 

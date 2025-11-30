@@ -499,7 +499,7 @@ Fullscreen mode is activated by clicking the fullscreen button (⛶) in YouTube'
 2. Move mouse to show controls
 3. Navigate to another video while in fullscreen using one of these methods:
    - Keyboard shortcuts (e.g., press 'N' or 'Shift+N' for next video)
-   - Alternative: Use keyboard shortcut if available in your YouTube version\_
+   - Check YouTube's keyboard shortcuts documentation if default methods don't work
    - Manually change the URL to a different video ID
    - Use browser back/forward navigation keys
    - _Alternative: Skip test - YouTube UI unavailable in fullscreen_

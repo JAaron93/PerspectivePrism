@@ -23,16 +23,17 @@ The extension includes basic mobile-specific code and styles. However, comprehen
 
 The manifest includes mobile YouTube URLs in both `host_permissions` and `content_scripts`:
 
-```json
+json
 {
-  "host_permissions": ["https://m.youtube.com/*"],
-  "content_scripts": [
-    {
-      "matches": ["https://m.youtube.com/watch*"]
-    }
-  ]
+"host_permissions": ["https://m.youtube.com/*"],
+"content_scripts": [
+{
+"matches": ["https://m.youtube.com/watch*"]
 }
-```
+]
+}
+
+````
 
 **Status**: ✅ Configured correctly (Pending Verification)
 
@@ -52,7 +53,7 @@ function extractVideoId() {
   }
   // ... additional strategies
 }
-```
+````
 
 **Mobile URL Support**:
 
@@ -115,16 +116,16 @@ Run this script in the DevTools Console to check which selectors exist:
 ```javascript
 // Mobile selector verification script
 const selectors = [
-  "#top-level-buttons-computed",  // Desktop primary
-  "#menu-container",              // Desktop fallback 1
-  "#info-contents",               // Desktop fallback 2
-  ".mobile-controls",             // Mobile candidate 1
-  "#player-control-container",   // Mobile candidate 2
-  "ytm-slim-video-action-bar",   // Mobile candidate 3 (custom element)
+  "#top-level-buttons-computed", // Desktop primary
+  "#menu-container", // Desktop fallback 1
+  "#info-contents", // Desktop fallback 2
+  ".mobile-controls", // Mobile candidate 1
+  "#player-control-container", // Mobile candidate 2
+  "ytm-slim-video-action-bar", // Mobile candidate 3 (custom element)
 ];
 
 console.log("=== Mobile Selector Verification ===");
-selectors.forEach(selector => {
+selectors.forEach((selector) => {
   const element = document.querySelector(selector);
   if (element) {
     console.log(`✅ FOUND: ${selector}`);
@@ -138,6 +139,7 @@ selectors.forEach(selector => {
 **Step 3: Document Findings**
 
 Record which selectors are present on mobile:
+
 - If existing selectors work → No code changes needed
 - If existing selectors fail → Add mobile-specific selector to `content.js`
 
@@ -151,6 +153,7 @@ If none of the existing selectors match:
    - Check for custom elements (e.g., `ytm-*` elements)
 
 2. **Add mobile-specific selector:**
+
    ```javascript
    const selectors = [
      "#top-level-buttons-computed",
@@ -168,8 +171,6 @@ If none of the existing selectors match:
 **Expected Outcome:**
 
 At least one selector should match on mobile YouTube. The `#info-contents` selector is most likely to exist on both desktop and mobile as it typically contains video metadata.
-
-
 
 ### 4. Button Styles
 
