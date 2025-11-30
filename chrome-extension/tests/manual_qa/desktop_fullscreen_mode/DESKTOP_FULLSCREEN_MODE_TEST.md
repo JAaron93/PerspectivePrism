@@ -499,6 +499,7 @@ Fullscreen mode is activated by clicking the fullscreen button (⛶) in YouTube'
 2. Move mouse to show controls
 3. Navigate to another video while in fullscreen using one of these methods:
    - Keyboard shortcuts (e.g., press 'N' or 'Shift+N' for next video)
+   - Alternative: Use keyboard shortcut if available in your YouTube version\_
    - Manually change the URL to a different video ID
    - Use browser back/forward navigation keys
    - _Alternative: Skip test - YouTube UI unavailable in fullscreen_
@@ -790,10 +791,10 @@ Fullscreen mode is activated by clicking the fullscreen button (⛶) in YouTube'
 
 ### Test Execution Summary
 
-**Total Tests**: 23  
-**Tests Passed**: **\_**  
-**Tests Failed**: **\_**  
-**Tests Skipped**: **\_**
+**Total Tests**: 19  
+**Tests Passed**: **\_** / 19  
+**Tests Failed**: **\_** / 19  
+**Tests Skipped**: **\_** / 19
 
 ### Test Suite Results
 
@@ -873,9 +874,9 @@ Suggest improvements for fullscreen mode support:
 
 ### Tester Sign-Off
 
-**Name**: ******\_\_\_******
-**Date**: ******\_\_\_******
-**Signature**: ******\_\_\_******
+**Name**: **\*\***\_\_\_**\*\***
+**Date**: **\*\***\_\_\_**\*\***
+**Signature**: **\*\***\_\_\_**\*\***
 
 **Recommendation**: [ ] Approve [ ] Approve with conditions [ ] Reject
 
@@ -889,9 +890,9 @@ Suggest improvements for fullscreen mode support:
 
 ### Reviewer Sign-Off
 
-**Name**: ******\_\_\_******
-**Date**: ******\_\_\_******
-**Signature**: ******\_\_\_******
+**Name**: **\*\***\_\_\_**\*\***
+**Date**: **\*\***\_\_\_**\*\***
+**Signature**: **\*\***\_\_\_**\*\***
 
 **Recommendation**: [ ] Approve [ ] Approve with conditions [ ] Reject
 
@@ -909,11 +910,11 @@ Suggest improvements for fullscreen mode support:
 
 ### Test Environment Details
 
-**Browser**: Chrome ******\_\_\_******
-**OS**: ******\_\_\_******
-**Screen Resolution**: ******\_\_\_******
-**Extension Version**: ******\_\_\_******
-**Backend Version**: ******\_\_\_******
+**Browser**: Chrome **\*\***\_\_\_**\*\***
+**OS**: **\*\***\_\_\_**\*\***
+**Screen Resolution**: **\*\***\_\_\_**\*\***
+**Extension Version**: **\*\***\_\_\_**\*\***
+**Backend Version**: **\*\***\_\_\_**\*\***
 
 ### Test Data
 
@@ -934,5 +935,5 @@ Attach screenshots of any issues or notable behaviors.
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: ******\_\_\_******
-**Next Review Date**: ******\_\_\_******
+**Last Updated**: **\*\***\_\_\_**\*\***
+**Next Review Date**: **\*\***\_\_\_**\*\***

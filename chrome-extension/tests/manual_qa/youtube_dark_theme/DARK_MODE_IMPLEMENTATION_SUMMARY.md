@@ -87,14 +87,35 @@ The Analysis Panel uses Shadow DOM with the `.dark-mode` class applied to the `:
 
 **Color Contrast (WCAG AA):**
 
-- All text/background combinations meet 4.5:1 minimum
-- Focus indicators use high-contrast colors (`#aecbfa`)
-- Interactive elements have clear hover/focus states
+**Color Contrast (WCAG AA):**
+
+| Element                | FG        | BG        | Ratio   | Status           |
+| :--------------------- | :-------- | :-------- | :------ | :--------------- |
+| Button Default         | `#f1f1f1` | `#272727` | 13.23:1 | ✅ Pass          |
+| Button Success         | `#81c995` | `#0d5224` | 4.77:1  | ✅ Pass          |
+| Button Error           | `#f6aea9` | `#8c1816` | 5.11:1  | ✅ Pass          |
+| Panel Primary Text     | `#f1f1f1` | `#212121` | 14.26:1 | ✅ Pass          |
+| Panel Secondary Text   | `#aaaaaa` | `#212121` | 6.93:1  | ✅ Pass          |
+| Panel Primary (Card)   | `#f1f1f1` | `#181818` | 15.72:1 | ✅ Pass          |
+| Panel Secondary (Card) | `#aaaaaa` | `#181818` | 7.64:1  | ✅ Pass          |
+| Badge Success          | `#81c995` | `#0d5224` | 4.77:1  | ✅ Pass          |
+| Badge Warning          | `#fdd663` | `#3d2e00` | 9.42:1  | ✅ Pass          |
+| Badge Error            | `#f28b82` | `#8c1816` | 3.89:1  | ⚠️ Fail (<4.5:1) |
+
+> [!TODO]
+> **Badge Error** contrast (3.89:1) needs improvement to meet WCAG AA 4.5:1 minimum for small text.
+
+**Focus Indicators:**
+
+- Focus outline color: `#aecbfa`
+- Contrast against Button BG (`#272727`): **9.05:1** (✅ Pass)
+- Contrast against Panel BG (`#212121`): **9.76:1** (✅ Pass)
+- Contrast against Card BG (`#181818`): **10.76:1** (✅ Pass)
 
 **Visual Feedback:**
 
 - Hover states darken backgrounds
-- Focus outlines are clearly visible
+- Focus outlines are clearly visible and meet 3:1 contrast against all backgrounds
 - Loading spinners use contrasting colors
 - Error states use red tones
 - Success states use green tones

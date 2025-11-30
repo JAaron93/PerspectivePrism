@@ -94,6 +94,83 @@ function injectButton() {
 
 **Status**: ⚠️ Fallback strategy should work on mobile (Needs Verification)
 
+#### Mobile Selector Verification Guide
+
+Before testing the extension on mobile, use this proactive approach to verify which selectors actually exist on mobile YouTube:
+
+**Step 1: Open Mobile YouTube in DevTools**
+
+1. Open Chrome on desktop
+2. Navigate to `https://m.youtube.com/watch?v=dQw4w9WgXcQ`
+3. Open DevTools (`F12` or `Cmd+Option+I`)
+4. Enable mobile device emulation:
+   - Click the device toolbar icon (or `Cmd+Shift+M`)
+   - Select a mobile device (e.g., "iPhone 12 Pro", "Pixel 5")
+   - Ensure the viewport is mobile-sized
+
+**Step 2: Verify Selector Existence**
+
+Run this script in the DevTools Console to check which selectors exist:
+
+```javascript
+// Mobile selector verification script
+const selectors = [
+  "#top-level-buttons-computed",  // Desktop primary
+  "#menu-container",              // Desktop fallback 1
+  "#info-contents",               // Desktop fallback 2
+  ".mobile-controls",             // Mobile candidate 1
+  "#player-control-container",   // Mobile candidate 2
+  "ytm-slim-video-action-bar",   // Mobile candidate 3 (custom element)
+];
+
+console.log("=== Mobile Selector Verification ===");
+selectors.forEach(selector => {
+  const element = document.querySelector(selector);
+  if (element) {
+    console.log(`✅ FOUND: ${selector}`);
+    console.log(`   Tag: ${element.tagName}, Classes: ${element.className}`);
+  } else {
+    console.log(`❌ NOT FOUND: ${selector}`);
+  }
+});
+```
+
+**Step 3: Document Findings**
+
+Record which selectors are present on mobile:
+- If existing selectors work → No code changes needed
+- If existing selectors fail → Add mobile-specific selector to `content.js`
+
+**Step 4: Fallback Strategy**
+
+If none of the existing selectors match:
+
+1. **Inspect the DOM manually:**
+   - Look for the video controls/action bar area
+   - Identify unique IDs or class names
+   - Check for custom elements (e.g., `ytm-*` elements)
+
+2. **Add mobile-specific selector:**
+   ```javascript
+   const selectors = [
+     "#top-level-buttons-computed",
+     "#menu-container",
+     "#info-contents",
+     "YOUR_MOBILE_SELECTOR_HERE", // Add discovered selector
+   ];
+   ```
+
+3. **Test injection:**
+   - Reload the page
+   - Verify button appears in the correct location
+   - Ensure button doesn't break mobile layout
+
+**Expected Outcome:**
+
+At least one selector should match on mobile YouTube. The `#info-contents` selector is most likely to exist on both desktop and mobile as it typically contains video metadata.
+
+
+
 ### 4. Button Styles
 
 **File**: `chrome-extension/content.css`
@@ -126,10 +203,10 @@ Mobile-specific button styles:
 
 **Touch Target Size**:
 
-- Default: 36px height (may be too small for touch)
-- Mobile: Same height (should be increased to 44px minimum)
+- Default: 36px height
+- Mobile: 44px height (Updated to meet WCAG AAA minimum)
 
-**Status**: ⚠️ May need adjustment for better touch accessibility (Needs Verification)
+**Status**: ✅ Implemented (Pending Verification)
 
 ### 5. Panel Styles
 
@@ -256,13 +333,22 @@ window.addEventListener("popstate", handleNavigation);
 setInterval(handleNavigation, 1000);
 ```
 
-**Mobile Navigation**:
+**Mobile Navigation Verification**:
 
-- Mobile YouTube uses same SPA navigation
-- History API interception works on mobile
-- Polling provides safety net
+> [!IMPORTANT]
+> **Verification Required**: Do not assume mobile SPA mechanics match desktop.
 
-**Status**: ✅ Navigation detection should work on mobile (Pending Verification)
+**QA Steps**:
+
+1. **Navigate**: Go from one video to another (e.g., via recommendations) on mobile.
+2. **Verify**: Confirm the analysis panel either persists or is correctly re-injected.
+3. **Inspect**: Use DevTools (Network/History/Console) to identify the actual mechanism:
+   - `history.pushState` / `popstate` events?
+   - XHR/fetch replacement?
+   - Custom events (e.g., `yt-navigate-finish`)?
+4. **Report**: If history API interception does NOT trigger, log a **Known Issue** or test failure. Do not claim support without evidence.
+
+**Status**: ⚠️ **Needs Verification** (Critical for mobile support)
 
 ### 9. Performance
 
@@ -305,10 +391,10 @@ observer.observe(specificContainer, {
 
 ### 2. Touch Target Size
 
-**Issue**: Button height (36px) may be below recommended minimum (44px)
+**Issue**: Button height (36px) was below recommended minimum (44px)
 **Impact**: Users may have difficulty tapping button
-**Mitigation**: CSS includes mobile-specific sizing
-**Recommendation**: Increase button height to 44px on mobile
+**Mitigation**: CSS updated to force 44px height on mobile (< 768px)
+**Resolution**: ✅ Fixed in `content.css`
 
 ### 3. Panel Positioning
 
@@ -390,53 +476,59 @@ observer.observe(specificContainer, {
    - Share analysis via mobile share API
    - Save analysis to mobile device
 
-## Post-Testing Improvements
+## Mobile Implementation Requirements
 
-The following changes are **not required for baseline functionality** but are recommended based on mobile best practices. These should be evaluated and prioritized after initial testing validates the current implementation.
+The following sections categorize mobile implementation needs by priority: what must be done before release, what improves UX post-release, and what is planned for future phases.
 
-### High-Priority Refinements (Based on Testing Findings)
+### Blocking Fixes (Must Implement Before Release)
 
-These changes address known limitations and should be implemented if testing confirms the issues:
+These items are **critical for mobile support** and must be verified/implemented before declaring mobile compatibility:
 
-#### 1. Increase Touch Target Size (If Touch Interaction Issues Found)
+#### 1. Touch Target Size ✅ COMPLETED
 
-**Priority**: High if users have difficulty tapping the button
-**File**: `chrome-extension/content.css`
+**Requirement**: All touch targets must be ≥44×44px (WCAG AAA)
 
-```css
-/* Add mobile-specific height */
-@media (max-width: 768px) {
-  .pp-ext-button {
-    height: 44px; /* Increased from 36px to meet accessibility guidelines */
-    padding: 0 12px;
-    min-width: 120px;
-    font-size: 13px;
-  }
-}
-```
+**Status**: ✅ Implemented in `content.css`
 
-#### 2. Add Mobile-Specific Selector (If Button Fails to Inject)
+**Acceptance Criteria**:
 
-**Priority**: Critical if button doesn't appear on mobile
-**File**: `chrome-extension/content.js`
+- Button height is 44px on screens <768px
+- All interactive elements meet minimum touch target size
+
+#### 2. Mobile-Specific Selector Verification
+
+**Requirement**: Verify button injection works on mobile YouTube DOM
+
+**Status**: ⚠️ Needs Testing
+
+**Implementation**: `chrome-extension/content.js`
 
 ```javascript
-// Add mobile-specific selector if needed after testing
+// Verify these selectors work on mobile, add mobile-specific if needed
 const selectors = [
   "#top-level-buttons-computed",
   "#menu-container",
   "#info-contents",
-  ".mobile-controls", // Add based on actual mobile DOM inspection
+  // Add mobile-specific selector if testing reveals need
 ];
 ```
 
-#### 3. Full-Screen Panel on Extra Small Devices (If Panel Positioning Issues Found)
+**Acceptance Criteria**:
 
-**Priority**: Medium, enhances UX on very small screens
-**File**: `chrome-extension/content.js` (PANEL_STYLES)
+- Button successfully injects on actual mobile YouTube
+- Fallback selectors verified through DOM inspection
+- Mobile-specific selector added if existing ones fail
+
+#### 3. Panel Positioning on Small Screens
+
+**Requirement**: Panel must be usable on screens ≤360px
+
+**Status**: ⚠️ Needs Testing
+
+**Implementation**: `chrome-extension/panel-styles.js` or inline styles
 
 ```css
-/* Consider full-screen on very small devices */
+/* Verify or implement full-screen on very small devices */
 @media (max-width: 360px) {
   :host {
     top: 0;
@@ -450,13 +542,21 @@ const selectors = [
 }
 ```
 
-### Enhancement Features (Phase 2)
+**Acceptance Criteria**:
 
-These are optional enhancements that improve mobile UX but are not necessary for initial release:
+- Panel is fully visible on 320px screens
+- No horizontal scrolling required
+- All controls are accessible
 
-#### 1. Add Swipe-to-Close Gesture
+---
 
-**Priority**: Low, nice-to-have enhancement
+### Recommended UX Refinements (Post-Release Consideration)
+
+These enhancements improve mobile UX but are not blockers for initial release:
+
+#### 1. Swipe-to-Close Gesture
+
+**Priority**: Medium
 **File**: `chrome-extension/content.js`
 
 ```javascript
@@ -479,7 +579,7 @@ panel.addEventListener("touchend", (e) => {
 
 #### 2. Mobile Device Detection for Conditional Behavior
 
-**Priority**: Low, useful for progressive enhancement
+**Priority**: Low
 **File**: `chrome-extension/content.js`
 
 ```javascript
@@ -496,6 +596,45 @@ function isMobileDevice() {
 if (isMobileDevice()) {
   // Apply mobile-specific behavior (e.g., different panel size, gestures)
 }
+```
+
+---
+
+### Future Enhancements (Phase 2+)
+
+These features are planned for future releases and are not required for initial mobile support:
+
+#### 1. Offline Support
+
+- Cache analysis results for offline viewing
+- Show cached results when offline
+- Sync when connection is restored
+
+#### 2. Mobile Share API Integration
+
+- Share analysis via native mobile share sheet
+- Support for sharing to social media, messaging apps
+- Export analysis to device storage
+
+#### 3. Progressive Web App Features
+
+- Add to home screen capability
+- Push notifications for analysis updates
+- Background sync for pending analyses
+
+#### 4. Mobile-Specific Optimizations
+
+- Lazy loading for long analysis results
+- Optimized rendering for low-end devices
+- Reduced motion for battery savings
+  );
+  }
+
+// Use mobile-specific UI if on mobile
+if (isMobileDevice()) {
+// Apply mobile-specific behavior (e.g., different panel size, gestures)
+}
+
 ```
 
 ## Testing Checklist
@@ -532,3 +671,4 @@ The Perspective Prism extension includes comprehensive mobile support with respo
 **Priority**: Medium (mobile usage is growing, but desktop is still primary)
 
 **Risk**: Low (implementation is solid, main risk is selector compatibility)
+```

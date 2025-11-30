@@ -24,7 +24,7 @@ This is a condensed checklist for testing YouTube Shorts support. See README.md 
   - [ ] Button appears in Shorts interface
   - [ ] Button visible and properly positioned
   - [ ] Button doesn't overlap video content
-  - [ ] Selector used: **\*\***\_\_\_\_**\*\***
+  - [ ] Selector used: `[insert selector here or describe element location]`
 
 - [ ] **Button States**
   - [ ] Idle state displays correctly
@@ -134,10 +134,10 @@ This is a condensed checklist for testing YouTube Shorts support. See README.md 
 
 ## Test Results
 
-**Date**: ******\_\_\_******
-**Tester**: ******\_\_\_******
+**Date**: **\*\***\_\_\_**\*\***
+**Tester**: **\*\***\_\_\_**\*\***
 **Extension Version**: 1.0.0
-**Backend Version**: ******\_\_\_******
+**Backend Version**: **\*\***\_\_\_**\*\***
 
 **Overall Status**: ⬜ Pass / ⬜ Fail / ⬜ Partial
 
@@ -161,5 +161,5 @@ This is a condensed checklist for testing YouTube Shorts support. See README.md 
 - [ ] Issues documented
 - [ ] Ready for production
 
-**Approved by**: ******\_\_\_******
-**Date**: ******\_\_\_******
+**Approved by**: **\*\***\_\_\_**\*\***
+**Date**: **\*\***\_\_\_**\*\***

@@ -145,7 +145,7 @@ The extension is ready for testing, but actual testing has not been performed ye
 ## Files Created
 
 ```
-chrome-extension/tests/manual/mobile_layout/
+chrome-extension/tests/manual_qa/mobile_layout/
 ├── README.md                          (Overview and test scenarios)
 ├── MOBILE_LAYOUT_TEST_GUIDE.md       (Detailed testing instructions)
 ├── QUICK_TEST.md                      (5-minute smoke test)
@@ -220,10 +220,10 @@ Some minor improvements would enhance the mobile experience:
 
 ### Minimum Viable Mobile Support ✅
 
-- [~] Extension loads on mobile YouTube (code implemented, unverified)
-- [~] Button injection strategy supports mobile (code implemented, unverified)
-- [~] Responsive styles defined (code implemented, unverified)
-- [~] Touch interactions supported (code implemented, unverified)
+- [ ] Extension loads on mobile YouTube (code implemented, unverified)
+- [ ] Button injection strategy supports mobile (code implemented, unverified)
+- [ ] Responsive styles defined (code implemented, unverified)
+- [ ] Touch interactions supported (code implemented, unverified)
 - [x] Testing documentation complete
 
 ### Full Mobile Support (Requires Testing) ⬜

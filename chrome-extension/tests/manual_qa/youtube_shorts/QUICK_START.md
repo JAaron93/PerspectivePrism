@@ -105,8 +105,8 @@ Follow the detailed procedures in:
 
 - **Implementation**: `chrome-extension/manifest.json` (modified)
 - **Video ID Logic**: `chrome-extension/content.js` (line ~813)
-- **Test Guide**: `chrome-extension/tests/manual/youtube_shorts/README.md`
-- **Checklist**: `chrome-extension/tests/manual/youtube_shorts/TEST_CHECKLIST.md`
+- **Test Guide**: `chrome-extension/tests/manual_qa/youtube_shorts/README.md`
+- **Checklist**: `chrome-extension/tests/manual_qa/youtube_shorts/TEST_CHECKLIST.md`
 
 ## Questions?
 
