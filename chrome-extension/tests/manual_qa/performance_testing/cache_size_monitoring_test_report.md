@@ -338,16 +338,16 @@ None
 
 ## Test Coverage Summary
 
-| Category          | Tests | Passed | Failed | Skipped |
-| ----------------- | ----- | ------ | ------ | ------- |
-| Basic Monitoring  | 1     | 1      | 0      | 0       |
-| Hit/Miss Tracking | 1     | 1      | 0      | 0       |
-| Storage History   | 1     | 1      | 0      | 0       |
-| Quota Levels      | 1     | 1      | 0      | 0       |
-| Eviction Logging  | 1     | 1      | 0      | 0       |
-| Persistence       | 1     | 1      | 0      | 0       |
-| Clear Operations  | 1     | 1      | 0      | 0       |
-| **TOTAL**         | **7** | **7**  | **0**  | **0**   |
+| Category          | Tests | Passed | Partial | Failed | Skipped |
+| ----------------- | ----- | ------ | ------- | ------ | ------- |
+| Basic Monitoring  | 1     | 1      | 0       | 0      | 0       |
+| Hit/Miss Tracking | 1     | 1      | 0       | 0      | 0       |
+| Storage History   | 1     | 1      | 0       | 0      | 0       |
+| Quota Levels      | 1     | 0      | 1       | 0      | 0       |
+| Eviction Logging  | 1     | 0      | 1       | 0      | 0       |
+| Persistence       | 1     | 1      | 0       | 0      | 0       |
+| Clear Operations  | 1     | 1      | 0       | 0      | 0       |
+| **TOTAL**         | **7** | **5**  | **2**   | **0**  | **0**   |
 
 ---
 
