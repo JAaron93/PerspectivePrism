@@ -2,17 +2,21 @@
 
 An advanced AI agent that processes YouTube video transcripts to analyze claims across multiple perspectives, detect bias and potential deception, and output a rich "truth profile" per claim.
 
+![Perspective Prism Banner](assets/perspective-prism-16-9.png)
+
 ## 🧐 Problem Statement
 
 In the age of algorithmic feeds, users are often trapped in filter bubbles where they only encounter information that reinforces their existing beliefs. Misinformation spreads rapidly on video platforms like YouTube, where verifying claims requires significant effort (cross-referencing sources, checking scientific consensus, etc.). Most users simply don't have the time or expertise to fact-check every video they watch.
 
-## 💡 Solution Architecture
+## 💡 Solution Statement
 
-Perspective Prism is an AI agent that acts as an automated, multi-perspective fact-checker.
+Perspective Prism is an AI agent that acts as an automated, multi-perspective fact-checker. It analyzes YouTube video transcripts to identify verifiable claims, retrieves supporting or refuting evidence from trusted sources, evaluates bias and credibility, and presents a comprehensive "Truth Profile" to help users make informed decisions about the content they consume.
+
+## 🏗️ Architecture
 
 [See detailed architecture](architecture.md)
 
-It operates as a pipeline of specialized sub-agents:
+Perspective Prism operates as a pipeline of specialized sub-agents:
 
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
