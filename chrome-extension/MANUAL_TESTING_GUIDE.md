@@ -37,6 +37,7 @@ The extension includes several HTML test files for manual verification:
 - `test-analysis.html` - Analysis flow testing
 - `test-button-styles.html` - Button appearance verification
 - `test-cache.html` - Cache functionality testing
+- `test-cache-size-monitoring.html` - Cache size monitoring and eviction testing
 - `test-cancel-analysis.html` - Analysis cancellation testing
 - `test-config.html` - Configuration validation testing
 - `test-connection.html` - Backend connection testing
@@ -202,6 +203,7 @@ Test on different YouTube layouts:
 - Metrics persistence and reset
 
 **Expected Results**:
+
 - Cache hit/miss rates calculated correctly
 - Storage usage tracked with quota snapshots
 - Eviction events logged with details (video IDs, freed space, reason)
@@ -209,6 +211,7 @@ Test on different YouTube layouts:
 - Quota levels trigger at correct thresholds (80% warning, 95% critical)
 
 **Monitoring Features**:
+
 - MetricsTracker keeps last 100 entries for each metric type
 - QuotaManager monitors storage and triggers LRU eviction
 - Real-time quota usage visualization with color-coded progress bar

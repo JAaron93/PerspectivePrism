@@ -3,6 +3,7 @@
 ## Test Objective
 
 Verify that cached analysis results are displayed within **500 milliseconds**, as specified in:
+
 - **Requirement 3.2:** "IF valid cached results exist, THE Extension SHALL display them within 500 milliseconds."
 - **Requirement 5.3:** "THE Extension SHALL display cached results within 500 milliseconds of page load"
 
@@ -12,7 +13,7 @@ A comprehensive performance test has been created at `test-cache-performance.htm
 
 1. Creates realistic cached analysis data (2 claims with full truth profiles)
 2. Measures cache retrieval time using `performance.now()` for high-precision timing
-3. Runs 100 iterations to get statistical measurements (average, min, max, P50, P95, P99)
+3. Runs 100 iterations (Manual Test) or 20 iterations (Automated Unit Test) to get statistical measurements
 4. Simulates realistic chrome.storage.local latency (1-5ms per operation)
 5. Validates against both the 500ms requirement and 100ms ideal target
 
@@ -43,12 +44,12 @@ A comprehensive performance test has been created at `test-cache-performance.htm
 
 ### Performance Targets
 
-| Metric | Ideal | Acceptable | Fail |
-|--------|-------|------------|------|
-| Average | < 100ms | < 500ms | ≥ 500ms |
-| Maximum | < 100ms | < 500ms | ≥ 500ms |
-| P95 | < 100ms | < 500ms | ≥ 500ms |
-| P99 | < 150ms | < 500ms | ≥ 500ms |
+| Metric  | Ideal   | Acceptable | Fail    |
+| ------- | ------- | ---------- | ------- |
+| Average | < 100ms | < 500ms    | ≥ 500ms |
+| Maximum | < 100ms | < 500ms    | ≥ 500ms |
+| P95     | < 100ms | < 500ms    | ≥ 500ms |
+| P99     | < 150ms | < 500ms    | ≥ 500ms |
 
 ## Test Results (Latest Run)
 
@@ -77,10 +78,12 @@ Data Size: ~2KB (realistic analysis with 2 claims)
 ### Notes
 
 **Outstanding Performance:** The cache retrieval is extremely fast, averaging only 3.25ms with a worst-case of 5.29ms. This is:
+
 - **153x faster** than the 500ms requirement
 - **30x faster** than the 100ms ideal target
 
 All test scenarios passed:
+
 1. ✅ Basic cache retrieval: < 5ms
 2. ✅ Cache miss handling: < 5ms
 3. ✅ Cache with migration (V0→V1): < 10ms
@@ -88,6 +91,7 @@ All test scenarios passed:
 5. ✅ Consistent performance over 20 iterations: All < 6ms
 
 The implementation uses optimal strategies:
+
 - Direct key access (O(1) lookup)
 - Single chrome.storage.local.get() call
 - Async lastAccessed updates (non-blocking)
@@ -135,12 +139,12 @@ All scenarios should be well under the 500ms requirement.
 
 ### Common Performance Issues
 
-| Issue | Symptom | Solution |
-|-------|---------|----------|
-| Large cache entries | Max time >200ms | Reduce data size, compress, or paginate |
-| Slow migration | P95 >100ms | Optimize migration logic, cache migrated entries |
-| Storage quota issues | Intermittent slowness | Implement better eviction, monitor quota |
-| Synchronous operations | Blocking behavior | Convert to async, use requestIdleCallback |
+| Issue                  | Symptom               | Solution                                         |
+| ---------------------- | --------------------- | ------------------------------------------------ |
+| Large cache entries    | Max time >200ms       | Reduce data size, compress, or paginate          |
+| Slow migration         | P95 >100ms            | Optimize migration logic, cache migrated entries |
+| Storage quota issues   | Intermittent slowness | Implement better eviction, monitor quota         |
+| Synchronous operations | Blocking behavior     | Convert to async, use requestIdleCallback        |
 
 ## Continuous Monitoring
 
@@ -178,6 +182,7 @@ The cache performance test provides comprehensive measurement of cache retrieval
 **Status:** ✅ Test implemented and ready for execution
 
 **Next Steps:**
+
 1. Run the test in Chrome browser
 2. Record results in this document
 3. Verify all measurements are under 500ms

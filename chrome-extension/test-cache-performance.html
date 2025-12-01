@@ -1,476 +1,533 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
+  <head>
     <title>Cache Performance Test - Response Time (<500ms)</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 30px;
-            max-width: 900px;
-            margin: 0 auto;
-            background: #f5f5f5;
-        }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        padding: 30px;
+        max-width: 900px;
+        margin: 0 auto;
+        background: #f5f5f5;
+      }
 
-        h1 {
-            color: #333;
-            border-bottom: 3px solid #065fd4;
-            padding-bottom: 10px;
-        }
+      h1 {
+        color: #333;
+        border-bottom: 3px solid #065fd4;
+        padding-bottom: 10px;
+      }
 
-        .requirement {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
+      .requirement {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
 
-        .requirement strong {
-            color: #1976d2;
-        }
+      .requirement strong {
+        color: #1976d2;
+      }
 
-        .test-section {
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+      .test-section {
+        background: white;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
 
-        .test-section h2 {
-            margin-top: 0;
-            color: #444;
-        }
+      .test-section h2 {
+        margin-top: 0;
+        color: #444;
+      }
 
-        button {
-            background: #065fd4;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px;
-            transition: background 0.2s;
-        }
+      button {
+        background: #065fd4;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        transition: background 0.2s;
+      }
 
-        button:hover:not(:disabled) {
-            background: #0448a0;
-        }
+      button:hover:not(:disabled) {
+        background: #0448a0;
+      }
 
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
 
-        .results {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
+      .results {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+      }
 
-        .pass {
-            color: #2e7d32;
-            font-weight: bold;
-        }
+      .pass {
+        color: #2e7d32;
+        font-weight: bold;
+      }
 
-        .fail {
-            color: #c62828;
-            font-weight: bold;
-        }
+      .fail {
+        color: #c62828;
+        font-weight: bold;
+      }
 
-        .warning {
-            color: #f57c00;
-            font-weight: bold;
-        }
+      .warning {
+        color: #f57c00;
+        font-weight: bold;
+      }
 
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
 
-        .metric:last-child {
-            border-bottom: none;
-        }
+      .metric:last-child {
+        border-bottom: none;
+      }
 
-        .metric-label {
-            font-weight: 500;
-            color: #555;
-        }
+      .metric-label {
+        font-weight: 500;
+        color: #555;
+      }
 
-        .metric-value {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-        }
+      .metric-value {
+        font-family: "Courier New", monospace;
+        font-weight: bold;
+      }
 
-        .summary {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
+      .summary {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
 
-        .summary h3 {
-            margin-top: 0;
-            color: #856404;
-        }
+      .summary h3 {
+        margin-top: 0;
+        color: #856404;
+      }
 
-        .log {
-            margin-top: 20px;
-            padding: 15px;
-            background: #263238;
-            color: #aed581;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
+      .log {
+        margin-top: 20px;
+        padding: 15px;
+        background: #263238;
+        color: #aed581;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
 
-        .log-entry {
-            margin: 4px 0;
-            padding: 2px 0;
-        }
+      .log-entry {
+        margin: 4px 0;
+        padding: 2px 0;
+      }
 
-        .log-error {
-            color: #ef5350;
-        }
+      .log-error {
+        color: #ef5350;
+      }
 
-        .log-warn {
-            color: #ffb74d;
-        }
+      .log-warn {
+        color: #ffb74d;
+      }
 
-        .log-info {
-            color: #81c784;
-        }
+      .log-info {
+        color: #81c784;
+      }
 
-        .progress {
-            margin: 15px 0;
-        }
+      .progress {
+        margin: 15px 0;
+      }
 
-        .progress-bar {
-            width: 100%;
-            height: 24px;
-            background: #e0e0e0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
+      .progress-bar {
+        width: 100%;
+        height: 24px;
+        background: #e0e0e0;
+        border-radius: 12px;
+        overflow: hidden;
+      }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4caf50, #8bc34a);
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-        }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4caf50, #8bc34a);
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>🚀 Cache Performance Test</h1>
-    
+
     <div class="requirement">
-        <strong>Requirement 3.2:</strong> "IF valid cached results exist, THE Extension SHALL display them within 500 milliseconds."
-        <br><br>
-        <strong>Requirement 5.3:</strong> "THE Extension SHALL display cached results within 500 milliseconds of page load"
-        <br><br>
-        <strong>Performance Target:</strong> Cached analysis response time &lt; 500ms (ideally &lt; 100ms)
+      <strong>Requirement 3.2:</strong> "IF valid cached results exist, THE
+      Extension SHALL display them within 500 milliseconds." <br /><br />
+      <strong>Requirement 5.3:</strong> "THE Extension SHALL display cached
+      results within 500 milliseconds of page load" <br /><br />
+      <strong>Performance Target:</strong> Cached analysis response time &lt;
+      500ms (ideally &lt; 100ms)
     </div>
 
     <div class="test-section">
-        <h2>Test Setup</h2>
-        <p>This test measures the time it takes to retrieve cached analysis results from chrome.storage.local and display them.</p>
-        <p><strong>Test Method:</strong></p>
-        <ol>
-            <li>Create a cache entry with realistic analysis data</li>
-            <li>Measure time from cache check start to data retrieval completion</li>
-            <li>Run multiple iterations to get average, min, max, and p95 times</li>
-            <li>Verify all measurements are under 500ms threshold</li>
-        </ol>
-        
-        <button id="run-test" onclick="runPerformanceTest()">Run Performance Test (100 iterations)</button>
-        <button id="run-quick-test" onclick="runQuickTest()">Quick Test (10 iterations)</button>
-        <button id="clear-cache" onclick="clearTestCache()">Clear Test Cache</button>
+      <h2>Test Setup</h2>
+      <p>
+        This test measures the time it takes to retrieve cached analysis results
+        from chrome.storage.local and display them.
+      </p>
+      <p><strong>Test Method:</strong></p>
+      <ol>
+        <li>Create a cache entry with realistic analysis data</li>
+        <li>
+          Measure time from cache check start to data retrieval completion
+        </li>
+        <li>Run multiple iterations to get average, min, max, and p95 times</li>
+        <li>Verify all measurements are under 500ms threshold</li>
+      </ol>
+
+      <button id="run-test" onclick="runPerformanceTest()">
+        Run Performance Test (100 iterations)
+      </button>
+      <button id="run-quick-test" onclick="runQuickTest()">
+        Quick Test (10 iterations)
+      </button>
+      <button id="clear-cache" onclick="clearTestCache()">
+        Clear Test Cache
+      </button>
     </div>
 
-    <div id="progress-section" class="test-section" style="display: none;">
-        <h2>Test Progress</h2>
-        <div class="progress">
-            <div class="progress-bar">
-                <div id="progress-fill" class="progress-fill" style="width: 0%;">0%</div>
-            </div>
+    <div id="progress-section" class="test-section" style="display: none">
+      <h2>Test Progress</h2>
+      <div class="progress">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill" style="width: 0%">
+            0%
+          </div>
         </div>
-        <p id="progress-text">Preparing test...</p>
+      </div>
+      <p id="progress-text">Preparing test...</p>
     </div>
 
-    <div id="results-section" class="test-section" style="display: none;">
-        <h2>Test Results</h2>
-        <div id="results" class="results"></div>
+    <div id="results-section" class="test-section" style="display: none">
+      <h2>Test Results</h2>
+      <div id="results" class="results"></div>
     </div>
 
-    <div id="summary-section" class="summary" style="display: none;">
-        <h3>Performance Summary</h3>
-        <div id="summary"></div>
+    <div id="summary-section" class="summary" style="display: none">
+      <h3>Performance Summary</h3>
+      <div id="summary"></div>
     </div>
 
     <div class="test-section">
-        <h2>Test Log</h2>
-        <div id="log" class="log"></div>
+      <h2>Test Log</h2>
+      <div id="log" class="log"></div>
     </div>
 
     <script>
-        // Mock chrome API for testing
-        const storage = {};
-        window.chrome = {
-            storage: {
-                local: {
-                    get: async (key) => {
-                        // Simulate realistic storage latency (1-5ms)
-                        await new Promise(resolve => setTimeout(resolve, Math.random() * 4 + 1));
-                        
-                        if (key === null) return storage;
-                        if (typeof key === 'string') return key in storage ? { [key]: storage[key] } : {};
-                        if (Array.isArray(key)) {
-                            const res = {};
-                            key.forEach(k => { if (k in storage) res[k] = storage[k]; });
-                            return res;
-                        }
-                        return storage;
-                    },
-                    set: async (items) => {
-                        // Simulate realistic storage latency
-                        await new Promise(resolve => setTimeout(resolve, Math.random() * 4 + 1));
-                        Object.assign(storage, items);
-                    },
-                    remove: async (keys) => {
-                        await new Promise(resolve => setTimeout(resolve, Math.random() * 2 + 1));
-                        if (typeof keys === 'string') keys = [keys];
-                        keys.forEach(k => delete storage[k]);
-                    }
-                }
+      // Mock chrome API for testing
+      const storage = {};
+      window.chrome = {
+        storage: {
+          local: {
+            get: async (key) => {
+              // Simulate realistic storage latency (1-5ms)
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.random() * 4 + 1),
+              );
+
+              if (key === null) return storage;
+              if (typeof key === "string")
+                return key in storage ? { [key]: storage[key] } : {};
+              if (Array.isArray(key)) {
+                const res = {};
+                key.forEach((k) => {
+                  if (k in storage) res[k] = storage[k];
+                });
+                return res;
+              }
+              return storage;
             },
-            alarms: {
-                create: async () => { },
-                onAlarm: { addListener: () => { } },
-                getAll: async () => [],
-                clear: async () => { }
+            set: async (items) => {
+              // Simulate realistic storage latency
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.random() * 4 + 1),
+              );
+              Object.assign(storage, items);
             },
-            runtime: {
-                onMessage: { addListener: () => { } }
-            }
-        };
+            remove: async (keys) => {
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.random() * 2 + 1),
+              );
+              if (typeof keys === "string") keys = [keys];
+              keys.forEach((k) => delete storage[k]);
+            },
+          },
+        },
+        alarms: {
+          create: async () => {},
+          onAlarm: { addListener: () => {} },
+          getAll: async () => [],
+          clear: async () => {},
+        },
+        runtime: {
+          onMessage: { addListener: () => {} },
+        },
+      };
 
-        // Logging utility
-        function log(message, type = 'info') {
-            const logDiv = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-            entry.textContent = `[${timestamp}] ${message}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-            console.log(message);
-        }
+      // Logging utility
+      function log(message, type = "info") {
+        const logDiv = document.getElementById("log");
+        const entry = document.createElement("div");
+        entry.className = `log-entry log-${type}`;
+        const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+        entry.textContent = `[${timestamp}] ${message}`;
+        logDiv.appendChild(entry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+        console.log(message);
+      }
 
-        // Load client.js
-        const script = document.createElement('script');
-        script.src = 'client.js';
-        script.onload = () => {
-            log('PerspectivePrismClient loaded successfully', 'info');
-        };
-        script.onerror = () => {
-            log('Failed to load client.js', 'error');
-        };
-        document.head.appendChild(script);
+      // Load client.js
+      const script = document.createElement("script");
+      script.src = "client.js";
+      script.onload = () => {
+        log("PerspectivePrismClient loaded successfully", "info");
+        // Enable buttons if they were disabled
+        document.getElementById("run-test").disabled = false;
+        document.getElementById("run-quick-test").disabled = false;
+      };
+      script.onerror = () => {
+        log("Failed to load client.js", "error");
+        document.getElementById("run-test").disabled = true;
+        document.getElementById("run-quick-test").disabled = true;
+      };
+      document.head.appendChild(script);
 
-        // Create realistic test data
-        function createTestAnalysisData(videoId) {
-            return {
-                video_id: videoId,
-                metadata: {
-                    analyzed_at: new Date().toISOString(),
-                    video_title: 'Test Video Title'
+      // Create realistic test data
+      function createTestAnalysisData(videoId) {
+        return {
+          video_id: videoId,
+          metadata: {
+            analyzed_at: new Date().toISOString(),
+            video_title: "Test Video Title",
+          },
+          claims: [
+            {
+              claim_text: "This is a test claim about a scientific fact.",
+              timestamp: "00:01:23",
+              truth_profile: {
+                perspectives: {
+                  scientific: {
+                    assessment:
+                      "This claim is supported by peer-reviewed research.",
+                    confidence: 0.85,
+                    supporting_evidence: [
+                      "Study from Nature Journal 2023",
+                      "Meta-analysis from Cochrane Review",
+                    ],
+                  },
+                  journalistic: {
+                    assessment:
+                      "Multiple reputable sources confirm this claim.",
+                    confidence: 0.78,
+                    supporting_evidence: [
+                      "New York Times article",
+                      "BBC News report",
+                    ],
+                  },
                 },
-                claims: [
-                    {
-                        claim_text: 'This is a test claim about a scientific fact.',
-                        timestamp: '00:01:23',
-                        truth_profile: {
-                            perspectives: {
-                                scientific: {
-                                    assessment: 'This claim is supported by peer-reviewed research.',
-                                    confidence: 0.85,
-                                    supporting_evidence: [
-                                        'Study from Nature Journal 2023',
-                                        'Meta-analysis from Cochrane Review'
-                                    ]
-                                },
-                                journalistic: {
-                                    assessment: 'Multiple reputable sources confirm this claim.',
-                                    confidence: 0.78,
-                                    supporting_evidence: [
-                                        'New York Times article',
-                                        'BBC News report'
-                                    ]
-                                }
-                            },
-                            bias_indicators: {
-                                logical_fallacies: [],
-                                emotional_manipulation: [],
-                                deception_score: 0.1
-                            },
-                            overall_assessment: 'Claim is well-supported by evidence.'
-                        }
-                    },
-                    {
-                        claim_text: 'Another claim with different perspectives.',
-                        timestamp: '00:03:45',
-                        truth_profile: {
-                            perspectives: {
-                                partisan_left: {
-                                    assessment: 'This aligns with progressive viewpoints.',
-                                    confidence: 0.65,
-                                    supporting_evidence: ['Progressive think tank report']
-                                },
-                                partisan_right: {
-                                    assessment: 'This contradicts conservative principles.',
-                                    confidence: 0.60,
-                                    supporting_evidence: ['Conservative policy analysis']
-                                }
-                            },
-                            bias_indicators: {
-                                logical_fallacies: ['Appeal to emotion'],
-                                emotional_manipulation: ['Fear-based language'],
-                                deception_score: 0.4
-                            },
-                            overall_assessment: 'Claim shows political bias.'
-                        }
-                    }
-                ]
-            };
+                bias_indicators: {
+                  logical_fallacies: [],
+                  emotional_manipulation: [],
+                  deception_score: 0.1,
+                },
+                overall_assessment: "Claim is well-supported by evidence.",
+              },
+            },
+            {
+              claim_text: "Another claim with different perspectives.",
+              timestamp: "00:03:45",
+              truth_profile: {
+                perspectives: {
+                  partisan_left: {
+                    assessment: "This aligns with progressive viewpoints.",
+                    confidence: 0.65,
+                    supporting_evidence: ["Progressive think tank report"],
+                  },
+                  partisan_right: {
+                    assessment: "This contradicts conservative principles.",
+                    confidence: 0.6,
+                    supporting_evidence: ["Conservative policy analysis"],
+                  },
+                },
+                bias_indicators: {
+                  logical_fallacies: ["Appeal to emotion"],
+                  emotional_manipulation: ["Fear-based language"],
+                  deception_score: 0.4,
+                },
+                overall_assessment: "Claim shows political bias.",
+              },
+            },
+          ],
+        };
+      }
+
+      // Setup test cache
+      async function setupTestCache() {
+        log("Setting up test cache...", "info");
+
+        if (typeof window.PerspectivePrismClient !== "function") {
+          log(
+            "PerspectivePrismClient is not defined. Cannot setup cache.",
+            "error",
+          );
+          throw new Error("PerspectivePrismClient not available");
         }
 
-        // Setup test cache
-        async function setupTestCache() {
-            log('Setting up test cache...', 'info');
-            const client = new PerspectivePrismClient('http://localhost:8000');
-            const testVideoId = 'dQw4w9WgXcQ'; // Valid 11-character YouTube video ID
-            const testData = createTestAnalysisData(testVideoId);
-            
-            await client.saveToCache(testVideoId, testData);
-            log(`Test cache created for video: ${testVideoId}`, 'info');
-            return testVideoId;
-        }
+        const client = new PerspectivePrismClient("http://localhost:8000");
+        const testVideoId = "dQw4w9WgXcQ"; // Valid 11-character YouTube video ID
+        const testData = createTestAnalysisData(testVideoId);
 
-        // Measure cache retrieval performance
-        async function measureCacheRetrieval(client, videoId) {
-            const startTime = performance.now();
-            const result = await client.checkCache(videoId);
-            const endTime = performance.now();
-            const duration = endTime - startTime;
-            
-            return {
-                duration,
-                success: result !== null,
-                dataSize: result ? JSON.stringify(result).length : 0
-            };
-        }
+        await client.saveToCache(testVideoId, testData);
+        log(`Test cache created for video: ${testVideoId}`, "info");
+        return testVideoId;
+      }
 
-        // Update progress
-        function updateProgress(current, total) {
-            const percent = Math.round((current / total) * 100);
-            const progressFill = document.getElementById('progress-fill');
-            const progressText = document.getElementById('progress-text');
-            
-            progressFill.style.width = `${percent}%`;
-            progressFill.textContent = `${percent}%`;
-            progressText.textContent = `Running iteration ${current} of ${total}...`;
-        }
+      // Measure cache retrieval performance
+      async function measureCacheRetrieval(client, videoId) {
+        const startTime = performance.now();
+        const result = await client.checkCache(videoId);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
 
-        // Run performance test
-        async function runPerformanceTest() {
-            await runTest(100);
-        }
+        return {
+          duration,
+          success: result !== null,
+          dataSize: result ? JSON.stringify(result).length : 0,
+        };
+      }
 
-        async function runQuickTest() {
-            await runTest(10);
-        }
+      // Update progress
+      function updateProgress(current, total) {
+        const percent = Math.round((current / total) * 100);
+        const progressFill = document.getElementById("progress-fill");
+        const progressText = document.getElementById("progress-text");
 
-        async function runTest(iterations) {
-            const runButton = document.getElementById('run-test');
-            const quickButton = document.getElementById('run-quick-test');
-            runButton.disabled = true;
-            quickButton.disabled = true;
+        progressFill.style.width = `${percent}%`;
+        progressFill.textContent = `${percent}%`;
+        progressText.textContent = `Running iteration ${current} of ${total}...`;
+      }
 
-            const progressSection = document.getElementById('progress-section');
-            const resultsSection = document.getElementById('results-section');
-            const summarySection = document.getElementById('summary-section');
-            
-            progressSection.style.display = 'block';
-            resultsSection.style.display = 'none';
-            summarySection.style.display = 'none';
+      // Run performance test
+      async function runPerformanceTest() {
+        await runTest(100);
+      }
 
-            log(`Starting cache performance test with ${iterations} iterations...`, 'info');
+      async function runQuickTest() {
+        await runTest(10);
+      }
 
-            try {
-                // Setup
-                const videoId = await setupTestCache();
-                const client = new PerspectivePrismClient('http://localhost:8000');
+      async function runTest(iterations) {
+        const runButton = document.getElementById("run-test");
+        const quickButton = document.getElementById("run-quick-test");
+        runButton.disabled = true;
+        quickButton.disabled = true;
 
-                // Warm-up run (not counted)
-                log('Running warm-up iteration...', 'info');
-                await measureCacheRetrieval(client, videoId);
+        const progressSection = document.getElementById("progress-section");
+        const resultsSection = document.getElementById("results-section");
+        const summarySection = document.getElementById("summary-section");
 
-                // Actual test runs
-                const measurements = [];
-                for (let i = 0; i < iterations; i++) {
-                    updateProgress(i + 1, iterations);
-                    const measurement = await measureCacheRetrieval(client, videoId);
-                    measurements.push(measurement);
-                    
-                    // Small delay between iterations to avoid overwhelming the system
-                    await new Promise(resolve => setTimeout(resolve, 10));
-                }
+        progressSection.style.display = "block";
+        resultsSection.style.display = "none";
+        summarySection.style.display = "none";
 
-                // Calculate statistics
-                const durations = measurements.map(m => m.duration);
-                const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-                const min = Math.min(...durations);
-                const max = Math.max(...durations);
-                const sorted = [...durations].sort((a, b) => a - b);
-                const p50 = sorted[Math.floor(sorted.length * 0.5)];
-                const p95 = sorted[Math.floor(sorted.length * 0.95)];
-                const p99 = sorted[Math.floor(sorted.length * 0.99)];
+        log(
+          `Starting cache performance test with ${iterations} iterations...`,
+          "info",
+        );
 
-                // Check pass/fail
-                const TARGET_MS = 500;
-                const IDEAL_MS = 100;
-                const allUnderTarget = durations.every(d => d < TARGET_MS);
-                const allUnderIdeal = durations.every(d => d < IDEAL_MS);
-                const avgUnderIdeal = avg < IDEAL_MS;
+        try {
+          // Setup
+          const videoId = await setupTestCache();
 
-                // Display results
-                log(`Test completed: ${iterations} iterations`, 'info');
-                log(`Average: ${avg.toFixed(2)}ms, Min: ${min.toFixed(2)}ms, Max: ${max.toFixed(2)}ms`, 'info');
-                log(`P50: ${p50.toFixed(2)}ms, P95: ${p95.toFixed(2)}ms, P99: ${p99.toFixed(2)}ms`, 'info');
+          if (typeof window.PerspectivePrismClient !== "function") {
+            log(
+              "PerspectivePrismClient is not defined. Aborting test.",
+              "error",
+            );
+            return;
+          }
 
-                const resultsDiv = document.getElementById('results');
-                resultsDiv.innerHTML = `
+          const client = new PerspectivePrismClient("http://localhost:8000");
+
+          // Warm-up run (not counted)
+          log("Running warm-up iteration...", "info");
+          await measureCacheRetrieval(client, videoId);
+
+          // Actual test runs
+          const measurements = [];
+          for (let i = 0; i < iterations; i++) {
+            updateProgress(i + 1, iterations);
+            const measurement = await measureCacheRetrieval(client, videoId);
+            measurements.push(measurement);
+
+            // Small delay between iterations to avoid overwhelming the system
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+
+          // Calculate statistics
+          const durations = measurements.map((m) => m.duration);
+          const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+          const min = Math.min(...durations);
+          const max = Math.max(...durations);
+          const sorted = [...durations].sort((a, b) => a - b);
+          const p50 = sorted[Math.floor(sorted.length * 0.5)];
+          const p95 = sorted[Math.floor(sorted.length * 0.95)];
+          const p99 = sorted[Math.floor(sorted.length * 0.99)];
+
+          // Check pass/fail
+          const TARGET_MS = 500;
+          const IDEAL_MS = 100;
+          const allUnderTarget = durations.every((d) => d < TARGET_MS);
+          const allUnderIdeal = durations.every((d) => d < IDEAL_MS);
+          const avgUnderIdeal = avg < IDEAL_MS;
+
+          // Display results
+          log(`Test completed: ${iterations} iterations`, "info");
+          log(
+            `Average: ${avg.toFixed(2)}ms, Min: ${min.toFixed(2)}ms, Max: ${max.toFixed(2)}ms`,
+            "info",
+          );
+          log(
+            `P50: ${p50.toFixed(2)}ms, P95: ${p95.toFixed(2)}ms, P99: ${p99.toFixed(2)}ms`,
+            "info",
+          );
+
+          const resultsDiv = document.getElementById("results");
+          resultsDiv.innerHTML = `
                     <div class="metric">
                         <span class="metric-label">Iterations:</span>
                         <span class="metric-value">${iterations}</span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">Average Time:</span>
-                        <span class="metric-value ${avg < IDEAL_MS ? 'pass' : avg < TARGET_MS ? 'warning' : 'fail'}">
+                        <span class="metric-value ${avg < IDEAL_MS ? "pass" : avg < TARGET_MS ? "warning" : "fail"}">
                             ${avg.toFixed(2)}ms
                         </span>
                     </div>
@@ -480,25 +537,25 @@
                     </div>
                     <div class="metric">
                         <span class="metric-label">Maximum Time:</span>
-                        <span class="metric-value ${max < TARGET_MS ? 'pass' : 'fail'}">
+                        <span class="metric-value ${max < TARGET_MS ? "pass" : "fail"}">
                             ${max.toFixed(2)}ms
                         </span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">Median (P50):</span>
-                        <span class="metric-value ${p50 < IDEAL_MS ? 'pass' : p50 < TARGET_MS ? 'warning' : 'fail'}">
+                        <span class="metric-value ${p50 < IDEAL_MS ? "pass" : p50 < TARGET_MS ? "warning" : "fail"}">
                             ${p50.toFixed(2)}ms
                         </span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">95th Percentile (P95):</span>
-                        <span class="metric-value ${p95 < TARGET_MS ? 'pass' : 'fail'}">
+                        <span class="metric-value ${p95 < TARGET_MS ? "pass" : "fail"}">
                             ${p95.toFixed(2)}ms
                         </span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">99th Percentile (P99):</span>
-                        <span class="metric-value ${p99 < TARGET_MS ? 'pass' : 'fail'}">
+                        <span class="metric-value ${p99 < TARGET_MS ? "pass" : "fail"}">
                             ${p99.toFixed(2)}ms
                         </span>
                     </div>
@@ -508,25 +565,25 @@
                     </div>
                 `;
 
-                // Display summary
-                const summaryDiv = document.getElementById('summary');
-                let summaryHTML = '';
-                
-                if (allUnderIdeal) {
-                    summaryHTML = `
+          // Display summary
+          const summaryDiv = document.getElementById("summary");
+          let summaryHTML = "";
+
+          if (allUnderIdeal) {
+            summaryHTML = `
                         <p class="pass">✅ EXCELLENT: All measurements under ${IDEAL_MS}ms (ideal target)</p>
                         <p>Cache performance is optimal. Users will experience instant results.</p>
                     `;
-                    log('✅ PASS: All measurements under ideal target', 'info');
-                } else if (allUnderTarget && avgUnderIdeal) {
-                    summaryHTML = `
+            log("✅ PASS: All measurements under ideal target", "info");
+          } else if (allUnderTarget && avgUnderIdeal) {
+            summaryHTML = `
                         <p class="pass">✅ PASS: All measurements under ${TARGET_MS}ms requirement</p>
                         <p>Average time (${avg.toFixed(2)}ms) is under ${IDEAL_MS}ms ideal target.</p>
                         <p>Cache performance meets requirements with good user experience.</p>
                     `;
-                    log('✅ PASS: All measurements under target', 'info');
-                } else if (allUnderTarget) {
-                    summaryHTML = `
+            log("✅ PASS: All measurements under target", "info");
+          } else if (allUnderTarget) {
+            summaryHTML = `
                         <p class="warning">⚠️ WARNING: All measurements under ${TARGET_MS}ms, but average (${avg.toFixed(2)}ms) exceeds ideal ${IDEAL_MS}ms</p>
                         <p>Performance meets requirements but could be optimized.</p>
                         <p><strong>Recommendations:</strong></p>
@@ -536,9 +593,9 @@
                             <li>Profile chrome.storage.local access patterns</li>
                         </ul>
                     `;
-                    log('⚠️ WARNING: Meets requirement but not ideal', 'warn');
-                } else {
-                    summaryHTML = `
+            log("⚠️ WARNING: Meets requirement but not ideal", "warn");
+          } else {
+            summaryHTML = `
                         <p class="fail">❌ FAIL: Some measurements exceed ${TARGET_MS}ms requirement</p>
                         <p>Maximum time: ${max.toFixed(2)}ms, P95: ${p95.toFixed(2)}ms</p>
                         <p><strong>Critical Issues:</strong></p>
@@ -555,39 +612,38 @@
                             <li>Profile and optimize migration logic</li>
                         </ul>
                     `;
-                    log('❌ FAIL: Performance does not meet requirements', 'error');
-                }
+            log("❌ FAIL: Performance does not meet requirements", "error");
+          }
 
-                summaryDiv.innerHTML = summaryHTML;
-                
-                progressSection.style.display = 'none';
-                resultsSection.style.display = 'block';
-                summarySection.style.display = 'block';
+          summaryDiv.innerHTML = summaryHTML;
 
-            } catch (error) {
-                log(`Test failed with error: ${error.message}`, 'error');
-                console.error(error);
-                progressSection.style.display = 'none';
-            } finally {
-                runButton.disabled = false;
-                quickButton.disabled = false;
-            }
+          progressSection.style.display = "none";
+          resultsSection.style.display = "block";
+          summarySection.style.display = "block";
+        } catch (error) {
+          log(`Test failed with error: ${error.message}`, "error");
+          console.error(error);
+          progressSection.style.display = "none";
+        } finally {
+          runButton.disabled = false;
+          quickButton.disabled = false;
         }
+      }
 
-        async function clearTestCache() {
-            log('Clearing test cache...', 'info');
-            const keys = Object.keys(storage).filter(k => k.startsWith('cache_'));
-            if (keys.length > 0) {
-                await chrome.storage.local.remove(keys);
-                log(`Cleared ${keys.length} cache entries`, 'info');
-            } else {
-                log('No cache entries to clear', 'info');
-            }
+      async function clearTestCache() {
+        log("Clearing test cache...", "info");
+        const keys = Object.keys(storage).filter((k) => k.startsWith("cache_"));
+        if (keys.length > 0) {
+          await chrome.storage.local.remove(keys);
+          log(`Cleared ${keys.length} cache entries`, "info");
+        } else {
+          log("No cache entries to clear", "info");
         }
+      }
 
-        // Initial log
-        log('Cache Performance Test initialized', 'info');
-        log('Click "Run Performance Test" to start', 'info');
+      // Initial log
+      log("Cache Performance Test initialized", "info");
+      log('Click "Run Performance Test" to start', "info");
     </script>
-</body>
+  </body>
 </html>
