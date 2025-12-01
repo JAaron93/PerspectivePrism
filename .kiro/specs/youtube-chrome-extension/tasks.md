@@ -689,7 +689,7 @@
       - [x] Extension memory usage (<10MB)
       - [x] Page load impact (<100ms)
       - [x] Analysis response time (<5s for cached)
-      - [-] Cache size monitoring
+      - [x] Cache size monitoring
     - _Requirements: All_
   - [ ] 16.5 Set up CI/CD testing pipeline
     - Configure GitHub Actions or similar CI service
