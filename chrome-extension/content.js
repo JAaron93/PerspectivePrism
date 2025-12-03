@@ -1272,27 +1272,17 @@ function showSetupNotification() {
 }
 
 async function handleAnalysisClick() {
-  console.log('[Perspective Prism] Button clicked, currentVideoId:', currentVideoId);
-  
-  if (!currentVideoId) {
-    console.error('[Perspective Prism] No video ID available - cannot analyze');
-    return;
-  }
+  if (!currentVideoId) return;
 
-  console.log('[Perspective Prism] Setting button state to loading...');
   setButtonState("loading");
-  console.log('[Perspective Prism] Showing panel loading...');
   showPanelLoading();
   cancelRequest = false;
 
   // Check if backend is configured (onboarding step)
   try {
-    console.log('[Perspective Prism] Checking backend configuration...');
     const isConfigured = await checkBackendConfiguration();
-    console.log('[Perspective Prism] Backend configured:', isConfigured);
     
     if (!isConfigured) {
-      console.warn('[Perspective Prism] Backend not configured, showing setup notification');
       setButtonState("idle");
       removePanel();
       showSetupNotification();
@@ -1307,17 +1297,14 @@ async function handleAnalysisClick() {
 
   // Check consent
   try {
-    console.log('[Perspective Prism] Checking consent...');
     if (typeof ConsentManager === "undefined") {
       throw new Error("ConsentManager dependency missing");
     }
 
     const consentManager = new ConsentManager();
     const consent = await consentManager.checkConsent();
-    console.log('[Perspective Prism] Consent status:', consent);
 
     if (!consent.hasConsent) {
-      console.log('[Perspective Prism] No consent, showing dialog...');
       setButtonState("idle"); // Reset button state
       removePanel(); // Ensure loading panel is closed
       try {
@@ -1341,7 +1328,6 @@ async function handleAnalysisClick() {
     return;
   }
 
-  console.log('[Perspective Prism] Sending analysis request to background...');
   try {
     const response = await sendMessageWithRetry(
       {
@@ -1354,8 +1340,6 @@ async function handleAnalysisClick() {
       },
     );
 
-    console.log('[Perspective Prism] Received response:', response);
-
     // Check if request was cancelled
     if (cancelRequest) {
       console.log("[Perspective Prism] Request was cancelled");
@@ -1365,12 +1349,10 @@ async function handleAnalysisClick() {
     }
 
     if (response && response.success) {
-      console.log('[Perspective Prism] Analysis successful!');
       setButtonState("success");
       const isCached = response.fromCache || false;
       showResults(response.data, isCached);
     } else {
-      console.error('[Perspective Prism] Analysis failed:', response?.error);
       setButtonState("error");
       showPanelError(response?.error || "Analysis failed");
     }

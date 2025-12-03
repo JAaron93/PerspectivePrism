@@ -178,6 +178,29 @@ This script measures:
    ```
    The app will be available at `http://localhost:5173`.
 
+### Chrome Extension
+
+1. **Load the Extension**:
+   - Open Chrome and navigate to `chrome://extensions/`.
+   - Enable **Developer mode** (top right toggle).
+   - Click **Load unpacked** and select the `chrome-extension` directory.
+
+2. **Configure Backend CORS**:
+   - Note the **ID** of the loaded extension (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
+   - Open `backend/app/core/config.py`.
+   - Add your extension ID to the `CHROME_EXTENSION_IDS` list:
+     ```python
+     CHROME_EXTENSION_IDS: list[str] = [
+         "your-extension-id-here",
+     ]
+     ```
+   - **Restart the backend server** for changes to take effect.
+
+3. **Verify Connection**:
+   - Navigate to a YouTube video.
+   - Click the "Analyze Claims" button.
+   - If you see a connection error, ensure the backend is running and the extension ID is correct.
+
 ## 🧪 Testing
 
 The backend includes a comprehensive test suite, particularly for the security components.
