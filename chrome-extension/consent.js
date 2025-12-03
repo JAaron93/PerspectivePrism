@@ -259,38 +259,49 @@ class ConsentManager {
         `;
 
     shadow.appendChild(container); // Append container to shadow DOM
+    document.body.appendChild(host); // Append host to document body
 
     const learnMoreLink = shadow.getElementById("learn-more-link");
     const denyBtn = shadow.getElementById("deny-btn");
     const allowBtn = shadow.getElementById("allow-btn");
 
     learnMoreLink.onclick = async () => {
-      try {
-        // Use ConfigManager from config.js to check for custom policy URL
-        const configManager = new ConfigManager();
-        const config = await configManager.load();
-
-        if (config.privacyPolicyUrl) {
-          window.open(config.privacyPolicyUrl, "_blank");
-        } else {
-          chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" }, () => {
-            if (chrome.runtime.lastError) {
-              console.error(
-                "[Perspective Prism] Failed to open privacy policy:",
-                chrome.runtime.lastError,
-              );
-            }
-          });
+    try {
+      // Use ConfigManager from config.js to check for custom policy URL
+      let privacyPolicyUrl = null;
+      
+      // Try to use ConfigManager if available (it should be from config-script.js)
+      if (typeof ConfigManager !== 'undefined') {
+        try {
+          const configManager = new ConfigManager();
+          const config = await configManager.load();
+          privacyPolicyUrl = config.privacyPolicyUrl;
+        } catch (configError) {
+          console.warn('[Perspective Prism] Could not load config for privacy URL:', configError);
         }
-      } catch (error) {
-        console.error(
-          "[Perspective Prism] Failed to handle privacy link:",
-          error,
-        );
-        // Fallback to default
-        chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" });
       }
-    };
+
+      if (privacyPolicyUrl) {
+        window.open(privacyPolicyUrl, "_blank");
+      } else {
+        chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" }, () => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "[Perspective Prism] Failed to open privacy policy:",
+              chrome.runtime.lastError,
+            );
+          }
+        });
+      }
+    } catch (error) {
+      console.error(
+        "[Perspective Prism] Failed to handle privacy link:",
+        error,
+      );
+      // Fallback to default
+      chrome.runtime.sendMessage({ type: "OPEN_PRIVACY_POLICY" });
+    }
+  };
 
     denyBtn.onclick = async () => {
       try {
