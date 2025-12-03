@@ -1,39 +1,38 @@
 import { useState } from 'react'
 import './App.css'
 
-interface TruthProfile {
-  claim: {
-    id: string
-    text: string
-    timestamp_start: number | null
-    timestamp_end: number | null
-  }
-  perspectives: Array<{
-    perspective: string
-    stance: string
-    confidence: number
-    explanation: string
-    evidence: Array<{
-      url: string
-      title: string
-      snippet: string
-      source: string
+interface ClaimAnalysis {
+  claim_text: string
+  video_timestamp_start: number | null
+  video_timestamp_end: number | null
+  truth_profile: {
+    overall_assessment: string
+    perspectives: Record<string, {
+      perspective: string
+      stance: string
+      confidence: number
+      explanation: string
+      evidence: Array<{
+        url: string
+        title: string
+        snippet: string
+        source: string
+      }>
     }>
-  }>
-  bias_analysis: {
-    framing_bias: string | null
-    sourcing_bias: string | null
-    omission_bias: string | null
-    sensationalism: string | null
-    deception_rating: number
-    deception_rationale: string
+    bias_indicators: {
+      logical_fallacies: string[]
+      emotional_manipulation: string[]
+      deception_score: number
+    }
   }
-  overall_assessment: string
 }
 
 interface AnalysisResponse {
   video_id: string
-  truth_profiles: TruthProfile[]
+  metadata: {
+    analyzed_at: string
+  }
+  claims: ClaimAnalysis[]
 }
 
 function App() {
@@ -178,25 +177,25 @@ function App() {
             <span className="video-id">Video ID: {results.video_id}</span>
           </div>
 
-          {results.truth_profiles.map((profile, index) => (
-            <div key={profile.claim.id} className="truth-profile">
+          {results.claims.map((claimAnalysis, index) => (
+            <div key={`claim-${index}`} className="truth-profile">
               <div className="claim-header">
                 <h3>Claim {index + 1}</h3>
-                <p className="claim-text">{profile.claim.text}</p>
+                <p className="claim-text">{claimAnalysis.claim_text}</p>
                 <div className="timestamp">
-                  {formatTimestamp(profile.claim.timestamp_start, profile.claim.timestamp_end)}
+                  {formatTimestamp(claimAnalysis.video_timestamp_start, claimAnalysis.video_timestamp_end)}
                 </div>
               </div>
 
-              <div className={getAssessmentClass(profile.overall_assessment)}>
-                {profile.overall_assessment}
+              <div className={getAssessmentClass(claimAnalysis.truth_profile.overall_assessment)}>
+                {claimAnalysis.truth_profile.overall_assessment}
               </div>
 
               <div className="perspectives-section">
                 <h3>Perspective Analysis</h3>
                 <div className="perspectives-grid">
-                  {profile.perspectives.map((perspective, perspectiveIndex) => (
-                    <div key={`${perspective.perspective}-${perspectiveIndex}`} className="perspective-card">
+                  {Object.entries(claimAnalysis.truth_profile.perspectives).map(([key, perspective]) => (
+                    <div key={key} className="perspective-card">
                       <div className="perspective-header">
                         <span className="perspective-name">{perspective.perspective}</span>
                         <span className={getStanceClass(perspective.stance)}>
@@ -222,40 +221,13 @@ function App() {
               </div>
 
               <div className="bias-section">
-                <h3>Bias & Deception Analysis</h3>
-                <div className="bias-grid">
-                  {profile.bias_analysis.framing_bias && (
-                    <div className="bias-item">
-                      <span className="bias-label">Framing Bias:</span>
-                      <span className="bias-value">{profile.bias_analysis.framing_bias}</span>
-                    </div>
-                  )}
-                  {profile.bias_analysis.sourcing_bias && (
-                    <div className="bias-item">
-                      <span className="bias-label">Sourcing Bias:</span>
-                      <span className="bias-value">{profile.bias_analysis.sourcing_bias}</span>
-                    </div>
-                  )}
-                  {profile.bias_analysis.omission_bias && (
-                    <div className="bias-item">
-                      <span className="bias-label">Omission Bias:</span>
-                      <span className="bias-value">{profile.bias_analysis.omission_bias}</span>
-                    </div>
-                  )}
-                  {profile.bias_analysis.sensationalism && (
-                    <div className="bias-item">
-                      <span className="bias-label">Sensationalism:</span>
-                      <span className="bias-value">{profile.bias_analysis.sensationalism}</span>
-                    </div>
-                  )}
-                </div>
-
+                <h3>Deception Analysis</h3>
                 <div className="deception-rating">
                   <div className="deception-score">
-                    {profile.bias_analysis.deception_rating.toFixed(1)}/10
+                    {claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1)}/10
                   </div>
                   <div className="deception-rationale">
-                    {profile.bias_analysis.deception_rationale}
+                    Deception Score: {claimAnalysis.truth_profile.bias_indicators.deception_score > 7 ? 'High' : claimAnalysis.truth_profile.bias_indicators.deception_score > 4 ? 'Moderate' : 'Low'}
                   </div>
                 </div>
               </div>
