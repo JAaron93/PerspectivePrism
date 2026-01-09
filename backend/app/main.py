@@ -98,6 +98,30 @@ async def process_analysis(job_id: str, request: VideoRequest):
         logger.info(f"Starting analysis for job {job_id}, URL: {request.url}")
         
         # 1. Extract Video ID and Transcript
+        
+        def create_analysis_response(vid: str, cls: list) -> AnalysisResponse:
+            return AnalysisResponse(
+                video_id=vid,
+                metadata=AnalysisMetadata(
+                    analyzed_at=datetime.now(timezone.utc).isoformat()
+                ),
+                claims=list(cls)
+            )
+
+        def compute_overall_assessment(p_analyses: list, deception_score: float) -> str:
+            # Simple overall assessment logic for MVP
+            assessment = "Mixed"
+            support_count = sum(1 for p in p_analyses if p.stance == "Support")
+            refute_count = sum(1 for p in p_analyses if p.stance == "Refute")
+            
+            if support_count > refute_count and support_count >= 2:
+                assessment = "Likely True"
+            elif refute_count > support_count and refute_count >= 2:
+                assessment = "Likely False"
+            elif deception_score > 7:
+                assessment = "Suspicious/Deceptive"
+            return assessment
+
         video_id = claim_extractor.extract_video_id(str(request.url))
         # Validation is now done in create_analysis_job
         
@@ -138,17 +162,10 @@ async def process_analysis(job_id: str, request: VideoRequest):
              ))
         
         # Save initial partial result
-        current_result = AnalysisResponse(
-            video_id=video_id,
-            metadata=AnalysisMetadata(
-                analyzed_at=datetime.now(timezone.utc).isoformat()
-            ),
-            claims=initial_claims_result
-        )
-
+        # Save initial partial result
         async with jobs_lock:
             if job_id in jobs:
-                jobs[job_id]["result"] = current_result
+                jobs[job_id]["result"] = create_analysis_response(video_id, initial_claims_result)
 
         claims_to_return = list(initial_claims_result)  # Work on a separate copy
 
@@ -176,24 +193,16 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 p_dict = p_analysis.dict()
                 p_dict['assessment'] = p_analysis.stance  # UI expects 'assessment'
                 
-                # Update local state inside the specific claim
-                # We know 'claims_to_return' is a list of ClientClaimAnalysis objects
-                # And 'truth_profile.perspectives' is a dict we can mutate
-                claims_to_return[i].truth_profile.perspectives[p_type.value] = p_dict
-                
                 async with jobs_lock:
+                    # Update local state inside the lock to prevent race conditions
+                    # We know 'claims_to_return' is a list of ClientClaimAnalysis objects
+                    # And 'truth_profile.perspectives' is a dict we can mutate
+                    claims_to_return[i].truth_profile.perspectives[p_type.value] = p_dict
+                    
                     # Create snapshot INSIDE lock to ensure we capture the latest state 
                     # and don't overwrite a newer state with an older snapshot
-                    updated_result = AnalysisResponse(
-                        video_id=video_id,
-                        metadata=AnalysisMetadata(
-                            analyzed_at=datetime.now(timezone.utc).isoformat()
-                        ),
-                        claims=list(claims_to_return) 
-                    )
-
                     if job_id in jobs:
-                        jobs[job_id]["result"] = updated_result
+                        jobs[job_id]["result"] = create_analysis_response(video_id, claims_to_return)
                         
                 return p_analysis
 
@@ -204,26 +213,15 @@ async def process_analysis(job_id: str, request: VideoRequest):
                     process_single_perspective(perspective, evidence)
                 )
             
-            # Wait for all perspectives to finish for this claim before moving to Bias checks
-            # (Use gather to run them concurrently, but we still wait for all to complete effectively 
-            #  because we need them for the overall assessment logic)
+            # Run perspective analyses concurrently, but wait for all to complete
+            # before computing overall assessment
             perspective_analyses = await asyncio.gather(*analysis_tasks)
             
             # 5. Analyze Bias and Deception
             bias_analysis = await analysis_service.analyze_bias_and_deception(claim)
             
             # 6. Construct Truth Profile (Finalize for this claim)
-            # Simple overall assessment logic for MVP
-            overall_assessment = "Mixed"
-            support_count = sum(1 for p in perspective_analyses if p.stance == "Support")
-            refute_count = sum(1 for p in perspective_analyses if p.stance == "Refute")
-            
-            if support_count > refute_count and support_count >= 2:
-                overall_assessment = "Likely True"
-            elif refute_count > support_count and refute_count >= 2:
-                overall_assessment = "Likely False"
-            elif bias_analysis.deception_rating > 7:
-                overall_assessment = "Suspicious/Deceptive"
+            overall_assessment = compute_overall_assessment(perspective_analyses, bias_analysis.deception_rating)
             
             # Update the claim with final assessments and bias info
             # Note: perspectives are already populated incrementally!
@@ -239,27 +237,15 @@ async def process_analysis(job_id: str, request: VideoRequest):
             claims_to_return[i].truth_profile.bias_indicators = bias_indicators
             
             # One final update for this claim (fixing the overall assessment and bias)
-            updated_result = AnalysisResponse(
-                video_id=video_id,
-                metadata=AnalysisMetadata(
-                    analyzed_at=datetime.now(timezone.utc).isoformat()
-                ),
-                claims=list(claims_to_return)
-            )
-            
+            # One final update for this claim (fixing the overall assessment and bias)
             async with jobs_lock:
                 if job_id in jobs:
-                    jobs[job_id]["result"] = updated_result
+                    jobs[job_id]["result"] = create_analysis_response(video_id, claims_to_return)
             
-            # Update local reference for next iteration (though we used claims_to_return directly)
-            current_result = updated_result
-            
-        result = current_result
-        
         async with jobs_lock:
             if job_id in jobs:
                 jobs[job_id]["status"] = JobStatus.COMPLETED
-                jobs[job_id]["result"] = result
+                jobs[job_id]["result"] = create_analysis_response(video_id, claims_to_return)
         logger.info(f"Job {job_id} completed successfully")
 
     except Exception as e:
