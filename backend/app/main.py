@@ -1,3 +1,4 @@
+import re
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -23,7 +24,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_origin_regex=f"chrome-extension://({'|'.join(settings.CHROME_EXTENSION_IDS)})" if settings.CHROME_EXTENSION_IDS else None,
+    allow_origin_regex=f"chrome-extension://({'|'.join(re.escape(cid) for cid in settings.CHROME_EXTENSION_IDS)})" if settings.CHROME_EXTENSION_IDS else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -107,6 +108,44 @@ async def process_analysis(job_id: str, request: VideoRequest):
         
         claims_to_return = []
         
+        # 2b. Initial Partial Result Update
+        # Create an initial result with claims but empty perspectives/truth profiles
+        initial_claims_result = []
+        for claim in claims_to_process:
+             # Create empty placeholders
+             client_perspectives = {} 
+             bias_indicators = BiasIndicators(
+                logical_fallacies=[],
+                emotional_manipulation=[],
+                deception_score=0.0 # Default
+             )
+             client_truth_profile = ClientTruthProfile(
+                overall_assessment="Analyzing...",
+                perspectives=client_perspectives,
+                bias_indicators=bias_indicators
+             )
+             initial_claims_result.append(ClientClaimAnalysis(
+                claim_text=claim.text,
+                video_timestamp_start=claim.timestamp_start,
+                video_timestamp_end=claim.timestamp_end,
+                truth_profile=client_truth_profile
+             ))
+        
+        # Save initial partial result
+        current_result = AnalysisResponse(
+            video_id=video_id,
+            metadata=AnalysisMetadata(
+                analyzed_at=datetime.now(timezone.utc).isoformat()
+            ),
+            claims=initial_claims_result
+        )
+
+        async with jobs_lock:
+            if job_id in jobs:
+                jobs[job_id]["result"] = current_result
+
+        claims_to_return = initial_claims_result # Work on this object directly or keep updating it
+
         for i, claim in enumerate(claims_to_process):
             print(f"DEBUG: Processing claim {i+1}/{len(claims_to_process)}: {claim.text[:50]}...")
             logger.info(f"Processing claim {i+1}/{len(claims_to_process)}: {claim.id}")
@@ -131,6 +170,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                     analysis_service.analyze_perspective(claim, perspective, evidence)
                 )
             
+            # Wait for all perspectives for this claim
             perspective_analyses = await asyncio.gather(*analysis_tasks)
             
             # 5. Analyze Bias and Deception
@@ -169,20 +209,30 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 bias_indicators=bias_indicators
             )
             
-            claims_to_return.append(ClientClaimAnalysis(
+            # Update the specific claim in our running result
+            claims_to_return[i] = ClientClaimAnalysis(
                 claim_text=claim.text,
                 video_timestamp_start=claim.timestamp_start,
                 video_timestamp_end=claim.timestamp_end,
                 truth_profile=client_truth_profile
-            ))
+            )
+
+            # Update global state with latest progress
+            # Create a new response object with updated claims to avoid in-place mutation issues
+            updated_result = AnalysisResponse(
+                video_id=current_result.video_id,
+                metadata=current_result.metadata,
+                claims=list(claims_to_return)
+            )
             
-        result = AnalysisResponse(
-            video_id=video_id,
-            metadata=AnalysisMetadata(
-                analyzed_at=datetime.now(timezone.utc).isoformat()
-            ),
-            claims=claims_to_return
-        )
+            async with jobs_lock:
+                if job_id in jobs:
+                    jobs[job_id]["result"] = updated_result
+            
+            # Update local reference for next iteration
+            current_result = updated_result
+            
+        result = current_result
         
         async with jobs_lock:
             if job_id in jobs:

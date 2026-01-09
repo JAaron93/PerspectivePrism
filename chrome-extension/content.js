@@ -917,6 +917,7 @@ function injectButton() {
     document.getElementById(BUTTON_ID) ||
     document.querySelector('[data-pp-analysis-button="true"]')
   ) {
+    console.debug("[Perspective Prism] Button already exists, skipping injection.");
     return;
   }
 
@@ -1272,7 +1273,10 @@ function showSetupNotification() {
 }
 
 async function handleAnalysisClick() {
-  if (!currentVideoId) return;
+  if (!currentVideoId) {
+    console.warn("[Perspective Prism] Analysis requested but no Video ID found.");
+    return;
+  }
 
   setButtonState("loading");
   showPanelLoading();
@@ -2129,7 +2133,10 @@ function cleanup() {
 
 function handleNavigation() {
   // If we are currently cleaning up, skip (or queue?)
-  if (isCleaningUp) return;
+  if (isCleaningUp) {
+    console.debug("[Perspective Prism] Navigation skipped due to cleanup in progress.");
+    return;
+  }
 
   const vid = extractVideoId();
 

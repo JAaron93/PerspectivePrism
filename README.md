@@ -102,10 +102,15 @@ This script measures:
 
 ## 📋 Prerequisites
 
-- Python 3.10+
-- Node.js 18+ (LTS) or Node.js 20+ (recommended)
-- OpenAI API Key
-- Google Custom Search JSON API Key & Search Engine ID
+- **Operating System**: macOS, Linux, or Windows (via WSL2)
+- **Runtime**:
+  - Python 3.10 or higher
+  - Node.js 18+ (LTS) or 20+
+- **API Keys**:
+  - **OpenAI API Key**: Required for claim extraction and analysis (GPT-4o/mini).
+  - **Google Custom Search JSON API Key**: Required for evidence retrieval.
+  - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
+- **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
 ## ⚙️ Setup & Installation
 
@@ -215,6 +220,31 @@ pytest
 # Run specific security tests
 pytest tests/test_input_sanitizer.py
 ```
+
+## 🔧 Extended Troubleshooting
+
+### Backend Issues
+
+| Issue | Possible Cause | Solution |
+| :--- | :--- | :--- |
+| **401 Unauthorized** | Missing or invalid OpenAI API Key | Check `.env` file. Ensure `OPENAI_API_KEY` is set and valid. |
+| **429 Too Many Requests** | OpenAI/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
+| **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
+| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
+
+### Extension Issues
+
+| Issue | Possible Cause | Solution |
+| :--- | :--- | :--- |
+| **"Analysis Failed"** | Backend not reachable | Ensure backend is running at `http://localhost:8000`. check `VITE_API_URL`. |
+| **"No claims found"** | Transcript unavailable | The video might not have captions, or they are auto-generated and poor quality. Try another video. |
+| **Button not showing** | Content script didn't inject | Refresh the YouTube page. Ensure the extension is enabled. |
+
+### Common Fixes
+
+1. **Restart the Backend**: Whenever you change `.env` or `config.py`.
+2. **Reload Extension**: Click the refresh icon in `chrome://extensions/` after code changes.
+3. **Clear Cache**: If the frontend behaves oddly, try Hard Reload (Cmd+Shift+R).
 
 ## 🔒 Security
 

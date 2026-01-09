@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import './App.css'
 
+import { ThinkingComponent } from './components/ThinkingComponent'
+
 interface ClaimAnalysis {
   claim_text: string
   video_timestamp_start: number | null
@@ -34,6 +36,13 @@ interface AnalysisResponse {
   }
   claims: ClaimAnalysis[]
 }
+
+const ALL_PERSPECTIVES = [
+  "Scientific",
+  "Journalistic",
+  "Partisan (Left)",
+  "Partisan (Right)"
+] as const
 
 function App() {
   const [url, setUrl] = useState('')
@@ -70,7 +79,10 @@ function App() {
       const { job_id } = responseData
 
       // 2. Poll for Status
-      const pollInterval = 2000 // 2 seconds
+      const INITIAL_POLL_INTERVAL = 1000
+      const MAX_POLL_INTERVAL = 30000
+      let currentPollInterval = INITIAL_POLL_INTERVAL
+      let lastClaimsCount = 0
 
       const checkStatus = async () => {
         try {
@@ -81,16 +93,39 @@ function App() {
           }
 
           const statusData = await statusResponse.json()
+          let progressDetected = false
+
+          // Always update results if available (even if partial)
+          if (statusData.result) {
+            const currentClaimsCount = statusData.result.claims ? statusData.result.claims.length : 0
+            if (currentClaimsCount > lastClaimsCount) {
+              progressDetected = true
+              lastClaimsCount = currentClaimsCount
+            }
+            
+            setResults(statusData.result)
+            // If we have at least one claim, we can stop the "init" loading
+            if (currentClaimsCount > 0) {
+               setLoading(false)
+            }
+          }
 
           if (statusData.status === 'completed') {
-            setResults(statusData.result)
             setLoading(false)
+            currentPollInterval = INITIAL_POLL_INTERVAL // Reset (though we're done)
           } else if (statusData.status === 'failed') {
             setError(statusData.error || 'Analysis failed')
             setLoading(false)
           } else {
-            // Still processing, poll again
-            setTimeout(checkStatus, pollInterval)
+            // Still processing
+            if (progressDetected) {
+              currentPollInterval = INITIAL_POLL_INTERVAL
+            } else {
+              currentPollInterval = Math.min(currentPollInterval * 2, MAX_POLL_INTERVAL)
+            }
+            
+            // Poll again
+            setTimeout(checkStatus, currentPollInterval)
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Error checking status')
@@ -194,10 +229,24 @@ function App() {
               <div className="perspectives-section">
                 <h3>Perspective Analysis</h3>
                 <div className="perspectives-grid">
-                  {Object.entries(claimAnalysis.truth_profile.perspectives).map(([key, perspective]) => (
-                    <div key={key} className="perspective-card">
+                  {ALL_PERSPECTIVES.map((perspectiveName) => {
+                    const perspective = claimAnalysis.truth_profile.perspectives[perspectiveName]
+                    
+                    if (!perspective) {
+                       return (
+                         <div key={perspectiveName} className="perspective-card">
+                            <div className="perspective-header">
+                              <span className="perspective-name">{perspectiveName}</span>
+                            </div>
+                            <ThinkingComponent context={`Analyzing ${perspectiveName} perspective...`} />
+                         </div>
+                       )
+                    }
+
+                    return (
+                    <div key={perspectiveName} className="perspective-card">
                       <div className="perspective-header">
-                        <span className="perspective-name">{perspective.perspective}</span>
+                        <span className="perspective-name">{perspectiveName}</span>
                         <span className={getStanceClass(perspective.stance)}>
                           {perspective.stance}
                         </span>
@@ -216,7 +265,7 @@ function App() {
 
                       <p className="explanation">{perspective.explanation}</p>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
 
@@ -224,10 +273,15 @@ function App() {
                 <h3>Deception Analysis</h3>
                 <div className="deception-rating">
                   <div className="deception-score">
-                    {claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1)}/10
+                    {claimAnalysis.truth_profile.bias_indicators.deception_score >= 0 
+                      ? claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1) + '/10' 
+                      : '-/10'}
                   </div>
                   <div className="deception-rationale">
-                    Deception Score: {claimAnalysis.truth_profile.bias_indicators.deception_score > 7 ? 'High' : claimAnalysis.truth_profile.bias_indicators.deception_score > 4 ? 'Moderate' : 'Low'}
+                    {claimAnalysis.truth_profile.bias_indicators.deception_score === 0 && claimAnalysis.truth_profile.overall_assessment === 'Analyzing...'
+                     ? <span className="analyzing-bias">Analyzing bias patterns...</span>
+                     : `Deception Score: ${claimAnalysis.truth_profile.bias_indicators.deception_score > 7 ? 'High' : claimAnalysis.truth_profile.bias_indicators.deception_score > 4 ? 'Moderate' : 'Low'}`
+                    }
                   </div>
                 </div>
               </div>

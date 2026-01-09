@@ -37,3 +37,6 @@ test-results/
 # IDE
 .vscode/
 .idea/
+
+# TypeScript Build Info
+.tsbuildinfo*
