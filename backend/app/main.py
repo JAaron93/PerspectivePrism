@@ -1,4 +1,5 @@
 import re
+import copy
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -105,12 +106,17 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 metadata=AnalysisMetadata(
                     analyzed_at=datetime.now(timezone.utc).isoformat()
                 ),
-                claims=list(cls)
+                claims=copy.deepcopy(cls)
             )
 
         def compute_overall_assessment(p_analyses: list, deception_score: float) -> str:
             # Simple overall assessment logic for MVP
             assessment = "Mixed"
+            
+            # Prioritize Deception Score if it's high
+            if deception_score > 7:
+                return "Suspicious/Deceptive"
+
             support_count = sum(1 for p in p_analyses if p.stance == "Support")
             refute_count = sum(1 for p in p_analyses if p.stance == "Refute")
             
@@ -118,8 +124,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 assessment = "Likely True"
             elif refute_count > support_count and refute_count >= 2:
                 assessment = "Likely False"
-            elif deception_score > 7:
-                assessment = "Suspicious/Deceptive"
+            
             return assessment
 
         video_id = claim_extractor.extract_video_id(str(request.url))
@@ -161,7 +166,6 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 truth_profile=client_truth_profile
              ))
         
-        # Save initial partial result
         # Save initial partial result
         async with jobs_lock:
             if job_id in jobs:
@@ -236,7 +240,6 @@ async def process_analysis(job_id: str, request: VideoRequest):
             claims_to_return[i].truth_profile.overall_assessment = overall_assessment
             claims_to_return[i].truth_profile.bias_indicators = bias_indicators
             
-            # One final update for this claim (fixing the overall assessment and bias)
             # One final update for this claim (fixing the overall assessment and bias)
             async with jobs_lock:
                 if job_id in jobs:
