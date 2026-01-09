@@ -166,23 +166,53 @@ async def process_analysis(job_id: str, request: VideoRequest):
             
             evidence_results = await evidence_retriever.retrieve_evidence(claim, perspectives)
             
-            # 4. Analyze Perspectives (Parallelize analysis)
-            perspective_analyses = []
-            analysis_tasks = []
+            # 4. Analyze Perspectives (Parallelize analysis with incremental updates)
             
+            async def process_single_perspective(p_type, p_evidence):
+                # Analyze
+                p_analysis = await analysis_service.analyze_perspective(claim, p_type, p_evidence)
+                
+                # Transform to dictionary format expected by UI
+                p_dict = p_analysis.dict()
+                p_dict['assessment'] = p_analysis.stance  # UI expects 'assessment'
+                
+                # Update local state inside the specific claim
+                # We know 'claims_to_return' is a list of ClientClaimAnalysis objects
+                # And 'truth_profile.perspectives' is a dict we can mutate
+                claims_to_return[i].truth_profile.perspectives[p_type.value] = p_dict
+                
+                async with jobs_lock:
+                    # Create snapshot INSIDE lock to ensure we capture the latest state 
+                    # and don't overwrite a newer state with an older snapshot
+                    updated_result = AnalysisResponse(
+                        video_id=video_id,
+                        metadata=AnalysisMetadata(
+                            analyzed_at=datetime.now(timezone.utc).isoformat()
+                        ),
+                        claims=list(claims_to_return) 
+                    )
+
+                    if job_id in jobs:
+                        jobs[job_id]["result"] = updated_result
+                        
+                return p_analysis
+
+            analysis_tasks = []
             for perspective in perspectives:
                 evidence = evidence_results.get(perspective, [])
                 analysis_tasks.append(
-                    analysis_service.analyze_perspective(claim, perspective, evidence)
+                    process_single_perspective(perspective, evidence)
                 )
             
-            # Wait for all perspectives for this claim
+            # Wait for all perspectives to finish for this claim before moving to Bias checks
+            # (Use gather to run them concurrently, but we still wait for all to complete effectively 
+            #  because we need them for the overall assessment logic)
             perspective_analyses = await asyncio.gather(*analysis_tasks)
             
             # 5. Analyze Bias and Deception
             bias_analysis = await analysis_service.analyze_bias_and_deception(claim)
             
-            # 6. Construct Truth Profile
+            # 6. Construct Truth Profile (Finalize for this claim)
             # Simple overall assessment logic for MVP
             overall_assessment = "Mixed"
             support_count = sum(1 for p in perspective_analyses if p.stance == "Support")
@@ -194,14 +224,9 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 overall_assessment = "Likely False"
             elif bias_analysis.deception_rating > 7:
                 overall_assessment = "Suspicious/Deceptive"
-                
-            # Map to ClientClaimAnalysis
-            client_perspectives = {}
-            for p in perspective_analyses:
-                # Convert to dict and add 'assessment' field for UI compatibility
-                p_dict = p.dict()
-                p_dict['assessment'] = p.stance  # UI expects 'assessment'
-                client_perspectives[p.perspective.value] = p_dict
+            
+            # Update the claim with final assessments and bias info
+            # Note: perspectives are already populated incrementally!
             
             bias_indicators = BiasIndicators(
                 logical_fallacies=[], # MVP placeholder
@@ -209,25 +234,16 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 deception_score=bias_analysis.deception_rating
             )
             
-            client_truth_profile = ClientTruthProfile(
-                overall_assessment=overall_assessment,
-                perspectives=client_perspectives,
-                bias_indicators=bias_indicators
-            )
+            # Update the existing object in place or replace it - let's update fields to be safe
+            claims_to_return[i].truth_profile.overall_assessment = overall_assessment
+            claims_to_return[i].truth_profile.bias_indicators = bias_indicators
             
-            # Update the specific claim in our running result
-            claims_to_return[i] = ClientClaimAnalysis(
-                claim_text=claim.text,
-                video_timestamp_start=claim.timestamp_start,
-                video_timestamp_end=claim.timestamp_end,
-                truth_profile=client_truth_profile
-            )
-
-            # Update global state with latest progress
-            # Create a new response object with updated claims to avoid in-place mutation issues
+            # One final update for this claim (fixing the overall assessment and bias)
             updated_result = AnalysisResponse(
-                video_id=current_result.video_id,
-                metadata=current_result.metadata,
+                video_id=video_id,
+                metadata=AnalysisMetadata(
+                    analyzed_at=datetime.now(timezone.utc).isoformat()
+                ),
                 claims=list(claims_to_return)
             )
             
@@ -235,7 +251,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 if job_id in jobs:
                     jobs[job_id]["result"] = updated_result
             
-            # Update local reference for next iteration
+            # Update local reference for next iteration (though we used claims_to_return directly)
             current_result = updated_result
             
         result = current_result
