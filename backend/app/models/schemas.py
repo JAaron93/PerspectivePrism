@@ -75,7 +75,7 @@ class AnalysisMetadata(BaseModel):
 class BiasIndicators(BaseModel):
     logical_fallacies: List[str] = []
     emotional_manipulation: List[str] = []
-    deception_score: Optional[float] = None
+    deception_score: Optional[float] = Field(None, ge=0, le=10)
 
 
 class ClientTruthProfile(BaseModel):

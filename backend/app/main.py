@@ -20,11 +20,17 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
+# Helper for CORS regex
+def build_chrome_extension_regex(extension_ids: list[str]) -> str | None:
+    if not extension_ids:
+        return None
+    return f"chrome-extension://({'|'.join(re.escape(cid) for cid in extension_ids)})"
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_origin_regex=f"chrome-extension://({'|'.join(re.escape(cid) for cid in settings.CHROME_EXTENSION_IDS)})" if settings.CHROME_EXTENSION_IDS else None,
+    allow_origin_regex=build_chrome_extension_regex(settings.CHROME_EXTENSION_IDS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,7 +94,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
             if job_id in jobs:
                 jobs[job_id]["status"] = JobStatus.PROCESSING
         
-        print(f"DEBUG: Starting analysis for job {job_id}, URL: {request.url}")
+        logger.debug(f"DEBUG: Starting analysis for job {job_id}, URL: {request.url}")
         logger.info(f"Starting analysis for job {job_id}, URL: {request.url}")
         
         # 1. Extract Video ID and Transcript
@@ -147,7 +153,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
         claims_to_return = list(initial_claims_result)  # Work on a separate copy
 
         for i, claim in enumerate(claims_to_process):
-            print(f"DEBUG: Processing claim {i+1}/{len(claims_to_process)}: {claim.text[:50]}...")
+            logger.debug(f"DEBUG: Processing claim {i+1}/{len(claims_to_process)}: {claim.text[:50]}...")
             logger.info(f"Processing claim {i+1}/{len(claims_to_process)}: {claim.id}")
             
             # 3. Retrieve Evidence (Parallelize perspectives)
@@ -241,7 +247,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
         logger.info(f"Job {job_id} completed successfully")
 
     except Exception as e:
-        print(f"DEBUG: Error processing job {job_id}: {e}")
+        logger.debug(f"DEBUG: Error processing job {job_id}: {e}")
         logger.exception(f"Error processing job {job_id}")
         async with jobs_lock:
             if job_id in jobs:

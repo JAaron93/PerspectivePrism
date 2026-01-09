@@ -107,7 +107,7 @@ function App() {
             
             setResults(statusData.result)
             // If we have at least one claim, we can stop the "init" loading
-            if (currentClaimsCount > 0) {
+            if (currentClaimsCount > 0 && statusData.status !== 'completed') {
               setLoading(false)
               setIsStreaming(true)
             }
@@ -167,6 +167,13 @@ function App() {
     }
     if (end === null) return formatTime(start)
     return `${formatTime(start)} - ${formatTime(end)}`
+  }
+
+  const getDeceptionLevel = (score: number | null) => {
+    if (score === null) return null
+    if (score > 7) return 'High'
+    if (score > 4) return 'Moderate'
+    return 'Low'
   }
 
   return (
@@ -287,7 +294,7 @@ function App() {
                   <div className="deception-rationale">
                     {claimAnalysis.truth_profile.bias_indicators.deception_score === null
                      ? <span className="analyzing-bias">Analyzing bias patterns...</span>
-                     : `Deception Score: ${claimAnalysis.truth_profile.bias_indicators.deception_score > 7 ? 'High' : claimAnalysis.truth_profile.bias_indicators.deception_score > 4 ? 'Moderate' : 'Low'}`
+                     : `Deception Score: ${getDeceptionLevel(claimAnalysis.truth_profile.bias_indicators.deception_score)}`
                     }
                   </div>
                 </div>
