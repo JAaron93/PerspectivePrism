@@ -237,8 +237,9 @@ pytest tests/test_input_sanitizer.py
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
 | **"Analysis Failed"** | Backend not reachable | Ensure backend is running at `http://localhost:8000`. check `VITE_API_URL`. |
-| **"No claims found"** | Transcript unavailable | The video might not have captions, or they are auto-generated and poor quality. Try another video. |
-| **Button not showing** | Content script didn't inject | Refresh the YouTube page. Ensure the extension is enabled. |
+| **"No claims found"** | Transcript unavailable or poor quality | The video may be private, a livestream, lack captions, or have auto-generated captions with poor quality. Try another video. |
+| **Button not showing** | Content script failed to inject | Refresh the YouTube page. Ensure the extension is enabled in `chrome://extensions/`. Check extension ID in `config.py`. |
+
 
 ### Common Fixes
 

@@ -144,7 +144,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
             if job_id in jobs:
                 jobs[job_id]["result"] = current_result
 
-        claims_to_return = initial_claims_result # Work on this object directly or keep updating it
+        claims_to_return = list(initial_claims_result)  # Work on a separate copy
 
         for i, claim in enumerate(claims_to_process):
             print(f"DEBUG: Processing claim {i+1}/{len(claims_to_process)}: {claim.text[:50]}...")

@@ -24,7 +24,7 @@ interface ClaimAnalysis {
     bias_indicators: {
       logical_fallacies: string[]
       emotional_manipulation: string[]
-      deception_score: number
+      deception_score: number | null
     }
   }
 }
@@ -47,12 +47,14 @@ const ALL_PERSPECTIVES = [
 function App() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<AnalysisResponse | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setIsStreaming(false)
     setError(null)
     setResults(null)
 
@@ -106,16 +108,19 @@ function App() {
             setResults(statusData.result)
             // If we have at least one claim, we can stop the "init" loading
             if (currentClaimsCount > 0) {
-               setLoading(false)
+              setLoading(false)
+              setIsStreaming(true)
             }
           }
 
           if (statusData.status === 'completed') {
             setLoading(false)
+            setIsStreaming(false)
             currentPollInterval = INITIAL_POLL_INTERVAL // Reset (though we're done)
           } else if (statusData.status === 'failed') {
             setError(statusData.error || 'Analysis failed')
             setLoading(false)
+            setIsStreaming(false)
           } else {
             // Still processing
             if (progressDetected) {
@@ -130,6 +135,7 @@ function App() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Error checking status')
           setLoading(false)
+          setIsStreaming(false)
         }
       }
 
@@ -139,6 +145,7 @@ function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
+      setIsStreaming(false)
     }
   }
 
@@ -185,9 +192,9 @@ function App() {
           <button
             type="submit"
             className="analyze-button"
-            disabled={loading}
+            disabled={loading || isStreaming}
           >
-            {loading ? 'Analyzing...' : 'Analyze'}
+            {loading ? 'Analyzing...' : isStreaming ? 'Streaming...' : 'Analyze'}
           </button>
         </form>
       </section>
@@ -273,12 +280,12 @@ function App() {
                 <h3>Deception Analysis</h3>
                 <div className="deception-rating">
                   <div className="deception-score">
-                    {claimAnalysis.truth_profile.bias_indicators.deception_score >= 0 
+                    {claimAnalysis.truth_profile.bias_indicators.deception_score !== null
                       ? claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1) + '/10' 
                       : '-/10'}
                   </div>
                   <div className="deception-rationale">
-                    {claimAnalysis.truth_profile.bias_indicators.deception_score === 0 && claimAnalysis.truth_profile.overall_assessment === 'Analyzing...'
+                    {claimAnalysis.truth_profile.bias_indicators.deception_score === null
                      ? <span className="analyzing-bias">Analyzing bias patterns...</span>
                      : `Deception Score: ${claimAnalysis.truth_profile.bias_indicators.deception_score > 7 ? 'High' : claimAnalysis.truth_profile.bias_indicators.deception_score > 4 ? 'Moderate' : 'Low'}`
                     }
