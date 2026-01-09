@@ -944,20 +944,25 @@ function injectButton() {
 
   if (container) {
     analysisButton = createAnalysisButton();
-    // Insert as first child to ensure visibility
-    container.insertBefore(analysisButton, container.firstChild);
-    console.log(
-      `[Perspective Prism] Button injected using selector: ${usedSelector}`,
-    );
+    // Use requestAnimationFrame for smoother injection
+    requestAnimationFrame(() => {
+      if (container && document.contains(container)) {
+        container.insertBefore(analysisButton, container.firstChild);
+        console.log(
+          `[Perspective Prism] Button injected using selector: ${usedSelector}`,
+        );
+      }
+    });
 
     metrics.successes++;
     metrics.bySelector[usedSelector] =
       (metrics.bySelector[usedSelector] || 0) + 1;
     saveMetrics();
   } else {
-    console.debug(
-      "[Perspective Prism] No suitable container found for button injection. Retrying later.",
-    );
+    // Only log at debug level to avoid console noise
+    // console.debug(
+    //   "[Perspective Prism] No suitable container found for button injection. Retrying later.",
+    // );
     metrics.failures++;
     saveMetrics();
   }
@@ -2221,6 +2226,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
+/**
+ * Handle state updates from background service worker
+ * Syncs button state and panel content
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'ANALYSIS_STATE_CHANGED') {
+    const { videoId, state } = message;
+
+    // Only update if it matches current video
+    if (videoId !== currentVideoId) return;
+
+    // Update button state
+    if (state.status === 'in_progress') {
+      setButtonState('loading');
+      // If panel is open, ensure it shows loading (unless it's already there)
+      if (analysisPanel && !analysisPanel.shadowRoot.getElementById('pp-panel-loading-title')) {
+         showPanelLoading();
+      }
+    } else if (state.status === 'complete') {
+      setButtonState('success');
+      // If we have active panel, show results? 
+      // Maybe not automatically override if user is looking at something else, 
+      // but if we are in loading state, we should transition to results.
+      // For now, let's rely on the response from the request if we initiated it.
+      // But if Popup initiated it, we might want to synchronize.
+    } else if (state.status === 'error') {
+      setButtonState('error');
+    } else {
+      setButtonState('idle');
+    }
+  }
+});
+
 function init() {
   loadMetrics();
 
@@ -2251,6 +2289,35 @@ function init() {
 
   // Initial check
   handleNavigation();
+
+  // Initial State Check (if we joined mid-analysis)
+  setTimeout(checkInitialState, 1000);
+}
+
+/**
+ * Check state on load to sync UI if analysis is running
+ */
+async function checkInitialState() {
+  const videoId = extractVideoId();
+  if (videoId) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_ANALYSIS_STATE',
+        videoId: videoId
+      });
+      
+      if (response && response.success && response.state) {
+        const state = response.state;
+        if (state.status === 'in_progress') {
+          setButtonState('loading');
+        } else if (state.status === 'complete') {
+          setButtonState('success');
+        }
+      }
+    } catch (e) {
+      // Ignore errors (e.g. extension context invalid)
+    }
+  }
 }
 
 // Run

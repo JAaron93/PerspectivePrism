@@ -442,63 +442,40 @@ async function handleClearCache() {
 }
 
 /**
- * Start periodic status checking
- * Updates popup state every 2 seconds while open
- */
-function startStatusPolling() {
-  // Clear any existing interval
-  if (statusCheckInterval) {
-    clearInterval(statusCheckInterval);
-  }
-  
-  // Check status every 2 seconds
-  statusCheckInterval = setInterval(async () => {
-    await checkCurrentStatus();
-  }, 2000);
-}
-
-/**
- * Stop periodic status checking
- */
-function stopStatusPolling() {
-  if (statusCheckInterval) {
-    clearInterval(statusCheckInterval);
-    statusCheckInterval = null;
-  }
-}
-
-/**
  * Initialize popup
  */
 async function init() {
   // Load initial data
-  await Promise.all([loadCacheStats(), checkCurrentStatus()]);
+  await loadCacheStats();
 
   // Setup event listeners
   openSettingsBtn.addEventListener("click", handleOpenSettings);
   clearCacheBtn.addEventListener("click", handleClearCache);
   
-  // Start polling for status updates
-  startStatusPolling();
-  
+  // Cleanup not really needed for interval since we removed it, but good practice if we add listeners
+  window.addEventListener("unload", () => {
+    // Any cleanup if needed
+  });
+
+  // Check status on load
+  await checkCurrentStatus();
+
   // Listen for messages from background (for real-time updates)
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "ANALYSIS_STATE_CHANGED") {
       // Update status immediately when state changes
-      checkCurrentStatus();
+      if (currentVideoId && message.videoId === currentVideoId) {
+        handleAnalysisState(message.state, currentVideoId);
+      } else if (!currentVideoId) {
+        // If we don't have a video ID yet (e.g. initial load race), re-check everything
+        checkCurrentStatus();
+      }
     } else if (message.type === "CACHE_UPDATED") {
       // Reload cache stats when cache is updated
       loadCacheStats();
     }
   });
 }
-
-/**
- * Cleanup when popup closes
- */
-window.addEventListener("beforeunload", () => {
-  stopStatusPolling();
-});
 
 // Run initialization when popup opens
 document.addEventListener("DOMContentLoaded", init);

@@ -7,12 +7,56 @@ console.log("Perspective Prism background service worker loaded");
 let client;
 const configManager = new ConfigManager();
 
-// Track analysis state for each video
-// Note: This in-memory Map will be cleared on service worker restart (MV3 behavior).
-// This is intentional - we reconstruct state from cache in handleGetAnalysisState()
-// when no in-memory state exists. This provides a good balance between performance
-// (fast in-memory access) and reliability (cache-based recovery after restart).
-const analysisStates = new Map();
+/**
+ * StateManager handles persistence of analysis state using chrome.storage.session.
+ * This ensures state survives Service Worker termination but is cleared on browser restart.
+ * (chrome.storage.session requires Chrome 102+)
+ */
+class StateManager {
+  static async set(videoId, state) {
+    try {
+      // Use a prefix to namespace our keys
+      const key = `state_${videoId}`;
+      await chrome.storage.session.set({ [key]: state });
+      return true;
+    } catch (error) {
+      console.error(`Failed to save state for ${videoId}:`, error);
+      return false;
+    }
+  }
+
+  static async get(videoId) {
+    try {
+      const key = `state_${videoId}`;
+      const result = await chrome.storage.session.get(key);
+      return result[key];
+    } catch (error) {
+      console.error(`Failed to get state for ${videoId}:`, error);
+      return null;
+    }
+  }
+
+  static async delete(videoId) {
+    try {
+      const key = `state_${videoId}`;
+      await chrome.storage.session.remove(key);
+      return true;
+    } catch (error) {
+      console.error(`Failed to delete state for ${videoId}:`, error);
+      return false;
+    }
+  }
+
+  static async clearAll() {
+    try {
+      await chrome.storage.session.clear();
+      return true;
+    } catch (error) {
+      console.error("Failed to clear session storage:", error);
+      return false;
+    }
+  }
+}
 
 function validateVideoId(message) {
   if (!message || !message.videoId || typeof message.videoId !== "string") {
@@ -37,8 +81,6 @@ configManager
   })
   .catch((error) => {
     console.error("Failed to load configuration:", error);
-    // Fallback or error state? For now, we need a client to handle messages even if config fails (maybe with default?)
-    // ConfigManager returns defaults on failure, so we should be good.
   });
 
 // Handle extension installation
@@ -50,7 +92,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     );
     chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
   } else if (details.reason === "update") {
-    // Extension updated - could show update notes if needed
+    // Extension updated
     console.log(
       "[Perspective Prism] Extension updated to version",
       chrome.runtime.getManifest().version,
@@ -84,9 +126,6 @@ async function checkPrivacyPolicyVersion() {
 
     // If no consent exists, user hasn't used the extension yet - no action needed
     if (!consent || !consent.given) {
-      console.log(
-        "[Perspective Prism] No existing consent, skipping version check",
-      );
       return;
     }
 
@@ -98,24 +137,13 @@ async function checkPrivacyPolicyVersion() {
       );
 
       // Store the version mismatch flag so content scripts can show the dialog
-      await new Promise((resolve, reject) => {
-        chrome.storage.local.set(
-          {
-            policy_version_mismatch: {
-              detected: true,
-              storedVersion: storedVersion,
-              currentVersion: CURRENT_POLICY_VERSION,
-              timestamp: Date.now(),
-            },
-          },
-          () => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve();
-            }
-          },
-        );
+      await chrome.storage.local.set({
+        policy_version_mismatch: {
+          detected: true,
+          storedVersion: storedVersion,
+          currentVersion: CURRENT_POLICY_VERSION,
+          timestamp: Date.now(),
+        },
       });
 
       console.log(
@@ -123,11 +151,7 @@ async function checkPrivacyPolicyVersion() {
       );
     } else {
       // Clear any existing mismatch flag
-      await new Promise((resolve) => {
-        chrome.storage.local.remove(["policy_version_mismatch"], () => {
-          resolve();
-        });
-      });
+      await chrome.storage.local.remove(["policy_version_mismatch"]);
     }
   } catch (error) {
     console.error(
@@ -139,57 +163,49 @@ async function checkPrivacyPolicyVersion() {
 
 // Message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "ANALYZE_VIDEO") {
-    handleAnalysisRequest(message, sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "CANCEL_ANALYSIS") {
-    handleCancelAnalysis(message, sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "CHECK_CACHE") {
-    handleCacheCheck(message, sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "GET_CACHE_STATS") {
-    handleGetCacheStats(sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "CLEAR_CACHE") {
-    handleClearCache(sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "GET_ANALYSIS_STATE") {
-    handleGetAnalysisState(message, sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "OPEN_PRIVACY_POLICY") {
-    chrome.tabs
-      .create({ url: chrome.runtime.getURL("privacy.html") })
-      .catch((error) => {
-        console.error("Failed to open privacy policy:", error);
-      });
-    return false; // No async response needed
-  }
-  if (message.type === "REVOKE_CONSENT") {
-    handleRevokeConsent(sendResponse);
-    return true; // Indicates async response
-  }
-  if (message.type === "OPEN_OPTIONS_PAGE") {
-    chrome.runtime.openOptionsPage();
-    return false; // No async response needed
-  }
-  if (message.type === "OPEN_WELCOME_PAGE") {
-    chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
-    return false; // No async response needed
-  }
-  if (message.type === "CHECK_POLICY_VERSION") {
-    handleCheckPolicyVersion(sendResponse);
-    return true; // Indicates async response
+  // Common handler wrapper for async response
+  const handleAsync = (handlerPromise) => {
+    handlerPromise
+      .then((response) => sendResponse(response))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true; // Keep channel open
+  };
+
+  switch (message.type) {
+    case "ANALYZE_VIDEO":
+      return handleAsync(handleAnalysisRequest(message));
+    case "CANCEL_ANALYSIS":
+      return handleAsync(handleCancelAnalysis(message));
+    case "CHECK_CACHE":
+      return handleAsync(handleCacheCheck(message));
+    case "GET_CACHE_STATS":
+      return handleAsync(handleGetCacheStats());
+    case "CLEAR_CACHE":
+      return handleAsync(handleClearCache());
+    case "GET_ANALYSIS_STATE":
+      return handleAsync(handleGetAnalysisState(message));
+    case "REVOKE_CONSENT":
+      return handleAsync(handleRevokeConsent());
+    case "CHECK_POLICY_VERSION":
+      return handleAsync(handleCheckPolicyVersion());
+    
+    // Sync handlers
+    case "OPEN_PRIVACY_POLICY":
+      chrome.tabs.create({ url: chrome.runtime.getURL("privacy.html") });
+      return false;
+    case "OPEN_OPTIONS_PAGE":
+      chrome.runtime.openOptionsPage();
+      return false;
+    case "OPEN_WELCOME_PAGE":
+      chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+      return false;
+      
+    default:
+      return false;
   }
 });
 
-async function handleCacheCheck(message, sendResponse) {
+async function handleCacheCheck(message) {
   if (!client) {
     const config = await configManager.load();
     client = new PerspectivePrismClient(config.backendUrl);
@@ -197,52 +213,46 @@ async function handleCacheCheck(message, sendResponse) {
 
   const validation = validateVideoId(message);
   if (!validation.valid) {
-    sendResponse({ success: false, error: validation.error });
-    return;
+    throw new Error(validation.error);
   }
 
   const videoId = validation.videoId;
 
   try {
     const data = await client.checkCache(videoId);
-    sendResponse({ success: true, data: data });
+    return { success: true, data: data };
   } catch (error) {
     console.error("Cache check failed:", error);
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
-async function handleAnalysisRequest(message, sendResponse) {
+async function handleAnalysisRequest(message) {
   if (!client) {
-    // Should rarely happen if config loads fast, but handle it
     const config = await configManager.load();
     client = new PerspectivePrismClient(config.backendUrl);
   }
 
-  // Declare videoId outside try block so catch block can access it
-  let videoId = undefined;
+  const validation = validateVideoId(message);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const videoId = validation.videoId;
+
+  // Set state to in_progress
+  await setAnalysisState(videoId, {
+    status: "in_progress",
+    progress: 0,
+  });
 
   try {
-    const validation = validateVideoId(message);
-    if (!validation.valid) {
-      sendResponse({ success: false, error: validation.error });
-      return;
-    }
-
-    videoId = validation.videoId;
-
-    // Set state to in_progress
-    setAnalysisState(videoId, {
-      status: "in_progress",
-      progress: 0,
-    });
-
     // Start analysis
     const result = await client.analyzeVideo(videoId);
 
     if (result.success) {
       // Set state to complete
-      setAnalysisState(videoId, {
+      await setAnalysisState(videoId, {
         status: "complete",
         claimCount: result.data?.claims?.length || 0,
         isCached: result.fromCache || false,
@@ -250,45 +260,36 @@ async function handleAnalysisRequest(message, sendResponse) {
       });
     } else {
       // Set state to error
-      setAnalysisState(videoId, {
+      await setAnalysisState(videoId, {
         status: "error",
         errorMessage: result.error || "Analysis failed",
         errorDetails: "",
       });
     }
 
-    sendResponse(result);
+    return result;
   } catch (error) {
     console.error("Analysis request failed:", error);
 
-    // Set state to error (videoId may be undefined if validation failed)
-    if (videoId) {
-      setAnalysisState(videoId, {
-        status: "error",
-        errorMessage: "Analysis failed",
-        errorDetails: error.message,
-      });
-    }
+    // Set state to error
+    await setAnalysisState(videoId, {
+      status: "error",
+      errorMessage: "Analysis failed",
+      errorDetails: error.message,
+    });
 
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
-/**
- * Handle cancel analysis request
- * @param {Object} message - Message with videoId
- * @param {Function} sendResponse - Response callback
- */
-async function handleCancelAnalysis(message, sendResponse) {
+async function handleCancelAnalysis(message) {
   if (!client) {
-    sendResponse({ success: false, error: 'Client not initialized' });
-    return;
+    throw new Error('Client not initialized');
   }
 
   const validation = validateVideoId(message);
   if (!validation.valid) {
-    sendResponse({ success: false, error: validation.error });
-    return;
+    throw new Error(validation.error);
   }
 
   const videoId = validation.videoId;
@@ -298,19 +299,18 @@ async function handleCancelAnalysis(message, sendResponse) {
     
     if (cancelled) {
       // Update state to cancelled
-      setAnalysisState(videoId, {
+      await setAnalysisState(videoId, {
         status: 'cancelled',
         cancelledAt: Date.now()
       });
       
-      sendResponse({ success: true, cancelled: true });
+      return { success: true, cancelled: true };
     } else {
-      // No active request found
-      sendResponse({ success: false, error: 'No active analysis found for this video' });
+      throw new Error('No active analysis found for this video');
     }
   } catch (error) {
     console.error('[Perspective Prism] Cancel analysis failed:', error);
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
@@ -319,77 +319,76 @@ async function handleCancelAnalysis(message, sendResponse) {
  * @param {string} videoId - Video ID
  * @param {Object} state - Analysis state object
  */
-function setAnalysisState(videoId, state) {
-  analysisStates.set(videoId, state);
+async function setAnalysisState(videoId, state) {
+  // Save to session storage
+  await StateManager.set(videoId, state);
 
   // Notify popup and content scripts of state change
-  chrome.runtime
-    .sendMessage({
+  try {
+    await chrome.runtime.sendMessage({
       type: "ANALYSIS_STATE_CHANGED",
       videoId: videoId,
       state: state,
-    })
-    .catch(() => {
-      // Ignore errors if no listeners
     });
+  } catch (error) {
+    // Ignore errors if no listeners (e.g. popup closed)
+  }
 }
 
-/**
- * Get analysis state for a video
- * @param {Object} message - Message with videoId
- * @param {Function} sendResponse - Response callback
- */
-async function handleGetAnalysisState(message, sendResponse) {
+async function handleGetAnalysisState(message) {
   const validation = validateVideoId(message);
   if (!validation.valid) {
-    sendResponse({ success: false, error: validation.error });
-    return;
+    throw new Error(validation.error);
   }
 
   const videoId = validation.videoId;
-  const state = analysisStates.get(videoId);
+  
+  // 1. Try to get active state from session storage
+  const state = await StateManager.get(videoId);
 
   if (state) {
-    sendResponse({ success: true, state: state });
-  } else {
-    // Check if we have cached data
-    if (!client) {
-      const config = await configManager.load();
-      client = new PerspectivePrismClient(config.backendUrl);
-    }
+    return { success: true, state: state };
+  } 
+  
+  // 2. Check if we have cached data (completed analysis)
+  if (!client) {
+    const config = await configManager.load();
+    client = new PerspectivePrismClient(config.backendUrl);
+  }
 
-    try {
-      const cachedData = await client.checkCache(videoId);
-      if (cachedData) {
-        // We have cached data, show complete state
-        const cacheState = {
-          status: "complete",
-          claimCount: cachedData.claims?.length || 0,
-          isCached: true,
-          analyzedAt: cachedData.metadata?.analyzed_at
-            ? new Date(cachedData.metadata.analyzed_at).getTime()
-            : Date.now(),
-        };
-        analysisStates.set(videoId, cacheState);
-        sendResponse({ success: true, state: cacheState });
-      } else {
-        // No cached data, show idle state
-        sendResponse({
-          success: true,
-          state: { status: "idle" },
-        });
-      }
-    } catch (error) {
-      console.error("Failed to check cache for state:", error);
-      sendResponse({
+  try {
+    const cachedData = await client.checkCache(videoId);
+    if (cachedData) {
+      // We have cached data, reconstruct complete state
+      const cacheState = {
+        status: "complete",
+        claimCount: cachedData.claims?.length || 0,
+        isCached: true,
+        analyzedAt: cachedData.metadata?.analyzed_at
+          ? new Date(cachedData.metadata.analyzed_at).getTime()
+          : Date.now(),
+      };
+      // Save reconstructed state to session so subsequent calls are faster
+      await StateManager.set(videoId, cacheState);
+      return { success: true, state: cacheState };
+    } else {
+      // No cached data, show idle state
+      return {
         success: true,
         state: { status: "idle" },
-      });
+      };
     }
+  } catch (error) {
+    console.error("Failed to check cache for state:", error);
+    // Default to idle on error
+    return {
+      success: true,
+      state: { status: "idle" },
+    };
   }
 }
 
-async function handleGetCacheStats(sendResponse) {
+async function handleGetCacheStats() {
   if (!client) {
     const config = await configManager.load();
     client = new PerspectivePrismClient(config.backendUrl);
@@ -397,14 +396,14 @@ async function handleGetCacheStats(sendResponse) {
 
   try {
     const stats = await client.getCacheStats();
-    sendResponse({ success: true, stats: stats });
+    return { success: true, stats: stats };
   } catch (error) {
     console.error("Failed to get cache stats:", error);
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
-async function handleClearCache(sendResponse) {
+async function handleClearCache() {
   if (!client) {
     const config = await configManager.load();
     client = new PerspectivePrismClient(config.backendUrl);
@@ -413,77 +412,53 @@ async function handleClearCache(sendResponse) {
   try {
     await client.clearCache();
 
-    // Clear all analysis states
-    analysisStates.clear();
+    // Clear all analysis states from session storage
+    await StateManager.clearAll();
 
     // Notify popup of cache update
-    chrome.runtime
-      .sendMessage({
+    try {
+      await chrome.runtime.sendMessage({
         type: "CACHE_UPDATED",
-      })
-      .catch(() => {
-        // Ignore errors if no listeners
       });
+    } catch (e) {
+      // ignore
+    }
 
-    sendResponse({ success: true });
+    return { success: true };
   } catch (error) {
     console.error("Failed to clear cache:", error);
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
-async function handleRevokeConsent(sendResponse) {
+async function handleRevokeConsent() {
   console.log("[Perspective Prism] Revoking consent...");
 
   try {
-    // 1. Cancel pending analyses (if client supports it, or just clear state)
-    // Since we don't have a direct cancel method on client yet, we rely on clearing state
-    // and the fact that subsequent steps won't find valid state.
-
-    // 2. Clear all cached analysis results
+    // 1. Clear all cached analysis results
     if (!client) {
       const config = await configManager.load();
       client = new PerspectivePrismClient(config.backendUrl);
     }
     await client.clearCache();
 
-    // 3. Clear all analysis states
-    analysisStates.clear();
+    // 2. Clear all analysis states
+    await StateManager.clearAll();
 
-    // 4. Clear persisted request state (pending*request* keys)
-    const allKeys = await chrome.storage.local.get(null);
-    const pendingKeys = Object.keys(allKeys).filter((key) =>
-      key.startsWith("pending_request_"),
-    );
-    if (pendingKeys.length > 0) {
-      await chrome.storage.local.remove(pendingKeys);
-    }
-
-    // 5. Clear all alarms
+    // 3. Clear all alarms
     await chrome.alarms.clearAll();
 
-    // 6. Set consentGiven to false in storage
-    await new Promise((resolve, reject) => {
-      chrome.storage.sync.set(
-        {
-          consent: {
-            given: false,
-            timestamp: Date.now(),
-            revoked: true,
-            policyVersion: "1.0.0", // Keep version for reference
-          },
-        },
-        () => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve();
-          }
-        },
-      );
+    // 4. Set consentGiven to false in storage
+    await chrome.storage.sync.set({
+      consent: {
+        given: false,
+        timestamp: Date.now(),
+        revoked: true,
+        policyVersion: "1.0.0", // Keep version for reference
+      },
     });
 
-    // 7. Notify all tabs (content scripts) to update UI
+    // 5. Notify all tabs (content scripts) to update UI
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
       chrome.tabs
@@ -496,48 +471,36 @@ async function handleRevokeConsent(sendResponse) {
     }
 
     console.log("[Perspective Prism] Consent revoked successfully");
-    sendResponse({ success: true });
+    return { success: true };
   } catch (error) {
     console.error("[Perspective Prism] Failed to revoke consent:", error);
-    sendResponse({ success: false, error: error.message });
+    throw error;
   }
 }
 
-/**
- * Check if there's a privacy policy version mismatch.
- * @param {Function} sendResponse - Response callback
- */
-async function handleCheckPolicyVersion(sendResponse) {
+async function handleCheckPolicyVersion() {
   try {
-    const result = await new Promise((resolve) => {
-      chrome.storage.local.get(["policy_version_mismatch"], (result) => {
-        resolve(result);
-      });
-    });
-
+    const result = await chrome.storage.local.get(["policy_version_mismatch"]);
     const mismatch = result.policy_version_mismatch;
 
     if (mismatch && mismatch.detected) {
-      sendResponse({
+      return {
         success: true,
         hasMismatch: true,
         storedVersion: mismatch.storedVersion,
         currentVersion: mismatch.currentVersion,
-      });
+      };
     } else {
-      sendResponse({
+      return {
         success: true,
         hasMismatch: false,
-      });
+      };
     }
   } catch (error) {
     console.error(
       "[Perspective Prism] Failed to check policy version:",
       error,
     );
-    sendResponse({
-      success: false,
-      error: error.message,
-    });
+    throw error;
   }
 }
