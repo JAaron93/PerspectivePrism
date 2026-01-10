@@ -49,7 +49,12 @@ class StateManager {
 
   static async clearAll() {
     try {
-      await chrome.storage.session.clear();
+      // Get all keys and filter for state_ prefix
+      const allData = await chrome.storage.session.get(null);
+      const stateKeys = Object.keys(allData).filter(key => key.startsWith('state_'));
+      if (stateKeys.length > 0) {
+        await chrome.storage.session.remove(stateKeys);
+      }
       return true;
     } catch (error) {
       console.error("Failed to clear session storage:", error);
@@ -241,10 +246,16 @@ async function handleAnalysisRequest(message) {
   const videoId = validation.videoId;
 
   // Set state to in_progress
-  await setAnalysisState(videoId, {
+  // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
+  const stateSaved = await setAnalysisState(videoId, {
     status: "in_progress",
     progress: 0,
   });
+
+  if (!stateSaved) {
+    console.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
+    throw new Error("Failed to initialize analysis state. Please try again.");
+  }
 
   try {
     // Start analysis
@@ -252,12 +263,17 @@ async function handleAnalysisRequest(message) {
 
     if (result.success) {
       // Set state to complete
-      await setAnalysisState(videoId, {
+      const completeStateSaved = await setAnalysisState(videoId, {
         status: "complete",
         claimCount: result.data?.claims?.length || 0,
         isCached: result.fromCache || false,
         analyzedAt: Date.now(),
       });
+      
+      if (!completeStateSaved) {
+         console.error(`[Perspective Prism] Warning: Failed to save completion state for ${videoId}. UI may not update.`);
+         // We don't throw here because we already have the result, but it's bad.
+      }
     } else {
       // Set state to error
       await setAnalysisState(videoId, {
@@ -299,10 +315,14 @@ async function handleCancelAnalysis(message) {
     
     if (cancelled) {
       // Update state to cancelled
-      await setAnalysisState(videoId, {
+      const saved = await setAnalysisState(videoId, {
         status: 'cancelled',
         cancelledAt: Date.now()
       });
+
+      if (!saved) {
+         console.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
+      }
       
       return { success: true, cancelled: true };
     } else {
@@ -318,10 +338,16 @@ async function handleCancelAnalysis(message) {
  * Set analysis state for a video and notify listeners
  * @param {string} videoId - Video ID
  * @param {Object} state - Analysis state object
+ * @returns {Promise<boolean>} - True if state saved successfully
  */
 async function setAnalysisState(videoId, state) {
   // Save to session storage
-  await StateManager.set(videoId, state);
+  const saved = await StateManager.set(videoId, state);
+
+  if (!saved) {
+    console.error(`[Perspective Prism] StateManager.set failed for ${videoId}`, state);
+    return false;
+  }
 
   // Notify popup and content scripts of state change
   try {
@@ -332,7 +358,10 @@ async function setAnalysisState(videoId, state) {
     });
   } catch (error) {
     // Ignore errors if no listeners (e.g. popup closed)
+    // This is expected and not a persistence failure
   }
+  
+  return true;
 }
 
 async function handleGetAnalysisState(message) {
@@ -369,7 +398,7 @@ async function handleGetAnalysisState(message) {
           : Date.now(),
       };
       // Save reconstructed state to session so subsequent calls are faster
-      await StateManager.set(videoId, cacheState);
+      await setAnalysisState(videoId, cacheState); // We use setAnalysisState helper now to match pattern, though strict checking here isn't as critical as initial flow
       return { success: true, state: cacheState };
     } else {
       // No cached data, show idle state
@@ -380,10 +409,10 @@ async function handleGetAnalysisState(message) {
     }
   } catch (error) {
     console.error("Failed to check cache for state:", error);
-    // Default to idle on error
+    // Propagate error to caller
     return {
-      success: true,
-      state: { status: "idle" },
+      success: false,
+      error: error.message || "Failed to check cache"
     };
   }
 }
@@ -413,7 +442,13 @@ async function handleClearCache() {
     await client.clearCache();
 
     // Clear all analysis states from session storage
-    await StateManager.clearAll();
+    const stateCleared = await StateManager.clearAll();
+    
+    if (!stateCleared) {
+       console.error("[Perspective Prism] Failed to clear session state after cache clear");
+       // Consider if we should throw? 
+       // Probably fine to return success but log error, as main cache is cleared.
+    }
 
     // Notify popup of cache update
     try {
@@ -443,7 +478,11 @@ async function handleRevokeConsent() {
     await client.clearCache();
 
     // 2. Clear all analysis states
-    await StateManager.clearAll();
+    const stateCleared = await StateManager.clearAll();
+    if (!stateCleared) {
+        console.error("[Perspective Prism] Failed to clear session state during consent revocation");
+        // We log it but proceed to ensure consent flag is revoked regardless
+    }
 
     // 3. Clear all alarms
     await chrome.alarms.clearAll();

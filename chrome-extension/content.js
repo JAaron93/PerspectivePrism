@@ -951,13 +951,15 @@ function injectButton() {
         console.log(
           `[Perspective Prism] Button injected using selector: ${usedSelector}`,
         );
+        metrics.successes++;
+        metrics.bySelector[usedSelector] =
+          (metrics.bySelector[usedSelector] || 0) + 1;
+        saveMetrics();
+      } else {
+        metrics.failures++;
+        saveMetrics();
       }
     });
-
-    metrics.successes++;
-    metrics.bySelector[usedSelector] =
-      (metrics.bySelector[usedSelector] || 0) + 1;
-    saveMetrics();
   } else {
     // Only log at debug level to avoid console noise
     // console.debug(
@@ -2241,7 +2243,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (state.status === 'in_progress') {
       setButtonState('loading');
       // If panel is open, ensure it shows loading (unless it's already there)
-      if (analysisPanel && !analysisPanel.shadowRoot.getElementById('pp-panel-loading-title')) {
+      const shadow = analysisPanel?.shadowRoot;
+      if (analysisPanel && shadow && !shadow.getElementById('pp-panel-loading-title')) {
          showPanelLoading();
       }
     } else if (state.status === 'complete') {
@@ -2312,7 +2315,11 @@ async function checkInitialState() {
           setButtonState('loading');
         } else if (state.status === 'complete') {
           setButtonState('success');
+        } else if (state.status === 'error') {
+          setButtonState('error');
         }
+      } else if (response && !response.success) {
+         console.warn("[Perspective Prism] Initial state check failed:", response.error);
       }
     } catch (e) {
       // Ignore errors (e.g. extension context invalid)

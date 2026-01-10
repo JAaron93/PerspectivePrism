@@ -43,7 +43,6 @@ for (const [name, element] of Object.entries(requiredElements)) {
 
 // State tracking
 let currentVideoId = null;
-let statusCheckInterval = null;
 
 /**
  * Update status display
@@ -184,10 +183,13 @@ async function checkCurrentStatus() {
       videoId: videoId,
     });
 
-    if (response && response.state) {
+    if (response && response.success && response.state) {
       handleAnalysisState(response.state, videoId);
+    } else if (response && !response.success) {
+      console.warn("[Perspective Prism] Failed to get analysis state:", response.error);
+      showErrorState("Failed to load status", response.error);
     } else {
-      // Default to idle state if no analysis state found
+      // Default to idle state if no analysis state found (and no explicit error)
       showIdleState(videoId);
     }
   } catch (error) {
@@ -451,11 +453,6 @@ async function init() {
   // Setup event listeners
   openSettingsBtn.addEventListener("click", handleOpenSettings);
   clearCacheBtn.addEventListener("click", handleClearCache);
-  
-  // Cleanup not really needed for interval since we removed it, but good practice if we add listeners
-  window.addEventListener("unload", () => {
-    // Any cleanup if needed
-  });
 
   // Check status on load
   await checkCurrentStatus();

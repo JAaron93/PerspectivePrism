@@ -109,21 +109,40 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 claims=copy.deepcopy(cls)
             )
 
+        DECEPTION_THRESHOLD_HIGH = 7.0
+        DECEPTION_THRESHOLD_MODERATE = 5.0
+
         def compute_overall_assessment(p_analyses: list, deception_score: float) -> str:
-            # Simple overall assessment logic for MVP
-            assessment = "Mixed"
+            """
+            Computes the overall assessment based on perspective analyses and deception score.
             
-            # Prioritize Deception Score if it's high
-            if deception_score > 7:
+            Args:
+                p_analyses: List of perspective analysis objects with a 'stance' attribute.
+                deception_score: Float between 0.0 and 10.0 indicating likelihood of deception.
+                
+            Returns:
+                String assessment: "Likely True", "Likely False", "Mixed", or "Suspicious/Deceptive".
+            """
+            # Simple overall assessment logic for MVP
+            
+            # 1. High Deception Short-circuit
+            if deception_score > DECEPTION_THRESHOLD_HIGH:
                 return "Suspicious/Deceptive"
 
             support_count = sum(1 for p in p_analyses if p.stance == "Support")
             refute_count = sum(1 for p in p_analyses if p.stance == "Refute")
             
+            assessment = "Mixed"
+            
             if support_count > refute_count and support_count >= 2:
                 assessment = "Likely True"
             elif refute_count > support_count and refute_count >= 2:
                 assessment = "Likely False"
+            
+            # 2. Moderate Deception Handling
+            # If the content seems true but has moderate deception signs, downgrade confidence
+            if assessment == "Likely True" and deception_score >= DECEPTION_THRESHOLD_MODERATE:
+                assessment = "Mixed"  # Downgrade due to potential manipulation
             
             return assessment
 
