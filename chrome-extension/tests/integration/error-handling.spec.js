@@ -22,14 +22,8 @@ test.describe("Error Handling", () => {
     await expect(page.locator('text="Analysis failed"')).toBeVisible(); // Adjust text based on actual error message
   });
 
-  test("should handle invalid backend URL", async ({ page, context }) => {
-    // This might require changing settings first
-    // Navigate to options page
-    const serviceWorkers = await context.serviceWorkers();
-    if (serviceWorkers.length === 0) {
-      throw new Error("No service workers found");
-    }
-    const extensionId = serviceWorkers[0].url().split("/")[2];
+  test("should handle invalid backend URL", async ({ page, extensionId }) => {
+    // Navigate to options page using fixture-provided extensionId
     await page.goto(`chrome-extension://${extensionId}/options.html`);
 
     await page.fill("#backendUrl", "invalid-url");
@@ -62,12 +56,9 @@ test.describe("Error Handling", () => {
       });
     });
 
-    // Mock the specific cancellation endpoint if the client calls it?
-    // Client.js only calls abort() on the AbortController for the fetch.
-    // However, does it call the backend to cancel?
-    // Checking client.js cancelAnalysis: it aborts controller and cleans up.
-    // It does NOT seem to call a backend cancellation endpoint based on the code I read.
-    // So we just verify the UI effect.
+    // Note: cancelAnalysis() aborts the AbortController to cancel the in-flight fetch
+    // and performs local state cleanup. It does NOT call a backend cancellation endpoint,
+    // so this test only asserts the UI effect (spinner hidden, cancel button gone, etc.).
 
     const fixtureUrl = `chrome-extension://${extensionId}/tests/fixtures/youtube-mock.html?v=dQw4w9WgXcQ`;
     await page.goto(fixtureUrl);
@@ -89,18 +80,26 @@ test.describe("Error Handling", () => {
     // Click cancel
     await cancelButton.click();
 
-    // Verify UI state after cancellation
-    // Should probably show "Analysis cancelled" message or revert to empty/button state.
-    // Looking at content.js (not fully read, but assuming robust UI updates on state change):
-    // If we assume the UI handles "cancelled" state by showing a message or closing.
-    // The client returns { success: true, cancelled: true }.
-    // Let's expect the cancel button to disappear or the panel to show a cancelled status.
-    
-    // Check for specific text that indicates cancellation if we know it.
-    // If not, we can check that spinner is gone.
-    await expect(page.locator('.spinner')).toBeHidden();
-    
-    // Or we might check for "Analysis cancelled" toast/message if implemented.
-    // Let's just check spinner gone for now as a basic check of "stopped processing".
+    // Verify UI state after cancellation:
+    // Current behavior: panel is removed entirely and button reverts to idle state.
+    // (No toast/message is displayed - the UI simply clears.)
+
+    // 1. Cancel button should no longer be visible (panel is removed)
+    await expect(cancelButton).toBeHidden({ timeout: 5000 });
+
+    // 2. The entire panel should be removed from the DOM
+    await expect(panel).toBeHidden();
+
+    // 3. Analysis button should revert to idle state (text: "Analyze Claims")
+    await expect(analysisButton).toBeVisible();
+    await expect(analysisButton).toContainText("Analyze Claims");
+
+    // 4. Spinner should be gone (panel removed means no spinner)
+    await expect(page.locator(".spinner")).toBeHidden();
+
+    // TODO: Currently no user-facing "Analysis cancelled" toast/message is shown.
+    // Consider adding explicit cancellation feedback (e.g., a temporary toast)
+    // for better UX. When implemented, add assertion here:
+    // await expect(page.locator('.toast')).toContainText('Analysis cancelled');
   });
 });

@@ -1,6 +1,7 @@
 import json
+from typing import Self
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,9 +29,42 @@ class Settings(BaseSettings):
         "amnjngnkcgooljnblcejpmkdhpikcdlp",  # Default local dev ID
     ]
 
-    # Deception Analysis Thresholds
+    # Deception Analysis Thresholds (valid range: 0.0 to 10.0)
     DECEPTION_THRESHOLD_HIGH: float = 7.0
     DECEPTION_THRESHOLD_MODERATE: float = 5.0
+
+    @model_validator(mode="after")
+    def validate_deception_thresholds(self) -> Self:
+        """Validate deception threshold values are logically consistent and within range.
+
+        Ensures:
+        - Both thresholds are within the valid 0-10 score range
+        - DECEPTION_THRESHOLD_HIGH is strictly greater than DECEPTION_THRESHOLD_MODERATE
+
+        Raises:
+            ValueError: If thresholds are outside valid range or not properly ordered.
+        """
+        low = self.DECEPTION_THRESHOLD_MODERATE
+        high = self.DECEPTION_THRESHOLD_HIGH
+
+        # Validate range bounds (0 to 10)
+        if not (0.0 <= low <= 10.0):
+            raise ValueError(
+                f"DECEPTION_THRESHOLD_MODERATE must be between 0 and 10, got {low}"
+            )
+        if not (0.0 <= high <= 10.0):
+            raise ValueError(
+                f"DECEPTION_THRESHOLD_HIGH must be between 0 and 10, got {high}"
+            )
+
+        # Validate ordering: HIGH must be strictly greater than MODERATE
+        if high <= low:
+            raise ValueError(
+                f"DECEPTION_THRESHOLD_HIGH ({high}) must be strictly greater than "
+                f"DECEPTION_THRESHOLD_MODERATE ({low})"
+            )
+
+        return self
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

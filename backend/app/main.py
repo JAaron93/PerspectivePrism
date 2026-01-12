@@ -86,7 +86,9 @@ async def cleanup_jobs():
 async def startup_event():
     asyncio.create_task(cleanup_jobs())
 
-def compute_overall_assessment(p_analyses: list, deception_score: float) -> str:
+from app.models.schemas import PerspectiveAnalysis  # if not already imported
+
+def compute_overall_assessment(p_analyses: list[PerspectiveAnalysis], deception_score: float) -> str:
     """
     Computes the overall assessment based on perspective analyses and deception score.
     

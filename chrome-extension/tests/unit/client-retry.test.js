@@ -11,19 +11,12 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 describe("PerspectivePrismClient - Retry Logic", () => {
   let client;
-  let mockStorage;
   let mockAlarms;
 
   beforeEach(async () => {
-    // Mock chrome.storage.local
-    mockStorage = {};
-    chrome.storage.local.get.mockImplementation((keys) => {
-      return Promise.resolve({});
-    });
-    chrome.storage.local.set.mockImplementation((items) => {
-      Object.assign(mockStorage, items);
-      return Promise.resolve();
-    });
+    // Mock chrome.storage.local (tests mock persistRequestState directly, so this is minimal)
+    chrome.storage.local.get.mockImplementation((_keys) => Promise.resolve({}));
+    chrome.storage.local.set.mockImplementation(() => Promise.resolve());
 
     // Mock chrome.alarms
     mockAlarms = [];
@@ -37,7 +30,7 @@ describe("PerspectivePrismClient - Retry Logic", () => {
     const PerspectivePrismClient = clientModule.default || clientModule.PerspectivePrismClient;
 
     // We need to mock the global fetch for testing makeAnalysisRequest failures
-    global.fetch = vi.fn();
+    vi.stubGlobal('fetch', vi.fn());
 
     client = new PerspectivePrismClient("https://api.example.com");
     
@@ -57,32 +50,7 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       expect(client.shouldRetryError(error)).toBe(true);
     });
 
-    it("should retry on 500 status", () => {
-      // We need to construct an HttpError-like object since the class isn't exported directly usually
-      // But looking at client.js, HttpError IS used. We should probably mock the class check 
-      // or instantiate a similar error if we can access the class definition.
-      // Since HttpError is internal to client.js, we might rely on duck typing if possible,
-      // or we assume the error structure.
-      // Actually, client.js uses `instanceof HttpError`. We need to grab that class or mock it.
-      // Since it's not exported, we can't easily perform `instanceof` checks unless we export it 
-      // or check how it's defined.
-      // However, for unit testing `client.js` imports, typically we'd modify `client.js` to export helpers 
-      // or copy the logic. 
-      // Let's rely on the internal `makeAnalysisRequest` throwing standard errors for now 
-      // or just assume we can't access HttpError directly without modifying source.
-      // For this test, let's skip the strictly typed checks dependent on non-exported classes 
-      // and focus on what we can control, or mock the `shouldRetryError` inputs if they were simple objects.
-      
-      // WAIT: We can see HttpError usage in `client.js`. 
-      // If we can't import HttpError, we can't pass an instance of it.
-      // Let's assume for this test file we might need to modify client.js to export it 
-      // OR we just test the behavior via `executeAnalysisRequest`.
-      
-      // Let's try to test via `executeAnalysisRequest` which handles the error creation internally perhaps?
-      // No, `makeAnalysisRequest` throws it.
-      
-      // Best approach: Monitor `shouldRetryError` logic via black-box testing `executeAnalysisRequest`.
-    });
+    it.todo("should retry on 500 status - requires HttpError to be exported from client.js");
   });
 
   describe("executeAnalysisRequest()", () => {
@@ -111,6 +79,9 @@ describe("PerspectivePrismClient - Retry Logic", () => {
             status: "retrying",
             attemptCount: 1
         }));
+
+        // Cleanup should NOT be called during retry
+        expect(client.cleanupPersistedRequest).not.toHaveBeenCalled();
     });
 
     it("should give up after MAX_RETRIES", async () => {
@@ -128,7 +99,7 @@ describe("PerspectivePrismClient - Retry Logic", () => {
         const result = await client.executeAnalysisRequest("vid123", "http://url", 2);
 
         expect(result.success).toBe(false);
-        expect(result.isRetry).toBeUndefined(); // It's a terminal error
+        expect(result.isRetry).toBeFalsy(); // It's a terminal error, not a retry
         expect(result.originalError).toBe("Failed to fetch");
         
         // Should NOT create another alarm
