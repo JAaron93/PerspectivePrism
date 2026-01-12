@@ -6,7 +6,8 @@ from app.core.config import settings
 from app.models.schemas import (
     VideoRequest, AnalysisResponse, TruthProfile, PerspectiveType,
     JobResponse, JobStatusResponse, JobStatus,
-    AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators
+    AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators,
+    PerspectiveAnalysis
 )
 from app.services.claim_extractor import ClaimExtractor
 from app.services.evidence_retriever import EvidenceRetriever
@@ -86,7 +87,6 @@ async def cleanup_jobs():
 async def startup_event():
     asyncio.create_task(cleanup_jobs())
 
-from app.models.schemas import PerspectiveAnalysis  # if not already imported
 
 def compute_overall_assessment(p_analyses: list[PerspectiveAnalysis], deception_score: float) -> str:
     """

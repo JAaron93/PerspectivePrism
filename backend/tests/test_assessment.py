@@ -12,7 +12,8 @@ def test_high_deception_short_circuit():
     assert compute_overall_assessment(perspectives, 7.0) == "Suspicious/Deceptive"
     assert compute_overall_assessment(perspectives, 8.5) == "Suspicious/Deceptive"
     # Just below threshold should NOT trigger high deception
-    assert compute_overall_assessment(perspectives, 6.9) != "Suspicious/Deceptive"
+    # 6.9 is below high deception (7.0) but above moderate (5.0), so expect "Mixed"
+    assert compute_overall_assessment(perspectives, 6.9) == "Mixed"
 
 def test_support_consensus():
     """Test 'Likely True' when support > refute and >= 2."""
