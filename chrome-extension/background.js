@@ -398,7 +398,10 @@ async function handleGetAnalysisState(message) {
           : Date.now(),
       };
       // Save reconstructed state to session so subsequent calls are faster
-      await setAnalysisState(videoId, cacheState); // We use setAnalysisState helper now to match pattern, though strict checking here isn't as critical as initial flow
+      const saved = await setAnalysisState(videoId, cacheState);
+      if (!saved) {
+        console.debug(`[Perspective Prism] Could not persist reconstructed cache state for ${videoId}`);
+      }
       return { success: true, state: cacheState };
     } else {
       // No cached data, show idle state

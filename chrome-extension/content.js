@@ -946,16 +946,25 @@ function injectButton() {
     analysisButton = createAnalysisButton();
     // Use requestAnimationFrame for smoother injection
     requestAnimationFrame(() => {
-      if (container && document.contains(container)) {
-        container.insertBefore(analysisButton, container.firstChild);
-        console.log(
-          `[Perspective Prism] Button injected using selector: ${usedSelector}`,
+      try {
+        if (container && document.contains(container)) {
+          container.insertBefore(analysisButton, container.firstChild);
+          console.log(
+            `[Perspective Prism] Button injected using selector: ${usedSelector}`,
+          );
+          metrics.successes++;
+          metrics.bySelector[usedSelector] =
+            (metrics.bySelector[usedSelector] || 0) + 1;
+          saveMetrics();
+        } else {
+          metrics.failures++;
+          saveMetrics();
+        }
+      } catch (error) {
+        console.error(
+          `[Perspective Prism] Failed to inject button into ${usedSelector}:`,
+          error,
         );
-        metrics.successes++;
-        metrics.bySelector[usedSelector] =
-          (metrics.bySelector[usedSelector] || 0) + 1;
-        saveMetrics();
-      } else {
         metrics.failures++;
         saveMetrics();
       }

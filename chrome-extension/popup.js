@@ -185,6 +185,10 @@ async function checkCurrentStatus() {
 
     if (response && response.success && response.state) {
       handleAnalysisState(response.state, videoId);
+    } else if (response && response.success && !response.state) {
+      // Edge case: Success reported but no state object returned
+      console.warn("[Perspective Prism] Success reported but state is missing for video:", videoId);
+      showIdleState(videoId);
     } else if (response && !response.success) {
       console.warn("[Perspective Prism] Failed to get analysis state:", response.error);
       showErrorState("Failed to load status", response.error);

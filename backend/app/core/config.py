@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         "amnjngnkcgooljnblcejpmkdhpikcdlp",  # Default local dev ID
     ]
 
+    # Deception Analysis Thresholds
+    DECEPTION_THRESHOLD_HIGH: float = 7.0
+    DECEPTION_THRESHOLD_MODERATE: float = 5.0
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
