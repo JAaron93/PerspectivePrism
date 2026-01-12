@@ -77,6 +77,10 @@ test.describe("Error Handling", () => {
     const cancelButton = panel.locator(".cancel-btn");
     await expect(cancelButton).toBeVisible({ timeout: 5000 });
 
+    // Verify spinner is visible during processing (before cancel)
+    const spinner = panel.locator(".spinner");
+    await expect(spinner).toBeVisible();
+
     // Click cancel
     await cancelButton.click();
 
@@ -84,19 +88,15 @@ test.describe("Error Handling", () => {
     // Current behavior: panel is removed entirely and button reverts to idle state.
     // (No toast/message is displayed - the UI simply clears.)
 
-    // 1. Cancel button should be removed from DOM (panel is removed entirely)
-    await expect(cancelButton).toHaveCount(0, { timeout: 5000 });
-
-    // 2. The entire panel should be removed from the DOM (not just hidden)
-    await expect(panel).toHaveCount(0);
+    // 1. The entire panel should be removed from the DOM (not just hidden)
+    await expect(panel).toHaveCount(0, { timeout: 5000 });
 
     // 3. Analysis button should revert to idle state (text: "Analyze Claims")
     await expect(analysisButton).toBeVisible();
     await expect(analysisButton).toContainText("Analyze Claims");
 
-    // 4. Spinner should be gone - scoped to panel to avoid flakiness from unrelated spinners
-    // Since panel is removed, this confirms no orphaned spinner elements remain
-    await expect(panel.locator(".spinner")).toHaveCount(0);
+    // 4. Spinner should be gone from the page (not orphaned elsewhere)
+    await expect(page.locator(".spinner")).toHaveCount(0);
 
     // TODO: Currently no user-facing "Analysis cancelled" toast/message is shown.
     // Consider adding explicit cancellation feedback (e.g., a temporary toast)
