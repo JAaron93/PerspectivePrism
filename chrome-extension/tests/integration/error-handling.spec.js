@@ -91,11 +91,11 @@ test.describe("Error Handling", () => {
     // 1. The entire panel should be removed from the DOM (not just hidden)
     await expect(panel).toHaveCount(0, { timeout: 5000 });
 
-    // 3. Analysis button should revert to idle state (text: "Analyze Claims")
+    // 2. Analysis button should revert to idle state (text: "Analyze Claims")
     await expect(analysisButton).toBeVisible();
     await expect(analysisButton).toContainText("Analyze Claims");
 
-    // 4. Spinner should be gone from the page (not orphaned elsewhere)
+    // 3. Spinner should be gone from the page (not orphaned elsewhere)
     await expect(page.locator(".spinner")).toHaveCount(0);
 
     // TODO: Currently no user-facing "Analysis cancelled" toast/message is shown.

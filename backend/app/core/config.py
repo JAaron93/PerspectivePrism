@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Perspective Prism MVP"
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden via .env
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-pro"
