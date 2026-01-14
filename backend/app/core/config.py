@@ -77,6 +77,31 @@ class Settings(BaseSettings):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_circuit_breaker_settings(self) -> Self:
+        """Validate circuit breaker configuration values.
+
+        Ensures:
+        - CIRCUIT_BREAKER_FAIL_THRESHOLD is at least 1
+        - CIRCUIT_BREAKER_RESET_TIMEOUT is at least 1
+
+        Raises:
+            ValueError: If settings are non-positive.
+        """
+        threshold = self.CIRCUIT_BREAKER_FAIL_THRESHOLD
+        timeout = self.CIRCUIT_BREAKER_RESET_TIMEOUT
+
+        if threshold < 1:
+            raise ValueError(
+                f"CIRCUIT_BREAKER_FAIL_THRESHOLD must be at least 1, got {threshold}"
+            )
+        if timeout < 1:
+            raise ValueError(
+                f"CIRCUIT_BREAKER_RESET_TIMEOUT must be at least 1, got {timeout}"
+            )
+
+        return self
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:

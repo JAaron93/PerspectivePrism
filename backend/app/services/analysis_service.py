@@ -1,6 +1,8 @@
 import json
 import logging
 import time
+import asyncio
+
 from typing import Dict, List, Optional
 
 
@@ -65,6 +67,9 @@ class AnalysisService:
             self.cb_failures = 0
             self.cb_last_failure_time = 0
             self.cb_open = False
+            self.cb_half_open = False
+            self._cb_lock = asyncio.Lock()
+
 
 
         elif self.provider == "gemini":
@@ -103,41 +108,59 @@ class AnalysisService:
         # 1. Check Circuit Breaker
         if self.cb_open:
             if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
-                logger.info("Circuit breaker reset timeout expired. Testing primary connection...")
-                self.cb_open = False  # Half-open (allow one request to try)
-                self.cb_failures = 0
+                logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
+                self.cb_open = False
+                self.cb_half_open = True
             else:
                 if self.backup_client:
                     logger.warning("Circuit breaker OPEN. Using backup provider.")
                     return await self._call_backup_provider(messages, response_format)
                 else:
                     raise Exception("Circuit breaker OPEN and no backup provider configured.")
+        
+        # 2. Check Half-Open State
+        if self.cb_half_open:
+            logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+            # We allow this request to proceed to the try/except block below.
 
-        # 2. Try Primary Provider
+        # 3. Try Primary Provider (Closed or Half-Open)
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 response_format=response_format,
             )
-            # Success: Reset failures
-            if self.cb_failures > 0:
+            
+            # Primary Success Logic
+            if self.cb_half_open:
+                logger.info("Probe request successful. Closing circuit breaker.")
+                self.cb_half_open = False
+                self.cb_failures = 0
+            elif self.cb_failures > 0:
+                # If we were closed but had some failures, reset them on success
                 logger.info("Primary provider recovered. Resetting failure count.")
                 self.cb_failures = 0
             
             return response.choices[0].message.content
 
         except Exception as e:
-            # 3. Handle Failure
-            self.cb_failures += 1
+            # 4. Handle Failure
             self.cb_last_failure_time = time.time()
-            logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
-
-            if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
+            
+            if self.cb_half_open:
+                logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
                 self.cb_open = True
-                logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
+                self.cb_half_open = False
+                # failures count remains high (or could be incremented)
+            else:
+                self.cb_failures += 1
+                logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
 
-            # 4. Fallback
+                if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
+                    self.cb_open = True
+                    logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
+
+            # 5. Fallback
             if self.backup_client:
                 logger.info("Falling back to backup provider...")
                 return await self._call_backup_provider(messages, response_format)

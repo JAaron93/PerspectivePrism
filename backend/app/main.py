@@ -62,7 +62,7 @@ def health_check():
 async def health_check_llm():
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
-        "primary_provider": "openai",
+        "primary_provider": settings.LLM_PROVIDER,  # or similar config key
         "circuit_breaker_open": analysis_service.cb_open,
         "features": {
             "backup_configured": analysis_service.backup_client is not None,
@@ -73,7 +73,10 @@ async def health_check_llm():
     # Analyze effective status
     if analysis_service.cb_open:
         status["status"] = "degraded"
-        status["message"] = "Circuit breaker OPEN. Using backup provider."
+        if analysis_service.backup_client is not None:
+            status["message"] = "Circuit breaker OPEN. Using backup provider."
+        else:
+            status["message"] = "Circuit breaker OPEN. No backup provider available."
     elif analysis_service.cb_failures > 0:
         status["status"] = "warning"
         status["message"] = f"Unstable connection. {analysis_service.cb_failures} recent failures."

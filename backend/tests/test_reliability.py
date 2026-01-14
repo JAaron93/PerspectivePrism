@@ -33,9 +33,9 @@ def analysis_service_mock():
 def create_mock_response(content: str):
     """Helper to create a proper mock response structure."""
     mock_resp = MagicMock()
-    message = MagicMock()
-    message.message.content = content
-    mock_resp.choices = [message]
+    choice = MagicMock()
+    choice.message.content = content
+    mock_resp.choices = [choice]
     return mock_resp
 
 @pytest.mark.asyncio
@@ -86,14 +86,14 @@ async def test_circuit_breaker_trips(analysis_service_mock):
     assert service.backup_client.chat.completions.create.call_count == 4
 
 @pytest.mark.asyncio
-async def test_circuit_breaker_reset(analysis_service_mock):
-    """Test that circuit breaker resets after timeout."""
+async def test_circuit_breaker_half_open_success(analysis_service_mock):
+    """Test transition from Open -> Half-Open -> Closed on success."""
     service = analysis_service_mock
     service.cb_open = True
     service.cb_failures = 3
     service.cb_last_failure_time = time.time() - 20 # 20 seconds ago (Timeout is 10)
     
-    # Setup Primary to SUCCEED now
+    # Setup Primary to SUCCEED now (Probe succeeds)
     service.client.chat.completions.create.side_effect = None
     service.client.chat.completions.create.return_value = create_mock_response('{"status": "recovered"}')
     
@@ -101,9 +101,39 @@ async def test_circuit_breaker_reset(analysis_service_mock):
     result = await service._call_llm("test")
     
     assert result == '{"status": "recovered"}'
-    # Circuit should close and failures reset
+    
+    # Verify State: Should be CLOSED and failures reset
     assert service.cb_open is False
+    assert service.cb_half_open is False
     assert service.cb_failures == 0
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_half_open_failure(analysis_service_mock):
+    """Test transition from Open -> Half-Open -> Open on failure."""
+    service = analysis_service_mock
+    service.cb_open = True
+    service.cb_failures = 3
+    service.cb_last_failure_time = time.time() - 20
+    
+    # Setup Primary to FAIL (Probe fails)
+    service.client.chat.completions.create.side_effect = Exception("Still Broken")
+    
+    # Setup Backup to succeed
+    service.backup_client.chat.completions.create.return_value = create_mock_response('{"status": "backup"}')
+    
+    # Execute
+    result = await service._call_llm("test")
+    
+    assert result == '{"status": "backup"}'
+    
+    # Verify State: Should be OPEN again
+    assert service.cb_open is True
+    assert service.cb_half_open is False
+    # Failures might remain high
+    assert service.cb_failures >= 3 
+    # Just to be sure, verify last_failure_time updated (approximately now)
+    assert abs(service.cb_last_failure_time - time.time()) < 1.0
+
 
 @pytest.mark.asyncio
 async def test_analyze_perspective_uses_fallback(analysis_service_mock):
@@ -145,6 +175,7 @@ async def test_health_check_endpoints():
         # We need to access the actual global instance used by 'main'
         from app.main import analysis_service
         original_cb_state = analysis_service.cb_open
+        original_backup_client = analysis_service.backup_client
         
         try:
             analysis_service.cb_open = True
@@ -157,3 +188,4 @@ async def test_health_check_endpoints():
             
         finally:
             analysis_service.cb_open = original_cb_state
+            analysis_service.backup_client = original_backup_client

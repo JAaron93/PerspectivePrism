@@ -22,6 +22,8 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
 3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
+    *   **AI Accelerator**: Routes requests through a high-performance gateway (Tensorblock/Hyperbolic) for sub-150ms latency.
+    *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to OpenAI to ensure resilience against outages.
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
 ## 🦾 Essential Tools and Utilities
@@ -95,7 +97,9 @@ This script measures:
 ## 🛠️ Tech Stack
 
 - **Backend**: FastAPI, Python 3.13
-- **AI/LLM**: OpenAI API, Google Gemini API (Bonus)
+- **AI/LLM**:
+    - **Primary**: Hyperbolic / Tensorblock (Llama 3, GPT-OSS) for high-speed inference.
+    - **Backup**: OpenAI API (GPT-4o) for reliability.
 - **Search**: Google Custom Search API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Security**: Custom input sanitizer with pattern detection
@@ -143,7 +147,10 @@ This script measures:
    ```
 
    Required variables:
-   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `OPENAI_API_KEY`: Key for PRIMARY provider (Hyperbolic/Tensorblock)
+   - `OPENAI_BASE_URL`: Base URL for PRIMARY provider (e.g., `https://api.hyperbolic.xyz/v1`)
+   - `OPENAI_BACKUP_API_KEY`: Key for BACKUP provider (OpenAI)
+   - `OPENAI_BACKUP_BASE_URL`: Base URL for BACKUP provider (default: `https://api.openai.com/v1`)
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)
@@ -217,8 +224,8 @@ cd backend
 # Run all tests
 pytest
 
-# Run specific security tests
-pytest tests/test_input_sanitizer.py
+# Run specific reliability tests
+pytest tests/test_reliability.py
 ```
 
 ## 🔧 Extended Troubleshooting

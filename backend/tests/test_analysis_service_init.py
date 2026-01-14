@@ -44,6 +44,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.OPENAI_MODEL = "gpt-3.5-turbo"
             mock_settings.LLM_PROVIDER = "openai"
             mock_settings.OPENAI_BASE_URL = "https://api.openai.com/v1"
+            mock_settings.OPENAI_BACKUP_API_KEY = ""
 
 
             with pytest.raises(ValueError) as exc_info:
@@ -74,6 +75,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.OPENAI_MODEL = "gpt-3.5-turbo"
             mock_settings.LLM_PROVIDER = "openai"
             mock_settings.OPENAI_BASE_URL = "https://api.openai.com/v1"
+            mock_settings.OPENAI_BACKUP_API_KEY = ""
 
 
             with pytest.raises(ValueError) as exc_info:
