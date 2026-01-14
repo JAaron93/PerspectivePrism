@@ -58,6 +58,31 @@ def read_root():
 def health_check():
     return {"status": "healthy"}
 
+@app.get("/health/llm")
+async def health_check_llm():
+    """Checks the status of the configured LLM provider and circuit breaker."""
+    status = {
+        "primary_provider": "openai",
+        "circuit_breaker_open": analysis_service.cb_open,
+        "features": {
+            "backup_configured": analysis_service.backup_client is not None,
+            "failures_count": analysis_service.cb_failures,
+        }
+    }
+    
+    # Analyze effective status
+    if analysis_service.cb_open:
+        status["status"] = "degraded"
+        status["message"] = "Circuit breaker OPEN. Using backup provider."
+    elif analysis_service.cb_failures > 0:
+        status["status"] = "warning"
+        status["message"] = f"Unstable connection. {analysis_service.cb_failures} recent failures."
+    else:
+        status["status"] = "healthy"
+        status["message"] = "Primary provider operational."
+        
+    return status
+
 async def cleanup_jobs():
     """
     Background task to clean up old jobs.

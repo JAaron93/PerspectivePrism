@@ -1,6 +1,8 @@
 import json
 import logging
-from typing import Dict, List
+import time
+from typing import Dict, List, Optional
+
 
 from app.core.config import settings
 from app.models.schemas import (
@@ -49,6 +51,22 @@ class AnalysisService:
             )
             self.model = settings.OPENAI_MODEL
 
+            # Initialize Backup Client if configured
+            self.backup_client = None
+            if settings.OPENAI_BACKUP_API_KEY:
+                self.backup_client = AsyncOpenAI(
+                    api_key=settings.OPENAI_BACKUP_API_KEY,
+                    base_url=settings.OPENAI_BACKUP_BASE_URL
+                )
+                self.backup_model = settings.OPENAI_BACKUP_MODEL
+                logger.info("Backup LLM client initialized.")
+
+            # Circuit Breaker State
+            self.cb_failures = 0
+            self.cb_last_failure_time = 0
+            self.cb_open = False
+
+
         elif self.provider == "gemini":
             if not GEMINI_AVAILABLE:
                 raise ValueError(
@@ -78,12 +96,78 @@ class AnalysisService:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
+    async def _execute_with_fallback(self, messages: list, response_format: dict = None) -> str:
+        """
+        Executes LLM call with Circuit Breaker and Fallback logic.
+        """
+        # 1. Check Circuit Breaker
+        if self.cb_open:
+            if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
+                logger.info("Circuit breaker reset timeout expired. Testing primary connection...")
+                self.cb_open = False  # Half-open (allow one request to try)
+                self.cb_failures = 0
+            else:
+                if self.backup_client:
+                    logger.warning("Circuit breaker OPEN. Using backup provider.")
+                    return await self._call_backup_provider(messages, response_format)
+                else:
+                    raise Exception("Circuit breaker OPEN and no backup provider configured.")
+
+        # 2. Try Primary Provider
+        try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                response_format={"type": "json_object"},
+                response_format=response_format,
+            )
+            # Success: Reset failures
+            if self.cb_failures > 0:
+                logger.info("Primary provider recovered. Resetting failure count.")
+                self.cb_failures = 0
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            # 3. Handle Failure
+            self.cb_failures += 1
+            self.cb_last_failure_time = time.time()
+            logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
+
+            if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
+                self.cb_open = True
+                logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
+
+            # 4. Fallback
+            if self.backup_client:
+                logger.info("Falling back to backup provider...")
+                return await self._call_backup_provider(messages, response_format)
+            
+            raise e  # Propagate if no backup
+
+    async def _call_backup_provider(self, messages: list, response_format: dict = None) -> str:
+        try:
+            response = await self.backup_client.chat.completions.create(
+                model=self.backup_model,
+                messages=messages,
+                response_format=response_format,
             )
             return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Backup provider ALSO failed: {str(e)}")
+            raise e
+
+    async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
+        """Provider-agnostic LLM call that returns JSON string."""
+        if self.provider == "openai":
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+
+            return await self._execute_with_fallback(
+                messages=messages,
+                response_format={"type": "json_object"}
+            )
 
         elif self.provider == "gemini":
             # Gemini API is synchronous, but we're in an async context

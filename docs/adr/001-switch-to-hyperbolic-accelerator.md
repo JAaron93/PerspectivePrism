@@ -37,6 +37,23 @@ We will adopt **Tensorblock** as a unified LLM API gateway layer.
 - **Infrastructure Dependency**: Introduces a dependency on a running Tensorblock instance (or managed service).
 - **Complexity**: Requires managing an additional configuration layer (Tensorblock routing rules).
 - **Code Refactor**: Requires updating `AnalysisService` to support customizable `base_url`.
+- **Reliability Risks**: A gateway outage could bring down the entire analysis pipeline if not handled correctly.
+
+## Reliability Requirements
+To mitigate the risks of adding a gateway layer, the following mechanisms are **mandatory**:
+
+1.  **Fault Tolerance**:
+    - `AnalysisService` must detect gateway failures (timeouts, 503s, connection refused).
+    - **Circuit Breaker**: Implement a circuit breaker that trips after a configurable threshold of failures, temporarily stopping requests to the gateway.
+    
+2.  **Fallback Strategy**:
+    - **Direct-to-OpenAI Fallback**: If the Tensorblock gateway is unreachable or returns non-2xx errors, the system must automatically fall back to the standard OpenAI API (using `api.openai.com` and a backup `OPENAI_API_KEY`).
+    - This requires storing **both** the Tensorblock/Hyperbolic key and a standard OpenAI key in the configuration.
+
+3.  **Observability**:
+    - **Health Checks**: Implement a `/health` probe that checks connectivity to the configured LLM provider.
+    - **Metrics**: Track gateway latency, error rates, and circuit breaker state.
+    - **Alerting**: Trigger alerts if the fallback mode is activated or if error rates exceed 5%.
 
 ## Implementation Plan
 1.  **Backend Config**: Update `backend/app/core/config.py` to add `OPENAI_BASE_URL` (defaulting to standard OpenAI, but overridable).
@@ -44,4 +61,8 @@ We will adopt **Tensorblock** as a unified LLM API gateway layer.
 3.  **Deployment**: Configure the production environment variables:
     - `OPENAI_BASE_URL`: `https://your-tensorblock-gateway/v1` (or direct provider if Tensorblock is not yet deployed).
     - `OPENAI_API_KEY`: Tensorblock API key.
-    - `OPENAI_MODEL`: `gpt-oss-120b` (or the unified alias defined in Tensorblock).
+4.  **Reliability Implementation**:
+    - Implement retry logic with exponential backoff for transient errors.
+    - Add circuit breaker pattern to `AnalysisService` interactions.
+    - Implement fallback logic: `try Tensorblock -> catch Error -> use OpenAI Backup`.
+    - Expose metrics for gateway health.
