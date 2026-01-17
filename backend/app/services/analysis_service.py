@@ -3,7 +3,7 @@ import logging
 import time
 import asyncio
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable, Awaitable
 
 
 from app.core.config import settings
@@ -39,28 +39,28 @@ class AnalysisService:
         self.provider = settings.LLM_PROVIDER.lower()
 
         if self.provider == "openai":
-            # Validate that OpenAI API key is present and non-empty
-            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY.strip() == "":
+            # Validate that LLM API key is present and non-empty
+            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
                 raise ValueError(
-                    "OPENAI_API_KEY is not configured. Please set it in your .env file. "
-                    "Example: OPENAI_API_KEY=sk-..."
+                    "LLM_API_KEY is not configured. Please set it in your .env file. "
+                    "Example: LLM_API_KEY=sk-..."
                 )
 
             # Initialize client only after validation
             self.client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL
+                api_key=settings.LLM_API_KEY,
+                base_url=settings.LLM_BASE_URL
             )
-            self.model = settings.OPENAI_MODEL
+            self.model = settings.LLM_MODEL
 
             # Initialize Backup Client if configured
             self.backup_client = None
-            if settings.OPENAI_BACKUP_API_KEY:
+            if settings.BACKUP_LLM_API_KEY:
                 self.backup_client = AsyncOpenAI(
-                    api_key=settings.OPENAI_BACKUP_API_KEY,
-                    base_url=settings.OPENAI_BACKUP_BASE_URL
+                    api_key=settings.BACKUP_LLM_API_KEY,
+                    base_url=settings.BACKUP_LLM_BASE_URL
                 )
-                self.backup_model = settings.OPENAI_BACKUP_MODEL
+                self.backup_model = settings.BACKUP_LLM_MODEL
                 logger.info("Backup LLM client initialized.")
 
             # Circuit Breaker State
@@ -101,67 +101,91 @@ class AnalysisService:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-    async def _execute_with_fallback(self, messages: list, response_format: dict = None) -> str:
+    async def _execute_with_fallback(self, messages: list, response_format: dict = None, primary_callable: Optional[Callable[[], Awaitable[str]]] = None) -> str:
         """
         Executes LLM call with Circuit Breaker and Fallback logic.
         """
-        # 1. Check Circuit Breaker
-        if self.cb_open:
-            if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
-                logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
-                self.cb_open = False
-                self.cb_half_open = True
-            else:
-                if self.backup_client:
-                    logger.warning("Circuit breaker OPEN. Using backup provider.")
-                    return await self._call_backup_provider(messages, response_format)
-                else:
-                    raise Exception("Circuit breaker OPEN and no backup provider configured.")
+        # 1. Check Circuit Breaker State (Locked)
+        use_backup = False
         
-        # 2. Check Half-Open State
-        if self.cb_half_open:
-            logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
-            # We allow this request to proceed to the try/except block below.
+        async with self._cb_lock:
+            # Check if OPEN
+            if self.cb_open:
+                # Check for RESET timeout
+                if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
+                    logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
+                    self.cb_open = False
+                    self.cb_half_open = True
+                    # Allowed to proceed as probe
+                else:
+                    # Still OPEN and not ready to reset
+                    use_backup = True
 
-        # 3. Try Primary Provider (Closed or Half-Open)
+            # If HALF-OPEN, we allow the request (it's the probe)
+            elif self.cb_half_open:
+                logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+
+        # 2. Executing Action (Unlocked IO)
+        if use_backup:
+            if self.backup_client:
+                logger.warning("Circuit breaker OPEN. Using backup provider.")
+                return await self._call_backup_provider(messages, response_format)
+            else:
+                raise Exception("Circuit breaker OPEN and no backup provider configured.")
+
+        # 3. Try Primary Provider (Closed or Half-Open Probe)
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                response_format=response_format,
-            )
+            content = ""
+            if primary_callable:
+                content = await primary_callable()
+            else:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    response_format=response_format,
+                )
+                content = response.choices[0].message.content
             
-            # Primary Success Logic
-            if self.cb_half_open:
-                logger.info("Probe request successful. Closing circuit breaker.")
-                self.cb_half_open = False
-                self.cb_failures = 0
-            elif self.cb_failures > 0:
-                # If we were closed but had some failures, reset them on success
-                logger.info("Primary provider recovered. Resetting failure count.")
-                self.cb_failures = 0
+            # 4. Primary Success - Update State (Locked)
+            async with self._cb_lock:
+                if self.cb_half_open:
+                    logger.info("Probe request successful. Closing circuit breaker.")
+                    self.cb_half_open = False
+                    self.cb_failures = 0
+                elif self.cb_failures > 0:
+                    # If we were closed but had some failures, reset them on success
+                    logger.info("Primary provider recovered. Resetting failure count.")
+                    self.cb_failures = 0
             
-            return response.choices[0].message.content
+            return content
 
         except Exception as e:
-            # 4. Handle Failure
-            self.cb_last_failure_time = time.time()
+            # 5. Handle Failure - Update State (Locked)
+            current_use_backup = False
             
-            if self.cb_half_open:
-                logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
-                self.cb_open = True
-                self.cb_half_open = False
-                # failures count remains high (or could be incremented)
-            else:
-                self.cb_failures += 1
-                logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
-
-                if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
+            async with self._cb_lock:
+                self.cb_last_failure_time = time.time()
+                
+                if self.cb_half_open:
+                    logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
                     self.cb_open = True
-                    logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
+                    self.cb_half_open = False
+                    # failures count remains high (or could be incremented)
+                else:
+                    self.cb_failures += 1
+                    logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
 
-            # 5. Fallback
-            if self.backup_client:
+                    if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
+                        self.cb_open = True
+                        logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
+                
+                # Check if we should fallback NOW (if we just tripped it or it was already open/failed)
+                # If we are here, primary failed. If we have backup, we should use it.
+                if self.backup_client:
+                    current_use_backup = True
+
+            # 6. Fallback (Unlocked IO)
+            if current_use_backup:
                 logger.info("Falling back to backup provider...")
                 return await self._call_backup_provider(messages, response_format)
             
@@ -193,21 +217,34 @@ class AnalysisService:
             )
 
         elif self.provider == "gemini":
-            # Gemini API is synchronous, but we're in an async context
-            # We'll use asyncio to run it in a thread pool
-            import asyncio
+            # Create messages for backup provider compatibility
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
 
-            def _sync_call():
-                model = genai.GenerativeModel(self.model)
-                full_prompt = prompt
-                if system_prompt:
-                    full_prompt = f"{system_prompt}\n\n{prompt}"
+            async def primary_gemini_call() -> str:
+                # Gemini API is synchronous, but we're in an async context
+                # We'll use asyncio to run it in a thread pool
+                import asyncio
+                
+                def _sync_call():
+                    model = genai.GenerativeModel(self.model)
+                    full_prompt = prompt
+                    if system_prompt:
+                        full_prompt = f"{system_prompt}\n\n{prompt}"
 
-                response = model.generate_content(full_prompt)
-                return response.text
+                    response = model.generate_content(full_prompt)
+                    return response.text
 
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(None, _sync_call)
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(None, _sync_call)
+
+            return await self._execute_with_fallback(
+                messages=messages,
+                response_format={"type": "json_object"},
+                primary_callable=primary_gemini_call
+            )
 
     async def analyze_perspective(
         self, claim: Claim, perspective: PerspectiveType, evidence_list: List[Evidence]

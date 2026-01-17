@@ -9,14 +9,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     PROJECT_NAME: str = "Perspective Prism MVP"
-    OPENAI_API_KEY: str = ""
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden via .env
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden via .env
     
     # Backup / Fallback Configuration
-    OPENAI_BACKUP_API_KEY: str = ""
-    OPENAI_BACKUP_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_BACKUP_MODEL: str = "gpt-4o"
+    BACKUP_LLM_API_KEY: str = ""
+    BACKUP_LLM_BASE_URL: str = "https://api.openai.com/v1"
+    BACKUP_LLM_MODEL: str = "gpt-4o"
     
     # Reliability Settings
     CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 5

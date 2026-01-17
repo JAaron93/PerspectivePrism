@@ -139,18 +139,30 @@ This script measures:
    pip install -r requirements.txt
    ```
 
-4. Configure environment variables:
-   Copy `.env.example` to `.env` and fill in your keys:
+### 3. Environment Setup
 
-   ```bash
-   cp .env.example .env
-   ```
+Copy `.env.example` to `.env` in the `backend/` directory:
 
-   Required variables:
-   - `OPENAI_API_KEY`: Key for PRIMARY provider (Hyperbolic/Tensorblock)
-   - `OPENAI_BASE_URL`: Base URL for PRIMARY provider (e.g., `https://api.hyperbolic.xyz/v1`)
-   - `OPENAI_BACKUP_API_KEY`: Key for BACKUP provider (OpenAI)
-   - `OPENAI_BACKUP_BASE_URL`: Base URL for BACKUP provider (default: `https://api.openai.com/v1`)
+```bash
+cp backend/.env.example backend/.env
+```
+
+To run the full analysis, you need to configure your LLM provider in `.env`. The system supports OpenAI-compatible APIs (like Hyperbolic, Tensorblock, or OpenAI itself) and Google Gemini.
+
+#### **Option A: using OpenAI-compatible provider (Hyperbolic, Tensorblock, etc.)**
+```env
+LLM_PROVIDER=openai
+LLM_API_KEY=your_api_key_here
+LLM_BASE_URL=https://api.hyperbolic.xyz/v1   # or https://api.openai.com/v1
+LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
+```
+
+#### **Option B: Using Google Gemini**
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-pro
+```
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)

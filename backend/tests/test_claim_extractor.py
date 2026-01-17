@@ -9,8 +9,8 @@ from app.services.claim_extractor import ClaimExtractor
 async def test_claim_extraction_with_mocked_llm():
     # Mock settings to avoid API key validation error during init
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.OPENAI_API_KEY = "sk-mock-key"
-        mock_settings.OPENAI_MODEL = "gpt-3.5-turbo"
+        mock_settings.LLM_API_KEY = "sk-mock-key"
+        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
         mock_settings.LLM_PROVIDER = "openai"
 
         extractor = ClaimExtractor()
@@ -53,8 +53,8 @@ async def test_claim_extraction_with_mocked_llm():
 async def test_claim_extraction_error_handling():
     # Mock settings
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.OPENAI_API_KEY = "sk-mock-key"
-        mock_settings.OPENAI_MODEL = "gpt-3.5-turbo"
+        mock_settings.LLM_API_KEY = "sk-mock-key"
+        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
         mock_settings.LLM_PROVIDER = "openai"
 
         extractor = ClaimExtractor()

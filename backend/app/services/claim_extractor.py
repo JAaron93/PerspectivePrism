@@ -24,12 +24,12 @@ class ClaimExtractor:
         self.provider = settings.LLM_PROVIDER.lower()
 
         if self.provider == "openai":
-            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY.strip() == "":
+            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
                 raise ValueError(
-                    "OPENAI_API_KEY is not configured. Please set it in your .env file."
+                    "LLM_API_KEY is not configured. Please set it in your .env file."
                 )
-            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            self.model = settings.OPENAI_MODEL
+            self.client = AsyncOpenAI(api_key=settings.LLM_API_KEY)
+            self.model = settings.LLM_MODEL
 
         elif self.provider == "gemini":
             if not GEMINI_AVAILABLE:

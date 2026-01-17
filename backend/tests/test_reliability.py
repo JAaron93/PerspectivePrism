@@ -12,12 +12,12 @@ def analysis_service_mock():
     with patch("app.services.analysis_service.settings") as mock_settings:
         # Configure settings to enable backup
         mock_settings.LLM_PROVIDER = "openai"
-        mock_settings.OPENAI_API_KEY = "sk-primary"
-        mock_settings.OPENAI_BASE_URL = "https://primary.api"
-        mock_settings.OPENAI_MODEL = "gpt-primary"
-        mock_settings.OPENAI_BACKUP_API_KEY = "sk-backup"
-        mock_settings.OPENAI_BACKUP_BASE_URL = "https://backup.api"
-        mock_settings.OPENAI_BACKUP_MODEL = "gpt-backup"
+        mock_settings.LLM_API_KEY = "sk-primary"
+        mock_settings.LLM_BASE_URL = "https://primary.api"
+        mock_settings.LLM_MODEL = "gpt-primary"
+        mock_settings.BACKUP_LLM_API_KEY = "sk-backup"
+        mock_settings.BACKUP_LLM_BASE_URL = "https://backup.api"
+        mock_settings.BACKUP_LLM_MODEL = "gpt-backup"
         mock_settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
         mock_settings.CIRCUIT_BREAKER_RESET_TIMEOUT = 10
         mock_settings.GEMINI_API_KEY = "fake_key"  # prevent verification error
