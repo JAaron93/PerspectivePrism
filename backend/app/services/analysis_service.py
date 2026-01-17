@@ -1,7 +1,7 @@
+import asyncio
 import json
 import logging
 import time
-import asyncio
 
 from typing import Dict, List, Optional, Callable, Awaitable
 
@@ -24,12 +24,7 @@ from app.utils.input_sanitizer import (
 )
 from openai import AsyncOpenAI
 
-try:
-    import google.generativeai as genai
 
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -72,25 +67,9 @@ class AnalysisService:
 
 
 
-        elif self.provider == "gemini":
-            if not GEMINI_AVAILABLE:
-                raise ValueError(
-                    "Gemini provider selected but google-generativeai is not installed. "
-                    "Run: pip install google-generativeai"
-                )
-
-            if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.strip() == "":
-                raise ValueError(
-                    "GEMINI_API_KEY is not configured. Please set it in your .env file. "
-                    "Example: GEMINI_API_KEY=..."
-                )
-
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model = settings.GEMINI_MODEL
-            self.client = None  # Gemini uses a different API pattern
         else:
             raise ValueError(
-                f"Unsupported LLM_PROVIDER: {self.provider}. Use 'openai' or 'gemini'"
+                f"Unsupported LLM_PROVIDER: {self.provider}. Use 'openai'"
             )
 
     async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
@@ -216,35 +195,7 @@ class AnalysisService:
                 response_format={"type": "json_object"}
             )
 
-        elif self.provider == "gemini":
-            # Create messages for backup provider compatibility
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
 
-            async def primary_gemini_call() -> str:
-                # Gemini API is synchronous, but we're in an async context
-                # We'll use asyncio to run it in a thread pool
-                import asyncio
-                
-                def _sync_call():
-                    model = genai.GenerativeModel(self.model)
-                    full_prompt = prompt
-                    if system_prompt:
-                        full_prompt = f"{system_prompt}\n\n{prompt}"
-
-                    response = model.generate_content(full_prompt)
-                    return response.text
-
-                loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(None, _sync_call)
-
-            return await self._execute_with_fallback(
-                messages=messages,
-                response_format={"type": "json_object"},
-                primary_callable=primary_gemini_call
-            )
 
     async def analyze_perspective(
         self, claim: Claim, perspective: PerspectiveType, evidence_list: List[Evidence]

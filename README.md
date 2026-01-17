@@ -157,12 +157,7 @@ LLM_BASE_URL=https://api.hyperbolic.xyz/v1   # or https://api.openai.com/v1
 LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
 ```
 
-#### **Option B: Using Google Gemini**
-```env
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_key
-GEMINI_MODEL=gemini-pro
-```
+
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)

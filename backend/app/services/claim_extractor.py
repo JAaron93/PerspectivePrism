@@ -9,12 +9,7 @@ from app.utils.input_sanitizer import wrap_user_data
 from openai import AsyncOpenAI
 from youtube_transcript_api import YouTubeTranscriptApi
 
-try:
-    import google.generativeai as genai
 
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -31,18 +26,6 @@ class ClaimExtractor:
             self.client = AsyncOpenAI(api_key=settings.LLM_API_KEY)
             self.model = settings.LLM_MODEL
 
-        elif self.provider == "gemini":
-            if not GEMINI_AVAILABLE:
-                raise ValueError(
-                    "Gemini provider selected but google-generativeai is not installed."
-                )
-            if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.strip() == "":
-                raise ValueError(
-                    "GEMINI_API_KEY is not configured. Please set it in your .env file."
-                )
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model = settings.GEMINI_MODEL
-            self.client = None
         else:
             raise ValueError(f"Unsupported LLM_PROVIDER: {self.provider}")
 
@@ -62,20 +45,7 @@ class ClaimExtractor:
             )
             return response.choices[0].message.content
 
-        elif self.provider == "gemini":
-            import asyncio
 
-            def _sync_call():
-                model = genai.GenerativeModel(self.model)
-                full_prompt = prompt
-                if system_prompt:
-                    full_prompt = f"{system_prompt}\n\n{prompt}"
-
-                response = model.generate_content(full_prompt)
-                return response.text
-
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(None, _sync_call)
 
     def extract_video_id(self, url: str) -> str:
         """

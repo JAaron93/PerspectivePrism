@@ -22,9 +22,7 @@ class Settings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 5
     CIRCUIT_BREAKER_RESET_TIMEOUT: int = 60  # seconds
 
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-pro"
-    LLM_PROVIDER: str = "openai"  # "openai" or "gemini"
+    LLM_PROVIDER: str = "openai"
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
     GOOGLE_SEARCH_TIMEOUT: float = (

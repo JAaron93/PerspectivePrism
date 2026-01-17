@@ -20,7 +20,7 @@ def analysis_service_mock():
         mock_settings.BACKUP_LLM_MODEL = "gpt-backup"
         mock_settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
         mock_settings.CIRCUIT_BREAKER_RESET_TIMEOUT = 10
-        mock_settings.GEMINI_API_KEY = "fake_key"  # prevent verification error
+
 
         service = AnalysisService()
         
@@ -159,7 +159,7 @@ async def test_analyze_perspective_uses_fallback(analysis_service_mock):
     assert result.explanation == "Backup works"
 
 @pytest.mark.asyncio
-async def test_health_check_endpoints():
+async def test_health_check_endpoints(monkeypatch):
     """Test the /health/llm endpoint."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -172,20 +172,13 @@ async def test_health_check_endpoints():
         assert data["circuit_breaker_open"] is False
         
         # 2. Simulate Degraded State (Open Circuit)
-        # We need to access the actual global instance used by 'main'
+        # Use monkeypatch to safely set attributes on the global analysis_service
+        # State is automatically restored after the test
         from app.main import analysis_service
-        original_cb_state = analysis_service.cb_open
-        original_backup_client = analysis_service.backup_client
+        monkeypatch.setattr(analysis_service, "cb_open", True)
+        monkeypatch.setattr(analysis_service, "backup_client", MagicMock())
         
-        try:
-            analysis_service.cb_open = True
-            analysis_service.backup_client = MagicMock() # Ensure it looks backed up
-            
-            response = await ac.get("/health/llm")
-            data = response.json()
-            assert data["status"] == "degraded"
-            assert "Circuit breaker OPEN" in data["message"]
-            
-        finally:
-            analysis_service.cb_open = original_cb_state
-            analysis_service.backup_client = original_backup_client
+        response = await ac.get("/health/llm")
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert "Circuit breaker OPEN" in data["message"]
