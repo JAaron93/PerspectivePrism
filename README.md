@@ -56,11 +56,6 @@ I used Perspective Prism to analyze claims from a political commentary video, di
 
 **Future Enhancements**: With additional development time, I plan to apply comprehensive quality assurance to the Chrome extension, including:
 
-- **Advanced Accessibility Features**
-  - Arrow key navigation for claims (Up/Down to navigate, Left/Right to expand/collapse)
-  - ClaimNavigator class with screen reader announcements
-  - ARIA live regions for dynamic state updates
-  - Home/End key support for first/last claim navigation
 
 - **Comprehensive Testing Strategy**
   - CI/CD pipeline with automated unit and integration tests on every commit
@@ -308,6 +303,10 @@ The project is organized as follows:
     - `metrics-tracker.js`: Performance metrics collection (cache hits, API latency)
     - `memory-monitor.js`: Memory profiling for extension performance
     - `panel-styles.js`: Shadow DOM styling for analysis panel (dark/light theme support)
+  - **Accessibility**:
+    - `ClaimNavigator` class for keyboard navigation (Arrow keys, Home/End)
+    - Screen reader announcements (ARIA live regions)
+    - Roving tabindex focus management
   - **Testing Infrastructure**:
     - `tests/unit/`: Vitest unit tests for cache, config, and API client
     - `tests/integration/`: Integration tests for end-to-end flows

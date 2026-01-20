@@ -53,8 +53,23 @@ The frontend is located in the `frontend/` directory. It uses React 19, TypeScri
 The extension is located in `chrome-extension/`.
 
 *   **Stack**: Vanilla JavaScript, HTML, CSS.
-*   **Development**: No build step required.
+*   **Testing**: Vitest + JSDOM for unit tests.
 *   **Installation**: Load the `chrome-extension` directory as an "Unpacked extension" in Chrome's Developer Mode.
+
+## Setup
+1.  Navigate to `chrome-extension/`.
+2.  Install dependencies: `npm install`.
+
+## Common Commands
+*   **Run Tests**: `npm test` (Runs Vitest unit tests).
+*   **Run Coverage**: `npm run test:coverage`.
+*   **Run Integration**: `npm run test:integration` (Playwright).
+
+## Key Files
+*   `content.js`: Main content script for UI injection and DOM manipulation.
+*   `claim-navigator.js`: Handles keyboard navigation and accessibility (ClaimNavigator class).
+*   `background.js`: Service worker for API coordination.
+*   `manifest.json`: Extension configuration.
 
 # System Architecture
 

@@ -58,14 +58,15 @@ class ClaimNavigator {
     if (this._listeners) {
       this._listeners.forEach((handlers, element) => {
         if (element && handlers) {
-            element.removeEventListener('keydown', handlers.onKeyDown);
-            element.removeEventListener('focus', handlers.onFocus);
+          element.removeEventListener('keydown', handlers.onKeyDown);
+          element.removeEventListener('focus', handlers.onFocus);
         }
       });
       this._listeners.clear();
     }
 
     this.claims = [];
+    this.activeIndex = -1;
   }
 
   /**
@@ -195,18 +196,12 @@ class ClaimNavigator {
     
     // Small timeout to ensure clearing is registered
     this._announceTimer = setTimeout(() => {
-        if (this.announcer) {
-            this.announcer.textContent = message;
-        }
-        this._announceTimer = null;
+      if (this.announcer) {
+        this.announcer.textContent = message;
+      }
+      this._announceTimer = null;
     }, 50);
   }
-
-  /**
-   * Clean up event listeners
-   * (Note: Browsers handle this automatically when elements are removed, 
-   * but good practice if we were reusing elements)
-   */
 }
 
 // Export for module usage (if using modules) or global
