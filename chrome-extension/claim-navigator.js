@@ -12,6 +12,7 @@ class ClaimNavigator {
     this.announcer = announcerElement;
     this.claims = [];
     this.activeIndex = -1;
+    this._listeners = new Map(); // Store bound listeners for cleanup
   }
 
   /**
@@ -19,26 +20,61 @@ class ClaimNavigator {
    * @param {NodeList|Array} claimElements - The claim header elements
    */
   init(claimElements) {
+    // Clean up any existing listeners/state first
+    this._cleanup();
+
     this.claims = Array.from(claimElements);
-    
-    // Reset state
     this.activeIndex = 0;
 
     // Set initial tabindex
     this.claims.forEach((claim, index) => {
-      // First item gets tabindex 0, others -1
       claim.setAttribute('tabindex', index === 0 ? '0' : '-1');
       
-      // Add event listeners
-      claim.addEventListener('keydown', (e) => this.handleKeyDown(e, index));
-      
-      // Handle focus events to update active index when clicked/focused
-      claim.addEventListener('focus', () => {
+      // Create bound handlers
+      const onKeyDown = (e) => this.handleKeyDown(e, index);
+      const onFocus = () => {
         this.activeIndex = index;
-        // Ensure only this item is focusable
         this.updateTabIndexes();
-      });
+      };
+
+      // Store handlers
+      this._listeners.set(claim, { onKeyDown, onFocus });
+      
+      // Add event listeners
+      claim.addEventListener('keydown', onKeyDown);
+      claim.addEventListener('focus', onFocus);
     });
+  }
+
+
+
+  _cleanup() {
+    if (this._announceTimer) {
+      clearTimeout(this._announceTimer);
+      this._announceTimer = null;
+    }
+
+    // Remove all event listeners
+    if (this._listeners) {
+      this._listeners.forEach((handlers, element) => {
+        if (element && handlers) {
+            element.removeEventListener('keydown', handlers.onKeyDown);
+            element.removeEventListener('focus', handlers.onFocus);
+        }
+      });
+      this._listeners.clear();
+    }
+
+    this.claims = [];
+  }
+
+  /**
+   * Clean up event listeners and references
+   */
+  dispose() {
+    this._cleanup();
+    this.shadowRoot = null;
+    this.announcer = null;
   }
 
   /**
@@ -85,6 +121,8 @@ class ClaimNavigator {
    * @param {number} targetIndex 
    */
   moveFocus(targetIndex) {
+    if (this.claims.length === 0) return;
+    
     // Bounds check
     if (targetIndex < 0) {
       targetIndex = this.claims.length - 1; // Wrap to end
@@ -150,9 +188,17 @@ class ClaimNavigator {
     // Clear first to ensure repeat messages are announced
     this.announcer.textContent = '';
     
+    // Clear any existing timer
+    if (this._announceTimer) {
+      clearTimeout(this._announceTimer);
+    }
+    
     // Small timeout to ensure clearing is registered
-    setTimeout(() => {
-        this.announcer.textContent = message;
+    this._announceTimer = setTimeout(() => {
+        if (this.announcer) {
+            this.announcer.textContent = message;
+        }
+        this._announceTimer = null;
     }, 50);
   }
 
@@ -161,11 +207,6 @@ class ClaimNavigator {
    * (Note: Browsers handle this automatically when elements are removed, 
    * but good practice if we were reusing elements)
    */
-  dispose() {
-    this.claims = [];
-    this.shadowRoot = null;
-    this.announcer = null;
-  }
 }
 
 // Export for module usage (if using modules) or global

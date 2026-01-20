@@ -2156,6 +2156,14 @@ function cleanup() {
     
     // 4. Close and clean panel UI (but remember it was open)
     if (analysisPanel) {
+      // Cleanup ClaimNavigator
+      if (claimNavigator) {
+        if (typeof claimNavigator.dispose === 'function') {
+          claimNavigator.dispose();
+        }
+        claimNavigator = null;
+      }
+
       // Remove event listener if it exists
       if (analysisPanel._keydownHandler) {
         analysisPanel.removeEventListener(

@@ -36,6 +36,7 @@ describe('ClaimNavigator', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     if (navigator) {
         navigator.dispose();
@@ -153,6 +154,22 @@ describe('ClaimNavigator', () => {
     vi.advanceTimersByTime(50);
     
     expect(announcer.textContent).toBe('Test Message');
+    
+    vi.useRealTimers();
+  });
+
+  it('should clear pending announcement on dispose', () => {
+    vi.useFakeTimers();
+    
+    navigator.announce('Should not appear');
+    navigator.dispose();
+    
+    vi.advanceTimersByTime(100);
+    
+    // Announcer (if it still existed) should not have text, 
+    // but more importantly, no error should be thrown by accessing null.
+    // In our mock, 'announcer' var still holds the element, so we can check it.
+    expect(announcer.textContent).toBe('');
     
     vi.useRealTimers();
   });
