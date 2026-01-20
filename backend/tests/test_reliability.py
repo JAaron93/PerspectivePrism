@@ -182,3 +182,4 @@ async def test_health_check_endpoints(monkeypatch):
         data = response.json()
         assert data["status"] == "degraded"
         assert "Circuit breaker OPEN" in data["message"]
+        assert data["circuit_breaker_open"] is True

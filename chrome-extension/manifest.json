@@ -25,7 +25,7 @@
         "https://m.youtube.com/shorts/*",
         "https://youtu.be/*"
       ],
-      "js": ["config-script.js", "consent.js", "content.js"],
+      "js": ["logging-utils-script.js", "config-script.js", "consent.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

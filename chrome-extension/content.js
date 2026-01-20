@@ -1,6 +1,7 @@
 // Content script for Perspective Prism
 
-console.log("Perspective Prism content script loaded");
+const logger = new window.Logger("[Perspective Prism Content]");
+logger.info("Perspective Prism content script loaded");
 
 // State
 let currentVideoId = null;
@@ -917,7 +918,7 @@ function injectButton() {
     document.getElementById(BUTTON_ID) ||
     document.querySelector('[data-pp-analysis-button="true"]')
   ) {
-    console.debug("[Perspective Prism] Button already exists, skipping injection.");
+    logger.debug("[Perspective Prism] Button already exists, skipping injection.");
     return;
   }
 
@@ -949,7 +950,7 @@ function injectButton() {
       try {
         if (container && document.contains(container)) {
           container.insertBefore(analysisButton, container.firstChild);
-          console.log(
+          logger.log(
             `[Perspective Prism] Button injected using selector: ${usedSelector}`,
           );
           metrics.successes++;
@@ -961,7 +962,7 @@ function injectButton() {
           saveMetrics();
         }
       } catch (error) {
-        console.error(
+        logger.error(
           `[Perspective Prism] Failed to inject button into ${usedSelector}:`,
           error,
         );
@@ -971,7 +972,7 @@ function injectButton() {
     });
   } else {
     // Only log at debug level to avoid console noise
-    // console.debug(
+    // logger.debug(
     //   "[Perspective Prism] No suitable container found for button injection. Retrying later.",
     // );
     metrics.failures++;
@@ -1053,7 +1054,7 @@ async function sendMessageWithRetry(message, options = {}) {
 
       // If last attempt, throw
       if (attempt === maxAttempts - 1) {
-        console.error(
+        logger.error(
           `[Perspective Prism] All ${maxAttempts} retry attempts failed.`,
         );
       }
@@ -1157,7 +1158,7 @@ async function checkBackendConfiguration() {
     
     // Check if config exists and has a valid backend URL
     if (!config || !config.backendUrl) {
-      console.log('[Perspective Prism] Backend URL not configured');
+      logger.info('[Perspective Prism] Backend URL not configured');
       return false;
     }
     
@@ -1167,7 +1168,7 @@ async function checkBackendConfiguration() {
     
     return true;
   } catch (error) {
-    console.error('[Perspective Prism] Failed to check backend configuration:', error);
+    logger.error('[Perspective Prism] Failed to check backend configuration:', error);
     return false;
   }
 }
@@ -1178,7 +1179,7 @@ async function checkBackendConfiguration() {
  * Part of onboarding flow
  */
 function showSetupNotification() {
-  console.log('[Perspective Prism] Showing setup notification');
+  logger.info('[Perspective Prism] Showing setup notification');
   
   // Create notification panel with setup instructions
   const panel = createPanelContainer();
@@ -1261,7 +1262,7 @@ function showSetupNotification() {
     openSettingsBtn.addEventListener('click', () => {
       // Open settings page
       chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' }).catch(error => {
-        console.error('[Perspective Prism] Failed to open settings:', error);
+        logger.error('[Perspective Prism] Failed to open settings:', error);
         // Note: openOptionsPage() not available in content scripts
       });
       removePanel();
@@ -1273,7 +1274,7 @@ function showSetupNotification() {
     viewWelcomeBtn.addEventListener('click', () => {
       // Open welcome page
       chrome.runtime.sendMessage({ type: 'OPEN_WELCOME_PAGE' }).catch(error => {
-        console.error('[Perspective Prism] Failed to open welcome page:', error);
+        logger.error('[Perspective Prism] Failed to open welcome page:', error);
         // Note: chrome.tabs API not available in content scripts
         // User will need to manually open the welcome page from popup/settings
       });
@@ -1290,7 +1291,7 @@ function showSetupNotification() {
 
 async function handleAnalysisClick() {
   if (!currentVideoId) {
-    console.warn("[Perspective Prism] Analysis requested but no Video ID found.");
+    logger.warn("[Perspective Prism] Analysis requested but no Video ID found.");
     return;
   }
 
@@ -1309,7 +1310,7 @@ async function handleAnalysisClick() {
       return;
     }
   } catch (error) {
-    console.error("[Perspective Prism] Configuration check failed:", error);
+    logger.error("[Perspective Prism] Configuration check failed:", error);
     setButtonState("error");
     showPanelError("Failed to check configuration. Please try again.");
     return;
@@ -1335,14 +1336,14 @@ async function handleAnalysisClick() {
           }
         }, consent); // Pass consent object (with reason) to dialog
       } catch (dialogError) {
-        console.error('[Perspective Prism] Failed to show consent dialog:', dialogError);
+        logger.error('[Perspective Prism] Failed to show consent dialog:', dialogError);
         setButtonState("error");
         showPanelError("Failed to show consent dialog. Please reload the page and try again.");
       }
       return;
     }
   } catch (error) {
-    console.error("[Perspective Prism] Consent check failed:", error);
+    logger.error("[Perspective Prism] Consent check failed:", error);
     setButtonState("error");
     showPanelError("Failed to check consent. Please try again.");
     return;
@@ -1362,7 +1363,7 @@ async function handleAnalysisClick() {
 
     // Check if request was cancelled
     if (cancelRequest) {
-      console.log("[Perspective Prism] Request was cancelled");
+      logger.info("[Perspective Prism] Request was cancelled");
       removePanel();
       setButtonState("idle");
       return;
@@ -1374,17 +1375,18 @@ async function handleAnalysisClick() {
       showResults(response.data, isCached);
     } else {
       setButtonState("error");
+      logger.error("Analysis failed:", response?.error || "Unknown error");
       showPanelError(response?.error || "Analysis failed");
     }
   } catch (error) {
     if (cancelRequest) {
-      console.log("[Perspective Prism] Request was cancelled");
+      logger.info("[Perspective Prism] Request was cancelled");
       removePanel();
       setButtonState("idle");
       return;
     }
 
-    console.error(
+    logger.error(
       "[Perspective Prism] Analysis request failed after retries:",
       error,
     );
@@ -1476,7 +1478,7 @@ async function handleRefreshClick() {
       setTimeout(() => errorToast.remove(), 3000);
     }
   } catch (error) {
-    console.error("[Perspective Prism] Refresh failed:", error);
+    logger.error("[Perspective Prism] Refresh failed:", error);
 
     // Remove overlay and restore previous state
     overlay.remove();
@@ -1927,9 +1929,9 @@ function showPanelLoading() {
           timeout: 2000,
           maxAttempts: 2
         });
-        console.log('[Perspective Prism] Analysis cancelled');
+        logger.info('[Perspective Prism] Analysis cancelled');
       } catch (error) {
-        console.error('[Perspective Prism] Failed to send cancel message:', error);
+        logger.error('[Perspective Prism] Failed to send cancel message:', error);
       }
     }
     
@@ -2064,7 +2066,7 @@ function handleMutations(mutations) {
 
   debounceTimer = setTimeout(() => {
     if (currentVideoId && !document.getElementById(BUTTON_ID)) {
-      console.log(
+      logger.info(
         "[Perspective Prism] Mutation detected, re-injecting button...",
       );
       injectButton();
@@ -2079,7 +2081,7 @@ function setupObservers() {
 
   // Always observe document body to catch all re-renders and navigation events
   // This is more robust than observing specific containers which might be replaced
-  console.log("[Perspective Prism] Setting up global observer");
+  logger.info("[Perspective Prism] Setting up global observer");
   observer = new MutationObserver(handleMutations);
   observer.observe(document.body, {
     childList: true,
@@ -2094,7 +2096,7 @@ let isCleaningUp = false;
 function cleanup() {
   if (isCleaningUp) return;
   isCleaningUp = true;
-  console.log("[Perspective Prism] Starting cleanup for navigation...");
+  logger.info("[Perspective Prism] Starting cleanup for navigation...");
 
   try {
     // 1. Disconnect MutationObserver
@@ -2139,9 +2141,9 @@ function cleanup() {
     // 6. Reset state
     currentVideoId = null;
     
-    console.log("[Perspective Prism] Cleanup complete. Panel was open:", wasPanelOpen);
+    logger.info("[Perspective Prism] Cleanup complete. Panel was open:", wasPanelOpen);
   } catch (error) {
-    console.error("[Perspective Prism] Error during cleanup:", error);
+    logger.error("[Perspective Prism] Error during cleanup:", error);
   } finally {
     isCleaningUp = false;
   }
@@ -2157,7 +2159,7 @@ function handleNavigation() {
   const vid = extractVideoId();
 
   if (vid !== currentVideoId) {
-    console.log(`[Perspective Prism] Navigation detected: ${currentVideoId} -> ${vid}`);
+    logger.info(`[Perspective Prism] Navigation detected: ${currentVideoId} -> ${vid}`);
     
     // Cleanup old video state
     if (currentVideoId) {
@@ -2179,7 +2181,7 @@ function handleNavigation() {
         
         // If panel was open before navigation, automatically analyze the new video
         if (wasPanelOpen) {
-          console.log("[Perspective Prism] Panel was open, auto-analyzing new video...");
+          logger.info("[Perspective Prism] Panel was open, auto-analyzing new video...");
           // Trigger analysis for the new video
           handleAnalysisClick();
         }
@@ -2230,7 +2232,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     // Log progress for debugging
-    console.log(`[Perspective Prism] Progress update for ${videoId}:`, payload);
+    logger.info(`[Perspective Prism] Progress update for ${videoId}:`, payload);
   }
   
   // Don't send response (not needed for progress updates)
@@ -2328,7 +2330,7 @@ async function checkInitialState() {
           setButtonState('error');
         }
       } else if (response && !response.success) {
-         console.warn("[Perspective Prism] Initial state check failed:", response.error);
+         logger.warn("[Perspective Prism] Initial state check failed:", response.error);
       }
     } catch (e) {
       // Ignore errors (e.g. extension context invalid)

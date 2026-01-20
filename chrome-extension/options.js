@@ -1,6 +1,8 @@
 // Options page script for Perspective Prism extension
 // Handles settings UI, validation, and persistence
 
+const logger = new window.Logger("[Options]");
+
 // DOM elements
 let backendUrlInput;
 let testConnectionBtn;
@@ -72,9 +74,9 @@ async function loadSettings() {
     cacheDurationInput.value = config.cacheDuration || 24;
     allowAnalysisCheckbox.checked = config.allowAnalysis !== false;
 
-    console.log("[Options] Settings loaded:", config);
+    logger.info("[Options] Settings loaded:", config);
   } catch (error) {
-    console.error("[Options] Failed to load settings:", error);
+    logger.error("[Options] Failed to load settings:", error);
     showSaveError("Failed to load settings. Using defaults.");
   }
 }
@@ -241,13 +243,13 @@ async function testConnection() {
     if (response.ok) {
       // Connection successful
       showBackendUrlSuccess("✓ Connected successfully");
-      console.log("[Options] Connection test successful");
+      logger.info("[Options] Connection test successful");
     } else {
       // Server responded but with error
       showBackendUrlError(
         `Connection failed: Server returned ${response.status}`,
       );
-      console.error("[Options] Connection test failed:", response.status);
+      logger.error("[Options] Connection test failed:", response.status);
     }
   } catch (error) {
     // Network error or timeout
@@ -262,7 +264,7 @@ async function testConnection() {
     } else {
       showBackendUrlError(`Connection failed: ${error.message}`);
     }
-    console.error("[Options] Connection test error:", error);
+    logger.error("[Options] Connection test error:", error);
   } finally {
     // Restore button state
     testConnectionBtn.disabled = false;
@@ -313,11 +315,11 @@ async function saveSettings() {
 
     // Show success message
     showSaveSuccess("✓ Settings saved successfully");
-    console.log("[Options] Settings saved:", config);
+    logger.info("[Options] Settings saved:", config);
   } catch (error) {
     // Show error message
     showSaveError(`Failed to save settings: ${error.message}`);
-    console.error("[Options] Failed to save settings:", error);
+    logger.error("[Options] Failed to save settings:", error);
   } finally {
     // Restore button state
     saveSettingsBtn.disabled = false;
@@ -346,10 +348,10 @@ async function resetToDefaults() {
 
     // Show success message
     showSaveSuccess("✓ Settings reset to defaults");
-    console.log("[Options] Settings reset to defaults");
+    logger.info("[Options] Settings reset to defaults");
   } catch (error) {
     showSaveError(`Failed to reset settings: ${error.message}`);
-    console.error("[Options] Failed to reset settings:", error);
+    logger.error("[Options] Failed to reset settings:", error);
   }
 }
 
@@ -375,13 +377,13 @@ async function clearAllData() {
     if (cacheKeys.length > 0) {
       await chrome.storage.local.remove(cacheKeys);
       showSaveSuccess(`✓ Cleared ${cacheKeys.length} cached entries`);
-      console.log("[Options] Cleared cache:", cacheKeys.length, "entries");
+      logger.info("[Options] Cleared cache:", cacheKeys.length, "entries");
     } else {
       showSaveSuccess("✓ No cached data to clear");
     }
   } catch (error) {
     showSaveError(`Failed to clear cache: ${error.message}`);
-    console.error("[Options] Failed to clear cache:", error);
+    logger.error("[Options] Failed to clear cache:", error);
   }
 }
 
@@ -429,10 +431,10 @@ async function revokeConsent() {
     // Update UI to reflect revocation
     await loadSettings();
     showSaveSuccess("✓ Consent revoked and data cleared");
-    console.log("[Options] Consent revoked");
+    logger.info("[Options] Consent revoked");
   } catch (error) {
     showSaveError(`Failed to revoke consent: ${error.message}`);
-    console.error("[Options] Failed to revoke consent:", error);
+    logger.error("[Options] Failed to revoke consent:", error);
   }
 }
 
@@ -477,7 +479,7 @@ async function checkPrivacyPolicyVersion() {
   try {
     // Check if ConsentManager is available
     if (typeof ConsentManager === "undefined") {
-      console.warn(
+      logger.warn(
         "[Options] ConsentManager not available, skipping policy version check",
       );
       return;
@@ -499,13 +501,13 @@ async function checkPrivacyPolicyVersion() {
       consentManager.showConsentDialog(
         async (allowed) => {
           if (allowed) {
-            console.log("[Options] User accepted updated privacy policy");
+            logger.info("[Options] User accepted updated privacy policy");
             // Show success message
             showSaveSuccess(
               "Privacy policy accepted. You can now use the extension.",
             );
           } else {
-            console.log("[Options] User declined updated privacy policy");
+            logger.info("[Options] User declined updated privacy policy");
             // Show warning message
             showSaveError(
               "Privacy policy declined. Analysis features are disabled until you accept the updated policy.",

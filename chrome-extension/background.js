@@ -1,8 +1,9 @@
 // Background service worker
 import { ConfigManager } from "./config.js";
+import { logger } from "./logging-utils.js";
 import PerspectivePrismClient from "./client.js";
 
-console.log("Perspective Prism background service worker loaded");
+logger.info("Perspective Prism background service worker loaded");
 
 let client;
 const configManager = new ConfigManager();
@@ -20,7 +21,7 @@ class StateManager {
       await chrome.storage.session.set({ [key]: state });
       return true;
     } catch (error) {
-      console.error(`Failed to save state for ${videoId}:`, error);
+      logger.error(`Failed to save state for ${videoId}:`, error);
       return false;
     }
   }
@@ -31,7 +32,7 @@ class StateManager {
       const result = await chrome.storage.session.get(key);
       return result[key];
     } catch (error) {
-      console.error(`Failed to get state for ${videoId}:`, error);
+      logger.error(`Failed to get state for ${videoId}:`, error);
       return null;
     }
   }
@@ -42,7 +43,7 @@ class StateManager {
       await chrome.storage.session.remove(key);
       return true;
     } catch (error) {
-      console.error(`Failed to delete state for ${videoId}:`, error);
+      logger.error(`Failed to delete state for ${videoId}:`, error);
       return false;
     }
   }
@@ -57,7 +58,7 @@ class StateManager {
       }
       return true;
     } catch (error) {
-      console.error("Failed to clear session storage:", error);
+      logger.error("Failed to clear session storage:", error);
       return false;
     }
   }
@@ -78,27 +79,27 @@ function validateVideoId(message) {
 configManager
   .load()
   .then((config) => {
-    console.log("Configuration loaded:", config);
+    logger.info("Configuration loaded:", config);
     client = new PerspectivePrismClient(config.backendUrl);
 
     // Clean up expired cache on startup
     client.cleanupExpiredCache();
   })
   .catch((error) => {
-    console.error("Failed to load configuration:", error);
+    logger.error("Failed to load configuration:", error);
   });
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     // First-time installation - show welcome page
-    console.log(
+    logger.info(
       "[Perspective Prism] Extension installed, opening welcome page",
     );
     chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
   } else if (details.reason === "update") {
     // Extension updated
-    console.log(
+    logger.info(
       "[Perspective Prism] Extension updated to version",
       chrome.runtime.getManifest().version,
     );
@@ -109,7 +110,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Check privacy policy version on startup
 chrome.runtime.onStartup.addListener(() => {
-  console.log("[Perspective Prism] Extension started");
+  logger.info("[Perspective Prism] Extension started");
   checkPrivacyPolicyVersion();
 });
 
@@ -137,7 +138,7 @@ async function checkPrivacyPolicyVersion() {
     // Check if policy version has changed
     const storedVersion = consent.policyVersion || "0.0.0";
     if (storedVersion !== CURRENT_POLICY_VERSION) {
-      console.log(
+      logger.info(
         `[Perspective Prism] Privacy policy version changed: ${storedVersion} -> ${CURRENT_POLICY_VERSION}`,
       );
 
@@ -151,7 +152,7 @@ async function checkPrivacyPolicyVersion() {
         },
       });
 
-      console.log(
+      logger.info(
         "[Perspective Prism] Policy version mismatch flag set. User will be prompted on next analysis attempt.",
       );
     } else {
@@ -159,7 +160,7 @@ async function checkPrivacyPolicyVersion() {
       await chrome.storage.local.remove(["policy_version_mismatch"]);
     }
   } catch (error) {
-    console.error(
+    logger.error(
       "[Perspective Prism] Failed to check privacy policy version:",
       error,
     );
@@ -227,7 +228,7 @@ async function handleCacheCheck(message) {
     const data = await client.checkCache(videoId);
     return { success: true, data: data };
   } catch (error) {
-    console.error("Cache check failed:", error);
+    logger.error("Cache check failed:", error);
     throw error;
   }
 }
@@ -253,7 +254,7 @@ async function handleAnalysisRequest(message) {
   });
 
   if (!stateSaved) {
-    console.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
+    logger.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
     throw new Error("Failed to initialize analysis state. Please try again.");
   }
 
@@ -271,7 +272,7 @@ async function handleAnalysisRequest(message) {
       });
       
       if (!completeStateSaved) {
-         console.error(`[Perspective Prism] Warning: Failed to save completion state for ${videoId}. UI may not update.`);
+         logger.error(`[Perspective Prism] Warning: Failed to save completion state for ${videoId}. UI may not update.`);
          // We don't throw here because we already have the result, but it's bad.
       }
     } else {
@@ -285,7 +286,7 @@ async function handleAnalysisRequest(message) {
 
     return result;
   } catch (error) {
-    console.error("Analysis request failed:", error);
+    logger.error("Analysis request failed:", error);
 
     // Set state to error
     await setAnalysisState(videoId, {
@@ -321,7 +322,7 @@ async function handleCancelAnalysis(message) {
       });
 
       if (!saved) {
-         console.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
+         logger.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
       }
       
       return { success: true, cancelled: true };
@@ -329,7 +330,7 @@ async function handleCancelAnalysis(message) {
       throw new Error('No active analysis found for this video');
     }
   } catch (error) {
-    console.error('[Perspective Prism] Cancel analysis failed:', error);
+    logger.error('[Perspective Prism] Cancel analysis failed:', error);
     throw error;
   }
 }
@@ -345,7 +346,7 @@ async function setAnalysisState(videoId, state) {
   const saved = await StateManager.set(videoId, state);
 
   if (!saved) {
-    console.error(`[Perspective Prism] StateManager.set failed for ${videoId}`, state);
+    logger.error(`[Perspective Prism] StateManager.set failed for ${videoId}`, state);
     return false;
   }
 
@@ -400,7 +401,7 @@ async function handleGetAnalysisState(message) {
       // Save reconstructed state to session so subsequent calls are faster
       const saved = await setAnalysisState(videoId, cacheState);
       if (!saved) {
-        console.debug(`[Perspective Prism] Could not persist reconstructed cache state for ${videoId}`);
+        logger.debug(`[Perspective Prism] Could not persist reconstructed cache state for ${videoId}`);
       }
       return { success: true, state: cacheState };
     } else {
@@ -411,7 +412,7 @@ async function handleGetAnalysisState(message) {
       };
     }
   } catch (error) {
-    console.error("Failed to check cache for state:", error);
+    logger.error("Failed to check cache for state:", error);
     // Propagate error to caller
     return {
       success: false,
@@ -430,7 +431,7 @@ async function handleGetCacheStats() {
     const stats = await client.getCacheStats();
     return { success: true, stats: stats };
   } catch (error) {
-    console.error("Failed to get cache stats:", error);
+    logger.error("Failed to get cache stats:", error);
     throw error;
   }
 }
@@ -448,7 +449,7 @@ async function handleClearCache() {
     const stateCleared = await StateManager.clearAll();
     
     if (!stateCleared) {
-       console.error("[Perspective Prism] Failed to clear session state after cache clear");
+       logger.error("[Perspective Prism] Failed to clear session state after cache clear");
        // Consider if we should throw? 
        // Probably fine to return success but log error, as main cache is cleared.
     }
@@ -464,13 +465,13 @@ async function handleClearCache() {
 
     return { success: true };
   } catch (error) {
-    console.error("Failed to clear cache:", error);
+    logger.error("Failed to clear cache:", error);
     throw error;
   }
 }
 
 async function handleRevokeConsent() {
-  console.log("[Perspective Prism] Revoking consent...");
+  logger.info("[Perspective Prism] Revoking consent...");
 
   try {
     // 1. Clear all cached analysis results
@@ -483,7 +484,7 @@ async function handleRevokeConsent() {
     // 2. Clear all analysis states
     const stateCleared = await StateManager.clearAll();
     if (!stateCleared) {
-        console.error("[Perspective Prism] Failed to clear session state during consent revocation");
+        logger.error("[Perspective Prism] Failed to clear session state during consent revocation");
         // We log it but proceed to ensure consent flag is revoked regardless
     }
 
@@ -512,10 +513,10 @@ async function handleRevokeConsent() {
         });
     }
 
-    console.log("[Perspective Prism] Consent revoked successfully");
+    logger.info("[Perspective Prism] Consent revoked successfully");
     return { success: true };
   } catch (error) {
-    console.error("[Perspective Prism] Failed to revoke consent:", error);
+    logger.error("[Perspective Prism] Failed to revoke consent:", error);
     throw error;
   }
 }
@@ -539,7 +540,7 @@ async function handleCheckPolicyVersion() {
       };
     }
   } catch (error) {
-    console.error(
+    logger.error(
       "[Perspective Prism] Failed to check policy version:",
       error,
     );

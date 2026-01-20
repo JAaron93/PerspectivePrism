@@ -54,14 +54,14 @@ class PerspectivePrismClient {
     // Handle recovery state
     if (!this.recoveryComplete) {
       if (this.requestQueue.length < this.MAX_QUEUE_SIZE) {
-        console.log(
+        logger.info(
           `[PerspectivePrismClient] Recovery in progress, queueing request for ${videoId}`,
         );
         return new Promise((resolve, reject) => {
           this.requestQueue.push({ videoId, resolve, reject });
         });
       } else {
-        console.warn(
+        logger.warn(
           `[PerspectivePrismClient] Recovery queue full, rejecting request for ${videoId}`,
         );
         return {
@@ -84,13 +84,13 @@ class PerspectivePrismClient {
     // 1. Check Cache
     const cachedResult = await this.checkCache(videoId);
     if (cachedResult) {
-      console.log(`[PerspectivePrismClient] Cache hit for ${videoId}`);
+      logger.info(`[PerspectivePrismClient] Cache hit for ${videoId}`);
       return { success: true, data: cachedResult, cached: true };
     }
 
     // Deduplication (In-memory)
     if (this.pendingRequests.has(videoId)) {
-      console.log(
+      logger.info(
         `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
       );
       return this.pendingRequests.get(videoId);
@@ -99,7 +99,7 @@ class PerspectivePrismClient {
     // Deduplication (Persistent)
     const persistedState = await this.getPersistedRequestState(videoId);
     if (persistedState && persistedState.status !== "completed") {
-      console.log(
+      logger.info(
         `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,
       );
       return new Promise((resolve, reject) => {
@@ -1288,4 +1288,5 @@ class TimeoutError extends Error {
 export { PerspectivePrismClient, ValidationError, HttpError, TimeoutError };
 
 // Default export
+import { logger } from "./logging-utils.js";
 export default PerspectivePrismClient;

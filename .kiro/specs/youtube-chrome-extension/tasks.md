@@ -535,14 +535,14 @@
       - [x] "This handler is best-effort cleanup only"
     - _Requirements: 8.4_
 
-- [ ]\* 13. Implement logging with privacy protection
-  - [ ]\* 13.1 Create sanitized logging utility
+- [x] 13. Implement logging with privacy protection
+  - [x] 13.1 Create sanitized logging utility
     - Implement sanitizeForLog() function
     - Define SanitizedLogEntry interface
     - Ban full URLs, tokens, user IDs from logs
     - Extract only video ID, error codes, endpoint paths
     - _Requirements: 6.4_
-  - [ ]\* 13.2 Add structured logging throughout extension
+  - [x] 13.2 Add structured logging throughout extension
     - Log all API requests with sanitized data
     - Log cache operations (hit/miss/eviction)
     - Log selector success/failure for monitoring

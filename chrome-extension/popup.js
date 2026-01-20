@@ -9,6 +9,8 @@
  * - Managing different popup states (Not on YouTube, Idle, In Progress, Complete, Error, Not Configured)
  */
 
+const logger = new window.Logger("[Popup]");
+
 // DOM elements
 const statusElement = document.getElementById("status");
 const statusIcon = document.getElementById("status-icon");
@@ -37,7 +39,7 @@ const requiredElements = {
 
 for (const [name, element] of Object.entries(requiredElements)) {
   if (!element) {
-    console.error(`Required element missing: ${name}`);
+    logger.error(`Required element missing: ${name}`);
   }
 }
 
@@ -117,7 +119,7 @@ async function loadCacheStats() {
       });
     }
   } catch (error) {
-    console.error("Failed to load cache stats:", error);
+    logger.error("Failed to load cache stats:", error);
     cacheInfo.textContent = "Unable to load";
   }
 }
@@ -187,17 +189,17 @@ async function checkCurrentStatus() {
       handleAnalysisState(response.state, videoId);
     } else if (response && response.success && !response.state) {
       // Edge case: Success reported but no state object returned
-      console.warn("[Perspective Prism] Success reported but state is missing for video:", videoId);
+      logger.warn("[Perspective Prism] Success reported but state is missing for video:", videoId);
       showIdleState(videoId);
     } else if (response && !response.success) {
-      console.warn("[Perspective Prism] Failed to get analysis state:", response.error);
+      logger.warn("[Perspective Prism] Failed to get analysis state:", response.error);
       showErrorState("Failed to load status", response.error);
     } else {
       // Default to idle state if no analysis state found (and no explicit error)
       showIdleState(videoId);
     }
   } catch (error) {
-    console.error("Failed to check status:", error);
+    logger.error("Failed to check status:", error);
     showErrorState("Error loading status", error.message);
   }
 }
@@ -436,7 +438,7 @@ async function handleClearCache() {
       throw new Error(response?.error || "Failed to clear cache");
     }
   } catch (error) {
-    console.error("Failed to clear cache:", error);
+    logger.error("Failed to clear cache:", error);
 
     // Show error state
     updateStatus("error", "⚠️", "Failed to clear cache", error.message);
