@@ -74,9 +74,9 @@ async function loadSettings() {
     cacheDurationInput.value = config.cacheDuration || 24;
     allowAnalysisCheckbox.checked = config.allowAnalysis !== false;
 
-    logger.info("[Options] Settings loaded:", config);
+    logger.info("Settings loaded:", config);
   } catch (error) {
-    logger.error("[Options] Failed to load settings:", error);
+    logger.error("Failed to load settings:", error);
     showSaveError("Failed to load settings. Using defaults.");
   }
 }
@@ -243,13 +243,13 @@ async function testConnection() {
     if (response.ok) {
       // Connection successful
       showBackendUrlSuccess("✓ Connected successfully");
-      logger.info("[Options] Connection test successful");
+      logger.info("Connection test successful");
     } else {
       // Server responded but with error
       showBackendUrlError(
         `Connection failed: Server returned ${response.status}`,
       );
-      logger.error("[Options] Connection test failed:", response.status);
+      logger.error("Connection test failed:", response.status);
     }
   } catch (error) {
     // Network error or timeout
@@ -264,7 +264,7 @@ async function testConnection() {
     } else {
       showBackendUrlError(`Connection failed: ${error.message}`);
     }
-    logger.error("[Options] Connection test error:", error);
+    logger.error("Connection test error:", error);
   } finally {
     // Restore button state
     testConnectionBtn.disabled = false;
@@ -315,11 +315,11 @@ async function saveSettings() {
 
     // Show success message
     showSaveSuccess("✓ Settings saved successfully");
-    logger.info("[Options] Settings saved:", config);
+    logger.info("Settings saved:", config);
   } catch (error) {
     // Show error message
     showSaveError(`Failed to save settings: ${error.message}`);
-    logger.error("[Options] Failed to save settings:", error);
+    logger.error("Failed to save settings:", error);
   } finally {
     // Restore button state
     saveSettingsBtn.disabled = false;
@@ -348,10 +348,10 @@ async function resetToDefaults() {
 
     // Show success message
     showSaveSuccess("✓ Settings reset to defaults");
-    logger.info("[Options] Settings reset to defaults");
+    logger.info("Settings reset to defaults");
   } catch (error) {
     showSaveError(`Failed to reset settings: ${error.message}`);
-    logger.error("[Options] Failed to reset settings:", error);
+    logger.error("Failed to reset settings:", error);
   }
 }
 
@@ -377,13 +377,13 @@ async function clearAllData() {
     if (cacheKeys.length > 0) {
       await chrome.storage.local.remove(cacheKeys);
       showSaveSuccess(`✓ Cleared ${cacheKeys.length} cached entries`);
-      logger.info("[Options] Cleared cache:", cacheKeys.length, "entries");
+      logger.info("Cleared cache:", cacheKeys.length, "entries");
     } else {
       showSaveSuccess("✓ No cached data to clear");
     }
   } catch (error) {
     showSaveError(`Failed to clear cache: ${error.message}`);
-    logger.error("[Options] Failed to clear cache:", error);
+    logger.error("Failed to clear cache:", error);
   }
 }
 
@@ -431,10 +431,10 @@ async function revokeConsent() {
     // Update UI to reflect revocation
     await loadSettings();
     showSaveSuccess("✓ Consent revoked and data cleared");
-    logger.info("[Options] Consent revoked");
+    logger.info("Consent revoked");
   } catch (error) {
     showSaveError(`Failed to revoke consent: ${error.message}`);
-    logger.error("[Options] Failed to revoke consent:", error);
+    logger.error("Failed to revoke consent:", error);
   }
 }
 
@@ -479,9 +479,7 @@ async function checkPrivacyPolicyVersion() {
   try {
     // Check if ConsentManager is available
     if (typeof ConsentManager === "undefined") {
-      logger.warn(
-        "[Options] ConsentManager not available, skipping policy version check",
-      );
+      logger.warn("ConsentManager not available, skipping policy version check");
       return;
     }
 
@@ -493,21 +491,21 @@ async function checkPrivacyPolicyVersion() {
       !consent.hasConsent &&
       consent.reason === "version_mismatch"
     ) {
-      console.log(
-        `[Options] Privacy policy version mismatch detected: ${consent.storedVersion} -> ${consent.currentVersion}`,
+      logger.info(
+        `Privacy policy version mismatch detected: ${consent.storedVersion} -> ${consent.currentVersion}`,
       );
 
       // Show consent dialog with version update message
       consentManager.showConsentDialog(
         async (allowed) => {
           if (allowed) {
-            logger.info("[Options] User accepted updated privacy policy");
+            logger.info("User accepted updated privacy policy");
             // Show success message
             showSaveSuccess(
               "Privacy policy accepted. You can now use the extension.",
             );
           } else {
-            logger.info("[Options] User declined updated privacy policy");
+            logger.info("User declined updated privacy policy");
             // Show warning message
             showSaveError(
               "Privacy policy declined. Analysis features are disabled until you accept the updated policy.",
@@ -518,8 +516,8 @@ async function checkPrivacyPolicyVersion() {
       );
     }
   } catch (error) {
-    console.error(
-      "[Options] Failed to check privacy policy version:",
+    logger.error(
+      "Failed to check privacy policy version:",
       error,
     );
   }

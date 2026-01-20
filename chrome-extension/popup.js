@@ -189,10 +189,10 @@ async function checkCurrentStatus() {
       handleAnalysisState(response.state, videoId);
     } else if (response && response.success && !response.state) {
       // Edge case: Success reported but no state object returned
-      logger.warn("[Perspective Prism] Success reported but state is missing for video:", videoId);
+      logger.warn("Success reported but state is missing for video:", videoId);
       showIdleState(videoId);
     } else if (response && !response.success) {
-      logger.warn("[Perspective Prism] Failed to get analysis state:", response.error);
+      logger.warn("Failed to get analysis state:", response.error);
       showErrorState("Failed to load status", response.error);
     } else {
       // Default to idle state if no analysis state found (and no explicit error)

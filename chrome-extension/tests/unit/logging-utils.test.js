@@ -5,10 +5,8 @@
  * Target: 100% coverage
  */
 
-import { describe, it, expect, vi } from "vitest";
-
-// Dynamic import
-const { Logger } = await import("../../logging-utils.js");
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
+import { Logger } from "../../logging-utils.js";
 
 describe("Logger", () => {
   const logger = new Logger("[Test]");
@@ -23,12 +21,7 @@ describe("Logger", () => {
     it("should redact Bearer tokens", () => {
       const input = "Authorization: Bearer abcdef123456";
       const expected = "Authorization: [REDACTED]";
-      // The regex might leave 'Authorization: ' or replace strictly 'Bearer ...'
-      // My regex is /Bearer\s+[a-zA-Z0-9-._~+/]+=* /g
-      // Let's test the specific regex behavior
-      // Note: My regex doesn't match the space after Bearer if I didn't include it in replacement,
-      // but the regex consumes the token.
-      expect(logger.sanitizeString(input)).toContain("[REDACTED]");
+      expect(logger.sanitizeString(input)).toBe(expected);
     });
 
     it("should redact API keys in query params (via pattern)", () => {
@@ -96,6 +89,10 @@ describe("Logger", () => {
       storageMock.set.mockClear();
     });
 
+    afterAll(() => {
+      delete global.chrome;
+    });
+
     it("should log to console.log for info", () => {
       const spy = vi.spyOn(console, "log").mockImplementation(() => {});
       logger.info("Test message");
@@ -111,13 +108,6 @@ describe("Logger", () => {
       expect(callArg.extension_logs).toBeDefined();
       const hasLog = callArg.extension_logs.some(log => log.message.includes("Persist this"));
       expect(hasLog).toBe(true);
-      spy.mockRestore();
-    });
-
-    it("should sanitize arguments passed to log", () => {
-      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      logger.info("Test message");
-      expect(spy).toHaveBeenCalledWith("[PersistenceTest]", "Test message");
       spy.mockRestore();
     });
 

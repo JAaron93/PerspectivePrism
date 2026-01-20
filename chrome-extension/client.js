@@ -2,6 +2,8 @@
  * PerspectivePrismClient
  * Handles API communication with the backend, including retry logic and state persistence.
  */
+
+import { logger } from "./logging-utils.js";
 class PerspectivePrismClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
@@ -1288,5 +1290,4 @@ class TimeoutError extends Error {
 export { PerspectivePrismClient, ValidationError, HttpError, TimeoutError };
 
 // Default export
-import { logger } from "./logging-utils.js";
 export default PerspectivePrismClient;

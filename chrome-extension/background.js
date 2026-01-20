@@ -272,7 +272,7 @@ async function handleAnalysisRequest(message) {
       });
       
       if (!completeStateSaved) {
-         logger.error(`[Perspective Prism] Warning: Failed to save completion state for ${videoId}. UI may not update.`);
+         logger.warn(`[Perspective Prism] Failed to save completion state for ${videoId}. UI may not update.`);
          // We don't throw here because we already have the result, but it's bad.
       }
     } else {
@@ -449,7 +449,7 @@ async function handleClearCache() {
     const stateCleared = await StateManager.clearAll();
     
     if (!stateCleared) {
-       logger.error("[Perspective Prism] Failed to clear session state after cache clear");
+       logger.warn("[Perspective Prism] Failed to clear session state after cache clear");
        // Consider if we should throw? 
        // Probably fine to return success but log error, as main cache is cleared.
     }
@@ -484,7 +484,7 @@ async function handleRevokeConsent() {
     // 2. Clear all analysis states
     const stateCleared = await StateManager.clearAll();
     if (!stateCleared) {
-        logger.error("[Perspective Prism] Failed to clear session state during consent revocation");
+        logger.warn("[Perspective Prism] Failed to clear session state during consent revocation");
         // We log it but proceed to ensure consent flag is revoked regardless
     }
 

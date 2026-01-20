@@ -23,8 +23,7 @@ class Logger {
       /Bearer\s+[a-zA-Z0-9-._~+/]+=*/g, // Bearer Tokens
       /key=[a-zA-Z0-9_]+/g, // API Keys in query
     ];
-    // Safe keys that don't need sanitization (optional optimization)
-    this.safeKeys = ["videoId", "status", "timestamp", "elapsedTime", "stage"];
+
     this.history = [];
     this.MAX_HISTORY = 100;
   }
@@ -110,8 +109,10 @@ class Logger {
 
   /**
    * Sanitize a single value
+   * @param {*} value - Value to sanitize
+   * @param {WeakSet} [visited] - Track visited objects for circular reference detection
    */
-  sanitize(value) {
+  sanitize(value, visited = new WeakSet()) {
     if (value === null || value === undefined) {
       return value;
     }
@@ -120,16 +121,22 @@ class Logger {
       return this.sanitizeString(value);
     }
 
-    if (Array.isArray(value)) {
-      return value.map((item) => this.sanitize(item));
-    }
-
-    if (value instanceof Error) {
-      return this.sanitizeError(value);
-    }
-
+    // For objects (including arrays), check for circular references
     if (typeof value === "object") {
-      return this.sanitizeObject(value);
+      if (visited.has(value)) {
+        return "[Circular]";
+      }
+      visited.add(value);
+
+      if (Array.isArray(value)) {
+        return value.map((item) => this.sanitize(item, visited));
+      }
+
+      if (value instanceof Error) {
+        return this.sanitizeError(value);
+      }
+
+      return this.sanitizeObject(value, visited);
     }
 
     return value;
@@ -178,9 +185,12 @@ class Logger {
     return safeUrl;
   }
 
-  sanitizeObject(obj) {
-    // Avoid circular reference issues by simple depth limit or just one level copy for logs
-    // JSON.stringify can handle circular refs by throwing, so we handle it gracefully
+  /**
+   * Sanitize an object, redacting sensitive keys
+   * @param {Object} obj - Object to sanitize
+   * @param {WeakSet} [visited] - Track visited objects for circular reference detection
+   */
+  sanitizeObject(obj, visited = new WeakSet()) {
     try {
       const copy = {};
       for (const key in obj) {
@@ -192,7 +202,7 @@ class Logger {
           ) {
             copy[key] = "[REDACTED]";
           } else {
-            copy[key] = this.sanitize(obj[key]);
+            copy[key] = this.sanitize(obj[key], visited);
           }
         }
       }
@@ -203,15 +213,36 @@ class Logger {
   }
 
   sanitizeError(error) {
-    // Errors often contain PII in messages
+    // Errors often contain PII in messages and stack traces
     return {
       message: this.sanitizeString(error.message),
       name: error.name,
-      // Stack traces might contain paths (user names), usually safe enough in dev but maybe redact in prod?
-      // For now, let's keep stack but maybe sanitize it if we were stricter
-      stack: error.stack,
+      // Stack traces can contain user home paths (PII) - redact them
+      stack: this.sanitizeStack(error.stack),
       code: error.code, // Useful for network errors
     };
+  }
+
+  /**
+   * Sanitize stack traces by redacting file system paths that may contain usernames
+   */
+  sanitizeStack(stack) {
+    if (!stack || typeof stack !== 'string') {
+      return stack;
+    }
+
+    let sanitized = stack;
+
+    // Redact Unix-style home directories: /Users/username, /home/username
+    sanitized = sanitized.replace(/\/(?:Users|home)\/[^\s\/:]+/g, '[REDACTED_PATH]');
+
+    // Redact Windows-style home directories: C:\Users\username
+    sanitized = sanitized.replace(/[A-Z]:\\\\?Users\\\\?[^\s\\:]+/gi, '[REDACTED_PATH]');
+
+    // Also run through sanitizeString for emails, tokens, etc. that might appear in stack
+    sanitized = this.sanitizeString(sanitized);
+
+    return sanitized;
   }
 }
 
