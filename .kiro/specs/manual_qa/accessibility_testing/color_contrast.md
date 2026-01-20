@@ -5,8 +5,8 @@ Verify that text and interactive elements have sufficient contrast against their
 
 ## Standards (WCAG AA)
 - **Normal Text:** Contrast ratio of at least **4.5:1**.
-- **Large Text (18pt+ or 14pt bold+):** Contrast ratio of at least **3.1**.
-- **UI Components & Icons:** Contrast ratio of at least **3.1**.
+- **Large Text (18pt+ or 14pt bold+):** Contrast ratio of at least **3:1**.
+- **UI Components & Icons:** Contrast ratio of at least **3:1**.
 
 ## Tools
 - **WebAIM Contrast Checker:** [https://webaim.org/resources/contrastchecker/](https://webaim.org/resources/contrastchecker/)

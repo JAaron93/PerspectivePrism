@@ -25,23 +25,35 @@ The extension uses a hidden ARIA live region to announce dynamic updates without
 - **Expected Announcement:** "Analysis failed. [Error reason]."
 
 ### 3. Claims List
-- **Role:** The claims container should have a role of `region` or `list`, and individual claims `article` or `listitem`.
-- **Navigation:**
-    - When navigating to a claim, it should announce "Claim X of Y: [Claim Text]".
-    - The state of the claim (Expanded/Collapsed) must be announced.
-- **Expansion:**
-    - **Action:** Expand a claim (Right Arrow).
-    - **Expected Announcement:** "Expanded" followed by the content (Perspectives, Bias indicators).
-    - **Action:** Collapse a claim (Left Arrow).
-    - **Expected Announcement:** "Collapsed".
+- **Roles:**
+    - The claims container MUST use `role="list"`.
+    - Each individual claim item MUST use `role="listitem"`.
+- **Interactive Element (Disclosure Pattern):**
+    - The interactive header for each claim MUST distinguish itself, typically using a child element with `role="button"`.
+    - This button MUST use the `aria-expanded` attribute to indicate state (`true` for expanded, `false` for collapsed).
+- **Keyboard Pattern (APG Alignment):**
+    - **Focus Movement:** Use `Arrow Up/Down` to navigate between claim items (or `Tab` if naturally focusable).
+    - **Toggle Expansion:** Use `Enter` or `Space` to toggle the claim open/closed.
+    - *Note:* If adopting the **Disclosure** pattern (recommended), follow the specific APG Disclosure key handling. If adopting a **Tree** pattern (less common here), you would need `role="tree"`/`treeitem` semantics and `Arrow Right/Left` for expansion. Do not mix these patterns.
+- **Announcements & Focus:**
+    - **State:** Toggling the button MUST trigger an immediate "Expanded" or "Collapsed" announcement via the `aria-expanded` state change.
+    - **Focus Management:** Ensure focus remains clearly visible on the trigger element at all times.
 
 ### 4. Headings and Structure
 - Navigate using the screen reader's "Headings" shortcut (e.g., `H` key in NVDA, `Control + Option + Command + H` in VoiceOver).
 - **Verify:** The Analysis Panel has a logical heading structure (e.g., h2 for Title, h3 for "Claims", h3 for "Summary").
 
 ### 5. Dialog/Modal Behavior
-- When the panel opens, the screen reader should announce it as a "Dialog" or "Region" with the title "Perspective Prism Analysis".
-- Background content (the rest of the YouTube page) should be virtually hidden or inert while the modal is open (depending on implementation strictly as a modal vs a panel). If completely modal, background shouldn't be accessible.
+- **Role & Modal Properties:**
+    - The panel MUST use `role="dialog"` (or `role="alertdialog"` if strictly blocking).
+    - It MUST have `aria-modal="true"` to indicate it covers other content.
+- **Labeling:**
+    - The dialog container MUST have an accessible name, e.g., via `aria-label="Perspective Prism Analysis"` or `aria-labelledby="[ID of title element]"`.
+    - **Verify:** Screen reader announces "Perspective Prism Analysis, Dialog" (or similar) upon opening.
+- **Background Interaction:**
+    - While the dialog is open, the background content (YouTube page) MUST be inert.
+    - **Implementation Check:** Verify that `aria-hidden="true"` is applied to the background container OR the `inert` attribute is used on the background.
+    - **Verify:** Screen reader cursor does not accidentally navigate into the video player or comments while the panel is open.
 
 ## Common Issues to Watch For
 - **Silence on Updates:** Loading finishes but screen reader says nothing.

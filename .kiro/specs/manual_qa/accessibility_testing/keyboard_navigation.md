@@ -14,8 +14,7 @@ Verify that all interactive elements of the Perspective Prism Analysis Panel can
 | **Navigate Back** | `Shift + Tab` | Moves focus to the previous interactive element. |
 | **Next Claim** | `Arrow Down` | Moves focus to the next claim in the list. |
 | **Previous Claim** | `Arrow Up` | Moves focus to the previous claim in the list. |
-| **Expand Claim** | `Arrow Right` | Expands the currently focused claim to show details. |
-| **Collapse Claim** | `Arrow Left` | Collapses the currently focused claim. |
+| **Expand/Collapse** | `Enter` or `Space` | Toggles the currently focused claim to show/hide details. |
 | **First Claim** | `Home` | Moves focus to the first claim in the list. |
 | **Last Claim** | `End` | Moves focus to the last claim in the list. |
 
@@ -25,9 +24,11 @@ Verify that all interactive elements of the Perspective Prism Analysis Panel can
 1.  Navigate to a YouTube video page.
 2.  Press `Tab` until the "Perspective Prism Analysis" button is focused.
 3.  Press `Enter` to open the panel.
-4.  **Verify:** Focus moves immediately to the "Close" button or the first interactive element within the panel.
-5.  Press `Tab` repeatedly.
-6.  **Verify:** Focus cycles through all interactive elements within the panel (Claims, buttons, links) and does not escape to the background page (Focus Trap).
+4.  **Verify:** Focus moves immediately to the "Close" button.
+5.  Press `Tab` repeatedly to navigate through all interactive elements within the panel (Claims, buttons, links).
+6.  **Verify:** Focus remains within the panel and does not escape to the background page.
+7.  From the last interactive element in the panel, press `Tab` once more.
+8.  **Verify:** Focus returns to the "Close" button, confirming the focus trap cycle.
 
 ### 2. Claim Navigation (Custom Controls)
 1.  Open the Analysis Panel and ensure claims are loaded.
@@ -43,11 +44,11 @@ Verify that all interactive elements of the Perspective Prism Analysis Panel can
 
 ### 3. Claim Expansion/Collapse
 1.  Focus on a collapsed claim.
-2.  Press `Arrow Right`.
+2.  Press `Enter` or `Space`.
 3.  **Verify:** The claim expands to reveal perspectives and indicators.
-4.  Press `Arrow Left`.
+4.  Press `Enter` or `Space` again.
 5.  **Verify:** The claim collapses.
-6.  **Verify:** Repeated presses of `Arrow Left` on a collapsed claim do nothing (or move focus to parent if applicable, but standard behavior is no-op).
+6.  **Verify:** `Arrow Right/Left` do NOT expand/collapse (unless implementing a Tree pattern, but Disclosure is standard).
 
 ### 4. Closing the Panel
 1.  Open the panel and move focus somewhere deep inside the claims list.
