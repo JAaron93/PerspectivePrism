@@ -15,6 +15,7 @@ let cancelRequest = false;
 let loadingTimer = null;
 let previouslyFocusedElement = null; // Track focus before panel opens
 let wasPanelOpen = false; // Track if panel was open before navigation
+let claimNavigator = null; // Accessibility navigator
 
 // Constants
 const BUTTON_ID = "pp-analysis-button";
@@ -23,6 +24,18 @@ const PANEL_ID = "pp-analysis-panel";
 // Panel Styles - Comprehensive styles with dark mode support
 // Imported from panel-styles.js (loaded via manifest)
 const PANEL_STYLES = `
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* ============================================
    Host Container - Fixed Position Panel
    ============================================ */
@@ -1842,6 +1855,19 @@ function showResults(data, isCached = false) {
   // Setup keyboard navigation (Escape to close, Tab cycling)
   setupKeyboardNavigation(panel, shadow);
 
+  // Initialize ClaimNavigator with announcer
+  const announcer = document.createElement("div");
+  announcer.id = "pp-announcer";
+  announcer.className = "sr-only";
+  announcer.setAttribute("aria-live", "polite");
+  shadow.appendChild(announcer);
+
+  const claimHeaders = shadow.querySelectorAll(".claim-header");
+  if (claimHeaders.length > 0 && typeof ClaimNavigator !== "undefined") {
+    claimNavigator = new ClaimNavigator(shadow, announcer);
+    claimNavigator.init(claimHeaders);
+  }
+
   // Move focus to close button for accessibility
   const closeBtn = shadow.querySelector(".close-btn");
   if (closeBtn) {
@@ -2028,6 +2054,14 @@ function showError(msg) {
 function removePanel() {
   clearLoadingTimer();
   if (analysisPanel) {
+    // Cleanup ClaimNavigator
+    if (claimNavigator) {
+      if (typeof claimNavigator.dispose === 'function') {
+        claimNavigator.dispose();
+      }
+      claimNavigator = null;
+    }
+
     // Remove event listener if it exists
     if (analysisPanel._keydownHandler) {
       analysisPanel.removeEventListener(

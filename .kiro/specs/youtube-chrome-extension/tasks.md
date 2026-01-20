@@ -308,19 +308,19 @@
     - Move focus to Close button on panel open
     - Implement focus trapping within panel
     - _Requirements: 4.7_
-  - [ ]\* 8.3 Implement advanced claim navigation
+  - [x] 8.3 Implement advanced claim navigation
     - Add Arrow Up/Down for claim navigation
     - Add Arrow Right/Left for expand/collapse
     - Add Home/End for first/last claim
     - Manage tabindex programmatically for claims
     - _Requirements: 4.7_
-  - [ ]\* 8.4 Create ClaimNavigator class
+  - [x] 8.4 Create ClaimNavigator class
     - Implement moveTo() for claim navigation
     - Implement expandClaim() and collapseClaim()
     - Add screen reader announcements
     - Handle keyboard events (Arrow keys, Home, End)
     - _Requirements: 4.7_
-  - [ ]\* 8.5 Add ARIA live regions and announcements
+  - [x] 8.5 Add ARIA live regions and announcements
     - Create claims container with role="region" aria-live="assertive"
     - Add hidden announcer element for dynamic updates
     - Announce state changes (loading, complete, error)
