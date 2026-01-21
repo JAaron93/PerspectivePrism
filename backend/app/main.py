@@ -183,11 +183,8 @@ async def process_analysis(job_id: str, request: VideoRequest):
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)
         
-        # Process claims with a reasonable limit
-        MAX_CLAIMS_PER_REQUEST = 3  # Limit to prevent timeouts from processing too many claims
-        if len(claims) > MAX_CLAIMS_PER_REQUEST:
-            logger.warning(f"Video has {len(claims)} claims, limiting to {MAX_CLAIMS_PER_REQUEST}")
-        claims_to_process = claims[:MAX_CLAIMS_PER_REQUEST]
+        # Process all identified claims
+        claims_to_process = claims
         
         claims_to_return = []
         

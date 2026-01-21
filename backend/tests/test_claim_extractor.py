@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,3 +78,52 @@ async def test_claim_extraction_error_handling():
         assert claims[0].metadata["status"] == "error"
         assert claims[0].metadata["code"] == "llm_extraction_failed"
         assert "API Error" in claims[0].metadata["details"]
+
+
+@pytest.mark.asyncio
+async def test_claim_extraction_multiple_claims():
+    # Mock settings to avoid API key validation error during init
+    with patch("app.services.claim_extractor.settings") as mock_settings:
+        mock_settings.LLM_API_KEY = "sk-mock-key"
+        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
+        mock_settings.LLM_PROVIDER = "openai"
+
+        extractor = ClaimExtractor()
+
+        # Mock the OpenAI client
+        mock_client = MagicMock()
+        extractor.client = mock_client
+
+        # Mock a response with 5 claims (more than the previous limit)
+        claims_list = []
+        for i in range(5):
+            claims_list.append({
+                "text": f"Claim {i}",
+                "start_time": float(i * 10),
+                "end_time": float(i * 10 + 5),
+                "context": f"Context for claim {i}"
+            })
+        
+        mock_response = MagicMock()
+        mock_response.choices = [
+            MagicMock(
+                message=MagicMock(
+                    content=json.dumps({"claims": claims_list})
+                )
+            )
+        ]
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        # Mock transcript data
+        mock_transcript = Transcript(
+            video_id="test_id",
+            segments=[],
+            full_text="Test transcript",
+        )
+
+        # Test extraction
+        claims = await extractor.extract_claims(mock_transcript)
+
+        assert len(claims) == 5
+        for i in range(5):
+            assert claims[i].text == f"Claim {i}"

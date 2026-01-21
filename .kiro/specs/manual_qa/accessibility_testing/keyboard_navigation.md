@@ -31,16 +31,20 @@ Verify that all interactive elements of the Perspective Prism Analysis Panel can
 8.  **Verify:** Focus returns to the "Close" button, confirming the focus trap cycle.
 
 ### 2. Claim Navigation (Custom Controls)
-1.  Open the Analysis Panel and ensure claims are loaded.
-2.  Navigate focus to the list of claims.
-3.  Press `Arrow Down`.
-4.  **Verify:** Focus moves to the next claim. The claim should be visually highlighted.
-5.  Press `Arrow Up`.
-6.  **Verify:** Focus moves to the previous claim.
-7.  Press `Home`.
-8.  **Verify:** Focus jumps to the very first claim.
-9.  Press `End`.
-10. **Verify:** Focus jumps to the very last claim.
+1.  Open the Analysis Panel and ensure multiple claims are loaded.
+2.  Navigate focus to the list of claims (e.g., focus the first claim).
+3.  **Basic Navigation:**
+    - Press `Arrow Down`. **Verify:** Focus moves to the next claim; it is visually highlighted.
+    - Press `Arrow Up`. **Verify:** Focus moves to the previous claim.
+    - Press `Home`. **Verify:** Focus jumps to the very first claim.
+    - Press `End`. **Verify:** Focus jumps to the very last claim.
+4.  **Boundary Test Cases (No-Wrap Behavior):**
+    - **First Item Edge:** Focus the first claim. Press `Arrow Up`.
+        - **Verify:** Focus remains on the first claim (no wrapping to the bottom).
+        - Press `Home`. **Verify:** Focus remains on the first claim.
+    - **Last Item Edge:** Focus the last claim. Press `Arrow Down`.
+        - **Verify:** Focus remains on the last claim (no wrapping to the top).
+        - Press `End`. **Verify:** Focus remains on the last claim.
 
 ### 3. Claim Expansion/Collapse
 1.  Focus on a collapsed claim.

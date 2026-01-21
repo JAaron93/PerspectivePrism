@@ -123,10 +123,9 @@ class ClaimExtractor:
             timestamp = f"[{minutes:02d}:{seconds:02d}]"
             formatted_transcript += f"{timestamp} {seg.text}\n"
 
-        # Truncate to ~12000 chars (approx 3000 tokens) to be safe with context window + output
-        # A 10 min video is usually around 1500 words / 7-8k chars.
-        if len(formatted_transcript) > 12000:
-            formatted_transcript = formatted_transcript[:12000] + "\n...[TRUNCATED]..."
+        # Increase limit for Hyperbolic acceleration (larger context windows)
+        if len(formatted_transcript) > 100000:
+            formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
 
         # 2. Construct Prompt
         prompt = f"""You are an expert content analyst. Your task is to analyze the following video transcript and extract the key claims made by the speaker.
@@ -138,7 +137,7 @@ INSTRUCTIONS:
    - The exact text of the claim (or a concise summary if the speaker is verbose).
    - The start and end timestamps (approximate) based on the transcript markers.
    - The context (surrounding text) to help understand the claim.
-4. Extract between 3 and 7 most important claims.
+4. Extract all distinct and verifiable claims.
 5. Output valid JSON.
 
 {wrap_user_data(formatted_transcript, "TRANSCRIPT")}

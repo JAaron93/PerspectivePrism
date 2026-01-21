@@ -26,6 +26,11 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
     *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to OpenAI to ensure resilience against outages.
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
+### 🚀 High-Performance Analysis
+With the integration of **Hyperbolic** acceleration, Perspective Prism now offers:
+- **Unlimited Claim Analysis**: The previous cap of 3 claims per video has been removed. Every uniquely identified claim in a video is now analyzed.
+- **Extended Transcript Coverage**: Increased transcript processing capacity from 12k to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
+
 ## 🦾 Essential Tools and Utilities
 
 The Perspective Prism multi-agent system is equipped with custom-built tools designed to ensure security, quality, and effectiveness throughout the analysis pipeline.
