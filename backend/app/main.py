@@ -1,5 +1,6 @@
 import re
 import copy
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -20,7 +21,23 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title=settings.PROJECT_NAME)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start the background task for cleanup
+    cleanup_task = asyncio.create_task(cleanup_jobs())
+    logger.info("Background cleanup task started")
+    
+    yield
+    
+    # Shutdown: Cancel the task and wait for it to finish
+    logger.info("Cancelling background cleanup task")
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        logger.info("Background cleanup task cancelled successfully")
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 # Helper for CORS regex
 def build_chrome_extension_regex(extension_ids: list[str]) -> str | None:
@@ -111,9 +128,7 @@ async def cleanup_jobs():
         except Exception as e:
             logger.error(f"Error in cleanup_jobs task: {e}")
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(cleanup_jobs())
+# Startup event is now handled by the lifespan context manager
 
 
 def compute_overall_assessment(p_analyses: list[PerspectiveAnalysis], deception_score: float) -> str:
@@ -183,8 +198,13 @@ async def process_analysis(job_id: str, request: VideoRequest):
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)
         
-        # Process all identified claims
-        claims_to_process = claims
+        # Process claims with a configurable limit
+        claims_to_process = claims[:settings.MAX_CLAIMS_PER_ANALYSIS]
+        if len(claims) > settings.MAX_CLAIMS_PER_ANALYSIS:
+            logger.warning(
+                f"Video has {len(claims)} claims, limiting to {settings.MAX_CLAIMS_PER_ANALYSIS}. "
+                f"Extra claims were skipped."
+            )
         
         claims_to_return = []
         
@@ -239,7 +259,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 p_analysis = await analysis_service.analyze_perspective(claim, p_type, p_evidence)
                 
                 # Transform to dictionary format expected by UI
-                p_dict = p_analysis.dict()
+                p_dict = p_analysis.model_dump()
                 p_dict['assessment'] = p_analysis.stance  # UI expects 'assessment'
                 
                 async with jobs_lock:

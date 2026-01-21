@@ -98,7 +98,7 @@
     - Primary strategy: Simple key = `cache_{videoId}`
     - Rationale: One analysis per video (latest overwrites previous)
     - Confirmed backend receives request, processes (with quota limits), and returns result.
-    - **[UPDATE]** Removed claim analysis limit (previously 3) to leverage Hyperbolic processing speed.
+    - **[UPDATE]** Increased claim analysis limit to a configurable value (default 15) to leverage Hyperbolic processing speed.
     - Alternative considered: Composite key = `cache_{videoId}_{timestamp}`
       - Rejected: Would allow multiple analyses per video (storage bloat)
       - Rejected: Complicates eviction and lookup

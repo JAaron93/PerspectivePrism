@@ -94,7 +94,7 @@ async def test_claim_extraction_multiple_claims():
         mock_client = MagicMock()
         extractor.client = mock_client
 
-        # Mock a response with 5 claims (more than the previous limit)
+        # Mock a response with 5 claims (exceeds the previous 3-claim limit)
         claims_list = []
         for i in range(5):
             claims_list.append({
@@ -127,3 +127,5 @@ async def test_claim_extraction_multiple_claims():
         assert len(claims) == 5
         for i in range(5):
             assert claims[i].text == f"Claim {i}"
+            assert claims[i].timestamp_start == float(i * 10)
+            assert claims[i].timestamp_end == float(i * 10 + 5)

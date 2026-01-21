@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Deception Analysis Thresholds (valid range: 0.0 to 10.0)
     DECEPTION_THRESHOLD_HIGH: float = 7.0
     DECEPTION_THRESHOLD_MODERATE: float = 5.0
+    MAX_CLAIMS_PER_ANALYSIS: int = 15
 
     @model_validator(mode="after")
     def validate_deception_thresholds(self) -> Self:
@@ -99,6 +100,13 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    @field_validator("MAX_CLAIMS_PER_ANALYSIS", mode="after")
+    @classmethod
+    def validate_max_claims(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"MAX_CLAIMS_PER_ANALYSIS must be at least 1, got {v}")
+        return v
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

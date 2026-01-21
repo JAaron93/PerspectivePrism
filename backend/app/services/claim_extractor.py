@@ -137,7 +137,7 @@ INSTRUCTIONS:
    - The exact text of the claim (or a concise summary if the speaker is verbose).
    - The start and end timestamps (approximate) based on the transcript markers.
    - The context (surrounding text) to help understand the claim.
-4. Extract all distinct and verifiable claims.
+4. Extract up to 50 of the most significant and verifiable claims, prioritizing those with strong factual assertions.
 5. Output valid JSON.
 
 {wrap_user_data(formatted_transcript, "TRANSCRIPT")}

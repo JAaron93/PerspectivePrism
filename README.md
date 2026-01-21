@@ -28,7 +28,7 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 
 ### 🚀 High-Performance Analysis
 With the integration of **Hyperbolic** acceleration, Perspective Prism now offers:
-- **Unlimited Claim Analysis**: The previous cap of 3 claims per video has been removed. Every uniquely identified claim in a video is now analyzed.
+- **Enhanced Claim Analysis**: The previous hardcoded cap of 3 claims has been removed. The system now supports a configurable limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting.
 - **Extended Transcript Coverage**: Increased transcript processing capacity from 12k to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
 
 ## 🦾 Essential Tools and Utilities
