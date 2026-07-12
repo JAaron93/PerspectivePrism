@@ -6,8 +6,10 @@ This document breaks down the modernization effort into actionable, test-driven 
 ## Execution Tracks
 
 ### Track 1: Setup & Dependencies
-*   **Task 1.1: Dependency Overhaul**
-    *   **Description:** Update `requirements.txt`. Uninstall `openai` and `google-generativeai`. Install `google-genai`, `google-adk`, and `maturin`.
+*   **Task 1.1: Dependency Overhaul & Synchronization**
+    *   **Description:** Update dependency files to add `google-genai` (`>=2.3.0,<3.0.0`), `google-adk` (`>=2.0.0,<3.0.0`), and `maturin`. 
+    *   **Dependency Source of Truth:** `backend/requirements.txt` is the authoritative source for pinned versions to guarantee deterministic builds in CI and container builds. `backend/pyproject.toml` is used for packaging metadata and unpinned project dependencies. 
+    *   **Execution:** Update both files to ensure they are synchronized. Local installations MUST use `pip install -r requirements.txt -e .` to link the environment correctly. CI and container builds MUST run off the pinned `requirements.txt`.
     *   **Traceability:** FR-1, NFR-3
     *   **Dependencies:** None
 
@@ -22,7 +24,7 @@ This document breaks down the modernization effort into actionable, test-driven 
         *   Implement validation using `ClaimsOutput.model_validate_json(...)` or ADK's native Pydantic marshaller.
         *   **Error / Parity Handling:** If the LLM output is malformed, incomplete, or schema-invalid, log the failure and implement a single retry with a corrected instruction payload before failing structured execution.
         *   Reorder the prompt string so that `formatted_transcript` is at the absolute beginning of the prompt, enclosed in untrusted data delimiters (`===USER DATA START===` ... `===USER DATA END===`), followed by instructions.
-        *   **Data Privacy & Governance:** Explicitly configure `client.interactions.create` with security boundaries. Ensure no transcript text or user metadata is logged to backend standard outputs. Verify that any logging is aggregate-only (e.g. token counts). Note that `store=false` (disabling session persistence) will be used to protect user data privacy, but implicit caching will remain fully functional.
+        *   **Data Privacy, Governance & Logging:** Explicitly configure `client.interactions.create` with security boundaries. No raw transcript text or user metadata is logged to backend standard outputs. Any logging of retry attempts or diagnostics MUST be aggregate-only (e.g. token counts) or redacted. Raw stack traces containing prompts must be treated as non-persistent, console-only debug output and excluded from backend persistent logs. Note that `store=false` (disabling session persistence) will be used to protect user data privacy, but implicit caching will remain fully functional.
     *   **Traceability:** FR-2, FR-3, FR-4, FR-5, US-2
     *   **Dependencies:** Task 1.1
 
@@ -33,7 +35,7 @@ This document breaks down the modernization effort into actionable, test-driven 
         *   Use `PerspectiveAnalysis.model_validate_json(...)` and `BiasAnalysis.model_validate_json(...)` to parse results.
         *   **Error / Parity Handling:** Handle schema-invalid responses by logging the raw trace and executing a single retry.
         *   Reorder the prompt string so that retrieved evidence and claim contexts are at the absolute beginning of the prompt, enclosed in untrusted data delimiters, followed by instructions.
-        *   **Data Privacy & Governance:** Enforce aggregate-only logging (token counts and latency metrics). Transcripts and parsed evidence must never be persisted in long-term application logs.
+        *   **Data Privacy, Governance & Logging:** Enforce aggregate-only logging (token counts and latency metrics). Transcripts and parsed evidence must never be persisted in long-term application logs. Raw traces must be treated as non-persistent, console-only debug output.
     *   **Traceability:** FR-2, FR-3, FR-4, FR-5, US-2
     *   **Dependencies:** Task 1.1
 
@@ -54,7 +56,7 @@ This document breaks down the modernization effort into actionable, test-driven 
     *   **Dependencies:** Task 1.1
 *   **Task 4.2: Port Sanitization Logic**
     *   **Description:** Implement `contains_control_characters`, `contains_suspicious_patterns`, and `escape_special_characters` in Rust using the `regex` crate for maximum speed.
-    *   **Description:** Ensure that inputs violating control character or suspicious pattern checks trigger a PyO3 python exception mapping directly to Python's `SanitizationError` (Rejection Semantics).
+    *   **Description:** **Rejection Path PyO3 Mapping:** Ensure that inputs violating control character checks or matching suspicious injection patterns trigger a PyO3 python exception mapping directly to Python's `SanitizationError` with identical message texts matching the legacy Python implementation (preserving phrases like "control character" and specific pattern warnings).
     *   **Description:** For accepted inputs, ensure the Rust implementation of `escape_special_characters` produces identical character replacement output matching the Python logic.
     *   **Traceability:** FR-7
     *   **Dependencies:** Task 4.1
@@ -73,6 +75,7 @@ This document breaks down the modernization effort into actionable, test-driven 
 *   **Task 5.2: End-to-End & Caching Validation**
     *   **Description:** Run the backend server locally and submit a large YouTube transcript via the Chrome Extension.
     *   **Description:** Validate caching via an opt-in live smoke test using `usage.total_cached_tokens` telemetry when available. Core CI runs must use mocked telemetry.
+    *   **Transcript Tokenization Validation:** The live smoke test MUST calculate the exact token length of the YouTube transcript fixture using the target model's tokenizer (or local count approximation via `google-genai` SDK's count_tokens API) and assert it exceeds 4096 tokens before running the cache-hit test. Reject the test run with a descriptive error if the fixture is under 4096 tokens.
     *   **Measurable Validation Metrics (Live Smoke Test):**
         *   **Baseline:** Execute a cold run on a 20,000-character transcript (zero cache). Note overall latency (Expected: ~8-12 seconds).
         *   **Warm-up:** Run the same transcript again within a 5-minute window to trigger implicit caching.

@@ -2,9 +2,11 @@
 
 ## 1. Functional Requirements (FR)
 
-*   **FR-1: SDK Migration**
-    *   The backend MUST use `google-genai` (>=2.3.0) and `google-adk` (>=2.0.0).
-    *   The `openai` and `google-generativeai` packages MUST be uninstalled and completely removed from the codebase.
+*   **FR-1: SDK Migration & Compatibility Range**
+    *   The backend MUST use the `google-genai` SDK within the bounded range `>=2.3.0,<3.0.0`.
+    *   The backend MUST use `google-adk` within the bounded range `>=2.0.0,<3.0.0`.
+    *   The legacy `openai` and `google-generativeai` packages MUST be uninstalled and completely removed from the codebase.
+    *   Dependency resolution MUST be locked in `requirements.txt` and verified in CI to ensure dependencies remain strictly within these supported ranges.
 *   **FR-2: ADK 2.0 Agent Wrapping**
     *   The core logic for claim extraction MUST be wrapped in an explicit ADK 2.0 `Agent` class (e.g., `ExtractorAgent`).
     *   The core logic for perspective and bias analysis MUST be wrapped in explicit ADK 2.0 `Agent` classes (e.g., `AnalysisAgent`).
@@ -28,17 +30,18 @@
     *   The circuit breaker MUST trip after 3 consecutive transient failures, with a reset window of 60 seconds.
     *   When the circuit breaker is tripped, the system MUST fallback to the backup model: `gemini-3.1-flash-lite`.
     *   If the backup model ALSO fails, the system MUST raise a dedicated service-level exception (`AnalysisServiceError`) and log the diagnostic failures.
-*   **FR-7: Rust Sanitization Module**
+*   **FR-7: Rust Sanitization Module & Rejection Parity**
     *   The backend MUST implement the core input sanitization logic as a compiled Rust extension using `PyO3` and `maturin`.
     *   The extension MUST handle control character detection and regex-based suspicious pattern matching to reduce processing latency on large transcripts.
-    *   The extension MUST distinguish rejected-input/error outcomes from escaped-output parity:
-        *   **Rejection Semantics:** The Rust extension MUST detect control characters and suspicious patterns and throw a PyO3-exposed exception mapping directly to Python's `SanitizationError`.
+    *   The extension MUST achieve strict rejection-behavior parity with `backend/app/utils/input_sanitizer.py`:
+        *   **Regex Parity:** The Rust module MUST use the exact same suspicious-pattern set and case-insensitive regex matching.
+        *   **Control Character Parity:** The control character detection MUST utilize the same character whitelist (allowing only tab `\t`, newline `\n`, carriage return `\r`) and reject other control characters.
+        *   **Error Outcomes:** Rejection outcomes MUST raise a Python-compatible `SanitizationError` with identical message text (e.g., preserving messages such as `"Claim text contains invalid control characters"` or `"input contains patterns that may indicate a prompt injection attempt"`), covering all existing Python security tests without behavioral divergence.
         *   **Escaping Semantics:** The Rust extension MUST implement `escape_special_characters` with identical replacement semantics as the Python original ONLY for inputs accepted for escaping:
             *   Normalize newlines: `\r\n` -> `\n`, `\r` -> `\n`.
             *   Escape backslashes: `\` -> `\\`.
             *   Escape quotes: `"` -> `\"`, `'` -> `\'`.
             *   Escape curly braces: `{` -> `\{`, `}` -> `\}`.
-    *   The Rust module MUST maintain strict behavioral and output character parity with the legacy Python code for all accepted (non-rejected) inputs.
 
 ## 2. Non-Functional Requirements (NFR)
 
@@ -70,4 +73,4 @@
 *   **BDD-3:**
     *   `Given` a 50,000 character transcript containing a prompt injection attempt and control characters,
     *   `When` passed to `sanitize_input` (both before and after the Rust migration),
-    *   `Then` the Rust module MUST quickly detect and reject it exactly as the Python version did (raising `SanitizationError`), producing identical escaped output for non-rejected payloads and passing all existing `pytest` security cases.
+    *   `Then` the Rust module MUST quickly detect and reject it exactly as the Python version did (raising `SanitizationError` with identical message text), producing identical escaped output for non-rejected payloads and passing all existing `pytest` security cases.
