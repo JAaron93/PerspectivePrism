@@ -24,3 +24,10 @@ PerspectivePrism currently utilizes an older OpenAI-compatible shim and deprecat
 ### 3.3 Input Sanitizer (`prism_sanitizer` Rust module)
 *   **Current State:** Implemented in pure Python (`input_sanitizer.py`), resulting in CPU-bound latency on large transcripts due to character loops and sequential regex tests.
 *   **Future State:** A new Rust crate `prism_sanitizer_rs` will be developed via `PyO3`. It will expose extremely fast implementations of `contains_control_characters`, `contains_suspicious_patterns`, and `escape_special_characters`. The Python `input_sanitizer.py` will act as a thin wrapper importing this compiled module.
+*   **Escape Character Parity & Semantics:**
+    *   The Rust module's `escape_special_characters` MUST strictly match the replacement semantics of the Python original:
+        *   Normalize newlines: `\r\n` -> `\n`, `\r` -> `\n`.
+        *   Backslash escaping: `\` -> `\\` (first, to avoid double-escaping).
+        *   Quotes escaping: `"` -> `\"`, `'` -> `\'`.
+        *   Curly braces escaping (template injection protection): `{` -> `\{`, `}` -> `\}`.
+    *   Unit tests MUST verify exact output character parity before and after the Rust integration.
