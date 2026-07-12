@@ -184,8 +184,10 @@ class ClaimExtractor:
                     session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
                     result = session.state.get("claims_result")
                     if result:
+                        if isinstance(result, dict):
+                            result = ClaimsOutput.model_validate(result)
                         break
-                except Exception as e:
+                except APIError as e:
                     logger.warning(f"Claim extraction attempt {attempt + 1} failed: {e}")
                     if attempt == 0:
                         current_prompt = (

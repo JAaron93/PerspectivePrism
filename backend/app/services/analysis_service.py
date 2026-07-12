@@ -168,8 +168,13 @@ class AnalysisService:
                 session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
                 result = session.state.get(output_key)
                 if result:
+                    if isinstance(result, dict):
+                        if output_key == "perspective_result":
+                            result = PerspectiveAnalysisLLMOutput.model_validate(result)
+                        elif output_key == "bias_result":
+                            result = BiasAnalysis.model_validate(result)
                     return result
-            except Exception as e:
+            except errors.APIError as e:
                 last_err = e
                 logger.warning(f"Agent execution attempt {attempt + 1} failed: {e}")
                 if attempt == 0 and not is_backup:
@@ -179,7 +184,8 @@ class AnalysisService:
                         f"Please ensure you return a valid JSON object strictly matching the schema requirements."
                     )
                 else:
-                    break
+                    raise e
+
 
         raise last_err or Exception("Agent execution failed with no result")
 
@@ -223,7 +229,7 @@ class AnalysisService:
             return result
 
         except Exception as e:
-            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 503)
+            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 502, 503, 504)
             
             if not is_transient:
                 logger.error(f"Non-transient error in primary agent: {e}")
