@@ -18,8 +18,7 @@ This document breaks down the modernization effort into actionable, test-driven 
 *   **Task 2.1: Modernize `claim_extractor.py` (ExtractorAgent)**
     *   **Description:** 
         *   Refactor extraction logic into an explicit ADK 2.0 `Agent` class (`ExtractorAgent`).
-        *   **Integration Boundary:** The `ExtractorAgent` owns prompt assembly, schema injection (via the `output_schema` attribute), and parsing validation. The ADK runtime layer wraps the model calls and is configured with standard retry policies for transient network errors.
-        *   Configure the structured output to target `ClaimsOutput` with `application/json` format.
+        *   **Integration Boundary & Flow:** Configure the `ExtractorAgent` with ADK `output_schema=ClaimsOutput`. Under the hood, pass the `ClaimsOutput` JSON schema through `client.interactions.create` using `response_format` (with `mime_type="application/json"`) for the wire request. Keep the validation at this agent level, while FastAPI validates only the final `response_model` returned to the API client.
         *   Implement validation using `ClaimsOutput.model_validate_json(...)` or ADK's native Pydantic marshaller.
         *   **Error / Parity Handling:** If the LLM output is malformed, incomplete, or schema-invalid, log the failure and implement a single retry with a corrected instruction payload before failing structured execution.
         *   Reorder the prompt string so that `formatted_transcript` is at the absolute beginning of the prompt, enclosed in untrusted data delimiters (`===USER DATA START===` ... `===USER DATA END===`), followed by instructions.
@@ -30,7 +29,7 @@ This document breaks down the modernization effort into actionable, test-driven 
 *   **Task 2.2: Modernize `analysis_service.py` (AnalysisAgent)**
     *   **Description:**
         *   Refactor analysis logic into explicit ADK 2.0 `Agent` classes (`AnalysisAgent`).
-        *   **Integration Boundary:** The `AnalysisAgent` owns prompt assembly, schema injection (via `output_schema` mapping to `PerspectiveAnalysis` and `BiasAnalysis`), and error parsing. The low-level API call routes through `genai.Client.interactions.create` wrapped by the ADK agent runtime.
+        *   **Integration Boundary & Flow:** Configure `AnalysisAgent` with `output_schema` mapping to `PerspectiveAnalysis` and `BiasAnalysis`. Under the hood, pass the corresponding JSON schemas through `client.interactions.create` via `response_format`. FastAPI will validate only the final `response_model`.
         *   Use `PerspectiveAnalysis.model_validate_json(...)` and `BiasAnalysis.model_validate_json(...)` to parse results.
         *   **Error / Parity Handling:** Handle schema-invalid responses by logging the raw trace and executing a single retry.
         *   Reorder the prompt string so that retrieved evidence and claim contexts are at the absolute beginning of the prompt, enclosed in untrusted data delimiters, followed by instructions.
@@ -41,7 +40,10 @@ This document breaks down the modernization effort into actionable, test-driven 
 ### Track 3: Resilience & Fallback
 *   **Task 3.1: Circuit Breaker Updates**
     *   **Description:** Refactor the circuit breaker logic in `analysis_service.py` to catch `google-genai` exceptions instead of OpenAI exceptions.
+    *   **Description:** Handle ONLY transient exceptions (e.g., rate limits/429, temporary server errors/500/503). Explicitly EXCLUDE authentication (401), configuration (400), invalid-request (400), and content-safety/moderation failures.
+    *   **Description:** Trip the circuit breaker after 3 consecutive failures. Define a reset window of 60 seconds.
     *   **Description:** Ensure the fallback logic correctly targets the `gemini-3.1-flash-lite` model when the primary model fails.
+    *   **Description:** If the backup model ALSO fails, raise a dedicated `AnalysisServiceError` and log the failures.
     *   **Traceability:** FR-6
     *   **Dependencies:** Task 2.2
 
@@ -51,7 +53,9 @@ This document breaks down the modernization effort into actionable, test-driven 
     *   **Traceability:** FR-7, NFR-3
     *   **Dependencies:** Task 1.1
 *   **Task 4.2: Port Sanitization Logic**
-    *   **Description:** Implement `contains_control_characters`, `contains_suspicious_patterns`, and `escape_special_characters` in Rust using the `regex` crate for maximum speed. Ensure replacement parity for escaped characters.
+    *   **Description:** Implement `contains_control_characters`, `contains_suspicious_patterns`, and `escape_special_characters` in Rust using the `regex` crate for maximum speed.
+    *   **Description:** Ensure that inputs violating control character or suspicious pattern checks trigger a PyO3 python exception mapping directly to Python's `SanitizationError` (Rejection Semantics).
+    *   **Description:** For accepted inputs, ensure the Rust implementation of `escape_special_characters` produces identical character replacement output matching the Python logic.
     *   **Traceability:** FR-7
     *   **Dependencies:** Task 4.1
 *   **Task 4.3: Integrate with Python**
@@ -62,13 +66,14 @@ This document breaks down the modernization effort into actionable, test-driven 
 ### Track 5: Verification & TDD/BDD
 *   **Task 5.1: Automated Test Verification**
     *   **Description:** Run the existing test suite (`pytest`) to ensure no regressions occur.
+    *   **Description:** Add an end-to-end integration test covering both the outbound schema registration and the returned payload shape.
     *   **Description:** Specifically verify that input sanitization logic still protects all LLM calls (via the new Rust layer).
-    *   **Traceability:** NFR-1, BDD-3
+    *   **Traceability:** FR-4, NFR-1, BDD-3
     *   **Dependencies:** Task 2.1, Task 2.2, Task 3.1, Task 4.3
 *   **Task 5.2: End-to-End & Caching Validation**
     *   **Description:** Run the backend server locally and submit a large YouTube transcript via the Chrome Extension.
-    *   **Description:** Validate caching by inspecting Interactions API responses and verifying `usage.total_cached_tokens` > 0.
-    *   **Measurable Validation Metrics:**
+    *   **Description:** Validate caching via an opt-in live smoke test using `usage.total_cached_tokens` telemetry when available. Core CI runs must use mocked telemetry.
+    *   **Measurable Validation Metrics (Live Smoke Test):**
         *   **Baseline:** Execute a cold run on a 20,000-character transcript (zero cache). Note overall latency (Expected: ~8-12 seconds).
         *   **Warm-up:** Run the same transcript again within a 5-minute window to trigger implicit caching.
         *   **Sample Size:** Run 5 distinct tests to collect p50 and p95 latency targets.
