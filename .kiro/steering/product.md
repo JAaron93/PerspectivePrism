@@ -7,4 +7,16 @@ Perspective Prism is an AI-powered analysis tool that processes YouTube video tr
 - Confidence scoring and supporting evidence
 - Overall assessment per claim
 
-The product emphasizes security with built-in input sanitization to prevent prompt injection attacks and ensure safe LLM interactions.
+## Delivery Surfaces
+
+The product ships as three components:
+
+1. **Backend API** — Python/FastAPI service that orchestrates the full analysis pipeline (transcript fetch → claim extraction → evidence retrieval → LLM analysis). Exposes an async job API; clients submit a YouTube URL and poll for incremental results.
+
+2. **Web Frontend** — React/TypeScript SPA for standalone use, connecting directly to the backend API.
+
+3. **Chrome Extension** — Manifest V3 browser extension that integrates the analysis directly into the YouTube watch page. Injects a side panel UI alongside the video player.
+
+## Security
+
+The product emphasizes security with built-in input sanitization to prevent prompt injection attacks and ensure safe LLM interactions. All user-supplied content is sanitized before being forwarded to LLM providers.
