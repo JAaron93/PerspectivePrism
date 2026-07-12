@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 
 from app.core.config import settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
+from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from youtube_transcript_api import YouTubeTranscriptApi
 from google.adk.agents import Agent
 from google.adk.runners import Runner
@@ -127,7 +128,6 @@ class ClaimExtractor:
         if len(formatted_transcript) > 100000:
             formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
 
-        from app.utils.input_sanitizer import sanitize_input, SanitizationError
         try:
             sanitized_transcript = sanitize_input(
                 formatted_transcript,
@@ -137,18 +137,18 @@ class ClaimExtractor:
                 allow_control_chars=False
             )
         except SanitizationError as e:
-            logger.error(f"Sanitization error in claim extraction: {e}")
+            logger.error(f"Sanitization error in claim extraction: {e!s}")
             return [
                 Claim(
                     id="error_claim",
                     text="Error: Transcript failed sanitization check",
                     timestamp_start=0.0,
                     timestamp_end=0.0,
-                    context=f"Sanitization error: {str(e)}",
+                    context="Transcript failed sanitization validation checks.",
                     metadata={
                         "status": "error",
                         "code": "sanitization_failed",
-                        "message": str(e),
+                        "message": "Transcript failed sanitization validation checks.",
                     }
                 )
             ]
@@ -196,7 +196,10 @@ class ClaimExtractor:
                     else:
                         raise e
 
-            if not result:
+            if result is None:
+                raise Exception("Agent execution failed to populate claims_result after both attempts.")
+
+            if not result.claims:
                 return []
 
             claims = []

@@ -152,14 +152,18 @@ class AnalysisService:
                     if event.error_code:
                         try:
                             code_int = int(event.error_code)
+                            response_json = {"error": {"message": event.error_message}}
                             if 400 <= code_int < 500:
-                                raise errors.ClientError(code=code_int, response_json=event.error_message)
+                                raise errors.ClientError(code=code_int, response_json=response_json)
                             elif code_int >= 500:
-                                raise errors.ServerError(code=code_int, response_json=event.error_message)
+                                raise errors.ServerError(code=code_int, response_json=response_json)
                             else:
-                                raise errors.APIError(code=code_int, response_json=event.error_message)
-                        except (ValueError, TypeError):
-                            raise Exception(f"{event.error_code}: {event.error_message}")
+                                raise errors.APIError(code=code_int, response_json=response_json)
+                        except (ValueError, TypeError) as conversion_error:
+                            raise errors.APIError(
+                                code=500,
+                                response_json={"error": {"message": f"{event.error_code}: {event.error_message}"}}
+                            ) from conversion_error
 
                 session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
                 result = session.state.get(output_key)
@@ -288,7 +292,7 @@ class AnalysisService:
                 perspective=perspective,
                 stance="Error",
                 confidence=0.0,
-                explanation=f"Input validation failed: {str(e)}",
+                explanation="Input validation failed.",
                 evidence=evidence_list,
             )
 
@@ -324,7 +328,7 @@ class AnalysisService:
                 perspective=perspective,
                 stance="Error",
                 confidence=0.0,
-                explanation=f"Analysis failed: {str(e)}",
+                explanation="Analysis failed.",
                 evidence=evidence_list,
             )
 
@@ -345,7 +349,7 @@ class AnalysisService:
             )
             return BiasAnalysis(
                 deception_rating=0.0,
-                deception_rationale=f"Input validation failed: {str(e)}",
+                deception_rationale="Input validation failed.",
             )
 
         # Build prompt with static/context data at the absolute start
@@ -377,6 +381,6 @@ class AnalysisService:
         except Exception as e:
             logger.exception("Error in bias analysis for claim '%s'", claim.text[:50])
             return BiasAnalysis(
-                deception_rating=0.0, deception_rationale=f"Analysis failed: {str(e)}"
+                deception_rating=0.0, deception_rationale="Analysis failed."
             )
 
