@@ -1,49 +1,55 @@
-import json
+import os
 import logging
 from typing import List
 from urllib.parse import parse_qs, urlparse
 
 from app.core.config import settings
-from app.models.schemas import Claim, Transcript, TranscriptSegment
-from app.utils.input_sanitizer import wrap_user_data
-from openai import AsyncOpenAI
+from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
+from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from youtube_transcript_api import YouTubeTranscriptApi
-
-
+from google.adk.agents import Agent
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+from google.genai.errors import APIError, ClientError
 
 logger = logging.getLogger(__name__)
 
 
+class ExtractorAgent(Agent):
+    pass
+
+
 class ClaimExtractor:
     def __init__(self):
-        self.provider = settings.LLM_PROVIDER.lower()
-
-        if self.provider == "openai":
-            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
-                raise ValueError(
-                    "LLM_API_KEY is not configured. Please set it in your .env file."
-                )
-            self.client = AsyncOpenAI(api_key=settings.LLM_API_KEY)
-            self.model = settings.LLM_MODEL
-
+        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
+        if self.api_key:
+            os.environ["GEMINI_API_KEY"] = self.api_key
         else:
-            raise ValueError(f"Unsupported LLM_PROVIDER: {self.provider}")
-
-    async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                response_format={"type": "json_object"},
-                timeout=60.0,
+            raise ValueError(
+                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
+                "Example: GEMINI_API_KEY=AIzaSy..."
             )
-            return response.choices[0].message.content
+
+        self.agent = ExtractorAgent(
+            name="extractor_agent",
+            model=settings.LLM_MODEL,
+            instruction=(
+                "You are an expert content analyst. Your task is to analyze the video transcript "
+                "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Identify distinct, verifiable claims or strong arguments.\n"
+                "2. Ignore filler, introductions, questions, or purely descriptive text.\n"
+                "3. For each claim, provide:\n"
+                "   - The exact text of the claim (or a concise summary if the speaker is verbose).\n"
+                "   - The start and end timestamps (approximate) based on the transcript markers.\n"
+                "   - The context (surrounding text) to help understand the claim.\n"
+                "4. Extract up to 50 of the most significant and verifiable claims, prioritizing those with strong factual assertions."
+            ),
+            output_schema=ClaimsOutput,
+            output_key="claims_result",
+        )
+
 
 
 
@@ -111,13 +117,8 @@ class ClaimExtractor:
         Extracts claims from the transcript using an LLM.
         Scans the transcript to identify meaningful claims.
         """
-        # 1. Prepare transcript text with timestamps for the LLM
-        # We'll chunk it if it's too long, but for MVP we'll try to process a significant portion.
-        # We'll format it as: [00:00] Text...
-
         formatted_transcript = ""
         for seg in transcript.segments:
-            # Simple timestamp formatting MM:SS
             minutes = int(seg.start // 60)
             seconds = int(seg.start % 60)
             timestamp = f"[{minutes:02d}:{seconds:02d}]"
@@ -127,129 +128,99 @@ class ClaimExtractor:
         if len(formatted_transcript) > 100000:
             formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
 
-        # 2. Construct Prompt
-        prompt = f"""You are an expert content analyst. Your task is to analyze the following video transcript and extract the key claims made by the speaker.
+        try:
+            sanitized_transcript = sanitize_input(
+                formatted_transcript,
+                max_length=100000,
+                field_name="Transcript",
+                allow_suspicious_patterns=False,
+                allow_control_chars=False
+            )
+        except SanitizationError as e:
+            logger.error(f"Sanitization error in claim extraction: {e!s}")
+            return [
+                Claim(
+                    id="error_claim",
+                    text="Error: Transcript failed sanitization check",
+                    timestamp_start=0.0,
+                    timestamp_end=0.0,
+                    context="Transcript failed sanitization validation checks.",
+                    metadata={
+                        "status": "error",
+                        "code": "sanitization_failed",
+                        "message": "Transcript failed sanitization validation checks.",
+                    }
+                )
+            ]
 
-INSTRUCTIONS:
-1. Identify distinct, verifiable claims or strong arguments.
-2. Ignore filler, introductions, questions, or purely descriptive text.
-3. For each claim, provide:
-   - The exact text of the claim (or a concise summary if the speaker is verbose).
-   - The start and end timestamps (approximate) based on the transcript markers.
-   - The context (surrounding text) to help understand the claim.
-4. Extract up to 50 of the most significant and verifiable claims, prioritizing those with strong factual assertions.
-5. Output valid JSON.
+        # Reorder prompt so that the untrusted data is at the absolute start
+        user_prompt = (
+            f"===USER DATA START===\n"
+            f"{sanitized_transcript}\n"
+            f"===USER DATA END===\n"
+            f"Please extract key claims from this transcript according to your instructions."
+        )
 
-{wrap_user_data(formatted_transcript, "TRANSCRIPT")}
-
-OUTPUT FORMAT (JSON):
-{{
-    "claims": [
-        {{
-            "text": "string",
-            "start_time": float (in seconds, convert MM:SS to seconds),
-            "end_time": float (in seconds),
-            "context": "string"
-        }}
-    ]
-}}"""
+        session_service = InMemorySessionService()
+        attempts = 2
+        result = None
+        current_prompt = user_prompt
 
         try:
-            content = await self._call_llm(
-                prompt=prompt,
-                system_prompt="You are a helpful assistant that extracts claims from transcripts.",
-            )
-            if not content:
+            for attempt in range(attempts):
+                try:
+                    attempt_session_id = f"s1_attempt_{attempt}"
+                    await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
+                    runner = Runner(agent=self.agent, app_name="app", session_service=session_service)
+
+                    async for event in runner.run_async(
+                        user_id="user",
+                        session_id=attempt_session_id,
+                        new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
+                    ):
+                        if event.error_code:
+                            raise Exception(f"{event.error_code}: {event.error_message}")
+
+                    session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
+                    result = session.state.get("claims_result")
+                    if result:
+                        if isinstance(result, dict):
+                            result = ClaimsOutput.model_validate(result)
+                        break
+                except APIError as e:
+                    logger.warning(f"Claim extraction attempt {attempt + 1} failed: {e}")
+                    if attempt == 0:
+                        current_prompt = (
+                            f"{user_prompt}\n\n"
+                            f"WARNING: The previous attempt failed with the following error: {e}. "
+                            f"Please ensure you return a valid JSON object strictly matching the schema requirements."
+                        )
+                    else:
+                        raise e
+
+            if result is None:
+                raise Exception("Agent execution failed to populate claims_result after both attempts.")
+
+            if not result.claims:
                 return []
 
-            data = json.loads(content)
-            claims_data = data.get("claims", [])
-
             claims = []
-            for i, item in enumerate(claims_data):
-                # Validate required fields
-                try:
-                    # Validate text: must be non-empty string
-                    text = item.get("text", "")
-                    if not isinstance(text, str) or not text.strip():
-                        logger.warning(
-                            f"Skipping claim at index {i}: missing or empty 'text' field",
-                            extra={"claim_index": i, "missing_fields": ["text"]},
-                        )
-                        continue
-
-                    # Validate start_time: must be numeric or castable to float
-                    start_time_raw = item.get("start_time")
-                    if start_time_raw is None:
-                        logger.warning(
-                            f"Skipping claim at index {i}: missing 'start_time' field",
-                            extra={"claim_index": i, "missing_fields": ["start_time"]},
-                        )
-                        continue
-
-                    try:
-                        start_time = float(start_time_raw)
-                    except (ValueError, TypeError):
-                        logger.warning(
-                            f"Skipping claim at index {i}: 'start_time' is not numeric",
-                            extra={
-                                "claim_index": i,
-                                "error_type": "invalid_type",
-                                "field": "start_time",
-                            },
-                        )
-                        continue
-
-                    # Validate end_time: must be numeric or castable to float
-                    end_time_raw = item.get("end_time")
-                    if end_time_raw is None:
-                        logger.warning(
-                            f"Skipping claim at index {i}: missing 'end_time' field",
-                            extra={"claim_index": i, "missing_fields": ["end_time"]},
-                        )
-                        continue
-
-                    try:
-                        end_time = float(end_time_raw)
-                    except (ValueError, TypeError):
-                        logger.warning(
-                            f"Skipping claim at index {i}: 'end_time' is not numeric",
-                            extra={
-                                "claim_index": i,
-                                "error_type": "invalid_type",
-                                "field": "end_time",
-                            },
-                        )
-                        continue
-
-                    # Optional context: default to empty string
-                    context = item.get("context", "")
-                    if not isinstance(context, str):
-                        context = ""
-
-                    # All validations passed, create Claim
-                    claims.append(
-                        Claim(
-                            id=f"claim_{i}",
-                            text=text.strip(),
-                            timestamp_start=start_time,
-                            timestamp_end=end_time,
-                            context=context,
-                        )
+            for i, item in enumerate(result.claims):
+                claims.append(
+                    Claim(
+                        id=f"claim_{i}",
+                        text=item.text.strip(),
+                        timestamp_start=item.start_time,
+                        timestamp_end=item.end_time,
+                        context=item.context,
                     )
+                )
 
-                except Exception as e:
-                    # Catch any unexpected errors during claim construction
-                    logger.warning(
-                        f"Unexpected error creating claim at index {i}: {e}",
-                        extra={"claim_index": i, "error": str(e)},
-                    )
-                    continue
-
+            logger.info(f"Successfully extracted {len(claims)} claims.")
             return claims
+
         except Exception as e:
             logger.error(f"Error extracting claims with LLM: {e}")
-            # Return error claim (fallback)
             return [
                 Claim(
                     id="error_claim",
@@ -265,3 +236,4 @@ OUTPUT FORMAT (JSON):
                     },
                 )
             ]
+
