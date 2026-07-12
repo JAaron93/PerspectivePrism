@@ -122,6 +122,7 @@ class ClaimExtractor:
             timestamp = f"[{minutes:02d}:{seconds:02d}]"
             formatted_transcript += f"{timestamp} {seg.text}\n"
 
+        # Increase limit for Gemini context caching (larger context windows)
         if len(formatted_transcript) > 100000:
             formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
 

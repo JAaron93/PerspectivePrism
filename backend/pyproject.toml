@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "maturin"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,8 +16,8 @@ dependencies = [
   "pydantic",
   "pydantic-settings",
   "youtube-transcript-api",
-  "google-genai>=2.3.0,<3.0.0",
-  "google-adk>=2.0.0,<3.0.0",
+  "google-genai>=2.9.0,<3.0.0",
+  "google-adk>=2.4.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
