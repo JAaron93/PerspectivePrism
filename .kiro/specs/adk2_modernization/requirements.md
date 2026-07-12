@@ -20,6 +20,9 @@
 *   **FR-6: Circuit Breaker Fallback**
     *   The circuit breaker MUST catch `google-genai` SDK specific exceptions.
     *   When the circuit breaker is tripped, the system MUST fallback to the backup model: `gemini-3.1-flash-lite`.
+*   **FR-7: Rust Sanitization Module**
+    *   The backend MUST implement the core input sanitization logic as a compiled Rust extension using `PyO3` and `maturin`.
+    *   The extension MUST handle control character detection and regex-based suspicious pattern matching to reduce processing latency on large transcripts.
 
 ## 2. Non-Functional Requirements (NFR)
 
@@ -27,11 +30,15 @@
     *   The modifications MUST NOT alter the JSON response schema exposed by the FastAPI endpoints. The Chrome Extension and Frontend MUST continue to function without any changes to their client code.
 *   **NFR-2: Performance & Cost**
     *   The system MUST run efficiently on both the Free and Paid tiers of the Gemini API. For paid tier users, the prompt restructuring MUST maximize implicit cache hits for transcripts and evidence.
+    *   The Rust sanitization layer MUST significantly out-perform the legacy pure Python implementation on strings exceeding 10,000 characters.
+*   **NFR-3: Build Toolchain**
+    *   The project MUST gracefully document the introduction of the Rust toolchain (`cargo`, `rustc`) and `maturin` needed for backend development and deployment.
 
 ## 3. User Stories (US)
 
 *   **US-1:** As a developer running on the free tier, I want the extension to function correctly using the new Interactions API without requiring explicit cache management, even if the processing time is standard.
 *   **US-2:** As a power user on the paid tier, I want the extension to automatically leverage context caching for large video transcripts to significantly lower API costs and speed up claim extraction and analysis.
+*   **US-3:** As a user navigating a YouTube page, I want the backend latency reduced so that the initial claims extraction phase is noticeably faster.
 
 ## 4. TDD / BDD Constraints
 
@@ -43,3 +50,7 @@
     *   `Given` a claim analysis request,
     *   `When` the Gemini API responds,
     *   `Then` the output must be automatically marshaled into a valid Pydantic model without manual JSON parsing errors.
+*   **BDD-3:**
+    *   `Given` a 50,000 character transcript containing a prompt injection attempt,
+    *   `When` passed to `sanitize_input`,
+    *   `Then` the Rust module MUST quickly detect and reject it exactly as the Python version did, passing all existing `pytest` security cases.
