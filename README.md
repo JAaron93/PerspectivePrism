@@ -22,12 +22,12 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
 3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
-    *   **AI Accelerator**: Routes requests through a high-performance gateway (Tensorblock/Hyperbolic) for sub-150ms latency.
-    *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to OpenAI to ensure resilience against outages.
+    *   **AI Engine**: Utilizes Google ADK and the Gemini API (gemini-3.5-flash) for structured outputs and high-speed context caching.
+    *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to gemini-3.1-flash-lite to ensure resilience against outages.
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
 ### 🚀 High-Performance Analysis
-With the integration of **Hyperbolic** acceleration, Perspective Prism now offers:
+With the integration of **Gemini Context Caching**, Perspective Prism now offers:
 - **Enhanced Claim Analysis**: The previous hardcoded cap of 3 claims has been removed. The system now supports a configurable limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting.
 - **Extended Transcript Coverage**: Increased transcript processing capacity from 12k to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
 
@@ -98,8 +98,8 @@ This script measures:
 
 - **Backend**: FastAPI, Python 3.13
 - **AI/LLM**:
-    - **Primary**: Hyperbolic / Tensorblock (Llama 3, GPT-OSS) for high-speed inference.
-    - **Backup**: OpenAI API (GPT-4o) for reliability.
+    - **Primary**: Google Gemini API (gemini-3.5-flash) for high-speed inference and context caching.
+    - **Backup**: Google Gemini API (gemini-3.1-flash-lite) for reliability.
 - **Search**: Google Custom Search API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Security**: Custom input sanitizer with pattern detection
@@ -111,7 +111,7 @@ This script measures:
   - Python 3.10 or higher
   - Node.js 18+ (LTS) or 20+
 - **API Keys**:
-  - **OpenAI API Key**: Required for claim extraction and analysis (GPT-4o/mini).
+  - **Google Gemini API Key**: Required for claim extraction and analysis.
   - **Google Custom Search JSON API Key**: Required for evidence retrieval.
   - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
@@ -147,14 +147,10 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, you need to configure your LLM provider in `.env`. The system supports OpenAI-compatible APIs (like Hyperbolic, Tensorblock, or OpenAI itself) and Google Gemini.
+To run the full analysis, you need to configure your LLM provider in `.env`.
 
-#### **Option A: using OpenAI-compatible provider (Hyperbolic, Tensorblock, etc.)**
 ```env
-LLM_PROVIDER=openai
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://api.hyperbolic.xyz/v1   # or https://api.openai.com/v1
-LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 
