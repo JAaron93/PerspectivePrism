@@ -11,12 +11,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Perspective Prism MVP"
     GEMINI_API_KEY: str = ""
     LLM_API_KEY: str = "" # Fallback
-    LLM_BASE_URL: str = "https://api.openai.com/v1" # Fallback
     LLM_MODEL: str = "gemini-3.5-flash"
     
     # Backup / Fallback Configuration
     BACKUP_LLM_API_KEY: str = ""
-    BACKUP_LLM_BASE_URL: str = "https://api.openai.com/v1"
     BACKUP_LLM_MODEL: str = "gemini-3.1-flash-lite"
     
     # Reliability Settings

@@ -26,7 +26,8 @@ class ClaimExtractor:
             os.environ["GEMINI_API_KEY"] = self.api_key
         else:
             raise ValueError(
-                "GEMINI_API_KEY is not configured. Please set it in your .env file."
+                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
+                "Example: GEMINI_API_KEY=AIzaSy..."
             )
 
         self.agent = ExtractorAgent(
@@ -126,10 +127,36 @@ class ClaimExtractor:
         if len(formatted_transcript) > 100000:
             formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
 
+        from app.utils.input_sanitizer import sanitize_input, SanitizationError
+        try:
+            sanitized_transcript = sanitize_input(
+                formatted_transcript,
+                max_length=100000,
+                field_name="Transcript",
+                allow_suspicious_patterns=False,
+                allow_control_chars=False
+            )
+        except SanitizationError as e:
+            logger.error(f"Sanitization error in claim extraction: {e}")
+            return [
+                Claim(
+                    id="error_claim",
+                    text="Error: Transcript failed sanitization check",
+                    timestamp_start=0.0,
+                    timestamp_end=0.0,
+                    context=f"Sanitization error: {str(e)}",
+                    metadata={
+                        "status": "error",
+                        "code": "sanitization_failed",
+                        "message": str(e),
+                    }
+                )
+            ]
+
         # Reorder prompt so that the untrusted data is at the absolute start
         user_prompt = (
             f"===USER DATA START===\n"
-            f"{formatted_transcript}"
+            f"{sanitized_transcript}\n"
             f"===USER DATA END===\n"
             f"Please extract key claims from this transcript according to your instructions."
         )

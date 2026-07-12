@@ -50,8 +50,8 @@ class AnalysisService:
             os.environ["GEMINI_API_KEY"] = self.api_key
         else:
             raise ValueError(
-                "LLM_API_KEY is not configured. Please set it in your .env file. "
-                "Example: LLM_API_KEY=sk-..."
+                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
+                "Example: GEMINI_API_KEY=AIzaSy..."
             )
 
         # Expose backup_client for health check compatibility
@@ -150,7 +150,16 @@ class AnalysisService:
                     new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
                 ):
                     if event.error_code:
-                        raise Exception(f"{event.error_code}: {event.error_message}")
+                        try:
+                            code_int = int(event.error_code)
+                            if 400 <= code_int < 500:
+                                raise errors.ClientError(code=code_int, response_json=event.error_message)
+                            elif code_int >= 500:
+                                raise errors.ServerError(code=code_int, response_json=event.error_message)
+                            else:
+                                raise errors.APIError(code=code_int, response_json=event.error_message)
+                        except (ValueError, TypeError):
+                            raise Exception(f"{event.error_code}: {event.error_message}")
 
                 session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
                 result = session.state.get(output_key)

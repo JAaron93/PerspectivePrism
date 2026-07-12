@@ -96,7 +96,10 @@ async def test_claim_extraction_error_handling():
             mock_runner.run_async = mock_run_async_error
 
             # Mock transcript data
-            mock_transcript = Transcript(video_id="test_id", segments=[], full_text="")
+            mock_segments = [
+                TranscriptSegment(text="Intro", start=0.0, duration=3.5),
+            ]
+            mock_transcript = Transcript(video_id="test_id", segments=mock_segments, full_text="Intro")
 
             # Test extraction
             claims = await extractor.extract_claims(mock_transcript)
@@ -150,9 +153,12 @@ async def test_claim_extraction_multiple_claims():
             mock_runner.run_async = mock_run_async
 
             # Mock transcript data
+            mock_segments = [
+                TranscriptSegment(text="Test transcript", start=0.0, duration=3.5),
+            ]
             mock_transcript = Transcript(
                 video_id="test_id",
-                segments=[],
+                segments=mock_segments,
                 full_text="Test transcript",
             )
 
