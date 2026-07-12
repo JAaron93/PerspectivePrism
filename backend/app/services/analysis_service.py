@@ -1,10 +1,8 @@
-import asyncio
-import json
+import os
 import logging
+import asyncio
 import time
-
-from typing import Dict, List, Optional, Callable, Awaitable
-
+from typing import Dict, List, Optional, Any
 
 from app.core.config import settings
 from app.models.schemas import (
@@ -13,6 +11,7 @@ from app.models.schemas import (
     Evidence,
     PerspectiveAnalysis,
     PerspectiveType,
+    PerspectiveAnalysisLLMOutput,
 )
 from app.utils.input_sanitizer import (
     SanitizationError,
@@ -22,178 +21,226 @@ from app.utils.input_sanitizer import (
     sanitize_perspective_value,
     wrap_user_data,
 )
-from openai import AsyncOpenAI
-
-
+from google.adk.agents import Agent
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+from google.genai import errors
 
 logger = logging.getLogger(__name__)
 
 
+class AnalysisServiceError(Exception):
+    """Exception raised for errors in the AnalysisService."""
+    pass
+
+
+class PerspectiveAnalysisAgent(Agent):
+    pass
+
+
+class BiasAnalysisAgent(Agent):
+    pass
+
+
 class AnalysisService:
     def __init__(self):
-        self.provider = settings.LLM_PROVIDER.lower()
-
-        if self.provider == "openai":
-            # Validate that LLM API key is present and non-empty
-            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
-                raise ValueError(
-                    "LLM_API_KEY is not configured. Please set it in your .env file. "
-                    "Example: LLM_API_KEY=sk-..."
-                )
-
-            # Initialize client only after validation
-            self.client = AsyncOpenAI(
-                api_key=settings.LLM_API_KEY,
-                base_url=settings.LLM_BASE_URL
-            )
-            self.model = settings.LLM_MODEL
-
-            # Initialize Backup Client if configured
-            self.backup_client = None
-            if settings.BACKUP_LLM_API_KEY:
-                self.backup_client = AsyncOpenAI(
-                    api_key=settings.BACKUP_LLM_API_KEY,
-                    base_url=settings.BACKUP_LLM_BASE_URL
-                )
-                self.backup_model = settings.BACKUP_LLM_MODEL
-                logger.info("Backup LLM client initialized.")
-
-            # Circuit Breaker State
-            self.cb_failures = 0
-            self.cb_last_failure_time = 0
-            self.cb_open = False
-            self.cb_half_open = False
-            self._cb_lock = asyncio.Lock()
-
-
-
+        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
+        if self.api_key:
+            os.environ["GEMINI_API_KEY"] = self.api_key
         else:
             raise ValueError(
-                f"Unsupported LLM_PROVIDER: {self.provider}. Use 'openai'"
+                "LLM_API_KEY is not configured. Please set it in your .env file. "
+                "Example: LLM_API_KEY=sk-..."
             )
 
-    async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
+        # Expose backup_client for health check compatibility
+        self.backup_client = True if settings.BACKUP_LLM_MODEL else None
 
-    async def _execute_with_fallback(self, messages: list, response_format: dict = None, primary_callable: Optional[Callable[[], Awaitable[str]]] = None) -> str:
-        """
-        Executes LLM call with Circuit Breaker and Fallback logic.
-        """
-        # 1. Check Circuit Breaker State (Locked)
+        self.perspective_agent_primary = PerspectiveAnalysisAgent(
+            name="perspective_agent_primary",
+            model=settings.LLM_MODEL,
+            instruction=(
+                "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Read the claim and evidence provided in the USER DATA section below\n"
+                "2. Based ONLY on the provided evidence, determine if this perspective SUPPORTS, REFUTES, or is AMBIGUOUS regarding the claim\n"
+                "3. Provide a confidence score (0.0 to 1.0) and a brief explanation\n"
+                "4. Output your analysis in the specified JSON format"
+            ),
+            output_schema=PerspectiveAnalysisLLMOutput,
+            output_key="perspective_result",
+        )
+
+        self.perspective_agent_backup = PerspectiveAnalysisAgent(
+            name="perspective_agent_backup",
+            model=settings.BACKUP_LLM_MODEL,
+            instruction=(
+                "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Read the claim and evidence provided in the USER DATA section below\n"
+                "2. Based ONLY on the provided evidence, determine if this perspective SUPPORTS, REFUTES, or is AMBIGUOUS regarding the claim\n"
+                "3. Provide a confidence score (0.0 to 1.0) and a brief explanation\n"
+                "4. Output your analysis in the specified JSON format"
+            ),
+            output_schema=PerspectiveAnalysisLLMOutput,
+            output_key="perspective_result",
+        )
+
+        self.bias_agent_primary = BiasAnalysisAgent(
+            name="bias_agent_primary",
+            model=settings.LLM_MODEL,
+            instruction=(
+                "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Read the claim and context provided in the USER DATA section below\n"
+                "2. Evaluate the following aspects:\n"
+                "   - Framing Bias (loaded language, emotional appeals)\n"
+                "   - Sourcing Bias (if sources are mentioned)\n"
+                "   - Omission Bias (cherry-picking)\n"
+                "   - Sensationalism (clickbait style)\n"
+                "   - Deception Rating (0-10, where 10 is highly deceptive/intentional lie)\n"
+                "3. Output your analysis in the specified JSON format"
+            ),
+            output_schema=BiasAnalysis,
+            output_key="bias_result",
+        )
+
+        self.bias_agent_backup = BiasAnalysisAgent(
+            name="bias_agent_backup",
+            model=settings.BACKUP_LLM_MODEL,
+            instruction=(
+                "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
+                "INSTRUCTIONS:\n"
+                "1. Read the claim and context provided in the USER DATA section below\n"
+                "2. Evaluate the following aspects:\n"
+                "   - Framing Bias (loaded language, emotional appeals)\n"
+                "   - Sourcing Bias (if sources are mentioned)\n"
+                "   - Omission Bias (cherry-picking)\n"
+                "   - Sensationalism (clickbait style)\n"
+                "   - Deception Rating (0-10, where 10 is highly deceptive/intentional lie)\n"
+                "3. Output your analysis in the specified JSON format"
+            ),
+            output_schema=BiasAnalysis,
+            output_key="bias_result",
+        )
+
+        # Circuit Breaker State
+        self.cb_failures = 0
+        self.cb_last_failure_time = 0
+        self.cb_open = False
+        self.cb_half_open = False
+        self._cb_lock = asyncio.Lock()
+
+    async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
+        session_service = InMemorySessionService()
+        attempts = 2
+        current_prompt = user_prompt
+        last_err = None
+
+        for attempt in range(attempts):
+            try:
+                attempt_session_id = f"s_attempt_{attempt}"
+                await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
+                runner = Runner(agent=agent, app_name="app", session_service=session_service)
+
+                async for event in runner.run_async(
+                    user_id="user",
+                    session_id=attempt_session_id,
+                    new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
+                ):
+                    if event.error_code:
+                        raise Exception(f"{event.error_code}: {event.error_message}")
+
+                session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
+                result = session.state.get(output_key)
+                if result:
+                    return result
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Agent execution attempt {attempt + 1} failed: {e}")
+                if attempt == 0 and not is_backup:
+                    current_prompt = (
+                        f"{user_prompt}\n\n"
+                        f"WARNING: The previous attempt failed with the following error: {e}. "
+                        f"Please ensure you return a valid JSON object strictly matching the schema requirements."
+                    )
+                else:
+                    break
+
+        raise last_err or Exception("Agent execution failed with no result")
+
+    async def _run_agent_with_fallback(
+        self,
+        agent_primary: Agent,
+        agent_backup: Agent,
+        user_prompt: str,
+        output_key: str,
+    ) -> Any:
         use_backup = False
         
         async with self._cb_lock:
-            # Check if OPEN
             if self.cb_open:
-                # Check for RESET timeout
                 if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
-                    logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
+                    logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
                     self.cb_open = False
                     self.cb_half_open = True
-                    # Allowed to proceed as probe
                 else:
-                    # Still OPEN and not ready to reset
                     use_backup = True
-
-            # If HALF-OPEN, we allow the request (it's the probe)
             elif self.cb_half_open:
                 logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
 
-        # 2. Executing Action (Unlocked IO)
         if use_backup:
-            if self.backup_client:
-                logger.warning("Circuit breaker OPEN. Using backup provider.")
-                return await self._call_backup_provider(messages, response_format)
-            else:
-                raise Exception("Circuit breaker OPEN and no backup provider configured.")
+            logger.warning("Circuit breaker OPEN. Using backup provider.")
+            try:
+                return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
+            except Exception as e:
+                raise AnalysisServiceError(f"Fallback to backup failed: {e}") from e
 
-        # 3. Try Primary Provider (Closed or Half-Open Probe)
         try:
-            content = ""
-            if primary_callable:
-                content = await primary_callable()
-            else:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    response_format=response_format,
-                )
-                content = response.choices[0].message.content
-            
-            # 4. Primary Success - Update State (Locked)
+            result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
             async with self._cb_lock:
                 if self.cb_half_open:
                     logger.info("Probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
                     self.cb_failures = 0
                 elif self.cb_failures > 0:
-                    # If we were closed but had some failures, reset them on success
                     logger.info("Primary provider recovered. Resetting failure count.")
                     self.cb_failures = 0
-            
-            return content
+            return result
 
         except Exception as e:
-            # 5. Handle Failure - Update State (Locked)
-            current_use_backup = False
+            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 503)
             
+            if not is_transient:
+                logger.error(f"Non-transient error in primary agent: {e}")
+                raise e
+
+            current_use_backup = False
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
-                
                 if self.cb_half_open:
-                    logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
+                    logger.error(f"Probe request FAILED: {e}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False
-                    # failures count remains high (or could be incremented)
                 else:
                     self.cb_failures += 1
-                    logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
-
+                    logger.error(f"Primary provider failed (Count: {self.cb_failures}): {e}")
                     if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
                         self.cb_open = True
                         logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
-                
-                # Check if we should fallback NOW (if we just tripped it or it was already open/failed)
-                # If we are here, primary failed. If we have backup, we should use it.
-                if self.backup_client:
-                    current_use_backup = True
+                current_use_backup = True
 
-            # 6. Fallback (Unlocked IO)
             if current_use_backup:
-                logger.info("Falling back to backup provider...")
-                return await self._call_backup_provider(messages, response_format)
-            
-            raise e  # Propagate if no backup
+                logger.warning("Primary failed with transient error. Falling back to backup agent...")
+                try:
+                    return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
+                except Exception as backup_err:
+                    logger.error(f"Backup provider ALSO failed: {backup_err}")
+                    raise AnalysisServiceError(f"Primary and backup providers both failed. Backup error: {backup_err}") from backup_err
 
-    async def _call_backup_provider(self, messages: list, response_format: dict = None) -> str:
-        try:
-            response = await self.backup_client.chat.completions.create(
-                model=self.backup_model,
-                messages=messages,
-                response_format=response_format,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Backup provider ALSO failed: {str(e)}")
             raise e
 
-    async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            return await self._execute_with_fallback(
-                messages=messages,
-                response_format={"type": "json_object"}
-            )
 
 
 
@@ -236,37 +283,29 @@ class AnalysisService:
                 evidence=evidence_list,
             )
 
-        # Build prompt with clear separation between instructions and user data
-        prompt = f"""You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.
-
-INSTRUCTIONS:
-1. Read the claim and evidence provided in the USER DATA section below
-2. Based ONLY on the provided evidence, determine if this perspective SUPPORTS, REFUTES, or is AMBIGUOUS regarding the claim
-3. Provide a confidence score (0.0 to 1.0) and a brief explanation
-4. Output your analysis in the specified JSON format
-
-{wrap_user_data(sanitized_claim, "CLAIM")}
-
-{wrap_user_data(sanitized_perspective, "PERSPECTIVE")}
-
-{wrap_user_data(sanitized_evidence, "EVIDENCE")}
-
-OUTPUT FORMAT (JSON):
-{{
-    "stance": "Support" | "Refute" | "Ambiguous",
-    "confidence": float,
-    "explanation": "string"
-}}"""
+        # Build prompt with static/context data at the absolute start
+        user_prompt = (
+            f"===USER DATA START===\n"
+            f"CLAIM: {sanitized_claim}\n"
+            f"PERSPECTIVE: {sanitized_perspective}\n"
+            f"EVIDENCE:\n{sanitized_evidence}\n"
+            f"===USER DATA END===\n"
+            f"Please analyze this claim from the specified perspective based on the evidence."
+        )
 
         try:
-            content = await self._call_llm(prompt)
-            result = json.loads(content)
+            result = await self._run_agent_with_fallback(
+                agent_primary=self.perspective_agent_primary,
+                agent_backup=self.perspective_agent_backup,
+                user_prompt=user_prompt,
+                output_key="perspective_result",
+            )
 
             return PerspectiveAnalysis(
                 perspective=perspective,
-                stance=result.get("stance", "Ambiguous"),
-                confidence=result.get("confidence", 0.0),
-                explanation=result.get("explanation", "Failed to parse explanation."),
+                stance=result.stance,
+                confidence=result.confidence,
+                explanation=result.explanation,
                 evidence=evidence_list,
             )
 
@@ -300,46 +339,30 @@ OUTPUT FORMAT (JSON):
                 deception_rationale=f"Input validation failed: {str(e)}",
             )
 
-        # Build prompt with clear separation between instructions and user data
-        prompt = f"""You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.
-
-INSTRUCTIONS:
-1. Read the claim and context provided in the USER DATA section below
-2. Evaluate the following aspects:
-   - Framing Bias (loaded language, emotional appeals)
-   - Sourcing Bias (if sources are mentioned)
-   - Omission Bias (cherry-picking)
-   - Sensationalism (clickbait style)
-   - Deception Rating (0-10, where 10 is highly deceptive/intentional lie)
-3. Output your analysis in the specified JSON format
-
-{wrap_user_data(sanitized_claim, "CLAIM TEXT")}
-
-{wrap_user_data(sanitized_context if sanitized_context else "No context provided", "CONTEXT")}
-
-OUTPUT FORMAT (JSON):
-{{
-    "framing_bias": "string or null",
-    "sourcing_bias": "string or null",
-    "omission_bias": "string or null",
-    "sensationalism": "string or null",
-    "deception_rating": float,
-    "deception_rationale": "string"
-}}"""
+        # Build prompt with static/context data at the absolute start
+        user_prompt = (
+            f"===USER DATA START===\n"
+            f"CLAIM TEXT: {sanitized_claim}\n"
+            f"CONTEXT: {sanitized_context if sanitized_context else 'No context provided'}\n"
+            f"===USER DATA END===\n"
+            f"Please analyze this claim and context for bias and deception."
+        )
 
         try:
-            content = await self._call_llm(prompt)
-            result = json.loads(content)
+            result = await self._run_agent_with_fallback(
+                agent_primary=self.bias_agent_primary,
+                agent_backup=self.bias_agent_backup,
+                user_prompt=user_prompt,
+                output_key="bias_result",
+            )
 
             return BiasAnalysis(
-                framing_bias=result.get("framing_bias"),
-                sourcing_bias=result.get("sourcing_bias"),
-                omission_bias=result.get("omission_bias"),
-                sensationalism=result.get("sensationalism"),
-                deception_rating=result.get("deception_rating", 0.0),
-                deception_rationale=result.get(
-                    "deception_rationale", "No rationale provided."
-                ),
+                framing_bias=result.framing_bias,
+                sourcing_bias=result.sourcing_bias,
+                omission_bias=result.omission_bias,
+                sensationalism=result.sensationalism,
+                deception_rating=result.deception_rating,
+                deception_rationale=result.deception_rationale,
             )
 
         except Exception as e:
@@ -347,3 +370,4 @@ OUTPUT FORMAT (JSON):
             return BiasAnalysis(
                 deception_rating=0.0, deception_rationale=f"Analysis failed: {str(e)}"
             )
+

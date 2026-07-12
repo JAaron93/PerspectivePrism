@@ -16,7 +16,8 @@ dependencies = [
   "pydantic",
   "pydantic-settings",
   "youtube-transcript-api",
-  "openai",
+  "google-genai>=2.3.0,<3.0.0",
+  "google-adk>=2.0.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
