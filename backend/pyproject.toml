@@ -18,7 +18,7 @@ dependencies = [
   "youtube-transcript-api",
   "google-genai>=2.9.0,<3.0.0",
   "google-adk>=2.4.0,<3.0.0",
-  "prism_sanitizer_rs",
+  "prism_sanitizer_rs @ file:prism_sanitizer_rs",
 ]
 
 [project.optional-dependencies]
