@@ -38,7 +38,8 @@ async def run_smoke_test(video_url: str):
         if parsed.hostname in ("www.youtube.com", "youtube.com"):
             if parsed.path == "/watch":
                 p = parse_qs(parsed.query)
-                return p["v"][0]
+                v = p.get("v")
+                return v[0] if v else None
         return None
         
     video_id = extract_video_id(video_url)
