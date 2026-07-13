@@ -610,7 +610,7 @@ class PerspectivePrismClient {
         `[PerspectivePrismClient] Refusing to cache invalid data for ${videoId}:`,
         e,
       );
-      return;
+      throw e;
     }
 
     if (this.delegateCache) {
