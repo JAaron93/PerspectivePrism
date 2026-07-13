@@ -53,7 +53,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 2.3: SPA Navigation Cleanup & E2E Testing**
   - **Dependency:** Task 2.2
-  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating repeated YouTube SPA navigations to ensure listener cleanup: after multiple navigations, assert that a single navigation event produces exactly one request/render cycle, while preserving the existing marker removal and side-panel state reset checks (claims, highlights, and active video identity).
+  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating repeated YouTube SPA navigations to ensure listener cleanup: after multiple navigations, assert that a single navigation event produces exactly one request/render cycle, while preserving the existing marker removal and side-panel state reset checks (claims, highlights, and active video identity). Add coverage ensuring a delayed analysis response from a previous video is ignored.
   - **Traceability:** FR-11, NFR-2
 
 ## Track 3: Playback Synchronization Engine
@@ -61,7 +61,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 3.1: Synchronization Logic Tests**
   - **Dependency:** Track 1, Track 2
-  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation.
+  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation. Add coverage verifying two tabs playing the same video synchronize independently based on tab routing.
   - **Traceability:** TDD Constraint
 
 - [ ] **Task 3.2: Click-to-Seek & Highlight**

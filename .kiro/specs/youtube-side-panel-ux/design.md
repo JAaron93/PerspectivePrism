@@ -7,7 +7,7 @@ The Perspective Prism Chrome Extension is migrating its primary user interface f
 
 ### 2.1 Chrome Side Panel (Manifest V3)
 - **Role:** Serves as the primary viewing surface for analysis results (truth profiles, bias indicators, per-perspective analysis).
-- **Behavior:** Persists across navigations within the tab. It is bound to the tab rather than the specific document, meaning it can maintain state smoothly as the user clicks through different YouTube videos.
+- **Behavior:** Persists across navigations within the tab. The side panel maintains tab-persistent panel-shell state, which is distinct from video-scoped state; video-scoped state must be reset upon SPA navigation to a new video.
 - **Toggle Mechanism:** Users can toggle the side panel via the extension icon in the browser toolbar or an injected button within the YouTube interface (near the subscribe/share buttons).
 
 ### 2.2 Timeline Marker System (Injected via Content Script)
@@ -17,7 +17,7 @@ The Perspective Prism Chrome Extension is migrating its primary user interface f
 
 ### 2.3 Playback Synchronization Engine
 - **Role:** A bidirectional sync bridge between the YouTube player (managed by `content.js`) and the Side Panel UI.
-- **Auto-Scrolling:** As the video's `currentTime` advances, `content.js` broadcasts time-update events. To ensure identity matching, all synchronization messages MUST include the active `videoId` and a navigation generation counter. The Side Panel listens to these events, rejects any stale messages from a previous video context, and automatically scrolls to and highlights the claim currently being discussed in the video.
+- **Auto-Scrolling:** As the video's `currentTime` advances, `content.js` broadcasts time-update events. To ensure identity matching and strict tab isolation, all synchronization messages MUST include the active `videoId`, a navigation generation counter, and the originating tab ID. The Service Worker must route these messages exclusively to the Side Panel corresponding to that tab. The Side Panel listens to these events, rejects any stale messages from a previous video context, and automatically scrolls to and highlights the claim currently being discussed in the video.
 - **Click-to-Seek / Click-to-Highlight:** Clicking a timeline cluster marker seeks the video to that timestamp *and* triggers the Side Panel to scroll to that specific cluster, visually denoting all claims within it.
 
 ## 3. Architecture & Data Flow
