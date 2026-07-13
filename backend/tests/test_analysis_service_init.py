@@ -17,17 +17,16 @@ class TestAnalysisServiceInitialization:
     def test_initialization_with_valid_api_key(self):
         """Should initialize successfully with valid API key."""
         with patch("app.services.analysis_service.settings") as mock_settings:
-            mock_settings.LLM_API_KEY = "sk-test-valid-key-123"
-            mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-            mock_settings.LLM_PROVIDER = "openai"
-            mock_settings.LLM_BASE_URL = "https://api.openai.com/v1"
-            mock_settings.BACKUP_LLM_API_KEY = ""
-
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_PROVIDER = "google"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             service = AnalysisService()
 
-            assert service.client is not None
-            assert service.model == "gpt-3.5-turbo"
+            assert service.perspective_agent_primary is not None
+            assert service.perspective_agent_primary.model == "gemini-3.5-flash"
 
     @pytest.mark.parametrize(
         "api_key,expected_substrings",
@@ -38,14 +37,13 @@ class TestAnalysisServiceInitialization:
         ],
     )
     def test_initialization_with_invalid_api_key(self, api_key, expected_substrings):
-        """Should raise ValueError with invalid API keys (empty, whitespace-only, or None)."""
+        """Should raise ValueError with invalid keys (empty, whitespace-only, or None)."""
         with patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = api_key
-            mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-            mock_settings.LLM_PROVIDER = "openai"
-            mock_settings.LLM_BASE_URL = "https://api.openai.com/v1"
-            mock_settings.BACKUP_LLM_API_KEY = ""
-
+            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_PROVIDER = "google"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             with pytest.raises(ValueError) as exc_info:
                 AnalysisService()
@@ -57,29 +55,28 @@ class TestAnalysisServiceInitialization:
     def test_uses_custom_model_from_settings(self):
         """Should use custom model from settings when configured."""
         with patch("app.services.analysis_service.settings") as mock_settings:
-            mock_settings.LLM_API_KEY = "sk-test-valid-key-123"
-            mock_settings.LLM_MODEL = "gpt-4o"
-            mock_settings.LLM_PROVIDER = "openai"
-            mock_settings.LLM_BASE_URL = "https://api.openai.com/v1"
-            mock_settings.BACKUP_LLM_API_KEY = ""
-
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-test-model"
+            mock_settings.LLM_PROVIDER = "google"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             service = AnalysisService()
 
-            assert service.model == "gpt-4o"
+            assert service.perspective_agent_primary.model == "gemini-test-model"
 
     def test_error_message_includes_example(self):
         """Error message should include helpful example."""
         with patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-            mock_settings.LLM_PROVIDER = "openai"
-            mock_settings.LLM_BASE_URL = "https://api.openai.com/v1"
-            mock_settings.BACKUP_LLM_API_KEY = ""
-
+            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_PROVIDER = "google"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             with pytest.raises(ValueError) as exc_info:
                 AnalysisService()
 
             error_message = str(exc_info.value)
-            assert "Example" in error_message or "sk-" in error_message
+            assert "Example" in error_message or "LLM_API_KEY" in error_message
+

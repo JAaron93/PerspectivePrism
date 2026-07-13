@@ -1,8 +1,6 @@
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-from app.models.schemas import Transcript, TranscriptSegment
+from unittest.mock import AsyncMock, MagicMock, patch
+from app.models.schemas import Transcript, TranscriptSegment, ClaimsOutput, ExtractedClaim
 from app.services.claim_extractor import ClaimExtractor
 
 
@@ -10,122 +8,166 @@ from app.services.claim_extractor import ClaimExtractor
 async def test_claim_extraction_with_mocked_llm():
     # Mock settings to avoid API key validation error during init
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.LLM_API_KEY = "sk-mock-key"
-        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-        mock_settings.LLM_PROVIDER = "openai"
+        mock_settings.GEMINI_API_KEY = "sk-mock-key"
+        mock_settings.LLM_API_KEY = ""
+        mock_settings.LLM_MODEL = "gemini-3.5-flash"
 
         extractor = ClaimExtractor()
 
-        # Mock the OpenAI client
-        mock_client = MagicMock()
-        extractor.client = mock_client
+        # Mock the ADK Runner and InMemorySessionService
+        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
+             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
 
-        # Mock the chat completion response
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content='{"claims": [{"text": "Climate change is real", "start_time": 3.5, "end_time": 7.7, "context": "Here we discuss..."}]}'
+            mock_session_service = MagicMock()
+            mock_session_service_class.return_value = mock_session_service
+            mock_session_service.create_session = AsyncMock()
+
+            mock_session = MagicMock()
+            mock_session.state = {
+                "claims_result": ClaimsOutput(
+                    claims=[
+                        ExtractedClaim(
+                            text="Climate change is real",
+                            start_time=3.5,
+                            end_time=7.7,
+                            context="Here we discuss...",
+                        )
+                    ]
                 )
+            }
+            mock_session_service.get_session = AsyncMock(return_value=mock_session)
+
+            mock_runner = MagicMock()
+            mock_runner_class.return_value = mock_runner
+
+            async def mock_run_async(*args, **kwargs):
+                yield MagicMock(error_code=None)
+
+            mock_runner.run_async = mock_run_async
+
+            # Mock transcript data
+            mock_segments = [
+                TranscriptSegment(text="Intro", start=0.0, duration=3.5),
+                TranscriptSegment(text="Climate change is real", start=3.5, duration=4.2),
+            ]
+            mock_transcript = Transcript(
+                video_id="test_id",
+                segments=mock_segments,
+                full_text="Intro Climate change is real",
             )
-        ]
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        # Mock transcript data
-        mock_segments = [
-            TranscriptSegment(text="Intro", start=0.0, duration=3.5),
-            TranscriptSegment(text="Climate change is real", start=3.5, duration=4.2),
-        ]
-        mock_transcript = Transcript(
-            video_id="test_id",
-            segments=mock_segments,
-            full_text="Intro Climate change is real",
-        )
+            # Test extraction
+            claims = await extractor.extract_claims(mock_transcript)
 
-        # Test extraction
-        claims = await extractor.extract_claims(mock_transcript)
-
-        assert len(claims) == 1
-        assert claims[0].text == "Climate change is real"
-        assert claims[0].timestamp_start == 3.5
+            assert len(claims) == 1
+            assert claims[0].text == "Climate change is real"
+            assert claims[0].timestamp_start == 3.5
+            assert claims[0].timestamp_end == 7.7
 
 
 @pytest.mark.asyncio
 async def test_claim_extraction_error_handling():
     # Mock settings
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.LLM_API_KEY = "sk-mock-key"
-        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-        mock_settings.LLM_PROVIDER = "openai"
+        mock_settings.GEMINI_API_KEY = "sk-mock-key"
+        mock_settings.LLM_API_KEY = ""
+        mock_settings.LLM_MODEL = "gemini-3.5-flash"
 
         extractor = ClaimExtractor()
 
-        # Mock the OpenAI client to raise an exception
-        mock_client = MagicMock()
-        extractor.client = mock_client
-        mock_client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API Error")
-        )
+        # Mock the ADK Runner to raise an exception
+        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
+             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
 
-        # Mock transcript data
-        mock_transcript = Transcript(video_id="test_id", segments=[], full_text="")
+            mock_session_service = MagicMock()
+            mock_session_service_class.return_value = mock_session_service
+            mock_session_service.create_session = AsyncMock()
 
-        # Test extraction
-        claims = await extractor.extract_claims(mock_transcript)
+            mock_runner = MagicMock()
+            mock_runner_class.return_value = mock_runner
 
-        assert len(claims) == 1
-        assert claims[0].id == "error_claim"
-        assert claims[0].metadata["status"] == "error"
-        assert claims[0].metadata["code"] == "llm_extraction_failed"
-        assert "API Error" in claims[0].metadata["details"]
+            async def mock_run_async_error(*args, **kwargs):
+                # Yielding an event with error_code
+                event = MagicMock()
+                event.error_code = "API_ERROR"
+                event.error_message = "API Error"
+                yield event
+
+            mock_runner.run_async = mock_run_async_error
+
+            # Mock transcript data
+            mock_segments = [
+                TranscriptSegment(text="Intro", start=0.0, duration=3.5),
+            ]
+            mock_transcript = Transcript(video_id="test_id", segments=mock_segments, full_text="Intro")
+
+            # Test extraction
+            claims = await extractor.extract_claims(mock_transcript)
+
+            assert len(claims) == 1
+            assert claims[0].id == "error_claim"
+            assert claims[0].metadata["status"] == "error"
+            assert claims[0].metadata["code"] == "llm_extraction_failed"
+            assert "API Error" in claims[0].metadata["details"]
 
 
 @pytest.mark.asyncio
 async def test_claim_extraction_multiple_claims():
     # Mock settings to avoid API key validation error during init
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.LLM_API_KEY = "sk-mock-key"
-        mock_settings.LLM_MODEL = "gpt-3.5-turbo"
-        mock_settings.LLM_PROVIDER = "openai"
+        mock_settings.GEMINI_API_KEY = "sk-mock-key"
+        mock_settings.LLM_API_KEY = ""
+        mock_settings.LLM_MODEL = "gemini-3.5-flash"
 
         extractor = ClaimExtractor()
 
-        # Mock the OpenAI client
-        mock_client = MagicMock()
-        extractor.client = mock_client
-
-        # Mock a response with 5 claims (exceeds the previous 3-claim limit)
+        # Mock a response with 5 claims
         claims_list = []
         for i in range(5):
-            claims_list.append({
-                "text": f"Claim {i}",
-                "start_time": float(i * 10),
-                "end_time": float(i * 10 + 5),
-                "context": f"Context for claim {i}"
-            })
-        
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=json.dumps({"claims": claims_list})
+            claims_list.append(
+                ExtractedClaim(
+                    text=f"Claim {i}",
+                    start_time=float(i * 10),
+                    end_time=float(i * 10 + 5),
+                    context=f"Context for claim {i}",
                 )
             )
-        ]
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        # Mock transcript data
-        mock_transcript = Transcript(
-            video_id="test_id",
-            segments=[],
-            full_text="Test transcript",
-        )
+        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
+             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
 
-        # Test extraction
-        claims = await extractor.extract_claims(mock_transcript)
+            mock_session_service = MagicMock()
+            mock_session_service_class.return_value = mock_session_service
+            mock_session_service.create_session = AsyncMock()
 
-        assert len(claims) == 5
-        for i in range(5):
-            assert claims[i].text == f"Claim {i}"
-            assert claims[i].timestamp_start == float(i * 10)
-            assert claims[i].timestamp_end == float(i * 10 + 5)
+            mock_session = MagicMock()
+            mock_session.state = {"claims_result": ClaimsOutput(claims=claims_list)}
+            mock_session_service.get_session = AsyncMock(return_value=mock_session)
+
+            mock_runner = MagicMock()
+            mock_runner_class.return_value = mock_runner
+
+            async def mock_run_async(*args, **kwargs):
+                yield MagicMock(error_code=None)
+
+            mock_runner.run_async = mock_run_async
+
+            # Mock transcript data
+            mock_segments = [
+                TranscriptSegment(text="Test transcript", start=0.0, duration=3.5),
+            ]
+            mock_transcript = Transcript(
+                video_id="test_id",
+                segments=mock_segments,
+                full_text="Test transcript",
+            )
+
+            # Test extraction
+            claims = await extractor.extract_claims(mock_transcript)
+
+            assert len(claims) == 5
+            for i in range(5):
+                assert claims[i].text == f"Claim {i}"
+                assert claims[i].timestamp_start == float(i * 10)
+                assert claims[i].timestamp_end == float(i * 10 + 5)
+
