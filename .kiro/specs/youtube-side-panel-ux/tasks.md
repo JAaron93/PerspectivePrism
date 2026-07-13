@@ -34,7 +34,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 1.5: Verify Browser-First Caching Constraints (TDD)**
   - **Dependency:** None (Can run parallel to 1.1)
-  - **Action:** Designate `background.js` as the sole cache owner. Write tests proving the side panel delegates all storage logic to the Service Worker via messages. Write unit tests covering `background.js` cache outcomes: fresh cache hits must return without network requests; cache misses or stale entries (defined by an embedded `schemaVersion` mismatch) must fetch from the network and update `chrome.storage.local`. Add coverage for `chrome.storage.local` read and write failures, verifying the required fallback continues analysis without breaking the flow.
+  - **Action:** Designate `background.js` as the sole cache owner. Write tests proving the side panel delegates all storage logic to the Service Worker via messages. Write unit tests covering `background.js` cache outcomes: add separate tests covering supported schema migrations (overwrites stale cache), unsupported-version misses (triggers fresh fetch), TTL expiration (triggers fresh fetch), and `chrome.storage.local` read/write failures (verifying the required in-memory fallback continues analysis without breaking the flow).
   - **Traceability:** FR-12, NFR-4
 
 
@@ -61,7 +61,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 3.1: Synchronization Logic Tests**
   - **Dependency:** Track 1, Track 2
-  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation. Add coverage verifying two tabs playing the same video synchronize independently based on tab routing.
+  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation. Add coverage verifying two tabs playing the same video synchronize independently based on tab routing. Test delayed messages with lower playback time or sequence values from the same video generation to ensure strict monotonic ordering.
   - **Traceability:** TDD Constraint
 
 - [ ] **Task 3.2: Click-to-Seek & Highlight**

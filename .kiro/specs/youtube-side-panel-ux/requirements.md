@@ -12,7 +12,7 @@
 | **FR-6** | The content script shall sort all claims by timestamp chronologically before clustering claims that occur within an inclusive 5-second threshold of each other into a single "Cluster Marker" using transitive grouping. |
 | **FR-7** | Clicking a timeline marker shall seek the YouTube video to the marker's starting timestamp. |
 | **FR-8** | Clicking a timeline marker shall send a message to the side panel to highlight and scroll to the corresponding claim(s). |
-| **FR-9** | The content script shall broadcast the video's `currentTime` to the side panel at a regular interval (throttled). Broadcasts MUST be identity-bearing (include `videoId` and tab-scoping information) and establish ordering. |
+| **FR-9** | The content script shall broadcast the video's `currentTime` to the side panel at a regular interval (throttled). Broadcasts MUST be identity-bearing (include `videoId`, tab-scoping information, and a monotonic playback sequence/order field) and establish strict same-generation ordering. |
 | **FR-10**| The side panel shall automatically scroll the active claim into view as the video plays, based on the `currentTime` broadcasts. |
 | **FR-11**| The extension shall clear and re-render timeline markers and video-scoped side panel state when the YouTube player navigates to a new video (SPA navigation). State reset MUST be completed before new analysis requests, and the system must require generation-aware analysis responses or cancel obsolete requests. |
 | **FR-12**| The service worker shall act as the sole authoritative owner of `chrome.storage.local`. It must intercept all analysis requests from the UI/content script, evaluate the local cache for freshness, and conditionally initiate network requests to the backend. |
