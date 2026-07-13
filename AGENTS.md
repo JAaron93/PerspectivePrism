@@ -35,7 +35,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 
 # Backend Development
 
-The backend is located in the `backend/` directory. It uses Python 3.13+ and FastAPI.
+The backend is located in the `backend/` directory. It uses Python 3.10+ and FastAPI.
 
 ## Setup
 1.  Navigate to `backend/`.

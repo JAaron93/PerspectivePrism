@@ -242,7 +242,7 @@ pytest tests/test_reliability.py
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **401 Unauthorized** | Missing or invalid LLM API Key | Check `.env` file. Ensure `LLM_API_KEY` is set and valid. |
+| **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
 | **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
 | **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
@@ -335,4 +335,4 @@ The Perspective Prism analysis pipeline follows this workflow:
 
 6. **Truth Profile Generation**: The system aggregates all perspective analyses and bias indicators into a comprehensive "Truth Profile" for each claim, showing users a balanced view across multiple viewpoints.
 
-8. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.
+7. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.
