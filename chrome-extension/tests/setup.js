@@ -50,6 +50,10 @@ const createChromeMock = () => {
       create: vi.fn(),
       clear: vi.fn(),
     },
+    sidePanel: {
+      open: vi.fn(),
+      setPanelBehavior: vi.fn(),
+    },
   };
 };
 
@@ -180,6 +184,21 @@ beforeEach(() => {
       return Promise.resolve(id);
     },
   );
+
+  // Re-apply mock implementations for chrome.sidePanel
+  chrome.sidePanel.open.mockImplementation((options, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
+  chrome.sidePanel.setPanelBehavior.mockImplementation((behavior, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
 
   // Reset fetch mock
   if (global.fetch.mockClear) {

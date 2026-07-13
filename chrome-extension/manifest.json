@@ -3,7 +3,7 @@
   "name": "Perspective Prism - YouTube Analyzer",
   "version": "1.0.0",
   "description": "Analyze YouTube videos for claims and perspectives",
-  "permissions": ["storage", "activeTab", "alarms", "notifications"],
+  "permissions": ["storage", "activeTab", "alarms", "notifications", "sidePanel", "tabs"],
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://youtu.be/*",
@@ -39,6 +39,9 @@
     }
   },
   "options_page": "options.html",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

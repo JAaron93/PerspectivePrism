@@ -91,6 +91,13 @@ configManager
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
+  // Configure side panel behavior to open on action click
+  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+      logger.error("Failed to set panel behavior:", err);
+    });
+  }
+
   if (details.reason === "install") {
     // First-time installation - show welcome page
     logger.info(
@@ -194,6 +201,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return handleAsync(handleRevokeConsent());
     case "CHECK_POLICY_VERSION":
       return handleAsync(handleCheckPolicyVersion());
+    case "OPEN_SIDE_PANEL":
+      return handleAsync(handleOpenSidePanel(sender));
+    case "SAVE_TO_CACHE":
+      return handleAsync(handleSaveToCache(message));
     
     // Sync handlers
     case "OPEN_PRIVACY_POLICY":
@@ -547,3 +558,49 @@ async function handleCheckPolicyVersion() {
     throw error;
   }
 }
+
+/**
+ * Handle opening side panel from injected button gesture
+ * @param {Object} sender - Message sender context
+ * @returns {Promise<Object>}
+ */
+async function handleOpenSidePanel(sender) {
+  if (!chrome.sidePanel || !chrome.sidePanel.open) {
+    throw new Error("Side Panel API is not supported in this browser version.");
+  }
+  const tabId = sender.tab ? sender.tab.id : null;
+  if (!tabId) {
+    throw new Error("Missing tab identifier.");
+  }
+  await chrome.sidePanel.open({ tabId });
+  return { success: true };
+}
+
+/**
+ * Handle saving data to cache from non-background context
+ * @param {Object} message
+ * @returns {Promise<Object>}
+ */
+async function handleSaveToCache(message) {
+  if (!client) {
+    const config = await configManager.load();
+    client = new PerspectivePrismClient(config.backendUrl);
+  }
+
+  const validation = validateVideoId(message);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const videoId = validation.videoId;
+
+  try {
+    await client.saveToCache(videoId, message.data);
+    return { success: true };
+  } catch (error) {
+    logger.error("Save to cache failed:", error);
+    throw error;
+  }
+}
+
+

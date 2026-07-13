@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perspective Prism - YouTube Analyzer</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-section">
+      <span class="logo-icon">🔍</span>
+      <h1 class="title">Perspective Prism</h1>
+    </div>
+    <div class="header-actions">
+      <button id="pp-options-btn" class="btn-icon" title="Settings" aria-label="Open Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main id="content" class="content-container">
+    
+    <!-- Idle State -->
+    <div id="state-idle" class="state-container">
+      <span class="logo-icon" style="font-size: 48px;">📺</span>
+      <h2 class="state-title">No Video Loaded</h2>
+      <p class="state-description">Open a YouTube video to analyze its claims, bias, and deception.</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="state-loading" class="state-container" style="display: none;">
+      <div class="spinner"></div>
+      <h2 id="loading-title" class="state-title">Analyzing Video</h2>
+      <p id="loading-submessage" class="state-description">Retrieving transcript...</p>
+      <div class="progress-bar-container">
+        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+      </div>
+      <button id="pp-cancel-btn" class="btn">Cancel Analysis</button>
+    </div>
+
+    <!-- Error State -->
+    <div id="state-error" class="state-container" style="display: none;">
+      <span class="logo-icon" style="font-size: 48px; color: var(--color-danger)">⚠️</span>
+      <h2 id="error-title" class="state-title">Analysis Failed</h2>
+      <p id="error-message" class="state-description">An unexpected error occurred.</p>
+      <button id="pp-retry-btn" class="btn btn-primary">Retry Analysis</button>
+    </div>
+
+    <!-- Results State -->
+    <div id="state-results" class="claims-list" style="display: none;">
+      <div class="video-summary">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-weight: 600; font-size: 13px; color: var(--text-secondary);">OVERALL ASSESSMENT</span>
+          <span id="overall-assessment-badge" class="badge">Likely True</span>
+        </div>
+        <div id="analysis-metadata" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;"></div>
+      </div>
+      <div id="claims-list-container" class="claims-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <script src="sidepanel.js" type="module"></script>
+</body>
+</html>
