@@ -29,12 +29,12 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 1.4: Toggle Mechanisms & Integration Testing**
   - **Dependency:** Task 1.3
-  - **Action:** Implement side panel toggling via background service worker. Write a Playwright integration test that simulates an extension action click and verifies the side panel opens.
+  - **Action:** Implement side panel toggling via background service worker. Write a Playwright integration test that simulates an extension action click and verifies the side panel opens. Write a separate Playwright integration test that locates and clicks the content-script-injected YouTube toggle button and verifies the side panel opens.
   - **Traceability:** FR-2, FR-3
 
 - [ ] **Task 1.5: Verify Browser-First Caching Constraints (TDD)**
   - **Dependency:** None (Can run parallel to 1.1)
-  - **Action:** Write unit tests to assert that `background.js` always checks `chrome.storage.local` prior to making network requests, ensuring backend statelessness is maintained for cached data.
+  - **Action:** Write unit tests covering `background.js` cache outcomes: fresh cache hits must return without network requests; cache misses or stale entries must fetch from the network and update `chrome.storage.local`.
   - **Traceability:** FR-12, NFR-4
 
 
@@ -43,7 +43,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 2.1: Timestamp Parsing & Clustering Logic (TDD)**
   - **Dependency:** None
-  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and `clusterClaims(claims, threshold)`. Then implement the utilities until tests pass.
+  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and `clusterClaims(claims, threshold)`. Add boundary tests for the exact 5-second threshold and chained claims testing transitive grouping. Then implement the utilities until tests pass.
   - **Traceability:** FR-4, FR-6, BDD (Timeline Visualization)
 
 - [ ] **Task 2.2: Marker DOM Injection (TDD)**
@@ -53,7 +53,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 2.3: SPA Navigation Cleanup & E2E Testing**
   - **Dependency:** Task 2.2
-  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating YouTube SPA navigation to ensure old markers are removed and new ones are requested.
+  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating YouTube SPA navigation to ensure old markers are removed, new ones are requested, and side-panel state (claims, highlights, and active video identity) resets completely after navigation finishes.
   - **Traceability:** FR-11, NFR-2
 
 ## Track 3: Playback Synchronization Engine
@@ -61,7 +61,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 3.1: Synchronization Logic Tests**
   - **Dependency:** Track 1, Track 2
-  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate.
+  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation.
   - **Traceability:** TDD Constraint
 
 - [ ] **Task 3.2: Click-to-Seek & Highlight**
@@ -71,7 +71,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 3.3: Throttled Playback Broadcasting & Auto-Scrolling**
   - **Dependency:** Task 3.2
-  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims and auto-scrolls.
+  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims based on the active-claim boundary rule. Add tests covering behavior for playback times before the first claim, between claims (including throttled gaps), and after the final claim.
   - **Traceability:** FR-9, NFR-1, FR-10, US-3, BDD (Auto-scrolling)
 
 - [ ] **Task 3.4: E2E BDD Verification**

@@ -13,11 +13,11 @@ The Perspective Prism Chrome Extension is migrating its primary user interface f
 ### 2.2 Timeline Marker System (Injected via Content Script)
 - **Role:** Visualizes the chronological locations of analyzed claims directly on the YouTube video progress bar (`.ytp-progress-list`).
 - **Clustering:** Given that YouTube videos can be dense with claims, individual claim markers that fall within a close temporal threshold (e.g., within 5 seconds of each other) will be grouped into "Cluster Markers."
-- **Visual Language:** Markers will be color-coded based on the aggregate truth profile of the claims they represent (e.g., Red = Deceptive, Yellow = Mixed, Green = Likely True).
+- **Visual Language:** Markers will be color-coded based on the aggregate truth profile of the claims they represent (e.g., Red = Suspicious/Deceptive, Yellow = Mixed, Green = Likely True).
 
 ### 2.3 Playback Synchronization Engine
 - **Role:** A bidirectional sync bridge between the YouTube player (managed by `content.js`) and the Side Panel UI.
-- **Auto-Scrolling:** As the video's `currentTime` advances, `content.js` broadcasts time-update events. The Side Panel listens to these events and automatically scrolls to and highlights the claim currently being discussed in the video.
+- **Auto-Scrolling:** As the video's `currentTime` advances, `content.js` broadcasts time-update events. To ensure identity matching, all synchronization messages MUST include the active `videoId` and a navigation generation counter. The Side Panel listens to these events, rejects any stale messages from a previous video context, and automatically scrolls to and highlights the claim currently being discussed in the video.
 - **Click-to-Seek / Click-to-Highlight:** Clicking a timeline cluster marker seeks the video to that timestamp *and* triggers the Side Panel to scroll to that specific cluster, visually denoting all claims within it.
 
 ## 3. Architecture & Data Flow
@@ -42,5 +42,5 @@ Because the side panel and the content script operate in different contexts, sta
 ## 4. Constraints & Risks
 1. **YouTube DOM Volatility:** YouTube frequently A/B tests its player UI. The selector for the progress bar (`.ytp-progress-list`) must be resilient or easily updatable.
 2. **SPA Navigation (yt-navigate-finish):** YouTube does not reload the page when navigating between videos. The content script must gracefully clean up old timeline markers and re-initialize without memory leaks.
-3. **Performance:** The `timeupdate` event fires frequently (multiple times per second). The auto-scroll logic in the side panel must be throttled/debounced (e.g., using `requestAnimationFrame` or a 250ms throttle) to prevent UI lag.
+3. **Performance:** The `timeupdate` event fires frequently (multiple times per second). The auto-scroll logic in the side panel must enforce a maximum of four updates per second using a fixed 250ms throttle. Do not rely on an unbounded `requestAnimationFrame` loop.
 4. **Side Panel API Limitations:** The side panel cannot be programmatically opened *by a content script directly* without a user gesture triggering an action, or without configuring `chrome.sidePanel.setPanelBehavior`. We must configure the service worker to open the panel when the injected button is clicked via `chrome.sidePanel.open()`.
