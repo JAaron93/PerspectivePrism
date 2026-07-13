@@ -210,6 +210,10 @@ async def test_health_check_endpoints(monkeypatch):
     """Test the /health/llm endpoint."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        from app.main import analysis_service
+        monkeypatch.setattr(analysis_service, "cb_failures", 0)
+        monkeypatch.setattr(analysis_service, "cb_open", False)
+        
         # 1. Healthy State (default)
         response = await ac.get("/health/llm")
         assert response.status_code == 200
