@@ -1,7 +1,10 @@
 # Implementation Tasks: Perspective Prism Chrome Extension UX v3
 
 ## Overview
-This document outlines the test-driven implementation plan for migrating to the Chrome Side Panel API and integrating timeline markers with playback synchronization.
+This document outlines the test-driven implementation plan for migrating to the Chrome Side Panel API and integrating timeline markers with playback synchronization. 
+
+> [!IMPORTANT]
+> **Strict TDD Sequence Enforced**: As per global rules, all feature creation must be preceded by an AI-generated failing unit test or reproduction command. 
 
 > [!TIP] PARALLEL EXECUTION
 > Track 1 (Side Panel Foundation) and Track 2 (Timeline Rendering) can be executed in parallel, as they touch different parts of the extension (Service Worker vs Content Script DOM injection). Track 3 (Synchronization) depends on both.
@@ -9,58 +12,63 @@ This document outlines the test-driven implementation plan for migrating to the 
 ## Track 1: Side Panel Foundation
 *Migrates the existing popup/injected panel to the native `chrome.sidePanel` API.*
 
-- [ ] **Task 1.1: Manifest Updates**
+- [ ] **Task 1.1: Test Suite Setup for Side Panel**
   - **Dependency:** None
+  - **Action:** Write failing unit tests in `chrome-extension/tests/` that mock the `chrome.sidePanel` API to verify state changes, toggle commands, and UI rendering functions.
+  - **Traceability:** TDD Constraint
+
+- [ ] **Task 1.2: Manifest Updates**
+  - **Dependency:** Task 1.1
   - **Action:** Update `manifest.json` to include the `"sidePanel"` permission and configure the default side panel HTML page (e.g., `"side_panel": { "default_path": "sidepanel.html" }`).
   - **Traceability:** FR-1
 
-- [ ] **Task 1.2: Side Panel UI Scaffold**
-  - **Dependency:** Task 1.1
-  - **Action:** Create `sidepanel.html` and `sidepanel.js`. Port the existing React/Vanilla UI rendering logic from `content.js`'s shadow DOM into this new context.
+- [ ] **Task 1.3: Side Panel UI Scaffold**
+  - **Dependency:** Task 1.2
+  - **Action:** Create `sidepanel.html` and `sidepanel.js`. Port the existing React/Vanilla UI rendering logic from `content.js`'s shadow DOM into this new context. Verify tests pass.
   - **Traceability:** FR-1, US-1
 
-- [ ] **Task 1.3: Toggle Mechanisms**
-  - **Dependency:** Task 1.2
-  - **Action:** Implement side panel toggling. 
-    1. Update `background.js` to open the panel when the extension action (toolbar icon) is clicked via `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`.
-    2. Add a message listener in `background.js` to call `chrome.sidePanel.open()` when requested by the content script's injected YouTube button.
+- [ ] **Task 1.4: Toggle Mechanisms & Integration Testing**
+  - **Dependency:** Task 1.3
+  - **Action:** Implement side panel toggling via background service worker. Write a Playwright integration test that simulates an extension action click and verifies the side panel opens.
   - **Traceability:** FR-2, FR-3
 
 ## Track 2: Timeline Rendering & Clustering
 *Handles DOM injection of visual markers on the YouTube progress bar.*
 
-- [ ] **Task 2.1: Timestamp Parsing & Clustering Logic**
+- [ ] **Task 2.1: Timestamp Parsing & Clustering Logic (TDD)**
   - **Dependency:** None
-  - **Action:** Implement a utility to parse `"HH:MM:SS"` to seconds. Implement a clustering function that takes an array of claims and groups them if their timestamps are within `X` seconds (configurable, default 5s).
+  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and `clusterClaims(claims, threshold)`. Then implement the utilities until tests pass.
   - **Traceability:** FR-4, FR-6, BDD (Timeline Visualization)
 
-- [ ] **Task 2.2: Marker DOM Injection**
+- [ ] **Task 2.2: Marker DOM Injection (TDD)**
   - **Dependency:** Task 2.1
-  - **Action:** Implement `renderTimelineMarkers()` in `content.js`. Locate `.ytp-progress-list`. Iterate over clustered claims, calculate percentage width based on video duration, and inject absolutely positioned `<div>` elements. Apply color classes based on the cluster's aggregate truth profile severity.
+  - **Action:** Write failing unit tests using `jsdom` to mock the YouTube `.ytp-progress-list` DOM. Implement `renderTimelineMarkers()` to inject absolute `<div>` markers with correct percentage widths and color classes.
   - **Traceability:** FR-5, NFR-3, US-2
 
-- [ ] **Task 2.3: SPA Navigation Cleanup**
+- [ ] **Task 2.3: SPA Navigation Cleanup & E2E Testing**
   - **Dependency:** Task 2.2
-  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events to clear existing markers and re-fetch/re-render when the user changes videos without a page reload.
+  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating YouTube SPA navigation to ensure old markers are removed and new ones are requested.
   - **Traceability:** FR-11, NFR-2
 
 ## Track 3: Playback Synchronization Engine
 *Bridges the Side Panel and Content Script for auto-scrolling and click-to-seek.*
 
-- [ ] **Task 3.1: Click-to-Seek & Highlight**
+- [ ] **Task 3.1: Synchronization Logic Tests**
   - **Dependency:** Track 1, Track 2
-  - **Action:** Add click event listeners to timeline markers in `content.js`. On click:
-    1. Set `document.querySelector('video').currentTime` to the cluster's timestamp.
-    2. Dispatch a `chrome.runtime.sendMessage` indicating a cluster was clicked.
-    3. Side panel listens for this message, scrolls the corresponding claims into view, and applies a CSS highlight class.
+  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate.
+  - **Traceability:** TDD Constraint
+
+- [ ] **Task 3.2: Click-to-Seek & Highlight**
+  - **Dependency:** Task 3.1
+  - **Action:** Add click event listeners to timeline markers to seek the `<video>` and dispatch a message. The side panel listens, applies CSS highlight, and scrolls to the claim.
   - **Traceability:** FR-7, FR-8, US-4, BDD (Clicking a timeline marker)
 
-- [ ] **Task 3.2: Throttled Playback Broadcasting**
-  - **Dependency:** Track 1
-  - **Action:** Add a `timeupdate` event listener to the YouTube `<video>` element in `content.js`. Throttle the callback to max 4 times per second. Broadcast the current time via `chrome.runtime.sendMessage`.
-  - **Traceability:** FR-9, NFR-1
-
-- [ ] **Task 3.3: Auto-Scrolling Side Panel**
+- [ ] **Task 3.3: Throttled Playback Broadcasting & Auto-Scrolling**
   - **Dependency:** Task 3.2
-  - **Action:** Update `sidepanel.js` to listen for time broadcast messages. Map the current time to the active claim. Automatically scroll the container to keep the active claim in focus.
-  - **Traceability:** FR-10, US-3, BDD (Auto-scrolling)
+  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims and auto-scrolls.
+  - **Traceability:** FR-9, NFR-1, FR-10, US-3, BDD (Auto-scrolling)
+
+- [ ] **Task 3.4: E2E BDD Verification**
+  - **Dependency:** Task 3.3
+  - **Action:** Execute a full Playwright E2E suite covering the BDD scenarios defined in `requirements.md` (Timeline Visualization, Auto-scrolling, Clicking markers).
+  - **Traceability:** BDD Constraints
