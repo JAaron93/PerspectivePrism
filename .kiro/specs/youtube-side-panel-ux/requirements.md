@@ -51,7 +51,19 @@ Feature: Playback Synchronization
     Given the video is playing and the side panel is open
     When the video's current time reaches or passes the timestamp of Claim X (active claim is the latest claim whose timestamp is <= current time)
     Then the side panel should automatically scroll Claim X into the visible viewport
-    And Claim X should receive a visual highlight styling (this occurs before, between, and after claims).
+    And Claim X should receive a visual highlight styling.
+
+  Scenario: Playback before the first claim
+    Given the video is playing and the side panel is open
+    When the video's current time is before the first claim's timestamp
+    Then no claim should be considered active
+    And all visual highlight styling should be cleared.
+
+  Scenario: Playback after the final claim
+    Given the video is playing and the side panel is open
+    When the video's current time passes the final claim's timestamp
+    Then the final claim should remain the active claim
+    And the final claim should retain its visual highlight styling.
 
   Scenario: Clicking a timeline marker
     Given the side panel is open

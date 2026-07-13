@@ -34,7 +34,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 1.5: Verify Browser-First Caching Constraints (TDD)**
   - **Dependency:** None (Can run parallel to 1.1)
-  - **Action:** Write unit tests covering `background.js` cache outcomes: fresh cache hits must return without network requests; cache misses or stale entries must fetch from the network and update `chrome.storage.local`.
+  - **Action:** Write unit tests covering `background.js` cache outcomes: fresh cache hits must return without network requests; cache misses or stale entries (defined by an embedded `schemaVersion` mismatch) must fetch from the network and update `chrome.storage.local`. Add coverage for `chrome.storage.local` read and write failures, verifying the required fallback continues analysis without breaking the flow.
   - **Traceability:** FR-12, NFR-4
 
 
@@ -43,7 +43,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 2.1: Timestamp Parsing & Clustering Logic (TDD)**
   - **Dependency:** None
-  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and `clusterClaims(claims, threshold)`. Add boundary tests for the exact 5-second threshold and chained claims testing transitive grouping. Then implement the utilities until tests pass.
+  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and timeline marker positioning. Expand tests to cover unknown or zero video duration, negative timestamps, and timestamps beyond the video duration, asserting resulting marker percentages remain finite and clamped within the valid range. Preserve the existing exact 5-second boundary and chained claims testing for transitive grouping. Then implement the utilities until tests pass.
   - **Traceability:** FR-4, FR-6, BDD (Timeline Visualization)
 
 - [ ] **Task 2.2: Marker DOM Injection (TDD)**
@@ -53,7 +53,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 2.3: SPA Navigation Cleanup & E2E Testing**
   - **Dependency:** Task 2.2
-  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating YouTube SPA navigation to ensure old markers are removed, new ones are requested, and side-panel state (claims, highlights, and active video identity) resets completely after navigation finishes.
+  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating repeated YouTube SPA navigations to ensure listener cleanup: after multiple navigations, assert that a single navigation event produces exactly one request/render cycle, while preserving the existing marker removal and side-panel state reset checks (claims, highlights, and active video identity).
   - **Traceability:** FR-11, NFR-2
 
 ## Track 3: Playback Synchronization Engine
@@ -71,7 +71,7 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [ ] **Task 3.3: Throttled Playback Broadcasting & Auto-Scrolling**
   - **Dependency:** Task 3.2
-  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims based on the active-claim boundary rule. Add tests covering behavior for playback times before the first claim, between claims (including throttled gaps), and after the final claim.
+  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims based on the active-claim boundary rule. Add tests covering behavior for playback times before the first claim (asserting highlights are cleared), between claims (including throttled gaps), and after the final claim (asserting the final claim retains its highlight).
   - **Traceability:** FR-9, NFR-1, FR-10, US-3, BDD (Auto-scrolling)
 
 - [ ] **Task 3.4: E2E BDD Verification**
