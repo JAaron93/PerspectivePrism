@@ -17,6 +17,7 @@ dependencies = [
   "pydantic-settings",
   "youtube-transcript-api",
   "openai",
+  "prism_sanitizer_rs",
 ]
 
 [project.optional-dependencies]
