@@ -43,6 +43,13 @@ The backend is located in the `backend/` directory. It uses Python 3.13+ and Fas
 3.  Activate it: `source venv/bin/activate`.
 4.  Install dependencies: `pip install -r requirements.txt`.
 5.  Set up `.env` from `.env.example` (requires OpenAI and Google Search API keys).
+6.  **Rust Toolchain Configuration**:
+    When compiling the Rust extension (`prism_sanitizer_rs`), if the Rust compiler (`rustc`/`cargo`) is not found on the `PATH`, prepend the local Rustup stable toolchain bin directory to your `PATH` (typically located at `~/.rustup/toolchains/stable-x86_64-apple-darwin/bin` on macOS):
+    ```bash
+    export PATH="~/.rustup/toolchains/stable-x86_64-apple-darwin/bin:$PATH"
+    pip install -e .
+    ```
+
 
 ## Common Commands
 
