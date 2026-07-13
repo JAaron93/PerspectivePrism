@@ -60,10 +60,10 @@ The backend is located in the `backend/` directory. It uses Python 3.13+ and Fas
 ## Architecture & Key Files
 
 *   `app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration.
-*   `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses LLMs to extract claims.
+*   `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
 *   `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
-*   `app/services/analysis_service.py`: LLM-based perspective analysis and bias/deception detection. Includes a circuit breaker that tracks failures and can fall back to a backup LLM provider.
-*   `app/utils/input_sanitizer.py`: **Critical security component.** All user-supplied content must pass through this before being sent to any LLM.
+*   `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection. Includes a circuit breaker that tracks transient `google-genai` failures and falls back to `gemini-3.1-flash-lite`.
+*   `app/utils/input_sanitizer.py`: **Critical security component.** Integrates a high-performance Rust compiled extension (`prism_sanitizer_rs` via PyO3) for regex patterns and control character sanitization. All user-supplied content must pass through this before being sent to any LLM.
 *   `app/core/config.py`: `pydantic-settings` configuration. Key settings include `MAX_CLAIMS_PER_ANALYSIS`, `DECEPTION_THRESHOLD_HIGH`, `DECEPTION_THRESHOLD_MODERATE`, and `CHROME_EXTENSION_IDS`.
 *   `pyproject.toml`: Build and test configuration.
 
@@ -153,14 +153,13 @@ Scripts are injected into YouTube pages in this order:
 
 The system follows a pipeline approach:
 
-1.  **Claim Extraction**: Fetches the YouTube transcript and uses an LLM to identify key claims with timestamps.
+1.  **Claim Extraction**: Fetches the YouTube transcript and uses the ADK 2.0 `ExtractorAgent` (leveraging Gemini Structured Outputs) to identify key claims with timestamps. The prompt format utilizes context caching by placing raw transcript data at the absolute beginning inside untrusted data delimiters.
 2.  **Evidence Retrieval**: For each claim, queries Google Custom Search across four perspectives in parallel: Scientific, Journalistic, Partisan Left, Partisan Right.
-3.  **Perspective Analysis**: Uses LLMs to evaluate each claim against the retrieved evidence, producing a stance and confidence score per perspective. Results are streamed back incrementally via the job API.
-4.  **Bias & Deception Analysis**: Separately evaluates each claim for logical fallacies, emotional manipulation, and a deception score.
-5.  **Truth Profile**: Assembles the final result — overall assessment (`Likely True`, `Likely False`, `Mixed`, or `Suspicious/Deceptive`), per-perspective analysis, and bias indicators.
+3.  **Perspective & Bias Analysis**: Evaluates each claim against the retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances. High-deception ratings short-circuit overall assessment, and moderate-deception ratings downgrade assessments.
+4.  **Truth Profile**: Assembles the final result — overall assessment (`Likely True`, `Likely False`, `Mixed`, or `Suspicious/Deceptive`), per-perspective analysis, and bias indicators.
 
 ## External Services
 
 *   **YouTube Transcript API**: Fetches video transcript text.
 *   **Google Custom Search JSON API**: Evidence retrieval per perspective.
-*   **OpenAI API**: LLM tasks — claim extraction, perspective analysis, bias/deception detection. A backup provider can be configured via env vars.
+*   **Gemini API (via `google-genai` SDK and `google-adk`)**: Serves all LLM needs. Uses `gemini-3.5-flash` as the primary model and falls back to `gemini-3.1-flash-lite` if the primary service experiences transient failures (429/500/503).
