@@ -5,6 +5,16 @@ from app.main import app
 from app.models.schemas import JobStatus
 from unittest.mock import AsyncMock, patch
 
+async def _poll_until_done(ac: AsyncClient, job_id: str) -> dict:
+    for _ in range(20):
+        status_resp = await ac.get(f"/analyze/jobs/{job_id}")
+        assert status_resp.status_code == 200
+        status_data = status_resp.json()
+        if status_data["status"] in (JobStatus.COMPLETED.value, JobStatus.FAILED.value):
+            return status_data
+        await asyncio.sleep(0.5)
+    return status_data
+
 @pytest.mark.asyncio
 async def test_integration_outbound_schema_and_sanitization(monkeypatch):
     """
@@ -50,13 +60,7 @@ async def test_integration_outbound_schema_and_sanitization(monkeypatch):
         job_id = data["job_id"]
         
         # Poll for completion
-        for _ in range(20):
-            status_resp = await ac.get(f"/analyze/jobs/{job_id}")
-            assert status_resp.status_code == 200
-            status_data = status_resp.json()
-            if status_data["status"] in (JobStatus.COMPLETED.value, JobStatus.FAILED.value):
-                break
-            await asyncio.sleep(0.5)
+        status_data = await _poll_until_done(ac, job_id)
             
         # The job should have COMPLETED but the claim should be an error claim because extract_claims swallows exceptions
         assert status_data["status"] == JobStatus.COMPLETED.value
@@ -108,13 +112,7 @@ async def test_integration_successful_schema_payload(monkeypatch):
         assert response.status_code == 200
         job_id = response.json()["job_id"]
         
-        for _ in range(20):
-            status_resp = await ac.get(f"/analyze/jobs/{job_id}")
-            assert status_resp.status_code == 200
-            status_data = status_resp.json()
-            if status_data["status"] in (JobStatus.COMPLETED.value, JobStatus.FAILED.value):
-                break
-            await asyncio.sleep(0.5)
+        status_data = await _poll_until_done(ac, job_id)
             
         assert status_data["status"] == JobStatus.COMPLETED.value
         

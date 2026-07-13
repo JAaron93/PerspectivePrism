@@ -48,27 +48,29 @@ async def run_smoke_test(video_url: str):
         
     print(f"Fetching transcript for video {video_id}...")
     try:
-        # Use the instance-based API
+        # Use the instance-based API wrapped in to_thread to avoid blocking synchronous I/O
         api = YouTubeTranscriptApi()
-        transcript_data = api.fetch(video_id)
-        transcript_text = " ".join([t['text'] for t in transcript_data])
+        transcript_data = await asyncio.to_thread(api.fetch, video_id)
+        # Read text attribute via t.text instead of dictionary indexing
+        transcript_text = " ".join([t.text for t in transcript_data])
     except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable) as e:
         print(f"Error fetching transcript: {e}")
         return
         
     print(f"Transcript length: {len(transcript_text)} characters.")
     
-    # Sanitize the transcript before sending it to count_tokens
+    # Sanitize the transcript before sending it to count_tokens, passing required max_length
     print("Sanitizing transcript...")
     try:
-        sanitized_transcript = sanitize_input(transcript_text)
+        sanitized_transcript = sanitize_input(transcript_text, max_length=100000)
     except SanitizationError as e:
         print(f"Sanitization Error: {e}")
         return
         
     model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
     print(f"Counting tokens for model {model_name}...")
-    response = client.models.count_tokens(
+    # Use SDK's asynchronous client.aio surface to avoid blocking
+    response = await client.aio.models.count_tokens(
         model=model_name,
         contents=sanitized_transcript
     )
