@@ -9,13 +9,13 @@
 | **FR-3** | The content script shall inject a toggle button into the YouTube video player (near the subscribe/share row) to open the side panel. |
 | **FR-4** | The content script shall query the active video's duration and calculate the percentage position for each claim timestamp. It must handle unknown/zero durations, and clamp timestamps between 0 and the video's duration to prevent NaN or out-of-bounds positions. |
 | **FR-5** | The content script shall inject marker `<div>` elements into the YouTube `.ytp-progress-list` container. |
-| **FR-6** | The content script shall cluster claims that occur within an inclusive 5-second threshold of each other into a single "Cluster Marker" using transitive grouping. |
+| **FR-6** | The content script shall sort all claims by timestamp chronologically before clustering claims that occur within an inclusive 5-second threshold of each other into a single "Cluster Marker" using transitive grouping. |
 | **FR-7** | Clicking a timeline marker shall seek the YouTube video to the marker's starting timestamp. |
 | **FR-8** | Clicking a timeline marker shall send a message to the side panel to highlight and scroll to the corresponding claim(s). |
 | **FR-9** | The content script shall broadcast the video's `currentTime` to the side panel at a regular interval (throttled). Broadcasts MUST be identity-bearing (include `videoId`) and establish ordering. |
 | **FR-10**| The side panel shall automatically scroll the active claim into view as the video plays, based on the `currentTime` broadcasts. |
 | **FR-11**| The extension shall clear and re-render timeline markers and side panel state when the YouTube player navigates to a new video (SPA navigation). State reset MUST be completed before new analysis requests. |
-| **FR-12**| The service worker shall intercept analysis requests and check `chrome.storage.local` for cached results before initiating a network request to the backend. |
+| **FR-12**| The service worker shall act as the sole authoritative owner of `chrome.storage.local`. It must intercept all analysis requests from the UI/content script, evaluate the local cache for freshness, and conditionally initiate network requests to the backend. |
 
 ## 2. Non-Functional Requirements (NFR)
 
