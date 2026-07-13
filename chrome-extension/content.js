@@ -809,62 +809,23 @@ const PANEL_STYLES = `
 // --- Video ID Extraction ---
 
 function isValidVideoId(id) {
-  // YouTube video IDs are exactly 11 characters
-  // Valid characters: A-Z, a-z, 0-9, underscore, hyphen
-  return /^[a-zA-Z0-9_-]{11}$/.test(id);
+  return window.isValidVideoId ? window.isValidVideoId(id) : (id && /^[a-zA-Z0-9_-]{11}$/.test(id));
 }
 
 function extractVideoId() {
-  // Strategy 1: Standard watch URL parameter (?v=VIDEO_ID)
+  if (window.extractVideoIdFromUrl) {
+    return window.extractVideoIdFromUrl(window.location.href);
+  }
+  // Fallback
   const urlParams = new URLSearchParams(window.location.search);
   const watchParam = urlParams.get("v");
   if (watchParam && isValidVideoId(watchParam)) {
-    logger.debug(
-      "Extracted Video ID via watch param:",
-      watchParam,
-    );
     return watchParam;
   }
-
-  const pathname = window.location.pathname;
-
-  // Strategy 2: Shorts format: /shorts/VIDEO_ID
-  const shortsMatch = pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/);
-  if (shortsMatch && isValidVideoId(shortsMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via shorts path:",
-      shortsMatch[1],
-    );
-    return shortsMatch[1];
-  }
-
-  // Strategy 3: Embed format: /embed/VIDEO_ID
-  const embedMatch = pathname.match(/\/embed\/([A-Za-z0-9_-]+)/);
-  if (embedMatch && isValidVideoId(embedMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via embed path:",
-      embedMatch[1],
-    );
-    return embedMatch[1];
-  }
-
-  // Strategy 4: Legacy format: /v/VIDEO_ID
-  const legacyMatch = pathname.match(/\/v\/([A-Za-z0-9_-]+)/);
-  if (legacyMatch && isValidVideoId(legacyMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via legacy path:",
-      legacyMatch[1],
-    );
-    return legacyMatch[1];
-  }
-
+  
   // Strategy 5: Hash fragment (e.g. #v=VIDEO_ID)
   const hashMatch = window.location.hash.match(/[?&]v=([A-Za-z0-9_-]+)/);
   if (hashMatch && isValidVideoId(hashMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via hash fragment:",
-      hashMatch[1],
-    );
     return hashMatch[1];
   }
 
@@ -2215,6 +2176,13 @@ function handleNavigation() {
     // Setup new video state
     if (vid) {
       currentVideoId = vid;
+      
+      // Broadcast navigation event to the extension (background/sidepanel)
+      chrome.runtime.sendMessage({
+        type: "YOUTUBE_NAVIGATED",
+        videoId: vid
+      }).catch(() => {});
+
       // Reset cancel flag for new video
       cancelRequest = false;
       
