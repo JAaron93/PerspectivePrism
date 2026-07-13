@@ -21,8 +21,15 @@ async def run_smoke_test(video_url: str):
     # The requirement: MUST calculate the exact token length of the YouTube transcript fixture using the target model's tokenizer
     
     # We'll fetch the transcript here manually to satisfy the requirement
-    from youtube_transcript_api import YouTubeTranscriptApi
+    from youtube_transcript_api import (
+        YouTubeTranscriptApi,
+        TranscriptsDisabled,
+        NoTranscriptFound,
+        VideoUnavailable
+    )
     from urllib.parse import urlparse, parse_qs
+    from app.utils.input_sanitizer import sanitize_input, SanitizationError
+    import sys
     
     def extract_video_id(url):
         parsed = urlparse(url)
@@ -41,19 +48,29 @@ async def run_smoke_test(video_url: str):
         
     print(f"Fetching transcript for video {video_id}...")
     try:
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
+        # Use the instance-based API
+        api = YouTubeTranscriptApi()
+        transcript_data = api.fetch(video_id)
         transcript_text = " ".join([t['text'] for t in transcript_data])
-    except Exception as e:
+    except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable) as e:
         print(f"Error fetching transcript: {e}")
         return
         
     print(f"Transcript length: {len(transcript_text)} characters.")
     
+    # Sanitize the transcript before sending it to count_tokens
+    print("Sanitizing transcript...")
+    try:
+        sanitized_transcript = sanitize_input(transcript_text)
+    except SanitizationError as e:
+        print(f"Sanitization Error: {e}")
+        return
+        
     model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
     print(f"Counting tokens for model {model_name}...")
     response = client.models.count_tokens(
         model=model_name,
-        contents=transcript_text
+        contents=sanitized_transcript
     )
     token_count = response.total_tokens
     print(f"Token count: {token_count}")
@@ -75,7 +92,8 @@ async def run_smoke_test(video_url: str):
             job_id = response.json()["job_id"]
             
             # Poll
-            while True:
+            max_attempts = 120  # e.g., ~2 minutes at 1s intervals
+            for _ in range(max_attempts):
                 status_resp = await ac.get(f"/analyze/jobs/{job_id}")
                 if status_resp.status_code != 200:
                     print(f"Error getting job status: {status_resp.text}")
@@ -88,6 +106,8 @@ async def run_smoke_test(video_url: str):
                     print(f"Job failed: {status_data.get('error')}")
                     return None, 0
                 await asyncio.sleep(1)
+            print("Error: job polling timed out")
+            return None, 0
                 
         # 1. Baseline Run (Cold Cache)
         print("\n--- Baseline Run (Cold Cache) ---")
@@ -127,6 +147,9 @@ async def run_smoke_test(video_url: str):
                 print("✅ p95 latency target met (< 4.5s)")
             else:
                 print("❌ p95 latency target missed (>= 4.5s)")
+        else:
+            print("Error: Caching validation failed. All warm-up runs failed to complete.")
+            sys.exit(1)
                 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run live smoke test for caching")
