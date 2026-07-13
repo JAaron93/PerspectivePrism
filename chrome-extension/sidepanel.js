@@ -208,10 +208,25 @@ function renderResults(data) {
 
       claimCard.appendChild(body);
 
-      // Toggle expanded state on header click
-      header.addEventListener("click", () => {
+      // Toggle expanded state on header click and keyboard activation.
+      // Give the header button semantics so keyboard users and screen
+      // readers can discover and activate it without a mouse.
+      header.setAttribute("role", "button");
+      header.setAttribute("tabindex", "0");
+      header.setAttribute("aria-expanded", "false");
+
+      const toggleBody = () => {
         const isCollapsed = body.style.display === "none";
         body.style.display = isCollapsed ? "flex" : "none";
+        header.setAttribute("aria-expanded", String(isCollapsed));
+      };
+
+      header.addEventListener("click", toggleBody);
+      header.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault(); // Prevent Space from scrolling the panel
+          toggleBody();
+        }
       });
 
       claimsListContainer.appendChild(claimCard);
@@ -288,11 +303,14 @@ function handleAnalysisState(state) {
       
     case "complete":
       showState("results");
-      // Fetch the actual cache data from Service Worker
+      // Capture the video ID synchronously so we can detect stale responses.
+      const requestedVideoId = currentVideoId;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
-        videoId: currentVideoId
+        videoId: requestedVideoId
       }).then((response) => {
+        // Discard the response if navigation has already changed the active video.
+        if (currentVideoId !== requestedVideoId) return;
         if (response && response.success && response.data) {
           renderResults(response.data);
         } else {
@@ -300,6 +318,7 @@ function handleAnalysisState(state) {
           errorMessage.textContent = "Failed to load analysis results.";
         }
       }).catch(() => {
+        if (currentVideoId !== requestedVideoId) return;
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
       });

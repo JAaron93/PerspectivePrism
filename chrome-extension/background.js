@@ -88,7 +88,12 @@ async function getClient() {
         logger.error("Failed to cleanup expired cache on startup:", err);
       }
       return client;
-    })();
+    })().catch((err) => {
+      // Clear the cached promise so the next caller retries rather than
+      // receiving a permanently-rejected promise from a transient failure.
+      clientPromise = null;
+      throw err;
+    });
   }
   return clientPromise;
 }
