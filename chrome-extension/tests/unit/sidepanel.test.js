@@ -63,12 +63,12 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     
     // Wait for the async initialization (chrome.tabs.query and sendMessage)
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(chrome.tabs.query).toHaveBeenCalled();
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
-    );
+    await vi.waitFor(() => {
+      expect(chrome.tabs.query).toHaveBeenCalled();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
+    });
   });
 
   it("should update status UI on receiving state change message", async () => {
@@ -79,9 +79,9 @@ describe("Side Panel UI & Message Handling", () => {
 
     sidepanelModule = await import("../../sidepanel.js");
     
-    // Wait for initial tab check to finish
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(messageListener).toBeDefined();
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+    });
 
     // Simulate sending an ANALYSIS_STATE_CHANGED message
     const message = {
@@ -101,5 +101,141 @@ describe("Side Panel UI & Message Handling", () => {
     
     expect(stateLoading.style.display).toBe("flex");
     expect(progressBarFill.style.width).toBe("50%");
+  });
+
+  it("should handle error state correctly", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+    });
+
+    const message = {
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: {
+        status: "error",
+        errorMessage: "Analysis failed due to rate limits"
+      }
+    };
+
+    messageListener(message, {}, () => {});
+
+    const stateError = document.getElementById("state-error");
+    const errorMessage = document.getElementById("error-message");
+
+    expect(stateError.style.display).toBe("flex");
+    expect(errorMessage.textContent).toBe("Analysis failed due to rate limits");
+  });
+
+  it("should handle complete CHECK_CACHE states and renderResults correctly", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    // Mock CHECK_CACHE response from background
+    const mockCacheData = {
+      overall_assessment: "Likely True",
+      claims: [
+        {
+          claim_text: "Test Claim 1",
+          timestamp: "0:10",
+          truth_profile: {
+            overall_assessment: "Likely True",
+            perspectives: {
+              Scientific: { confidence: 0.9 }
+            },
+            bias_indicators: {
+              logical_fallacies: ["Cherry Picking"],
+              emotional_manipulation: ["Appeal to Fear"],
+              deception_score: 2
+            }
+          }
+        }
+      ]
+    };
+
+    chrome.runtime.sendMessage.mockImplementation((msg) => {
+      if (msg.type === "CHECK_CACHE") {
+        return Promise.resolve({ success: true, data: mockCacheData });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+    });
+
+    const message = {
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: {
+        status: "complete"
+      }
+    };
+
+    messageListener(message, {}, () => {});
+
+    await vi.waitFor(() => {
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+      
+      const badge = document.getElementById("overall-assessment-badge");
+      expect(badge.textContent).toBe("Likely True");
+      expect(badge.classList.contains("badge-true")).toBe(true);
+
+      const claimsContainer = document.getElementById("claims-list-container");
+      expect(claimsContainer.children.length).toBe(1);
+      
+      const claimCard = claimsContainer.querySelector(".claim-card");
+      expect(claimCard).toBeDefined();
+      expect(claimCard.querySelector(".claim-card-title").textContent).toBe("Test Claim 1");
+      expect(claimCard.querySelector(".claim-timestamp").textContent).toBe("0:10");
+
+      // Verify detail section
+      const body = claimCard.querySelector(".claim-card-body");
+      expect(body.style.display).toBe("none"); // collapsed by default
+
+      const assessmentBadge = body.querySelector(".badge");
+      expect(assessmentBadge.textContent).toBe("Likely True");
+
+      const pItem = body.querySelector(".perspective-item");
+      expect(pItem.querySelector(".perspective-info").textContent).toContain("Scientific");
+      expect(pItem.querySelector(".perspective-fill").style.width).toBe("90%");
+
+      const tags = body.querySelectorAll(".bias-tag");
+      expect(tags[0].textContent).toBe("Cherry Picking");
+      expect(tags[1].textContent).toBe("Appeal to Fear");
+
+      const deceptionRow = body.querySelector(".deception-score-row");
+      expect(deceptionRow.textContent).toContain("Deception Risk");
+      expect(deceptionRow.textContent).toContain("2/10");
+    });
+  });
+
+  it("should trigger cancel and retry buttons successfully", async () => {
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(chrome.tabs.query).toHaveBeenCalled();
+    });
+
+    const cancelBtn = document.getElementById("pp-cancel-btn");
+    const retryBtn = document.getElementById("pp-retry-btn");
+
+    cancelBtn.click();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "CANCEL_ANALYSIS", videoId: "abcdefghijk" })
+    );
+
+    retryBtn.click();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" })
+    );
   });
 });

@@ -127,7 +127,7 @@ describe("Service Worker Caching Authority & Fallback", () => {
       };
 
       // Save should complete without throwing to the caller (it handles the failure gracefully)
-      await expect(client.saveToCache("12345678901", testData)).resolves.not.toThrow();
+      await expect(client.saveToCache("12345678901", testData)).resolves.toBeUndefined();
 
       // Since set failed, mockStorage should not have the key
       expect(mockStorage["cache_12345678901"]).toBeUndefined();

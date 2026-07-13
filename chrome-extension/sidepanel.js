@@ -1,5 +1,6 @@
 // sidepanel.js - Perspective Prism Side Panel
 import { logger } from "./logging-utils.js";
+import { extractVideoIdFromUrl } from "./video-utils.js";
 
 let currentVideoId = null;
 
@@ -23,33 +24,16 @@ const analysisMetadata = document.getElementById("analysis-metadata");
 const claimsListContainer = document.getElementById("claims-list-container");
 const optionsBtn = document.getElementById("pp-options-btn");
 
-// Extract video ID from URL
-function extractVideoIdFromUrl(url) {
-  try {
-    const urlObj = new URL(url);
-    const vParam = urlObj.searchParams.get("v");
-    if (vParam) return vParam;
-    
-    if (urlObj.hostname.includes("youtu.be")) {
-      const pathParts = urlObj.pathname.split("/");
-      return pathParts[1] || null;
-    }
-    
-    const shortsMatch = urlObj.pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/);
-    if (shortsMatch) return shortsMatch[1];
-    
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
 // Show specific state in UI
 function showState(stateName) {
   stateIdle.style.display = stateName === "idle" ? "flex" : "none";
   stateLoading.style.display = stateName === "loading" ? "flex" : "none";
   stateError.style.display = stateName === "error" ? "flex" : "none";
   stateResults.style.display = stateName === "results" ? "flex" : "none";
+}
+
+if (typeof window !== "undefined") {
+  window.showState = showState;
 }
 
 // Render analysis results
@@ -110,6 +94,126 @@ function renderResults(data) {
       }
       
       claimCard.appendChild(header);
+
+      // Card Body (Collapsible detail view)
+      const body = document.createElement("div");
+      body.className = "claim-card-body";
+      body.style.display = "none"; // Collapsed by default
+
+      // 1. Overall Assessment Badge
+      const assessmentVal = claim.truth_profile?.overall_assessment || "Unverified";
+      const badge = document.createElement("span");
+      let badgeClass = "badge-unverified";
+      const lowerAssess = assessmentVal.toLowerCase();
+      if (lowerAssess.includes("true")) {
+        badgeClass = "badge-true";
+      } else if (lowerAssess.includes("mixed")) {
+        badgeClass = "badge-mixed";
+      } else if (lowerAssess.includes("false")) {
+        badgeClass = "badge-false";
+      } else if (lowerAssess.includes("deceptive") || lowerAssess.includes("suspicious")) {
+        badgeClass = "badge-deceptive";
+      }
+      badge.className = `badge ${badgeClass}`;
+      badge.textContent = assessmentVal;
+      body.appendChild(badge);
+
+      // 2. Perspectives (Scientific, Journalistic, Partisan Left, Partisan Right)
+      if (claim.truth_profile?.perspectives) {
+        const perspectivesContainer = document.createElement("div");
+        perspectivesContainer.style.display = "flex";
+        perspectivesContainer.style.flexDirection = "column";
+        perspectivesContainer.style.gap = "8px";
+        perspectivesContainer.style.marginTop = "8px";
+        
+        Object.entries(claim.truth_profile.perspectives).forEach(([key, val]) => {
+          if (!val) return;
+          const pItem = document.createElement("div");
+          pItem.className = "perspective-item";
+          
+          const pInfo = document.createElement("div");
+          pInfo.className = "perspective-info";
+          
+          const pLabel = document.createElement("span");
+          pLabel.textContent = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          
+          const pVal = document.createElement("span");
+          const confidencePercent = typeof val.confidence === "number" 
+            ? Math.round(val.confidence <= 1 ? val.confidence * 100 : val.confidence)
+            : null;
+          pVal.textContent = confidencePercent !== null ? `${confidencePercent}%` : "";
+          
+          pInfo.appendChild(pLabel);
+          pInfo.appendChild(pVal);
+          pItem.appendChild(pInfo);
+          
+          if (confidencePercent !== null) {
+            const pFillContainer = document.createElement("div");
+            pFillContainer.className = "perspective-fill-container";
+            
+            const pFill = document.createElement("div");
+            pFill.className = "perspective-fill";
+            pFill.style.width = `${confidencePercent}%`;
+            
+            pFillContainer.appendChild(pFill);
+            pItem.appendChild(pFillContainer);
+          }
+          
+          perspectivesContainer.appendChild(pItem);
+        });
+        
+        body.appendChild(perspectivesContainer);
+      }
+
+      // 3. Bias Indicators (logical_fallacies & emotional_manipulation)
+      const bias = claim.truth_profile?.bias_indicators;
+      const fallacies = claim.truth_profile?.logical_fallacies || bias?.logical_fallacies || [];
+      const manipulation = claim.truth_profile?.emotional_manipulation || bias?.emotional_manipulation || [];
+      const tags = [...fallacies, ...manipulation];
+      
+      if (tags.length > 0) {
+        const biasContainer = document.createElement("div");
+        biasContainer.className = "bias-container";
+        biasContainer.style.marginTop = "8px";
+        tags.forEach((tagText) => {
+          const tag = document.createElement("span");
+          tag.className = "bias-tag";
+          tag.textContent = tagText;
+          biasContainer.appendChild(tag);
+        });
+        body.appendChild(biasContainer);
+      }
+
+      // 4. Deception Score
+      const deceptionScore = claim.truth_profile?.deception_score !== undefined 
+        ? claim.truth_profile.deception_score 
+        : bias?.deception_score;
+        
+      if (deceptionScore !== undefined && deceptionScore !== null) {
+        const scoreRow = document.createElement("div");
+        scoreRow.className = "deception-score-row";
+        scoreRow.style.marginTop = "8px";
+        
+        const scoreLabel = document.createElement("span");
+        scoreLabel.textContent = "Deception Risk";
+        
+        const scoreValue = document.createElement("span");
+        const displayScore = deceptionScore > 10 ? `${deceptionScore}%` : `${deceptionScore}/10`;
+        scoreValue.textContent = displayScore;
+        
+        scoreRow.appendChild(scoreLabel);
+        scoreRow.appendChild(scoreValue);
+        body.appendChild(scoreRow);
+      }
+
+      claimCard.appendChild(body);
+
+      // Toggle expanded state on header click
+      header.addEventListener("click", () => {
+        const isCollapsed = body.style.display === "none";
+        body.style.display = isCollapsed ? "flex" : "none";
+      });
+
       claimsListContainer.appendChild(claimCard);
     });
   } else {
@@ -177,7 +281,9 @@ function handleAnalysisState(state) {
     case "in_progress":
       showState("loading");
       loadingSubmessage.textContent = "Analyzing video...";
-      progressBarFill.style.width = `${state.progress || 0}%`;
+      const progressVal = state.progress !== undefined && state.progress !== null ? state.progress : 0;
+      progressBarFill.style.width = `${progressVal}%`;
+      progressBarFill.setAttribute("aria-valuenow", progressVal);
       break;
       
     case "complete":
@@ -189,8 +295,14 @@ function handleAnalysisState(state) {
       }).then((response) => {
         if (response && response.success && response.data) {
           renderResults(response.data);
+        } else {
+          showState("error");
+          errorMessage.textContent = "Failed to load analysis results.";
         }
-      }).catch(() => {});
+      }).catch(() => {
+        showState("error");
+        errorMessage.textContent = "Failed to load analysis results.";
+      });
       break;
       
     case "error":
@@ -213,10 +325,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "ANALYSIS_PROGRESS") {
     if (message.videoId === currentVideoId) {
       loadingSubmessage.textContent = message.payload.message || "Analyzing...";
-      if (message.payload.progress) {
+      if (message.payload.progress !== undefined && message.payload.progress !== null) {
         progressBarFill.style.width = `${message.payload.progress}%`;
+        progressBarFill.setAttribute("aria-valuenow", message.payload.progress);
       }
     }
+  } else if (message.type === "YOUTUBE_NAVIGATED") {
+    checkCurrentTabState();
   }
   return false;
 });

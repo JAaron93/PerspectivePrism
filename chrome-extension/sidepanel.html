@@ -19,7 +19,7 @@
   </header>
 
   <!-- Main Content Container -->
-  <main id="content" class="content-container">
+  <main id="content" class="content-container" aria-live="polite">
     
     <!-- Idle State -->
     <div id="state-idle" class="state-container">
@@ -34,7 +34,7 @@
       <h2 id="loading-title" class="state-title">Analyzing Video</h2>
       <p id="loading-submessage" class="state-description">Retrieving transcript...</p>
       <div class="progress-bar-container">
-        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        <div id="progress-bar-fill" class="progress-bar-fill" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
       </div>
       <button id="pp-cancel-btn" class="btn">Cancel Analysis</button>
     </div>
