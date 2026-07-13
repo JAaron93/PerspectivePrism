@@ -37,7 +37,9 @@ graph TD
 ### 3.1 State Management & Browser-First Caching
 Because the side panel and the content script operate in different contexts, state (such as the currently active video ID, the analysis results, and the playback time) must be synchronized via the Service Worker (`background.js`).
 - **Browser-First Caching Constraint:** To minimize operational costs and ensure user privacy, the backend architecture MUST remain stateless regarding caching. All caching of analysis results across SPA navigations or tab closures MUST rely exclusively on `chrome.storage.local` within the user's browser. The backend should not host a database for storing video analysis histories.
-- When the side panel opens or the video changes, the side panel queries the Service Worker, which first checks `chrome.storage.local` before ever initiating a new request to the backend.
+- **Cache Key Design & Isolation:** Cache keys must be constructed using a composite identifier combining the `videoId` and the analysis schema version (e.g., `analysis_v1_{videoId}`). This strict isolation ensures lookups can never inadvertently return another video's analysis.
+- **Freshness & Eviction Policy:** Cached results are considered perpetually fresh unless the analysis schema version increments. To prevent exceeding `chrome.storage.local` quota constraints, eviction must follow an LRU (Least Recently Used) policy. If a quota-write failure occurs, the extension must gracefully fall back to an in-memory session cache and proceed with the analysis request without breaking the user experience.
+- When the side panel opens or the video changes, the side panel queries the Service Worker, which first checks `chrome.storage.local` before ever initiating a new request to the backend. Any storage access failures must be caught and handled without breaking the analysis pipeline.
 
 ## 4. Constraints & Risks
 1. **YouTube DOM Volatility:** YouTube frequently A/B tests its player UI. The selector for the progress bar (`.ytp-progress-list`) must be resilient or easily updatable.
