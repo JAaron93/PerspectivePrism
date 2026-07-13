@@ -34,10 +34,10 @@ graph TD
     B -- execute seek --> A;
 ```
 
-### 3.1 State Management
+### 3.1 State Management & Browser-First Caching
 Because the side panel and the content script operate in different contexts, state (such as the currently active video ID, the analysis results, and the playback time) must be synchronized via the Service Worker (`background.js`).
-- The Service Worker caches the analysis results.
-- When the side panel opens or the video changes, the side panel queries the Service Worker for the current state.
+- **Browser-First Caching Constraint:** To minimize operational costs and ensure user privacy, the backend architecture MUST remain stateless regarding caching. All caching of analysis results across SPA navigations or tab closures MUST rely exclusively on `chrome.storage.local` within the user's browser. The backend should not host a database for storing video analysis histories.
+- When the side panel opens or the video changes, the side panel queries the Service Worker, which first checks `chrome.storage.local` before ever initiating a new request to the backend.
 
 ## 4. Constraints & Risks
 1. **YouTube DOM Volatility:** YouTube frequently A/B tests its player UI. The selector for the progress bar (`.ytp-progress-list`) must be resilient or easily updatable.

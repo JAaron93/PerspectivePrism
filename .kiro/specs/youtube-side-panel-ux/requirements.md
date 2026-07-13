@@ -15,6 +15,7 @@
 | **FR-9** | The content script shall broadcast the video's `currentTime` to the side panel at a regular interval (throttled). |
 | **FR-10**| The side panel shall automatically scroll the active claim into view as the video plays, based on the `currentTime` broadcasts. |
 | **FR-11**| The extension shall clear and re-render timeline markers and side panel state when the YouTube player navigates to a new video (SPA navigation). |
+| **FR-12**| The service worker shall intercept analysis requests and check `chrome.storage.local` for cached results before initiating a network request to the backend. |
 
 ## 2. Non-Functional Requirements (NFR)
 
@@ -23,6 +24,7 @@
 | **NFR-1** | **Performance**: Auto-scrolling and `timeupdate` broadcasts must be debounced/throttled to at most 4 times per second (250ms) to prevent UI thread lock. |
 | **NFR-2** | **Resilience**: The extension must gracefully handle YouTube SPA navigations (`yt-navigate-start`, `yt-navigate-finish`) without leaking DOM nodes or event listeners. |
 | **NFR-3** | **Visual Language**: Timeline markers must strictly map colors to truth profiles: Green (Likely True), Yellow (Mixed), Red (Suspicious/Deceptive). |
+| **NFR-4** | **Backend Statelessness**: The backend system must remain stateless regarding cached analysis. All persistent storage of analysis history for a given user must occur locally within the browser using `chrome.storage.local`. |
 
 ## 3. User Stories (US)
 

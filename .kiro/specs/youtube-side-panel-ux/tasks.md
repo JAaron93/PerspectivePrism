@@ -32,6 +32,12 @@ This document outlines the test-driven implementation plan for migrating to the 
   - **Action:** Implement side panel toggling via background service worker. Write a Playwright integration test that simulates an extension action click and verifies the side panel opens.
   - **Traceability:** FR-2, FR-3
 
+- [ ] **Task 1.5: Verify Browser-First Caching Constraints (TDD)**
+  - **Dependency:** None (Can run parallel to 1.1)
+  - **Action:** Write unit tests to assert that `background.js` always checks `chrome.storage.local` prior to making network requests, ensuring backend statelessness is maintained for cached data.
+  - **Traceability:** FR-12, NFR-4
+
+
 ## Track 2: Timeline Rendering & Clustering
 *Handles DOM injection of visual markers on the YouTube progress bar.*
 
