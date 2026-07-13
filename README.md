@@ -327,7 +327,7 @@ The Perspective Prism analysis pipeline follows this workflow:
 
 2. **Transcript Retrieval**: The **Claim Extractor** service extracts the video ID from the URL and fetches the video transcript using the YouTube Transcript API. If no transcript is available, the analysis fails gracefully with an error message.
 
-3. **Claim Extraction**: The **Claim Extractor** uses the ADK 2.0 `ExtractorAgent` (Gemini) to parse the transcript and extract distinct, verifiable claims conforming to a strict Pydantic output schema. It places raw transcript text at the absolute beginning of the prompt to leverage implicit context caching.
+3. **Claim Extraction**: The **Claim Extractor** uses the ADK 2.0 `ExtractorAgent` (Gemini) to parse the transcript and extract distinct, verifiable claims conforming to a strict Pydantic output schema. It places raw transcript text first within the required `===USER DATA START===` and `===USER DATA END===` untrusted-data delimiters to leverage implicit context caching.
 
 4. **Evidence Gathering**: For each extracted claim, the **Evidence Retriever** performs targeted searches across multiple perspectives (scientific, journalistic, partisan left/right) using the Google Custom Search API. It collects relevant articles, studies, and sources for each perspective.
 
