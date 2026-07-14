@@ -43,7 +43,8 @@
       const claimCount = cluster.claims.length;
       const firstClaim = cluster.claims[0];
       const timestampStr = firstClaim ? (firstClaim.timestamp || "0:00") : "0:00";
-      marker.setAttribute("aria-label", `Timeline marker: ${claimCount} claim${claimCount === 1 ? "" : "s"} at ${timestampStr}`);
+      const severityLabel = cluster.severity || "Unknown severity";
+      marker.setAttribute("aria-label", `Timeline marker: ${claimCount} claim${claimCount === 1 ? "" : "s"} at ${timestampStr}, severity: ${severityLabel}`);
       
       const colorClass = SEVERITY_CLASS_MAP[cluster.severity] || "pp-marker-neutral";
       marker.classList.add(colorClass);

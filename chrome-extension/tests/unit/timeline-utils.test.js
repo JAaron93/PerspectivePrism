@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { parseTimestampToSeconds, clusterClaims } from "../../timeline-utils.js";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 describe("Timeline Utilities", () => {
   describe("parseTimestampToSeconds", () => {
@@ -116,6 +118,72 @@ describe("Timeline Utilities", () => {
       ];
       const clusters = clusterClaims(claims, 100);
       expect(clusters[0].severity).toBe("Suspicious/Deceptive");
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Script-injection variant: timeline-utils-script.js attaches functions to
+// window. Run the same core cases through the window.* APIs to confirm parity.
+// ---------------------------------------------------------------------------
+describe("Timeline Utilities (script-injection / window API)", () => {
+  beforeAll(() => {
+    // Evaluate the IIFE in the current JSDOM window so window.clusterClaims
+    // and window.parseTimestampToSeconds are available.
+    const scriptPath = resolve(__dirname, "../../timeline-utils-script.js");
+    const code = readFileSync(scriptPath, "utf-8");
+    // eslint-disable-next-line no-new-func
+    new Function("window", code)(globalThis);
+  });
+
+  describe("window.parseTimestampToSeconds", () => {
+    it("should parse MM:SS correctly", () => {
+      expect(window.parseTimestampToSeconds("1:00")).toBe(60);
+      expect(window.parseTimestampToSeconds("01:05")).toBe(65);
+    });
+
+    it("should return 0 for invalid inputs", () => {
+      expect(window.parseTimestampToSeconds(null)).toBe(0);
+      expect(window.parseTimestampToSeconds("")).toBe(0);
+      expect(window.parseTimestampToSeconds("bad")).toBe(0);
+    });
+  });
+
+  describe("window.clusterClaims", () => {
+    it("should cluster and compute aggregate severity via window API", () => {
+      const claims = [
+        { claim_text: "A", timestamp: "1:00", truth_profile: { overall_assessment: "Likely True" } },
+        { claim_text: "B", timestamp: "1:02", truth_profile: { overall_assessment: "Mixed" } },
+        { claim_text: "C", timestamp: "1:04", truth_profile: { overall_assessment: "Likely False" } },
+        { claim_text: "D", timestamp: "2:00", truth_profile: { overall_assessment: "Likely True" } },
+      ];
+      const clusters = window.clusterClaims(claims, 200);
+      expect(clusters).toHaveLength(2);
+      expect(clusters[0].severity).toBe("Likely False");
+      expect(clusters[1].severity).toBe("Likely True");
+    });
+
+    it("should return null severity for all-unknown assessments", () => {
+      const claims = [
+        { claim_text: "X", timestamp: "0:30", truth_profile: { overall_assessment: "Unknown" } },
+      ];
+      const clusters = window.clusterClaims(claims, 200);
+      expect(clusters[0].severity).toBeNull();
+    });
+
+    it("should filter out malformed (null/non-object) claims", () => {
+      const claims = [
+        null,
+        { claim_text: "Valid", timestamp: "0:10", truth_profile: { overall_assessment: "Likely True" } },
+        undefined,
+      ];
+      const clusters = window.clusterClaims(claims, 200);
+      expect(clusters).toHaveLength(1);
+      expect(clusters[0].claims[0].claim_text).toBe("Valid");
+    });
+
+    it("should return empty array for empty input", () => {
+      expect(window.clusterClaims([], 100)).toEqual([]);
     });
   });
 });

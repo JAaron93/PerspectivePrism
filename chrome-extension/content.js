@@ -1304,12 +1304,16 @@ async function handleAnalysisClick() {
     return;
   }
 
+  // Capture the video ID at call time. After any await, currentVideoId may
+  // have changed due to SPA navigation, so we use this snapshot to detect stale responses.
+  const analysisVideoId = currentVideoId;
+
   // Send OPEN_SIDE_PANEL synchronously while user gesture is still active.
   // The background calls chrome.sidePanel.open({ tabId }) which requires a
   // live gesture — fire-and-forget, errors are non-fatal.
   chrome.runtime.sendMessage({
     type: "OPEN_SIDE_PANEL",
-    videoId: currentVideoId,
+    videoId: analysisVideoId,
   }).catch((err) => logger.debug("OPEN_SIDE_PANEL ignored:", err));
 
   setButtonState("loading");
@@ -1383,6 +1387,12 @@ async function handleAnalysisClick() {
       logger.info("Request was cancelled");
       removePanel();
       setButtonState("idle");
+      return;
+    }
+
+    // Guard against stale responses from a previous video after SPA navigation
+    if (analysisVideoId !== currentVideoId) {
+      logger.info(`Discarding stale response for ${analysisVideoId} (current: ${currentVideoId})`);
       return;
     }
 

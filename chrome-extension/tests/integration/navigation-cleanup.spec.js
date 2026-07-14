@@ -103,7 +103,7 @@ test.describe("SPA Navigation Cleanup & Resilience", () => {
     // Route Video A with a delay
     await context.route("**/analyze/jobs", async (route) => {
       const body = route.request().postDataJSON();
-      const videoUrl = body?.url || body?.video_url || "";
+      const videoUrl = body?.url ?? "";
       if (videoUrl.includes(videoA)) {
         await route.fulfill({
           status: 202,
@@ -117,8 +117,16 @@ test.describe("SPA Navigation Cleanup & Resilience", () => {
       }
     });
 
+    // Signal that the polling request for job-a has arrived at the handler,
+    // so we know it is in-flight when we trigger SPA navigation.
+    let signalJobAReached;
+    const jobAReachedPromise = new Promise(resolve => {
+      signalJobAReached = resolve;
+    });
+
     await context.route("**/analyze/jobs/job-a", async (route) => {
-      // Hold the response until we signal it
+      // Signal that the request has arrived, then hold the response
+      signalJobAReached();
       await videoAPromise;
       await route.fulfill({
         status: 200,
@@ -163,7 +171,12 @@ test.describe("SPA Navigation Cleanup & Resilience", () => {
     await expect(button).toBeVisible();
     await button.click();
 
-    // Now navigate to Video B immediately
+    // Wait until the polling request for job-a has actually reached the route
+    // handler (i.e. it is in-flight) before dispatching SPA navigation.
+    await jobAReachedPromise;
+
+    // Now navigate to Video B — this should trigger cleanup and discard the
+    // in-flight job-a response when it eventually resolves.
     await page.evaluate((nextVid) => {
       // Simulate SPA navigate start
       document.dispatchEvent(new CustomEvent("yt-navigate-start"));

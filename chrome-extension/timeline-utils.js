@@ -66,18 +66,20 @@ export function clusterClaims(claims, duration = null, threshold = 5) {
     return [];
   }
 
-  // Parse and map claims to include seconds (and handle clamping)
-  const mappedClaims = claims.map(claim => {
-    let seconds = parseTimestampToSeconds(claim.timestamp);
-    seconds = Math.max(0, seconds);
-    if (typeof duration === "number" && duration > 0) {
-      seconds = Math.min(seconds, duration);
-    }
-    return {
-      ...claim,
-      seconds
-    };
-  });
+  // Filter out malformed claims, then parse and map to include seconds
+  const mappedClaims = claims
+    .filter(claim => claim != null && typeof claim === "object")
+    .map(claim => {
+      let seconds = parseTimestampToSeconds(claim.timestamp);
+      seconds = Math.max(0, seconds);
+      if (typeof duration === "number" && duration > 0) {
+        seconds = Math.min(seconds, duration);
+      }
+      return {
+        ...claim,
+        seconds
+      };
+    });
 
   // Sort chronologically by seconds
   mappedClaims.sort((a, b) => a.seconds - b.seconds);
@@ -115,7 +117,7 @@ export function clusterClaims(claims, duration = null, threshold = 5) {
         maxScore = score;
       }
     }
-    cluster.severity = SEVERITY_REVERSE[maxScore] || "Likely True";
+    cluster.severity = SEVERITY_REVERSE[maxScore] || null;
   }
 
   return clusters;
