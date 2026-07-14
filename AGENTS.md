@@ -149,6 +149,12 @@ Scripts are injected into YouTube pages in this order:
 *   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
+### State Management & Rebinding Rules
+
+*   **Preserve State on Rebind**: When rebinding media playback listeners (e.g., video sync listeners), do not reset sequence counters or ordering variables (like `playbackSequence`). Ensure the monotonic sequence continues from the prior value.
+*   **Node-Level Element Comparison**: When checking if the active media element is current, compare node instances directly (`video !== activeVideoElement`) rather than checking for nullity (`!activeVideoElement`), to capture same-URL node substitutions.
+*   **Tab & Context Isolation**: In global views or side panels, always reset generation IDs and sequence state (e.g., `currentGenerationId = null` and `lastSequence = -1`) when switching active tabs or video contexts, to prevent state leak.
+*   **Vitest Chrome Mocking**: Ensure unit tests mocking Chrome tabs also mock `chrome.tabs.onActivated` and `chrome.tabs.onUpdated` to support simulated tab context switching and verify state reset flows.
 # System Architecture
 
 The system follows a pipeline approach:
