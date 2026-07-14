@@ -149,6 +149,14 @@ Scripts are injected into YouTube pages in this order:
 *   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
+## Architectural Guidelines
+
+*   **SPA Navigation & Stale Responses**: YouTube is a Single Page Application (SPA). `yt-navigate-start` events reset the active video context. When guarding against delayed API responses, **never bypass the stale-response guard if `currentVideoId` is `null`**. A `null` ID indicates the user has navigated away from a video page; allowing a delayed response through will incorrectly render UI on a non-video page. Always strictly compare `analysisVideoId !== currentVideoId`.
+*   **Integration Testing (Playwright)**: 
+    *   **No Arbitrary Timeouts**: When testing delayed API responses (e.g., simulating a long analysis to test cancellation or navigation), do not use arbitrary timeouts (e.g., `setTimeout`). Instead, expose a Promise signal from the route handler and `await` that signal in the test *before* triggering the cancellation or SPA navigation. This ensures the request is actually in-flight.
+    *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
+*   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
+
 # System Architecture
 
 The system follows a pipeline approach:
