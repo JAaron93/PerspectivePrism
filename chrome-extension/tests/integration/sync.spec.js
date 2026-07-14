@@ -30,7 +30,11 @@ test.describe("Playback Synchronization Integration Flow", () => {
           truth_profile: {
             overall_assessment: "Likely True",
             perspectives: {},
-            bias_indicators: { deception_score: 1 }
+            bias_indicators: {
+              logical_fallacies: [],
+              emotional_manipulation: [],
+              deception_score: 1
+            }
           }
         },
         {
@@ -41,7 +45,11 @@ test.describe("Playback Synchronization Integration Flow", () => {
           truth_profile: {
             overall_assessment: "Likely False",
             perspectives: {},
-            bias_indicators: { deception_score: 8 }
+            bias_indicators: {
+              logical_fallacies: [],
+              emotional_manipulation: [],
+              deception_score: 8
+            }
           }
         }
       ]
