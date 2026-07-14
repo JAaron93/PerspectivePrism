@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, buildMockResult } from "./fixtures";
 
 test.describe("Cache Management", () => {
   test("should cache analysis results", async ({ page, context }) => {
@@ -14,11 +14,7 @@ test.describe("Cache Management", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            claims: [{ text: "Cached Claim" }],
-            truth_profile: { deception_score: 5 },
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Cached Claim"),
         }),
       });
     });

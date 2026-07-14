@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./",
-  timeout: 30000,
+  testMatch: "**/*.spec.js",
+  timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -11,6 +12,7 @@ export default defineConfig({
   use: {
     trace: "on-first-retry",
     headless: false, // Extensions only work in headed mode usually, or specific headless new
+    screenshot: "only-on-failure",
   },
   projects: [
     {

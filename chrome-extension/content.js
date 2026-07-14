@@ -890,14 +890,36 @@ function printMetrics() {
 // Expose for debugging
 window.ppPrintMetrics = printMetrics;
 
+function isElementVisible(el) {
+  if (!el) return false;
+  let current = el;
+  while (current && current !== document.body) {
+    if (current.hasAttribute("hidden")) return false;
+    if (current.style && (current.style.display === "none" || current.style.visibility === "hidden")) {
+      return false;
+    }
+    try {
+      const style = window.getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden") return false;
+    } catch (e) {
+      // Ignored
+    }
+    current = current.parentElement;
+  }
+  return true;
+}
+
 function injectButton() {
-  // Check for existing button using both ID and data attribute
-  if (
-    document.getElementById(BUTTON_ID) ||
-    document.querySelector('[data-pp-analysis-button="true"]')
-  ) {
-    logger.debug("Button already exists, skipping injection.");
-    return;
+  // Check for existing button and visibility
+  const existingBtn = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+  if (existingBtn) {
+    if (isElementVisible(existingBtn)) {
+      logger.debug("Visible button already exists, skipping injection.");
+      return;
+    } else {
+      logger.info("Found hidden or orphaned button. Removing to re-inject.");
+      existingBtn.remove();
+    }
   }
 
   metrics.attempts++;
@@ -914,11 +936,15 @@ function injectButton() {
   let usedSelector = null;
 
   for (const selector of selectors) {
-    container = document.querySelector(selector);
-    if (container) {
-      usedSelector = selector;
-      break;
+    const elements = document.querySelectorAll(selector);
+    for (const el of elements) {
+      if (isElementVisible(el)) {
+        container = el;
+        usedSelector = selector;
+        break;
+      }
     }
+    if (container) break;
   }
 
   if (container) {
@@ -926,7 +952,12 @@ function injectButton() {
     // Use requestAnimationFrame for smoother injection
     requestAnimationFrame(() => {
       try {
-        if (container && document.contains(container)) {
+        if (container && document.contains(container) && isElementVisible(container)) {
+          const duplicate = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+          if (duplicate) {
+            if (isElementVisible(duplicate)) return;
+            duplicate.remove();
+          }
           container.insertBefore(analysisButton, container.firstChild);
           logger.info(
             `Button injected using selector: ${usedSelector}`,
@@ -1273,6 +1304,18 @@ async function handleAnalysisClick() {
     return;
   }
 
+  // Capture the video ID at call time. After any await, currentVideoId may
+  // have changed due to SPA navigation, so we use this snapshot to detect stale responses.
+  const analysisVideoId = currentVideoId;
+
+  // Send OPEN_SIDE_PANEL synchronously while user gesture is still active.
+  // The background calls chrome.sidePanel.open({ tabId }) which requires a
+  // live gesture — fire-and-forget, errors are non-fatal.
+  chrome.runtime.sendMessage({
+    type: "OPEN_SIDE_PANEL",
+    videoId: analysisVideoId,
+  }).catch((err) => logger.debug("OPEN_SIDE_PANEL ignored:", err));
+
   setButtonState("loading");
   showPanelLoading();
   cancelRequest = false;
@@ -1344,6 +1387,14 @@ async function handleAnalysisClick() {
       logger.info("Request was cancelled");
       removePanel();
       setButtonState("idle");
+      return;
+    }
+
+    // Guard against stale responses from a previous video after SPA navigation.
+    // null is a valid "no video" state (user navigated away from a video page),
+    // so a delayed response from a prior video must be discarded in that case too.
+    if (analysisVideoId !== currentVideoId) {
+      logger.info(`Discarding stale response for ${analysisVideoId} (current: ${currentVideoId})`);
       return;
     }
 
@@ -1537,6 +1588,33 @@ function setButtonState(state) {
 
 function showResults(data, isCached = false) {
   removePanel(); // Remove existing
+
+  // Render (or clear) timeline markers
+  try {
+    const canRender = data && data.claims &&
+      typeof window.clusterClaims === "function" &&
+      typeof window.renderTimelineMarkers === "function";
+
+    if (canRender) {
+      const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+      const duration = video ? video.duration : 0;
+      if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+        const clusters = window.clusterClaims(data.claims, duration);
+        window.renderTimelineMarkers(clusters, duration);
+      } else {
+        // Duration invalid — clear any stale markers
+        window.renderTimelineMarkers([], 0);
+      }
+    } else {
+      // Missing claims or rendering functions — clear any stale markers
+      if (typeof window.renderTimelineMarkers === "function") {
+        window.renderTimelineMarkers([], 0);
+      }
+    }
+  } catch (err) {
+    logger.error("Timeline marker rendering failed, skipping:", err);
+    // Non-fatal: results panel will still be shown below
+  }
 
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
@@ -2107,6 +2185,11 @@ function cleanup() {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
+    // Cancel any pending debounced navigation callback
+    if (navigationTimer) {
+      clearTimeout(navigationTimer);
+      navigationTimer = null;
+    }
 
     // 2. Cancel in-flight requests and timers
     cancelRequest = true;
@@ -2145,7 +2228,12 @@ function cleanup() {
     const existingBtn = document.getElementById(BUTTON_ID);
     if (existingBtn) existingBtn.remove();
 
-    // 6. Reset state
+    // 6. Clear timeline markers
+    if (typeof window.renderTimelineMarkers === "function") {
+      window.renderTimelineMarkers([], 0);
+    }
+
+    // 7. Reset state
     currentVideoId = null;
     
     logger.info("Cleanup complete. Panel was open:", wasPanelOpen);
@@ -2156,7 +2244,24 @@ function cleanup() {
   }
 }
 
-function handleNavigation() {
+let navigationTimer = null;
+
+function handleNavigation(immediate = false) {
+  if (navigationTimer) {
+    clearTimeout(navigationTimer);
+    navigationTimer = null;
+  }
+
+  if (immediate) {
+    performNavigation();
+  } else {
+    navigationTimer = setTimeout(() => {
+      performNavigation();
+    }, 500);
+  }
+}
+
+function performNavigation() {
   // If we are currently cleaning up, skip (or queue?)
   if (isCleaningUp) {
     logger.debug("Navigation skipped due to cleanup in progress.");
@@ -2311,7 +2416,18 @@ function init() {
   // 2. Popstate Event (Back/Forward)
   window.addEventListener("popstate", handleNavigation);
 
-  // 3. Polling Fallback (1 second)
+  // 3. YouTube SPA Navigation Events
+  document.addEventListener("yt-navigate-start", () => {
+    logger.info("yt-navigate-start event detected");
+    cleanup();
+  });
+
+  document.addEventListener("yt-navigate-finish", () => {
+    logger.info("yt-navigate-finish event detected");
+    handleNavigation();
+  });
+
+  // 4. Polling Fallback (1 second)
   // Catches missed events or delayed DOM updates
   setInterval(handleNavigation, 1000);
 
