@@ -24,14 +24,14 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
 3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
-    *   **AI Accelerator**: Routes requests through a high-performance gateway (Tensorblock/Hyperbolic) for sub-150ms latency.
-    *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to OpenAI to ensure resilience against outages.
+    *   **AI Engine**: Utilizes Gemini API (`gemini-3.5-flash`) via the `google-genai` SDK and the `google-adk` framework for structured outputs.
+    *   **Reliability Layer**: Features a custom `google-genai` circuit breaker that automatically falls back to `gemini-3.1-flash-lite` during transient API errors (e.g. 429, 500, 503).
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
 ### 🚀 High-Performance Analysis
-With the integration of **Hyperbolic** acceleration, Perspective Prism now offers:
-- **Enhanced Claim Analysis**: The previous hardcoded cap of 3 claims has been removed. The system now supports a configurable limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting.
-- **Extended Transcript Coverage**: Increased transcript processing capacity from 12k to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
+Perspective Prism offers:
+- **Enhanced Claim Analysis**: The system supports a configurable claim limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting, allowing flexibility based on video complexity and API constraints.
+- **Extended Transcript Coverage**: Supports transcript processing up to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
 
 ## 🦾 Essential Tools and Utilities
 
@@ -39,7 +39,7 @@ The Perspective Prism multi-agent system is equipped with custom-built tools des
 
 ### Input Sanitizer (`input_sanitizer.py`)
 
-A critical security tool that protects against Large Language Model (LLM) prompt injection attacks. Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: control character detection, pattern matching against a curated blocklist, special character escaping, and strict length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers, making it explicit to the LLM where untrusted input begins and ends. This proactive approach prevents malicious actors from manipulating the agent's behavior or extracting sensitive system prompts.
+A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers to optimize Gemini's implicit context caching.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -98,22 +98,24 @@ This script measures:
 
 ## 🛠️ Tech Stack
 
-- **Backend**: FastAPI, Python 3.13
+- **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
 - **AI/LLM**:
-    - **Primary**: Hyperbolic / Tensorblock (Llama 3, GPT-OSS) for high-speed inference.
-    - **Backup**: OpenAI API (GPT-4o) for reliability.
+    - **Framework**: Agent Development Kit (ADK) 2.x
+    - **Primary**: Gemini API (`gemini-3.5-flash` via `google-genai` SDK)
+    - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **Security**: Custom input sanitizer with pattern detection
+- **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
 ## 📋 Prerequisites
 
 - **Operating System**: macOS, Linux, or Windows (via WSL2)
-- **Runtime**:
+- **Runtime & Toolchain**:
   - Python 3.10 or higher
+  - Rust compiler (`cargo`, `rustc` via rustup) & `maturin` for compiling the input sanitizer
   - Node.js 18+ (LTS) or 20+
 - **API Keys**:
-  - **OpenAI API Key**: Required for claim extraction and analysis (GPT-4o/mini).
+  - **Gemini API Key**: Required for claim extraction and perspective analysis.
   - **Google Custom Search JSON API Key**: Required for evidence retrieval.
   - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
@@ -149,17 +151,16 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, you need to configure your LLM provider in `.env`. The system supports OpenAI-compatible APIs (like Hyperbolic, Tensorblock, or OpenAI itself) and Google Gemini.
+To run the full analysis, you need to configure your Gemini API credentials in `.env`:
 
-#### **Option A: using OpenAI-compatible provider (Hyperbolic, Tensorblock, etc.)**
 ```env
-LLM_PROVIDER=openai
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://api.hyperbolic.xyz/v1   # or https://api.openai.com/v1
-LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
+GEMINI_API_KEY=your_gemini_api_key_here
+LLM_PROVIDER=google
+LLM_MODEL=gemini-3.5-flash
+BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
 
-
+Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
@@ -279,8 +280,8 @@ npm run test:integration
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **401 Unauthorized** | Missing or invalid OpenAI API Key | Check `.env` file. Ensure `OPENAI_API_KEY` is set and valid. |
-| **429 Too Many Requests** | OpenAI/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
+| **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
+| **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
 | **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. |
 
@@ -370,20 +371,12 @@ The Perspective Prism analysis pipeline follows this workflow:
 
 2. **Transcript Retrieval**: The **Claim Extractor** service extracts the video ID from the URL and fetches the video transcript using the YouTube Transcript API. If no transcript is available, the analysis fails gracefully with an error message.
 
-3. **Claim Extraction**: The **Claim Extractor** uses an LLM (OpenAI GPT) to parse the transcript and identify distinct, verifiable claims. It filters out opinions, questions, and subjective statements, focusing only on factual assertions that can be verified.
+3. **Claim Extraction**: The **Claim Extractor** uses the ADK 2.0 `ExtractorAgent` (Gemini) to parse the transcript and extract distinct, verifiable claims conforming to a strict Pydantic output schema. It places raw transcript text first within the required `===USER DATA START===` and `===USER DATA END===` untrusted-data delimiters to leverage implicit context caching.
 
 4. **Evidence Gathering**: For each extracted claim, the **Evidence Retriever** performs targeted searches across multiple perspectives (scientific, journalistic, partisan left/right) using the Google Custom Search API. It collects relevant articles, studies, and sources for each perspective.
 
-5. **Perspective Analysis**: The **Analysis Service** synthesizes each claim with its gathered evidence. For each perspective, it determines:
-   - **Assessment**: Whether the evidence supports, refutes, or is neutral toward the claim
-   - **Confidence**: How strongly the evidence supports the assessment (0-100%)
-   - **Supporting Evidence**: Specific sources and quotes backing the assessment
+5. **Perspective & Bias Analysis**: The **Analysis Service** evaluates each claim against the retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances. It analyzes the claim from each perspective (stance, confidence, explanation) and performs bias/deception detection (detecting fallacies, emotional appeals, and a deception rating). Moderate deception ratings downgrade the overall assessment, while high deception ratings trigger an immediate short-circuit to "Suspicious/Deceptive".
 
-6. **Bias Detection**: The **Analysis Service** analyzes each claim for bias indicators, including:
-   - Logical fallacies (ad hominem, straw man, false dichotomy, etc.)
-   - Emotional manipulation tactics (fear-mongering, appeal to emotion)
-   - Deception score (0-100 scale indicating likelihood of intentional misinformation)
+6. **Truth Profile Generation**: The system aggregates all perspective analyses and bias indicators into a comprehensive "Truth Profile" for each claim, showing users a balanced view across multiple viewpoints.
 
-7. **Truth Profile Generation**: The system aggregates all perspective analyses and bias indicators into a comprehensive "Truth Profile" for each claim, showing users a balanced view across multiple viewpoints.
-
-8. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.
+7. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.

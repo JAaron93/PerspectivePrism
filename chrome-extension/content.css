@@ -239,3 +239,50 @@ html[dark] .pp-ext-button.pp-state-error:focus-visible {
     animation: none;
   }
 }
+
+/* ============================================
+   Timeline Markers
+   ============================================ */
+
+.pp-timeline-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: pointer;
+  z-index: 25;
+  transition: transform 0.1s ease, width 0.1s ease;
+  pointer-events: auto;
+}
+
+.pp-timeline-marker:hover {
+  transform: scaleY(1.5);
+  width: 6px;
+}
+
+.pp-timeline-marker:focus-visible {
+  transform: scaleY(1.5);
+  width: 6px;
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+.pp-marker-green {
+  background-color: #2ba640; /* Green (Likely True) */
+}
+
+.pp-marker-yellow {
+  background-color: #e0a200; /* Yellow (Mixed) */
+}
+
+.pp-marker-red {
+  background-color: #d9381e; /* Red (Likely False) */
+}
+
+.pp-marker-dark-red {
+  background-color: #8a130f; /* Dark Red (Suspicious/Deceptive) */
+}
+
+.pp-marker-neutral {
+  background-color: #808080; /* Grey (Unknown/Unrecognized severity) */
+}

@@ -5,7 +5,7 @@
 
 import { logger } from "./logging-utils.js";
 class PerspectivePrismClient {
-  constructor(baseUrl) {
+  constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
     this.pendingRequests = new Map(); // In-memory deduplication
     this.abortControllers = new Map(); // Map<videoId, AbortController> for cancellation
@@ -17,6 +17,8 @@ class PerspectivePrismClient {
     // Cache Configuration
     this.CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     this.MAX_CACHE_ITEMS = 50;
+    this.inMemoryCache = new Map();
+    this.delegateCache = options.delegateCache ?? (typeof window !== "undefined" && (typeof process === "undefined" || !process.env.VITEST));
 
     this.recoveryComplete = false;
     this.requestQueue = [];
@@ -475,9 +477,32 @@ class PerspectivePrismClient {
    * @returns {Promise<Object|null>} Cached data or null if miss/expired
    */
   async checkCache(videoId) {
+    if (this.delegateCache) {
+      const response = await chrome.runtime.sendMessage({
+        type: "CHECK_CACHE",
+        videoId: videoId
+      });
+      if (response && response.success) {
+        return response.data;
+      }
+      return null;
+    }
+
+    const key = `cache_${videoId}`;
+
+    // Check in-memory cache first (fallback)
+    if (this.inMemoryCache.has(key)) {
+      const entry = this.inMemoryCache.get(key);
+      const age = Date.now() - entry.timestamp;
+      if (age > this.CACHE_TTL_MS) {
+        this.inMemoryCache.delete(key);
+        return null;
+      }
+      return entry.data;
+    }
+
     // Primary cache key strategy: Simple key = `cache_{videoId}`
     // This ensures one analysis per video (latest overwrites previous)
-    const key = `cache_${videoId}`;
     try {
       const result = await chrome.storage.local.get(key);
       let entry = result[key];
@@ -585,6 +610,18 @@ class PerspectivePrismClient {
         `[PerspectivePrismClient] Refusing to cache invalid data for ${videoId}:`,
         e,
       );
+      throw e;
+    }
+
+    if (this.delegateCache) {
+      const response = await chrome.runtime.sendMessage({
+        type: "SAVE_TO_CACHE",
+        videoId: videoId,
+        data: data
+      });
+      if (response && !response.success) {
+        throw new Error(response.error || "Failed to save to cache");
+      }
       return;
     }
 
@@ -641,7 +678,9 @@ class PerspectivePrismClient {
         `[PerspectivePrismClient] Failed to save to cache for ${videoId}:`,
         error,
       );
-      throw error;
+      // Fallback to in-memory cache
+      console.log(`[PerspectivePrismClient] Falling back to in-memory cache for ${videoId}`);
+      this.inMemoryCache.set(key, entry);
     }
   }
 

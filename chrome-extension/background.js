@@ -75,22 +75,43 @@ function validateVideoId(message) {
   return { valid: true, videoId };
 }
 
-// Initialize client with config
-configManager
-  .load()
-  .then((config) => {
-    logger.info("Configuration loaded:", config);
-    client = new PerspectivePrismClient(config.backendUrl);
+let clientPromise = null;
 
-    // Clean up expired cache on startup
-    client.cleanupExpiredCache();
-  })
-  .catch((error) => {
-    logger.error("Failed to load configuration:", error);
-  });
+async function getClient() {
+  if (!clientPromise) {
+    clientPromise = (async () => {
+      const config = await configManager.load();
+      client = new PerspectivePrismClient(config.backendUrl);
+      try {
+        await client.cleanupExpiredCache();
+      } catch (err) {
+        logger.error("Failed to cleanup expired cache on startup:", err);
+      }
+      return client;
+    })().catch((err) => {
+      // Clear the cached promise so the next caller retries rather than
+      // receiving a permanently-rejected promise from a transient failure.
+      clientPromise = null;
+      throw err;
+    });
+  }
+  return clientPromise;
+}
+
+// Trigger client initialization on startup
+getClient().catch((error) => {
+  logger.error("Failed to initialize client on startup:", error);
+});
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
+  // Configure side panel behavior to open on action click
+  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+      logger.error("Failed to set panel behavior:", err);
+    });
+  }
+
   if (details.reason === "install") {
     // First-time installation - show welcome page
     logger.info(
@@ -194,7 +215,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return handleAsync(handleRevokeConsent());
     case "CHECK_POLICY_VERSION":
       return handleAsync(handleCheckPolicyVersion());
+    case "OPEN_SIDE_PANEL":
+      return handleAsync(handleOpenSidePanel(sender));
+    case "SAVE_TO_CACHE":
+      return handleAsync(handleSaveToCache(message));
     
+    case "SYNC_PLAYBACK":
+    case "HIGHLIGHT_CLAIMS":
+      if (sender.tab && sender.tab.id) {
+        chrome.runtime.sendMessage({
+          ...message,
+          tabId: sender.tab.id
+        }).catch(() => {});
+      }
+      return false;
+
     // Sync handlers
     case "OPEN_PRIVACY_POLICY":
       chrome.tabs.create({ url: chrome.runtime.getURL("privacy.html") });
@@ -212,10 +247,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleCacheCheck(message) {
-  if (!client) {
-    const config = await configManager.load();
-    client = new PerspectivePrismClient(config.backendUrl);
-  }
+  const activeClient = await getClient();
 
   const validation = validateVideoId(message);
   if (!validation.valid) {
@@ -225,7 +257,7 @@ async function handleCacheCheck(message) {
   const videoId = validation.videoId;
 
   try {
-    const data = await client.checkCache(videoId);
+    const data = await activeClient.checkCache(videoId);
     return { success: true, data: data };
   } catch (error) {
     logger.error("Cache check failed:", error);
@@ -234,10 +266,7 @@ async function handleCacheCheck(message) {
 }
 
 async function handleAnalysisRequest(message) {
-  if (!client) {
-    const config = await configManager.load();
-    client = new PerspectivePrismClient(config.backendUrl);
-  }
+  const activeClient = await getClient();
 
   const validation = validateVideoId(message);
   if (!validation.valid) {
@@ -260,7 +289,7 @@ async function handleAnalysisRequest(message) {
 
   try {
     // Start analysis
-    const result = await client.analyzeVideo(videoId);
+    const result = await activeClient.analyzeVideo(videoId);
 
     if (result.success) {
       // Set state to complete
@@ -300,9 +329,7 @@ async function handleAnalysisRequest(message) {
 }
 
 async function handleCancelAnalysis(message) {
-  if (!client) {
-    throw new Error('Client not initialized');
-  }
+  const activeClient = await getClient();
 
   const validation = validateVideoId(message);
   if (!validation.valid) {
@@ -312,7 +339,7 @@ async function handleCancelAnalysis(message) {
   const videoId = validation.videoId;
   
   try {
-    const cancelled = client.cancelAnalysis(videoId);
+    const cancelled = activeClient.cancelAnalysis(videoId);
     
     if (cancelled) {
       // Update state to cancelled
@@ -381,13 +408,10 @@ async function handleGetAnalysisState(message) {
   } 
   
   // 2. Check if we have cached data (completed analysis)
-  if (!client) {
-    const config = await configManager.load();
-    client = new PerspectivePrismClient(config.backendUrl);
-  }
+  const activeClient = await getClient();
 
   try {
-    const cachedData = await client.checkCache(videoId);
+    const cachedData = await activeClient.checkCache(videoId);
     if (cachedData) {
       // We have cached data, reconstruct complete state
       const cacheState = {
@@ -422,13 +446,10 @@ async function handleGetAnalysisState(message) {
 }
 
 async function handleGetCacheStats() {
-  if (!client) {
-    const config = await configManager.load();
-    client = new PerspectivePrismClient(config.backendUrl);
-  }
+  const activeClient = await getClient();
 
   try {
-    const stats = await client.getCacheStats();
+    const stats = await activeClient.getCacheStats();
     return { success: true, stats: stats };
   } catch (error) {
     logger.error("Failed to get cache stats:", error);
@@ -437,13 +458,10 @@ async function handleGetCacheStats() {
 }
 
 async function handleClearCache() {
-  if (!client) {
-    const config = await configManager.load();
-    client = new PerspectivePrismClient(config.backendUrl);
-  }
+  const activeClient = await getClient();
 
   try {
-    await client.clearCache();
+    await activeClient.clearCache();
 
     // Clear all analysis states from session storage
     const stateCleared = await StateManager.clearAll();
@@ -475,11 +493,8 @@ async function handleRevokeConsent() {
 
   try {
     // 1. Clear all cached analysis results
-    if (!client) {
-      const config = await configManager.load();
-      client = new PerspectivePrismClient(config.backendUrl);
-    }
-    await client.clearCache();
+    const activeClient = await getClient();
+    await activeClient.clearCache();
 
     // 2. Clear all analysis states
     const stateCleared = await StateManager.clearAll();
@@ -547,3 +562,46 @@ async function handleCheckPolicyVersion() {
     throw error;
   }
 }
+
+/**
+ * Handle opening side panel from injected button gesture
+ * @param {Object} sender - Message sender context
+ * @returns {Promise<Object>}
+ */
+async function handleOpenSidePanel(sender) {
+  if (!chrome.sidePanel || !chrome.sidePanel.open) {
+    throw new Error("Side Panel API is not supported in this browser version.");
+  }
+  const tabId = sender.tab ? sender.tab.id : null;
+  if (!tabId) {
+    throw new Error("Missing tab identifier.");
+  }
+  await chrome.sidePanel.open({ tabId });
+  return { success: true };
+}
+
+/**
+ * Handle saving data to cache from non-background context
+ * @param {Object} message
+ * @returns {Promise<Object>}
+ */
+async function handleSaveToCache(message) {
+  const activeClient = await getClient();
+
+  const validation = validateVideoId(message);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const videoId = validation.videoId;
+
+  try {
+    await activeClient.saveToCache(videoId, message.data);
+    return { success: true };
+  } catch (error) {
+    logger.error("Save to cache failed:", error);
+    throw error;
+  }
+}
+
+

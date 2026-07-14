@@ -35,7 +35,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 
 # Backend Development
 
-The backend is located in the `backend/` directory. It uses Python 3.13+ and FastAPI.
+The backend is located in the `backend/` directory. It uses Python 3.10+ and FastAPI.
 
 ## Setup
 1.  Navigate to `backend/`.
@@ -43,6 +43,13 @@ The backend is located in the `backend/` directory. It uses Python 3.13+ and Fas
 3.  Activate it: `source venv/bin/activate`.
 4.  Install dependencies: `pip install -r requirements.txt`.
 5.  Set up `.env` from `.env.example` (requires OpenAI and Google Search API keys).
+6.  **Rust Toolchain Configuration**:
+    When compiling the Rust extension (`prism_sanitizer_rs`), if the Rust compiler (`rustc`/`cargo`) is not found on the `PATH`, prepend the local Rustup stable toolchain bin directory to your `PATH` (typically located at `~/.rustup/toolchains/stable-x86_64-apple-darwin/bin` on macOS):
+    ```bash
+    export PATH="~/.rustup/toolchains/stable-x86_64-apple-darwin/bin:$PATH"
+    pip install -e .
+    ```
+
 
 ## Common Commands
 
@@ -53,10 +60,10 @@ The backend is located in the `backend/` directory. It uses Python 3.13+ and Fas
 ## Architecture & Key Files
 
 *   `app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration.
-*   `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses LLMs to extract claims.
+*   `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
 *   `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
-*   `app/services/analysis_service.py`: LLM-based perspective analysis and bias/deception detection. Includes a circuit breaker that tracks failures and can fall back to a backup LLM provider.
-*   `app/utils/input_sanitizer.py`: **Critical security component.** All user-supplied content must pass through this before being sent to any LLM.
+*   `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection. Includes a circuit breaker that tracks transient `google-genai` failures and falls back to `gemini-3.1-flash-lite`.
+*   `app/utils/input_sanitizer.py`: **Critical security component.** Integrates a high-performance Rust compiled extension (`prism_sanitizer_rs` via PyO3) for regex patterns and control character sanitization. All user-supplied content must pass through this before being sent to any LLM.
 *   `app/core/config.py`: `pydantic-settings` configuration. Key settings include `MAX_CLAIMS_PER_ANALYSIS`, `DECEPTION_THRESHOLD_HIGH`, `DECEPTION_THRESHOLD_MODERATE`, and `CHROME_EXTENSION_IDS`.
 *   `pyproject.toml`: Build and test configuration.
 
@@ -142,18 +149,31 @@ Scripts are injected into YouTube pages in this order:
 *   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
+## Architectural Guidelines
+
+*   **SPA Navigation & Stale Responses**: YouTube is a Single Page Application (SPA). `yt-navigate-start` events reset the active video context. When guarding against delayed API responses, **never bypass the stale-response guard if `currentVideoId` is `null`**. A `null` ID indicates the user has navigated away from a video page; allowing a delayed response through will incorrectly render UI on a non-video page. Always strictly compare `analysisVideoId !== currentVideoId`.
+*   **Integration Testing (Playwright)**: 
+    *   **No Arbitrary Timeouts**: When testing delayed API responses (e.g., simulating a long analysis to test cancellation or navigation), do not use arbitrary timeouts (e.g., `setTimeout`). Instead, expose a Promise signal from the route handler and `await` that signal in the test *before* triggering the cancellation or SPA navigation. This ensures the request is actually in-flight.
+    *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
+*   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
+
+### State Management & Rebinding Rules
+
+*   **Preserve State on Rebind**: When rebinding media playback listeners (e.g., video sync listeners), do not reset sequence counters or ordering variables (like `playbackSequence`). Ensure the monotonic sequence continues from the prior value.
+*   **Node-Level Element Comparison**: When checking if the active media element is current, compare node instances directly (`video !== activeVideoElement`) rather than checking for nullity (`!activeVideoElement`), to capture same-URL node substitutions.
+*   **Tab & Context Isolation**: In global views or side panels, always reset generation IDs and sequence state (e.g., `currentGenerationId = null` and `lastSequence = -1`) when switching active tabs or video contexts, to prevent state leak.
+*   **Vitest Chrome Mocking**: Ensure unit tests mocking Chrome tabs also mock `chrome.tabs.onActivated` and `chrome.tabs.onUpdated` to support simulated tab context switching and verify state reset flows.
 # System Architecture
 
 The system follows a pipeline approach:
 
-1.  **Claim Extraction**: Fetches the YouTube transcript and uses an LLM to identify key claims with timestamps.
+1.  **Claim Extraction**: Fetches the YouTube transcript and uses the ADK 2.0 `ExtractorAgent` (leveraging Gemini Structured Outputs) to identify key claims with timestamps. The prompt format utilizes context caching by placing raw transcript data at the absolute beginning inside untrusted data delimiters.
 2.  **Evidence Retrieval**: For each claim, queries Google Custom Search across four perspectives in parallel: Scientific, Journalistic, Partisan Left, Partisan Right.
-3.  **Perspective Analysis**: Uses LLMs to evaluate each claim against the retrieved evidence, producing a stance and confidence score per perspective. Results are streamed back incrementally via the job API.
-4.  **Bias & Deception Analysis**: Separately evaluates each claim for logical fallacies, emotional manipulation, and a deception score.
-5.  **Truth Profile**: Assembles the final result — overall assessment (`Likely True`, `Likely False`, `Mixed`, or `Suspicious/Deceptive`), per-perspective analysis, and bias indicators.
+3.  **Perspective & Bias Analysis**: Evaluates each claim against the retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances. High-deception ratings short-circuit overall assessment, and moderate-deception ratings downgrade assessments.
+4.  **Truth Profile**: Assembles the final result — overall assessment (`Likely True`, `Likely False`, `Mixed`, or `Suspicious/Deceptive`), per-perspective analysis, and bias indicators.
 
 ## External Services
 
 *   **YouTube Transcript API**: Fetches video transcript text.
 *   **Google Custom Search JSON API**: Evidence retrieval per perspective.
-*   **OpenAI API**: LLM tasks — claim extraction, perspective analysis, bias/deception detection. A backup provider can be configured via env vars.
+*   **Gemini API (via `google-genai` SDK and `google-adk`)**: Serves all LLM needs. Uses `gemini-3.5-flash` as the primary model and falls back to `gemini-3.1-flash-lite` if the primary service experiences transient failures (429/500/503).

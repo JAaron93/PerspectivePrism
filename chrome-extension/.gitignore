@@ -16,3 +16,7 @@ Thumbs.db
 
 # Build packages
 *.zip
+
+# Playwright
+playwright-report/
+test-results/

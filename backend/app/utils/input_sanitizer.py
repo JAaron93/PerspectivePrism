@@ -38,6 +38,8 @@ SUSPICIOUS_PATTERNS = [
     r'act\s+as\s+a',
 ]
 
+import prism_sanitizer_rs
+
 class SanitizationError(ValueError):
     """Raised when input fails sanitization checks."""
     pass
@@ -45,24 +47,12 @@ class SanitizationError(ValueError):
 
 def contains_control_characters(text: str) -> bool:
     """Check if text contains control characters (except common whitespace)."""
-    for char in text:
-        category = unicodedata.category(char)
-        # Allow tab, newline, carriage return
-        if char in ['\t', '\n', '\r']:
-            continue
-        # Reject other control characters
-        if category.startswith('C'):
-            return True
-    return False
+    return prism_sanitizer_rs.contains_control_characters(text)
 
 
 def contains_suspicious_patterns(text: str) -> bool:
     """Check if text contains patterns commonly used in injection attacks."""
-    text_lower = text.lower()
-    for pattern in SUSPICIOUS_PATTERNS:
-        if re.search(pattern, text_lower):
-            return True
-    return False
+    return prism_sanitizer_rs.contains_suspicious_patterns(text)
 
 
 def escape_special_characters(text: str) -> str:
@@ -72,21 +62,8 @@ def escape_special_characters(text: str) -> str:
     This escapes quotes and other characters while preserving readability.
     Newlines are normalized rather than escaped to maintain text flow.
     """
-    # Normalize newlines
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    
-    # Escape backslashes first to avoid double-escaping
-    text = text.replace('\\', '\\\\')
-    
-    # Escape quotes
-    text = text.replace('"', '\\"')
-    text = text.replace("'", "\\'")
-    
-    # Escape curly braces to prevent accidental template injection
-    text = text.replace('{', '\\{')
-    text = text.replace('}', '\\}')
-    
-    return text
+    return prism_sanitizer_rs.escape_special_characters(text)
+
 
 
 def truncate_text(text: str, max_length: int) -> str:

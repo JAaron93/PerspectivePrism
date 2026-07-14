@@ -16,6 +16,10 @@ let loadingTimer = null;
 let previouslyFocusedElement = null; // Track focus before panel opens
 let wasPanelOpen = false; // Track if panel was open before navigation
 let claimNavigator = null; // Accessibility navigator
+let navigationGeneration = 0;
+let playbackSequence = 0;
+let activeVideoElement = null;
+let throttledTimeUpdateHandler = null;
 
 // Constants
 const BUTTON_ID = "pp-analysis-button";
@@ -809,62 +813,23 @@ const PANEL_STYLES = `
 // --- Video ID Extraction ---
 
 function isValidVideoId(id) {
-  // YouTube video IDs are exactly 11 characters
-  // Valid characters: A-Z, a-z, 0-9, underscore, hyphen
-  return /^[a-zA-Z0-9_-]{11}$/.test(id);
+  return window.isValidVideoId ? window.isValidVideoId(id) : (id && /^[a-zA-Z0-9_-]{11}$/.test(id));
 }
 
 function extractVideoId() {
-  // Strategy 1: Standard watch URL parameter (?v=VIDEO_ID)
+  if (window.extractVideoIdFromUrl) {
+    return window.extractVideoIdFromUrl(window.location.href);
+  }
+  // Fallback
   const urlParams = new URLSearchParams(window.location.search);
   const watchParam = urlParams.get("v");
   if (watchParam && isValidVideoId(watchParam)) {
-    logger.debug(
-      "Extracted Video ID via watch param:",
-      watchParam,
-    );
     return watchParam;
   }
-
-  const pathname = window.location.pathname;
-
-  // Strategy 2: Shorts format: /shorts/VIDEO_ID
-  const shortsMatch = pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/);
-  if (shortsMatch && isValidVideoId(shortsMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via shorts path:",
-      shortsMatch[1],
-    );
-    return shortsMatch[1];
-  }
-
-  // Strategy 3: Embed format: /embed/VIDEO_ID
-  const embedMatch = pathname.match(/\/embed\/([A-Za-z0-9_-]+)/);
-  if (embedMatch && isValidVideoId(embedMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via embed path:",
-      embedMatch[1],
-    );
-    return embedMatch[1];
-  }
-
-  // Strategy 4: Legacy format: /v/VIDEO_ID
-  const legacyMatch = pathname.match(/\/v\/([A-Za-z0-9_-]+)/);
-  if (legacyMatch && isValidVideoId(legacyMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via legacy path:",
-      legacyMatch[1],
-    );
-    return legacyMatch[1];
-  }
-
+  
   // Strategy 5: Hash fragment (e.g. #v=VIDEO_ID)
   const hashMatch = window.location.hash.match(/[?&]v=([A-Za-z0-9_-]+)/);
   if (hashMatch && isValidVideoId(hashMatch[1])) {
-    logger.debug(
-      "Extracted Video ID via hash fragment:",
-      hashMatch[1],
-    );
     return hashMatch[1];
   }
 
@@ -929,14 +894,36 @@ function printMetrics() {
 // Expose for debugging
 window.ppPrintMetrics = printMetrics;
 
+function isElementVisible(el) {
+  if (!el) return false;
+  let current = el;
+  while (current && current !== document.body) {
+    if (current.hasAttribute("hidden")) return false;
+    if (current.style && (current.style.display === "none" || current.style.visibility === "hidden")) {
+      return false;
+    }
+    try {
+      const style = window.getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden") return false;
+    } catch (e) {
+      // Ignored
+    }
+    current = current.parentElement;
+  }
+  return true;
+}
+
 function injectButton() {
-  // Check for existing button using both ID and data attribute
-  if (
-    document.getElementById(BUTTON_ID) ||
-    document.querySelector('[data-pp-analysis-button="true"]')
-  ) {
-    logger.debug("Button already exists, skipping injection.");
-    return;
+  // Check for existing button and visibility
+  const existingBtn = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+  if (existingBtn) {
+    if (isElementVisible(existingBtn)) {
+      logger.debug("Visible button already exists, skipping injection.");
+      return;
+    } else {
+      logger.info("Found hidden or orphaned button. Removing to re-inject.");
+      existingBtn.remove();
+    }
   }
 
   metrics.attempts++;
@@ -953,11 +940,15 @@ function injectButton() {
   let usedSelector = null;
 
   for (const selector of selectors) {
-    container = document.querySelector(selector);
-    if (container) {
-      usedSelector = selector;
-      break;
+    const elements = document.querySelectorAll(selector);
+    for (const el of elements) {
+      if (isElementVisible(el)) {
+        container = el;
+        usedSelector = selector;
+        break;
+      }
     }
+    if (container) break;
   }
 
   if (container) {
@@ -965,7 +956,12 @@ function injectButton() {
     // Use requestAnimationFrame for smoother injection
     requestAnimationFrame(() => {
       try {
-        if (container && document.contains(container)) {
+        if (container && document.contains(container) && isElementVisible(container)) {
+          const duplicate = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+          if (duplicate) {
+            if (isElementVisible(duplicate)) return;
+            duplicate.remove();
+          }
           container.insertBefore(analysisButton, container.firstChild);
           logger.info(
             `Button injected using selector: ${usedSelector}`,
@@ -1312,6 +1308,18 @@ async function handleAnalysisClick() {
     return;
   }
 
+  // Capture the video ID at call time. After any await, currentVideoId may
+  // have changed due to SPA navigation, so we use this snapshot to detect stale responses.
+  const analysisVideoId = currentVideoId;
+
+  // Send OPEN_SIDE_PANEL synchronously while user gesture is still active.
+  // The background calls chrome.sidePanel.open({ tabId }) which requires a
+  // live gesture — fire-and-forget, errors are non-fatal.
+  chrome.runtime.sendMessage({
+    type: "OPEN_SIDE_PANEL",
+    videoId: analysisVideoId,
+  }).catch((err) => logger.debug("OPEN_SIDE_PANEL ignored:", err));
+
   setButtonState("loading");
   showPanelLoading();
   cancelRequest = false;
@@ -1383,6 +1391,14 @@ async function handleAnalysisClick() {
       logger.info("Request was cancelled");
       removePanel();
       setButtonState("idle");
+      return;
+    }
+
+    // Guard against stale responses from a previous video after SPA navigation.
+    // null is a valid "no video" state (user navigated away from a video page),
+    // so a delayed response from a prior video must be discarded in that case too.
+    if (analysisVideoId !== currentVideoId) {
+      logger.info(`Discarding stale response for ${analysisVideoId} (current: ${currentVideoId})`);
       return;
     }
 
@@ -1576,6 +1592,33 @@ function setButtonState(state) {
 
 function showResults(data, isCached = false) {
   removePanel(); // Remove existing
+
+  // Render (or clear) timeline markers
+  try {
+    const canRender = data && data.claims &&
+      typeof window.clusterClaims === "function" &&
+      typeof window.renderTimelineMarkers === "function";
+
+    if (canRender) {
+      const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+      const duration = video ? video.duration : 0;
+      if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+        const clusters = window.clusterClaims(data.claims, duration);
+        window.renderTimelineMarkers(clusters, duration);
+      } else {
+        // Duration invalid — clear any stale markers
+        window.renderTimelineMarkers([], 0);
+      }
+    } else {
+      // Missing claims or rendering functions — clear any stale markers
+      if (typeof window.renderTimelineMarkers === "function") {
+        window.renderTimelineMarkers([], 0);
+      }
+    }
+  } catch (err) {
+    logger.error("Timeline marker rendering failed, skipping:", err);
+    // Non-fatal: results panel will still be shown below
+  }
 
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
@@ -2129,6 +2172,49 @@ function setupObservers() {
 
 // --- Cleanup & Navigation ---
 
+function throttle(func, limit) {
+  let inThrottle = false;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+function setupVideoSync(video, videoId, generationId) {
+  if (activeVideoElement) {
+    cleanupVideoSync();
+  }
+  
+  activeVideoElement = video;
+  
+  const onTimeUpdate = () => {
+    playbackSequence++;
+    chrome.runtime.sendMessage({
+      type: "SYNC_PLAYBACK",
+      videoId: videoId,
+      generationId: generationId,
+      sequence: playbackSequence,
+      currentTime: video.currentTime
+    }).catch(() => {});
+  };
+  
+  throttledTimeUpdateHandler = throttle(onTimeUpdate, 250);
+  video.addEventListener("timeupdate", throttledTimeUpdateHandler);
+  logger.info(`Video sync set up for video: ${videoId}, generation: ${generationId}`);
+}
+
+function cleanupVideoSync() {
+  if (activeVideoElement && throttledTimeUpdateHandler) {
+    activeVideoElement.removeEventListener("timeupdate", throttledTimeUpdateHandler);
+  }
+  activeVideoElement = null;
+  throttledTimeUpdateHandler = null;
+  logger.info("Video sync cleaned up");
+}
+
 let isCleaningUp = false;
 
 function cleanup() {
@@ -2146,10 +2232,16 @@ function cleanup() {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
+    // Cancel any pending debounced navigation callback
+    if (navigationTimer) {
+      clearTimeout(navigationTimer);
+      navigationTimer = null;
+    }
 
     // 2. Cancel in-flight requests and timers
     cancelRequest = true;
     clearLoadingTimer();
+    cleanupVideoSync();
     
     // 3. Track panel state before cleanup
     wasPanelOpen = analysisPanel !== null;
@@ -2184,7 +2276,12 @@ function cleanup() {
     const existingBtn = document.getElementById(BUTTON_ID);
     if (existingBtn) existingBtn.remove();
 
-    // 6. Reset state
+    // 6. Clear timeline markers
+    if (typeof window.renderTimelineMarkers === "function") {
+      window.renderTimelineMarkers([], 0);
+    }
+
+    // 7. Reset state
     currentVideoId = null;
     
     logger.info("Cleanup complete. Panel was open:", wasPanelOpen);
@@ -2195,7 +2292,24 @@ function cleanup() {
   }
 }
 
-function handleNavigation() {
+let navigationTimer = null;
+
+function handleNavigation(immediate = false) {
+  if (navigationTimer) {
+    clearTimeout(navigationTimer);
+    navigationTimer = null;
+  }
+
+  if (immediate) {
+    performNavigation();
+  } else {
+    navigationTimer = setTimeout(() => {
+      performNavigation();
+    }, 500);
+  }
+}
+
+function performNavigation() {
   // If we are currently cleaning up, skip (or queue?)
   if (isCleaningUp) {
     logger.debug("Navigation skipped due to cleanup in progress.");
@@ -2215,6 +2329,15 @@ function handleNavigation() {
     // Setup new video state
     if (vid) {
       currentVideoId = vid;
+      navigationGeneration++;
+      playbackSequence = 0;
+      
+      // Broadcast navigation event to the extension (background/sidepanel)
+      chrome.runtime.sendMessage({
+        type: "YOUTUBE_NAVIGATED",
+        videoId: vid
+      }).catch(() => {});
+
       // Reset cancel flag for new video
       cancelRequest = false;
       
@@ -2224,6 +2347,11 @@ function handleNavigation() {
         if (extractVideoId() !== currentVideoId) return;
         injectButton();
         setupObservers();
+
+        const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+        if (video) {
+          setupVideoSync(video, currentVideoId, navigationGeneration);
+        }
         
         // If panel was open before navigation, automatically analyze the new video
         if (wasPanelOpen) {
@@ -2240,6 +2368,10 @@ function handleNavigation() {
     }
     if (!observer) {
       setupObservers();
+    }
+    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+    if (video && video !== activeVideoElement) {
+      setupVideoSync(video, currentVideoId, navigationGeneration);
     }
   }
 }
@@ -2319,6 +2451,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'SEEK_TO') {
+    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+    if (video) {
+      const seconds = typeof window.parseTimestampToSeconds === "function"
+        ? window.parseTimestampToSeconds(message.timestamp)
+        : 0;
+      video.currentTime = seconds;
+      logger.info(`Seeked video to timestamp: ${message.timestamp} (${seconds}s)`);
+    }
+  }
+});
+
 function init() {
   loadMetrics();
 
@@ -2343,7 +2488,18 @@ function init() {
   // 2. Popstate Event (Back/Forward)
   window.addEventListener("popstate", handleNavigation);
 
-  // 3. Polling Fallback (1 second)
+  // 3. YouTube SPA Navigation Events
+  document.addEventListener("yt-navigate-start", () => {
+    logger.info("yt-navigate-start event detected");
+    cleanup();
+  });
+
+  document.addEventListener("yt-navigate-finish", () => {
+    logger.info("yt-navigate-finish event detected");
+    handleNavigation();
+  });
+
+  // 4. Polling Fallback (1 second)
   // Catches missed events or delayed DOM updates
   setInterval(handleNavigation, 1000);
 

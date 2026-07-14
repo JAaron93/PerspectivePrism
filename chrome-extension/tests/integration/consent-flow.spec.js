@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Consent Flow", () => {
   test.beforeEach(async ({ context }) => {
@@ -7,12 +7,14 @@ test.describe("Consent Flow", () => {
     await context.clearPermissions();
 
     // Clear extension storage (sync and local) via service worker
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
+    const background = await getBackgroundWorker(context);
 
     await background.evaluate(async () => {
       await new Promise((resolve) => chrome.storage.sync.clear(resolve));
       await new Promise((resolve) => chrome.storage.local.clear(resolve));
+      await new Promise((resolve) => chrome.storage.sync.set({
+        config: { backendUrl: "http://localhost:8000" }
+      }, resolve));
     });
   });
 
@@ -36,11 +38,7 @@ test.describe("Consent Flow", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            claims: [{ text: "Test Claim" }],
-            truth_profile: { deception_score: 0 },
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Test Claim"),
         }),
       });
     });
