@@ -27,7 +27,7 @@ Uncover the layers of content in any YouTube video with **Perspective Prism**. T
   - Partisan Left commentary.
   - Partisan Right commentary.
 - **Deception & Bias Indicators**: Flags logical fallacies, emotional manipulation tactics, and provides an overall deception score.
-- **Privacy-First & Lightweight**: Operates strictly on local browser storage, caches analysis results for 24 hours, and has a negligible footprint (<10MB memory usage).
+- **Privacy-First & Lightweight**: Caches analysis results locally for 24 hours while transmitting only the requested YouTube video URLs to your configured backend (negligible footprint, <10MB memory usage).
 - **Fully Accessible**: Implements comprehensive keyboard navigation (WCAG AA), screen-reader live announcements, and focus trapping.
 
 ### How to Use
@@ -47,7 +47,7 @@ At Perspective Prism, we believe your browsing data should remain your own. This
 
 ### 1. Information Collection and Transmission
 - **Video URL**: The extension collects and transmits the YouTube Video URL when you explicitly request an analysis, enabling our backend to retrieve the transcript and generate the truth profile.
-- **No Personal Data**: We do not collect, store, or transmit your search history, personal information, IP address, browsing behavior, Google credentials, or video watch history. Unrelated data is never transmitted.
+- **No Personal Data**: We do not collect, store, or transmit your search history, personal information, browsing behavior, Google credentials, or video watch history. While backend network or access logs may observe standard connection metadata like client IP addresses, the extension does not intentionally collect or transmit personal identifiers. Unrelated data is never transmitted.
 - **No Third-Party Analytics**: The extension contains no tracking scripts, cookies, or third-party analytics integrations.
 
 ### 2. Information Storage and Security
