@@ -193,7 +193,9 @@ test.describe("Rapid Navigation Between Videos", () => {
     await page.goto(
       `chrome-extension://${extensionId}/tests/fixtures/youtube-mock.html?v=${videos[0]}`,
     );
-    await page.waitForTimeout(500); // Allow content script to initialize
+    // Wait until the content script has initialized and injected its button
+    // before firing rapid SPA navigations, so cleanup of the first video is exercised.
+    await page.waitForSelector('[data-pp-analysis-button="true"]', { timeout: 10000 });
 
     const startTime = Date.now();
 

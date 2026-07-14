@@ -1577,14 +1577,31 @@ function setButtonState(state) {
 function showResults(data, isCached = false) {
   removePanel(); // Remove existing
 
-  // Render timeline markers
-  if (data && data.claims && typeof window.clusterClaims === "function" && typeof window.renderTimelineMarkers === "function") {
-    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
-    const duration = video ? video.duration : 0;
-    if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
-      const clusters = window.clusterClaims(data.claims, duration);
-      window.renderTimelineMarkers(clusters, duration);
+  // Render (or clear) timeline markers
+  try {
+    const canRender = data && data.claims &&
+      typeof window.clusterClaims === "function" &&
+      typeof window.renderTimelineMarkers === "function";
+
+    if (canRender) {
+      const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+      const duration = video ? video.duration : 0;
+      if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+        const clusters = window.clusterClaims(data.claims, duration);
+        window.renderTimelineMarkers(clusters, duration);
+      } else {
+        // Duration invalid — clear any stale markers
+        window.renderTimelineMarkers([], 0);
+      }
+    } else {
+      // Missing claims or rendering functions — clear any stale markers
+      if (typeof window.renderTimelineMarkers === "function") {
+        window.renderTimelineMarkers([], 0);
+      }
     }
+  } catch (err) {
+    logger.error("Timeline marker rendering failed, skipping:", err);
+    // Non-fatal: results panel will still be shown below
   }
 
   const panel = document.createElement("div");
@@ -2155,6 +2172,11 @@ function cleanup() {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
+    }
+    // Cancel any pending debounced navigation callback
+    if (navigationTimer) {
+      clearTimeout(navigationTimer);
+      navigationTimer = null;
     }
 
     // 2. Cancel in-flight requests and timers
