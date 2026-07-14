@@ -929,14 +929,36 @@ function printMetrics() {
 // Expose for debugging
 window.ppPrintMetrics = printMetrics;
 
+function isElementVisible(el) {
+  if (!el) return false;
+  let current = el;
+  while (current && current !== document.body) {
+    if (current.hasAttribute("hidden")) return false;
+    if (current.style && (current.style.display === "none" || current.style.visibility === "hidden")) {
+      return false;
+    }
+    try {
+      const style = window.getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden") return false;
+    } catch (e) {
+      // Ignored
+    }
+    current = current.parentElement;
+  }
+  return true;
+}
+
 function injectButton() {
-  // Check for existing button using both ID and data attribute
-  if (
-    document.getElementById(BUTTON_ID) ||
-    document.querySelector('[data-pp-analysis-button="true"]')
-  ) {
-    logger.debug("Button already exists, skipping injection.");
-    return;
+  // Check for existing button and visibility
+  const existingBtn = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+  if (existingBtn) {
+    if (isElementVisible(existingBtn)) {
+      logger.debug("Visible button already exists, skipping injection.");
+      return;
+    } else {
+      logger.info("Found hidden or orphaned button. Removing to re-inject.");
+      existingBtn.remove();
+    }
   }
 
   metrics.attempts++;
@@ -953,11 +975,15 @@ function injectButton() {
   let usedSelector = null;
 
   for (const selector of selectors) {
-    container = document.querySelector(selector);
-    if (container) {
-      usedSelector = selector;
-      break;
+    const elements = document.querySelectorAll(selector);
+    for (const el of elements) {
+      if (isElementVisible(el)) {
+        container = el;
+        usedSelector = selector;
+        break;
+      }
     }
+    if (container) break;
   }
 
   if (container) {
@@ -965,7 +991,12 @@ function injectButton() {
     // Use requestAnimationFrame for smoother injection
     requestAnimationFrame(() => {
       try {
-        if (container && document.contains(container)) {
+        if (container && document.contains(container) && isElementVisible(container)) {
+          const duplicate = document.getElementById(BUTTON_ID) || document.querySelector('[data-pp-analysis-button="true"]');
+          if (duplicate) {
+            if (isElementVisible(duplicate)) return;
+            duplicate.remove();
+          }
           container.insertBefore(analysisButton, container.firstChild);
           logger.info(
             `Button injected using selector: ${usedSelector}`,
@@ -1577,6 +1608,14 @@ function setButtonState(state) {
 function showResults(data, isCached = false) {
   removePanel(); // Remove existing
 
+  // Render timeline markers
+  if (data && data.claims && typeof window.clusterClaims === "function" && typeof window.renderTimelineMarkers === "function") {
+    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+    const duration = video ? video.duration : 0;
+    const clusters = window.clusterClaims(data.claims, duration);
+    window.renderTimelineMarkers(clusters, duration);
+  }
+
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
   panel.setAttribute("role", "dialog");
@@ -2184,7 +2223,12 @@ function cleanup() {
     const existingBtn = document.getElementById(BUTTON_ID);
     if (existingBtn) existingBtn.remove();
 
-    // 6. Reset state
+    // 6. Clear timeline markers
+    if (typeof window.renderTimelineMarkers === "function") {
+      window.renderTimelineMarkers([], 0);
+    }
+
+    // 7. Reset state
     currentVideoId = null;
     
     logger.info("Cleanup complete. Panel was open:", wasPanelOpen);
@@ -2343,7 +2387,18 @@ function init() {
   // 2. Popstate Event (Back/Forward)
   window.addEventListener("popstate", handleNavigation);
 
-  // 3. Polling Fallback (1 second)
+  // 3. YouTube SPA Navigation Events
+  document.addEventListener("yt-navigate-start", () => {
+    logger.info("yt-navigate-start event detected");
+    cleanup();
+  });
+
+  document.addEventListener("yt-navigate-finish", () => {
+    logger.info("yt-navigate-finish event detected");
+    handleNavigation();
+  });
+
+  // 4. Polling Fallback (1 second)
   // Catches missed events or delayed DOM updates
   setInterval(handleNavigation, 1000);
 

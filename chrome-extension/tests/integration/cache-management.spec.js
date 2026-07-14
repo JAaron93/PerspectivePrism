@@ -16,8 +16,24 @@ test.describe("Cache Management", () => {
           status: "completed",
           result: {
             video_id: "dQw4w9WgXcQ",
-            claims: [{ text: "Cached Claim" }],
-            truth_profile: { deception_score: 5 },
+            metadata: { analyzed_at: new Date().toISOString() },
+            claims: [
+              {
+                claim_text: "Cached Claim",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {},
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
+              },
+            ],
           },
         }),
       });

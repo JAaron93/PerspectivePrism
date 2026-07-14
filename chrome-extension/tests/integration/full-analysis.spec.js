@@ -41,20 +41,32 @@ test.describe("Full Analysis Flow", () => {
             status: "completed",
             result: {
               video_id: "dQw4w9WgXcQ",
+              metadata: { analyzed_at: new Date().toISOString() },
               claims: [
                 {
-                  text: "This is a test claim.",
-                  perspectives: [
-                    {
-                      source: "Scientific",
-                      text: "Confirmed by science.",
-                      sentiment: "positive",
+                  claim_text: "This is a test claim.",
+                  timestamp: "00:00",
+                  video_timestamp_start: 0,
+                  video_timestamp_end: 5,
+                  truth_profile: {
+                    overall_assessment: "Likely True",
+                    perspectives: {
+                      Scientific: {
+                        perspective: "Scientific",
+                        stance: "Support",
+                        confidence: 0.9,
+                        explanation: "Confirmed by science.",
+                        evidence: []
+                      }
                     },
-                  ],
-                  bias_indicators: [],
-                },
-              ],
-              truth_profile: { deception_score: 10 },
+                    bias_indicators: {
+                      logical_fallacies: [],
+                      emotional_manipulation: [],
+                      deception_score: 0
+                    }
+                  }
+                }
+              ]
             },
           }),
         });

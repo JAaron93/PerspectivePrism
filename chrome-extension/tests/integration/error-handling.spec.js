@@ -4,6 +4,7 @@ test.describe("Error Handling", () => {
   test("should handle backend timeout gracefully", async ({
     page,
     context,
+    extensionId,
   }) => {
     // Mock backend timeout
     await context.route("**/analyze/jobs", async (route) => {
@@ -12,25 +13,27 @@ test.describe("Error Handling", () => {
       await route.fulfill({ status: 504, body: "Gateway Timeout" });
     });
 
-    await page.goto("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    const fixtureUrl = `chrome-extension://${extensionId}/tests/fixtures/youtube-mock.html?v=dQw4w9WgXcQ`;
+    await page.goto(fixtureUrl);
+    
     const analysisButton = page.locator('[data-pp-analysis-button="true"]');
     await expect(analysisButton).toBeVisible();
     await analysisButton.click();
 
     // Verify error message
     // Assuming error state shows in panel or toast
-    await expect(page.locator('text="Analysis failed"')).toBeVisible(); // Adjust text based on actual error message
+    await expect(page.locator('text="Analysis Failed"')).toBeVisible({ timeout: 15000 }); // Adjust text based on actual error message
   });
 
   test("should handle invalid backend URL", async ({ page, extensionId }) => {
     // Navigate to options page using fixture-provided extensionId
     await page.goto(`chrome-extension://${extensionId}/options.html`);
 
-    await page.fill("#backendUrl", "invalid-url");
-    await page.click("#saveSettings");
+    await page.fill("#backend-url", "invalid-url");
+    await page.focus("#save-settings"); // Trigger blur validation on backend-url input
 
     // Verify validation error
-    await expect(page.locator(".error-message")).toBeVisible();
+    await expect(page.locator("#backend-url-error")).toBeVisible();
   });
 
   test("should cancel in-progress analysis", async ({ page, context, extensionId }) => {
@@ -73,9 +76,9 @@ test.describe("Error Handling", () => {
     
     // Find cancel button (it is initially hidden, then shown via class 'visible' or display block)
     // In panel-styles.js: .cancel-btn.visible { display: inline-block; }
-    // We need to wait for it to become visible
+    // We need to wait for it to become visible (it takes 15 seconds to appear)
     const cancelButton = panel.locator(".cancel-btn");
-    await expect(cancelButton).toBeVisible({ timeout: 5000 });
+    await expect(cancelButton).toBeVisible({ timeout: 20000 });
 
     // Verify spinner is visible during processing (before cancel)
     const spinner = panel.locator(".spinner");

@@ -16,7 +16,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     // Mock backend API for video A (dQw4w9WgXcQ)
     await context.route("**/analyze/jobs", async (route) => {
       const requestBody = route.request().postDataJSON();
-      const videoUrl = requestBody?.video_url || "";
+      const videoUrl = requestBody?.url || requestBody?.video_url || "";
 
       if (videoUrl.includes("dQw4w9WgXcQ")) {
         apiCalls.videoA++;
@@ -54,20 +54,32 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
           status: "completed",
           result: {
             video_id: "dQw4w9WgXcQ",
+            metadata: { analyzed_at: new Date().toISOString() },
             claims: [
               {
-                text: "Claim from Video A",
-                perspectives: [
-                  {
-                    source: "Scientific",
-                    text: "Analysis for video A",
-                    sentiment: "positive",
+                claim_text: "Claim from Video A",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {
+                    Scientific: {
+                      perspective: "Scientific",
+                      stance: "Support",
+                      confidence: 0.9,
+                      explanation: "Analysis for video A",
+                      evidence: []
+                    }
                   },
-                ],
-                bias_indicators: [],
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
               },
             ],
-            truth_profile: { deception_score: 15 },
           },
         }),
       });
@@ -82,20 +94,32 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
           status: "completed",
           result: {
             video_id: "jNQXAC9IVRw",
+            metadata: { analyzed_at: new Date().toISOString() },
             claims: [
               {
-                text: "Claim from Video B",
-                perspectives: [
-                  {
-                    source: "Journalistic",
-                    text: "Analysis for video B",
-                    sentiment: "neutral",
+                claim_text: "Claim from Video B",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {
+                    Journalistic: {
+                      perspective: "Journalistic",
+                      stance: "Support",
+                      confidence: 0.9,
+                      explanation: "Analysis for video B",
+                      evidence: []
+                    }
                   },
-                ],
-                bias_indicators: [],
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
               },
             ],
-            truth_profile: { deception_score: 25 },
           },
         }),
       });
@@ -110,20 +134,32 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
           status: "completed",
           result: {
             video_id: "9bZkp7q19f0",
+            metadata: { analyzed_at: new Date().toISOString() },
             claims: [
               {
-                text: "Claim from Video C",
-                perspectives: [
-                  {
-                    source: "Partisan Left",
-                    text: "Analysis for video C",
-                    sentiment: "negative",
+                claim_text: "Claim from Video C",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {
+                    "Partisan Left": {
+                      perspective: "Partisan Left",
+                      stance: "Support",
+                      confidence: 0.9,
+                      explanation: "Analysis for video C",
+                      evidence: []
+                    }
                   },
-                ],
-                bias_indicators: [],
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
               },
             ],
-            truth_profile: { deception_score: 35 },
           },
         }),
       });
@@ -207,8 +243,10 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     // Step 5: Check cache stats via popup
     console.log("Step 5: Checking cache statistics");
     
-    // Get cache stats from storage
-    const cacheStats = await page.evaluate(async () => {
+    // Get cache stats from background storage
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent("serviceworker");
+    const cacheStats = await background.evaluate(async () => {
       return new Promise((resolve) => {
         chrome.storage.local.get(null, (items) => {
           const cacheEntries = Object.keys(items).filter((key) =>
@@ -251,9 +289,25 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           status: "completed",
           result: {
-            video_id: "test123",
-            claims: [{ text: "Test Claim" }],
-            truth_profile: { deception_score: 10 },
+            video_id: "dQw4w9WgXcQ",
+            metadata: { analyzed_at: new Date().toISOString() },
+            claims: [
+              {
+                claim_text: "Test Claim",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {},
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
+              },
+            ],
           },
         }),
       });

@@ -18,6 +18,32 @@ export const test = base.extend({
         `--load-extension=${pathToExtension}`,
       ],
     });
+
+    // Capture console messages from pages
+    context.on("page", (page) => {
+      page.on("console", (msg) => {
+        console.log(`[PAGE CONSOLE] ${msg.type().toUpperCase()}: ${msg.text()}`);
+      });
+    });
+
+    // Wait for service worker and pre-configure storage
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent("serviceworker");
+    
+    // Capture console messages from service worker
+    background.on("console", (msg) => {
+      console.log(`[SW CONSOLE] ${msg.type().toUpperCase()}: ${msg.text()}`);
+    });
+
+    await background.evaluate(async () => {
+      await new Promise((resolve) => {
+        chrome.storage.sync.set({
+          consent: { given: true, policyVersion: "1.0.0" },
+          config: { backendUrl: "http://localhost:8000" }
+        }, resolve);
+      });
+    });
+
     await use(context);
     await context.close();
   },

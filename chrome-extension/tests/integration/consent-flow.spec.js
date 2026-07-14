@@ -13,6 +13,9 @@ test.describe("Consent Flow", () => {
     await background.evaluate(async () => {
       await new Promise((resolve) => chrome.storage.sync.clear(resolve));
       await new Promise((resolve) => chrome.storage.local.clear(resolve));
+      await new Promise((resolve) => chrome.storage.sync.set({
+        config: { backendUrl: "http://localhost:8000" }
+      }, resolve));
     });
   });
 
@@ -38,8 +41,24 @@ test.describe("Consent Flow", () => {
           status: "completed",
           result: {
             video_id: "dQw4w9WgXcQ",
-            claims: [{ text: "Test Claim" }],
-            truth_profile: { deception_score: 0 },
+            metadata: { analyzed_at: new Date().toISOString() },
+            claims: [
+              {
+                claim_text: "Test Claim",
+                timestamp: "00:00",
+                video_timestamp_start: 0,
+                video_timestamp_end: 5,
+                truth_profile: {
+                  overall_assessment: "Likely True",
+                  perspectives: {},
+                  bias_indicators: {
+                    logical_fallacies: [],
+                    emotional_manipulation: [],
+                    deception_score: 0,
+                  },
+                },
+              },
+            ],
           },
         }),
       });
