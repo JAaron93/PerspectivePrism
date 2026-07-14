@@ -1304,6 +1304,14 @@ async function handleAnalysisClick() {
     return;
   }
 
+  // Send OPEN_SIDE_PANEL synchronously while user gesture is still active.
+  // The background calls chrome.sidePanel.open({ tabId }) which requires a
+  // live gesture — fire-and-forget, errors are non-fatal.
+  chrome.runtime.sendMessage({
+    type: "OPEN_SIDE_PANEL",
+    videoId: currentVideoId,
+  }).catch((err) => logger.debug("OPEN_SIDE_PANEL ignored:", err));
+
   setButtonState("loading");
   showPanelLoading();
   cancelRequest = false;
