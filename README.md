@@ -102,7 +102,7 @@ Perspective Prism's backend is designed to be deployed to **Modal Labs** using t
 
 **Important Note on Capacity:** This project is primarily a **portfolio project**, not a commercial product. The backend relies on the $30/month free tier of compute credits provided by Modal Labs. Based on standard usage (1 claim analysis per user per day), this free tier can only handle around **~2,000 monthly users**. 
 
-Since there are no funds allocated to scale this extension further, the extension is built to fail gracefully. If the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#-setup--installation) section below.
+Since there are no funds allocated to scale this extension further, the extension is planned to fail gracefully. In a future release, if the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#setup-installation) section below.
 
 ## 🛠️ Tech Stack
 
@@ -128,6 +128,7 @@ Since there are no funds allocated to scale this extension further, the extensio
   - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
+<a id="setup-installation"></a>
 ## ⚙️ Setup & Installation
 
 ### Backend
