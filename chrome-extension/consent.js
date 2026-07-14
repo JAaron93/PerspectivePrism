@@ -184,7 +184,7 @@ class ConsentManager {
     const title = isUpdate ? "Privacy Policy Updated" : "Privacy & Consent";
     const message = isUpdate
       ? `<p>Our privacy policy has been updated to version ${newVersion}. Please review the changes to continue using Perspective Prism.</p>`
-      : `<p>To analyze this video, Perspective Prism needs to send the video ID to our backend server. We do not collect your browsing history or personal information.</p>
+      : `<p>To analyze this video, Perspective Prism needs to send the video URL to our backend server to retrieve its transcript. We do not collect your browsing history or personal information.</p>
          <p>Analysis results are cached locally in your browser for 24 hours.</p>`;
 
     const denyText = isUpdate ? "Decline" : "Deny";

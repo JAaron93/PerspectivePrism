@@ -14,8 +14,12 @@ try {
   console.info('Validating manifest.json...');
 
   // 1. Check version
-  if (manifest.version !== '0.2.0') {
-    throw new Error(`Manifest version should be 0.2.0, but found ${manifest.version}`);
+  const packageJsonPath = path.join(__dirname, '..', 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const expectedVersion = packageJson.version;
+
+  if (manifest.version !== expectedVersion) {
+    throw new Error(`Manifest version should be ${expectedVersion}, but found ${manifest.version}`);
   }
   if (manifest.manifest_version !== 3) {
     throw new Error(`Manifest version must be 3, found ${manifest.manifest_version}`);

@@ -46,8 +46,8 @@ Uncover the layers of content in any YouTube video with **Perspective Prism**. T
 At Perspective Prism, we believe your browsing data should remain your own. This Privacy Policy details what information we handle and how it is protected.
 
 ### 1. Information Collection and Transmission
-- **Video ID Only**: The extension only collects and transmits the 11-character YouTube Video ID (e.g. `dQw4w9WgXcQ`) when you explicitly request an analysis.
-- **No Personal Data**: We do not collect, store, or transmit your search history, personal information, IP address, browsing behavior, Google credentials, or video watch history.
+- **Video URL**: The extension collects and transmits the YouTube Video URL when you explicitly request an analysis, enabling our backend to retrieve the transcript and generate the truth profile.
+- **No Personal Data**: We do not collect, store, or transmit your search history, personal information, IP address, browsing behavior, Google credentials, or video watch history. Unrelated data is never transmitted.
 - **No Third-Party Analytics**: The extension contains no tracking scripts, cookies, or third-party analytics integrations.
 
 ### 2. Information Storage and Security
@@ -67,7 +67,15 @@ Chrome Web Store requires strict justifications for permissions requested in `ma
 
 1. **`storage`**
    - *Justification*: Required to persist extension configurations (sync) and cache video analysis results locally (local) to avoid redundant API requests.
-2. **`alarms`**
+2. **`activeTab`**
+   - *Justification*: Required to obtain temporary permission to access the active tab's URL and title for checking if it's a YouTube video and injecting analysis UI elements upon user request.
+3. **`alarms`**
    - *Justification*: Required to persist retry scheduling across Background Service Worker unloads. If a network request is interrupted by service worker termination, the alarm wakes up the service worker to resume the job.
-3. **`notifications`**
+4. **`notifications`**
    - *Justification*: Required to display error or status alerts to the user when the backend is unreachable or when settings require manual configuration.
+5. **`sidePanel`**
+   - *Justification*: Required to host the Truth Profile analysis side-by-side with the YouTube watch page, facilitating an integrated and non-intrusive viewing experience.
+6. **`tabs`**
+   - *Justification*: Required to track active navigations inside YouTube (e.g. changing videos in Single Page Application mode via `chrome.tabs.onUpdated` and `chrome.tabs.onActivated`) to sync, reset, or update the analysis panel context.
+7. **Host Permissions (`https://*.youtube.com/*`, `https://youtu.be/*`, `https://*.youtube-nocookie.com/*`, `https://m.youtube.com/*`)**
+   - *Justification*: Essential to inject content scripts into YouTube pages, monitor video contexts, extract captions/metadata, and display the analysis button and results within YouTube's standard web pages, theater/fullscreen views, embedded players, and mobile views.

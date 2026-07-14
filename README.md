@@ -283,7 +283,7 @@ npm run test:integration
 | **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
 | **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
-| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. |
+| **CORS Error** | Frontend origin not allowed | Distinguish the request origin: For Chrome extension requests, add the extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. For standalone web applications (e.g., React app), add the origin (e.g., `http://localhost:5173`) to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
 
 ### Extension Issues
 
@@ -311,7 +311,7 @@ This project implements strict input sanitization to protect against Large Langu
 See `backend/app/utils/input_sanitizer.py` for implementation details.
 
 ### Extension Data Handling
-- **Minimal Transmission**: The extension only transmits the 11-character YouTube Video ID to the backend for claim extraction. Full URLs, queries, titles, PII, and browsing history are never transmitted.
+- **Minimal Transmission**: The extension transmits the full YouTube Video URL via the `url` field to the backend to retrieve the video transcript and perform claim extraction. Unrelated data such as browsing history, search queries, user identifiers, or personal information is never collected or transmitted.
 - **Strict HTTPS**: All communications with external backends enforce HTTPS encryption. Cleartext HTTP is restricted to localhost (`127.0.0.1` and `localhost`).
 - **Local Storage**: Analysis cache, settings, and statistics are stored locally within the browser context (`chrome.storage.local` and `chrome.storage.sync`).
 - **No Third-Party Scripts**: The extension is self-contained and does not load third-party scripts, trackers, or analytics packages.

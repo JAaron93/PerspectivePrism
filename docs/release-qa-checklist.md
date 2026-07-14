@@ -73,8 +73,8 @@ This checklist must be completed and signed off before releasing any new version
 ## 3. Chrome Web Store Submission Validation
 
 - [ ] **Store Description**: Review the store listing description (`docs/web-store-listing.md`) for spelling and completeness.
-- [ ] **Permission Justification**: Ensure the permission declarations (`storage`, `activeTab`, `alarms`, `notifications`) have documented, solid justifications matching Chrome Web Store policies.
-- [ ] **Store Privacy Policy**: Ensure the external privacy policy matches the code’s actual behavior (e.g. data transmission of Video ID only).
+- [ ] **Permission Justification**: Ensure all permission declarations (`storage`, `activeTab`, `alarms`, `notifications`, `sidePanel`, `tabs`) and host permissions (`youtube.com`, `youtu.be`, etc.) have documented, solid justifications matching Chrome Web Store policies in `docs/web-store-listing.md`.
+- [ ] **Store Privacy Policy**: Ensure the external privacy policy matches the code’s actual behavior (e.g. data transmission of full YouTube Video URL).
 - [ ] **Visual Assets**: Confirm all required icons (`16px`, `48px`, `128px`) are correct and store screenshots are updated.
 
 ---
