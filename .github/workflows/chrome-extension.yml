@@ -50,7 +50,7 @@ jobs:
     - name: Run Integration Tests
       run: |
         cd chrome-extension
-        npm run test:integration
+        xvfb-run npm run test:integration
 
     - name: Build Extension
       run: |
