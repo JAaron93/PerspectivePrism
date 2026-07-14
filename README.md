@@ -96,6 +96,14 @@ This script measures:
 - **Latency**: Time taken for extraction and analysis.
 - **Output Quality**: Basic validation of the generated Truth Profile.
 
+## ☁️ Deployment Strategy
+
+Perspective Prism's backend is designed to be deployed to **Modal Labs** using their serverless infrastructure. 
+
+**Important Note on Capacity:** This project is primarily a **portfolio project**, not a commercial product. The backend relies on the $30/month free tier of compute credits provided by Modal Labs. Based on standard usage (1 claim analysis per user per day), this free tier can only handle around **~2,000 monthly users**. 
+
+Since there are no funds allocated to scale this extension further, the extension is built to fail gracefully. If the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#-setup--installation) section below.
+
 ## 🛠️ Tech Stack
 
 - **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
