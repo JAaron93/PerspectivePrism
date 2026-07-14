@@ -42,6 +42,11 @@ jobs:
         cd chrome-extension
         npm run test:coverage
 
+    - name: Install Playwright Browsers
+      run: |
+        cd chrome-extension
+        npx playwright install --with-deps
+
     - name: Run Integration Tests
       run: |
         cd chrome-extension
