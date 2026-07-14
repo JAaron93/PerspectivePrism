@@ -222,15 +222,17 @@ describe("PerspectivePrismClient - Cache Operations", () => {
       ).rejects.toThrow();
     });
 
-    it("should validate data before caching", async () => {
+    it("should reject invalid data before caching", async () => {
       const invalidData = {
         // Missing video_id
         claims: [],
         metadata: { analyzed_at: new Date().toISOString() },
       };
 
-      // Should not throw, but should not cache invalid data
-      await client.saveToCache("abcdefghijk", invalidData);
+      // Should throw a validation error so callers know the save did not succeed
+      await expect(
+        client.saveToCache("abcdefghijk", invalidData),
+      ).rejects.toThrow();
 
       // Invalid data should not be cached
       expect(mockStorage["cache_abcdefghijk"]).toBeUndefined();

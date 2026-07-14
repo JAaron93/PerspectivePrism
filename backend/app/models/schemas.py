@@ -36,6 +36,18 @@ class Claim(BaseModel):
     metadata: Optional[Dict] = None
 
 
+class ExtractedClaim(BaseModel):
+    text: str = Field(..., description="The exact text of the claim or a concise summary")
+    start_time: float = Field(..., description="Start timestamp in seconds")
+    end_time: float = Field(..., description="End timestamp in seconds")
+    context: str = Field(..., description="Surrounding text context of the claim")
+
+
+class ClaimsOutput(BaseModel):
+    claims: List[ExtractedClaim]
+
+
+
 class Evidence(BaseModel):
     url: str
     title: str
@@ -44,12 +56,19 @@ class Evidence(BaseModel):
     perspective: PerspectiveType
 
 
+class PerspectiveAnalysisLLMOutput(BaseModel):
+    stance: str = Field(..., description="Support, Refute, or Ambiguous")
+    confidence: float = Field(..., description="Confidence score from 0.0 to 1.0")
+    explanation: str = Field(..., description="Brief explanation based only on the evidence")
+
+
 class PerspectiveAnalysis(BaseModel):
     perspective: PerspectiveType
     stance: str = Field(..., description="Support, Refute, or Ambiguous")
     confidence: float
     explanation: str
     evidence: List[Evidence]
+
 
 
 class BiasAnalysis(BaseModel):
