@@ -38,6 +38,12 @@
       
       const marker = document.createElement("div");
       marker.className = "pp-timeline-marker";
+      marker.setAttribute("role", "button");
+      marker.setAttribute("tabindex", "0");
+      const claimCount = cluster.claims.length;
+      const firstClaim = cluster.claims[0];
+      const timestampStr = firstClaim ? (firstClaim.timestamp || "0:00") : "0:00";
+      marker.setAttribute("aria-label", `Timeline marker: ${claimCount} claim${claimCount === 1 ? "" : "s"} at ${timestampStr}`);
       
       const colorClass = SEVERITY_CLASS_MAP[cluster.severity] || "pp-marker-green";
       marker.classList.add(colorClass);
@@ -45,8 +51,7 @@
       marker.dataset.timestamp = cluster.timestampSeconds;
       marker.dataset.severity = cluster.severity;
 
-      // Add click event listener to seek and highlight
-      marker.addEventListener("click", (e) => {
+      const seekAndHighlight = (e) => {
         e.stopPropagation(); // Avoid triggering progress bar clicks
         
         const video = document.querySelector("#movie_player-video") || document.querySelector("video");
@@ -61,6 +66,17 @@
             timestampSeconds: cluster.timestampSeconds,
             claims: cluster.claims
           });
+        }
+      };
+
+      // Add click event listener to seek and highlight
+      marker.addEventListener("click", seekAndHighlight);
+
+      // Add keyboard handler for Enter and Space
+      marker.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          seekAndHighlight(e);
         }
       });
 

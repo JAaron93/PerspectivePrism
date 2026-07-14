@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, buildMockResult } from "./fixtures";
 
 test.describe("Full Analysis Flow", () => {
   test("should perform a full analysis flow with polling", async ({
@@ -39,35 +39,7 @@ test.describe("Full Analysis Flow", () => {
           body: JSON.stringify({
             job_id: "test-job-polling",
             status: "completed",
-            result: {
-              video_id: "dQw4w9WgXcQ",
-              metadata: { analyzed_at: new Date().toISOString() },
-              claims: [
-                {
-                  claim_text: "This is a test claim.",
-                  timestamp: "00:00",
-                  video_timestamp_start: 0,
-                  video_timestamp_end: 5,
-                  truth_profile: {
-                    overall_assessment: "Likely True",
-                    perspectives: {
-                      Scientific: {
-                        perspective: "Scientific",
-                        stance: "Support",
-                        confidence: 0.9,
-                        explanation: "Confirmed by science.",
-                        evidence: []
-                      }
-                    },
-                    bias_indicators: {
-                      logical_fallacies: [],
-                      emotional_manipulation: [],
-                      deception_score: 0
-                    }
-                  }
-                }
-              ]
-            },
+            result: buildMockResult("dQw4w9WgXcQ", "This is a test claim.", "Scientific"),
           }),
         });
       }

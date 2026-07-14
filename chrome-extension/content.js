@@ -1573,8 +1573,10 @@ function showResults(data, isCached = false) {
   if (data && data.claims && typeof window.clusterClaims === "function" && typeof window.renderTimelineMarkers === "function") {
     const video = document.querySelector("#movie_player-video") || document.querySelector("video");
     const duration = video ? video.duration : 0;
-    const clusters = window.clusterClaims(data.claims, duration);
-    window.renderTimelineMarkers(clusters, duration);
+    if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+      const clusters = window.clusterClaims(data.claims, duration);
+      window.renderTimelineMarkers(clusters, duration);
+    }
   }
 
   const panel = document.createElement("div");

@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Multiple Videos Analyzed in Sequence", () => {
   test("should handle analyzing multiple videos in sequence with correct cache behavior", async ({
@@ -52,35 +52,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-a",
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Claim from Video A",
-                timestamp: "00:00",
-                video_timestamp_start: 0,
-                video_timestamp_end: 5,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {
-                    Scientific: {
-                      perspective: "Scientific",
-                      stance: "Support",
-                      confidence: 0.9,
-                      explanation: "Analysis for video A",
-                      evidence: []
-                    }
-                  },
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
-                  },
-                },
-              },
-            ],
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Claim from Video A", "Scientific"),
         }),
       });
     });
@@ -92,35 +64,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-b",
           status: "completed",
-          result: {
-            video_id: "jNQXAC9IVRw",
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Claim from Video B",
-                timestamp: "00:00",
-                video_timestamp_start: 0,
-                video_timestamp_end: 5,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {
-                    Journalistic: {
-                      perspective: "Journalistic",
-                      stance: "Support",
-                      confidence: 0.9,
-                      explanation: "Analysis for video B",
-                      evidence: []
-                    }
-                  },
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
-                  },
-                },
-              },
-            ],
-          },
+          result: buildMockResult("jNQXAC9IVRw", "Claim from Video B", "Journalistic"),
         }),
       });
     });
@@ -132,35 +76,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-c",
           status: "completed",
-          result: {
-            video_id: "9bZkp7q19f0",
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Claim from Video C",
-                timestamp: "00:00",
-                video_timestamp_start: 0,
-                video_timestamp_end: 5,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {
-                    "Partisan Left": {
-                      perspective: "Partisan Left",
-                      stance: "Support",
-                      confidence: 0.9,
-                      explanation: "Analysis for video C",
-                      evidence: []
-                    }
-                  },
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
-                  },
-                },
-              },
-            ],
-          },
+          result: buildMockResult("9bZkp7q19f0", "Claim from Video C", "Partisan Left"),
         }),
       });
     });
@@ -244,8 +160,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     console.log("Step 5: Checking cache statistics");
     
     // Get cache stats from background storage
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
+    const background = await getBackgroundWorker(context);
     const cacheStats = await background.evaluate(async () => {
       return new Promise((resolve) => {
         chrome.storage.local.get(null, (items) => {
@@ -288,27 +203,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Test Claim",
-                timestamp: "00:00",
-                video_timestamp_start: 0,
-                video_timestamp_end: 5,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {},
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
-                  },
-                },
-              },
-            ],
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Test Claim"),
         }),
       });
     });

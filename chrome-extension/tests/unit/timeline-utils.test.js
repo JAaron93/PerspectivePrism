@@ -26,6 +26,8 @@ describe("Timeline Utilities", () => {
   describe("clusterClaims", () => {
     it("should group claims chronologically within inclusive 5-second threshold", () => {
       const claims = [
+        { claim_text: "Claim at 0:00", timestamp: "0:00", truth_profile: { overall_assessment: "Likely True", perspectives: {}, bias_indicators: { deception_score: 0.1 } } },
+        { claim_text: "Claim at 0:05", timestamp: "0:05", truth_profile: { overall_assessment: "Likely True", perspectives: {}, bias_indicators: { deception_score: 0.1 } } },
         { claim_text: "Claim 1", timestamp: "1:00", truth_profile: { overall_assessment: "Likely True", perspectives: {}, bias_indicators: { deception_score: 0.1 } } },
         { claim_text: "Claim 2", timestamp: "1:02", truth_profile: { overall_assessment: "Mixed", perspectives: {}, bias_indicators: { deception_score: 0.5 } } },
         { claim_text: "Claim 3", timestamp: "1:04", truth_profile: { overall_assessment: "Likely False", perspectives: {}, bias_indicators: { deception_score: 0.8 } } },
@@ -35,18 +37,24 @@ describe("Timeline Utilities", () => {
       // Video duration = 100 seconds
       const clusters = clusterClaims(claims, 100);
 
-      expect(clusters).toHaveLength(2);
+      expect(clusters).toHaveLength(3);
       
-      // First cluster: Claim 1, 2, 3 clustered at 60s
-      expect(clusters[0].timestampSeconds).toBe(60);
-      expect(clusters[0].claims).toHaveLength(3);
-      // Aggregated severity: Likely False > Mixed > Likely True
-      expect(clusters[0].severity).toBe("Likely False");
+      // Boundary-case: claims at 0:00 and 0:05 grouped into one cluster
+      expect(clusters[0].timestampSeconds).toBe(0);
+      expect(clusters[0].claims).toHaveLength(2);
+      expect(clusters[0].claims[0].claim_text).toBe("Claim at 0:00");
+      expect(clusters[0].claims[1].claim_text).toBe("Claim at 0:05");
 
-      // Second cluster: Claim 4 at 75s
-      expect(clusters[1].timestampSeconds).toBe(75);
-      expect(clusters[1].claims).toHaveLength(1);
-      expect(clusters[1].severity).toBe("Likely True");
+      // First cluster (second chronologically): Claim 1, 2, 3 clustered at 60s
+      expect(clusters[1].timestampSeconds).toBe(60);
+      expect(clusters[1].claims).toHaveLength(3);
+      // Aggregated severity: Likely False > Mixed > Likely True
+      expect(clusters[1].severity).toBe("Likely False");
+
+      // Second cluster (third chronologically): Claim 4 at 75s
+      expect(clusters[2].timestampSeconds).toBe(75);
+      expect(clusters[2].claims).toHaveLength(1);
+      expect(clusters[2].severity).toBe("Likely True");
     });
 
     it("should preserve transitive grouping (chained claims)", () => {

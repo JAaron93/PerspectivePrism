@@ -27,8 +27,7 @@ export const test = base.extend({
     });
 
     // Wait for service worker and pre-configure storage
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
+    const background = await getBackgroundWorker(context);
     
     // Capture console messages from service worker
     background.on("console", (msg) => {
@@ -49,12 +48,53 @@ export const test = base.extend({
   },
   extensionId: async ({ context }, use) => {
     // Wait for extension to load
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
+    const background = await getBackgroundWorker(context);
 
     const extensionId = background.url().split("/")[2];
     await use(extensionId);
   },
 });
+
+export async function getBackgroundWorker(context) {
+  let [background] = context.serviceWorkers();
+  if (!background) background = await context.waitForEvent("serviceworker");
+  return background;
+}
+
+export function buildMockResult(videoId, claimText, perspectiveKey = null) {
+  const perspectives = {};
+  if (perspectiveKey) {
+    perspectives[perspectiveKey] = {
+      perspective: perspectiveKey,
+      stance: "Support",
+      confidence: 0.9,
+      explanation: perspectiveKey === "Scientific" && claimText === "This is a test claim." 
+        ? "Confirmed by science." 
+        : `Analysis for ${videoId}`,
+      evidence: []
+    };
+  }
+  return {
+    video_id: videoId,
+    metadata: { analyzed_at: new Date().toISOString() },
+    claims: [
+      {
+        claim_text: claimText,
+        timestamp: "00:00",
+        video_timestamp_start: 0,
+        video_timestamp_end: 5,
+        truth_profile: {
+          overall_assessment: "Likely True",
+          perspectives,
+          bias_indicators: {
+            logical_fallacies: [],
+            emotional_manipulation: [],
+            deception_score: 0,
+          },
+        },
+      },
+    ],
+  };
+}
 
 export const expect = base.expect;

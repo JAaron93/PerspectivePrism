@@ -4,6 +4,7 @@ import { renderTimelineMarkers } from "../../content-markers.js"; // We'll imple
 describe("Timeline Marker DOM Injection", () => {
   let progressList;
   let videoElement;
+  let originalChrome;
 
   beforeEach(() => {
     // Set up a mock DOM environment
@@ -15,6 +16,7 @@ describe("Timeline Marker DOM Injection", () => {
     videoElement = document.querySelector("#movie_player-video");
     
     // Mock chrome extension APIs
+    originalChrome = global.chrome;
     global.chrome = {
       runtime: {
         sendMessage: vi.fn()
@@ -25,6 +27,7 @@ describe("Timeline Marker DOM Injection", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     vi.restoreAllMocks();
+    global.chrome = originalChrome;
   });
 
   it("should inject div markers into .ytp-progress-list with correct styles and classes", () => {
