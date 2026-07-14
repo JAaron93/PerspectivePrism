@@ -16,7 +16,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     // Mock backend API for video A (dQw4w9WgXcQ)
     await context.route("**/analyze/jobs", async (route) => {
       const requestBody = route.request().postDataJSON();
-      const videoUrl = requestBody?.url || requestBody?.video_url || "";
+      const videoUrl = requestBody?.url ?? "";
 
       if (videoUrl.includes("dQw4w9WgXcQ")) {
         apiCalls.videoA++;

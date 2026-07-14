@@ -283,3 +283,6 @@ html[dark] .pp-ext-button.pp-state-error:focus-visible {
   background-color: #8a130f; /* Dark Red (Suspicious/Deceptive) */
 }
 
+.pp-marker-neutral {
+  background-color: #808080; /* Grey (Unknown/Unrecognized severity) */
+}

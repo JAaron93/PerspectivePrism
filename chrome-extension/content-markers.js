@@ -28,7 +28,7 @@ export function renderTimelineMarkers(clusters, duration) {
   const existingMarkers = progressList.querySelectorAll(".pp-timeline-marker");
   existingMarkers.forEach(marker => marker.remove());
 
-  if (typeof duration !== "number" || duration <= 0) {
+  if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
     return;
   }
 
@@ -44,7 +44,7 @@ export function renderTimelineMarkers(clusters, duration) {
     const timestampStr = firstClaim ? (firstClaim.timestamp || "0:00") : "0:00";
     marker.setAttribute("aria-label", `Timeline marker: ${claimCount} claim${claimCount === 1 ? "" : "s"} at ${timestampStr}`);
     
-    const colorClass = SEVERITY_CLASS_MAP[cluster.severity] || "pp-marker-green";
+    const colorClass = SEVERITY_CLASS_MAP[cluster.severity] || "pp-marker-neutral";
     marker.classList.add(colorClass);
     marker.style.left = `${percentage}%`;
     marker.dataset.timestamp = cluster.timestampSeconds;

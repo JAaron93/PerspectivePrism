@@ -131,5 +131,83 @@ describe("Timeline Marker DOM Injection", () => {
 
     renderTimelineMarkers(clusters, null);
     expect(progressList.querySelectorAll(".pp-timeline-marker")).toHaveLength(0);
+
+    renderTimelineMarkers(clusters, Infinity);
+    expect(progressList.querySelectorAll(".pp-timeline-marker")).toHaveLength(0);
+
+    renderTimelineMarkers(clusters, NaN);
+    expect(progressList.querySelectorAll(".pp-timeline-marker")).toHaveLength(0);
+  });
+
+  it("should fall back to pp-marker-neutral for unknown severity", () => {
+    const clusters = [{
+      timestampSeconds: 30,
+      severity: "UnknownSeverity",
+      claims: [{ claim_text: "Claim Text", timestamp: "0:30" }]
+    }];
+
+    renderTimelineMarkers(clusters, 100);
+    const marker = progressList.querySelector(".pp-timeline-marker");
+    expect(marker.classList.contains("pp-marker-neutral")).toBe(true);
+  });
+
+  it("should seek and dispatch a message on Enter keypress", () => {
+    const clusters = [{
+      timestampSeconds: 45,
+      severity: "Mixed",
+      claims: [{ claim_text: "Claim Text", timestamp: "0:45" }]
+    }];
+
+    renderTimelineMarkers(clusters, 100);
+    const marker = progressList.querySelector(".pp-timeline-marker");
+
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    marker.dispatchEvent(event);
+
+    expect(videoElement.currentTime).toBe(45);
+    expect(global.chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "HIGHLIGHT_CLAIMS", timestampSeconds: 45 })
+    );
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+
+  it("should seek and dispatch a message on Space keypress", () => {
+    const clusters = [{
+      timestampSeconds: 60,
+      severity: "Likely True",
+      claims: [{ claim_text: "Another Claim", timestamp: "1:00" }]
+    }];
+
+    renderTimelineMarkers(clusters, 120);
+    const marker = progressList.querySelector(".pp-timeline-marker");
+
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    marker.dispatchEvent(event);
+
+    expect(videoElement.currentTime).toBe(60);
+    expect(global.chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "HIGHLIGHT_CLAIMS", timestampSeconds: 60 })
+    );
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+
+  it("should not call seekAndHighlight for non-Enter/Space keys", () => {
+    const clusters = [{
+      timestampSeconds: 45,
+      severity: "Mixed",
+      claims: [{ claim_text: "Claim Text", timestamp: "0:45" }]
+    }];
+
+    renderTimelineMarkers(clusters, 100);
+    const marker = progressList.querySelector(".pp-timeline-marker");
+    const initialTime = videoElement.currentTime;
+
+    marker.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    marker.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(videoElement.currentTime).toBe(initialTime);
+    expect(global.chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });
 });

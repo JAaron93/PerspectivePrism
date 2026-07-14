@@ -68,9 +68,7 @@ export function buildMockResult(videoId, claimText, perspectiveKey = null) {
       perspective: perspectiveKey,
       stance: "Support",
       confidence: 0.9,
-      explanation: perspectiveKey === "Scientific" && claimText === "This is a test claim." 
-        ? "Confirmed by science." 
-        : `Analysis for ${videoId}`,
+      explanation: `Analysis for ${videoId}`,
       evidence: []
     };
   }
