@@ -56,12 +56,15 @@ test.describe("Playback Synchronization Integration Flow", () => {
     };
 
     await context.route("**/analyze/jobs/job-sync-1", async (route) => {
+      const responseBody = {
+        status: "completed",
+        result: mockResult
+      };
+      console.log("[TEST MOCK LOG] Fulfilling job-sync-1 with:", JSON.stringify(responseBody));
       await route.fulfill({
         status: 200,
-        body: JSON.stringify({
-          status: "completed",
-          result: mockResult
-        })
+        contentType: "application/json",
+        body: JSON.stringify(responseBody)
       });
     });
 
