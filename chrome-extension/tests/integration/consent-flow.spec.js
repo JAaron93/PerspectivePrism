@@ -1,4 +1,4 @@
-import { test, expect, getBackgroundWorker } from "./fixtures";
+import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Consent Flow", () => {
   test.beforeEach(async ({ context }) => {

@@ -189,13 +189,21 @@ test.describe("Rapid Navigation Between Videos", () => {
       }
     });
 
+    // Navigate to first video initially
+    await page.goto(
+      `chrome-extension://${extensionId}/tests/fixtures/youtube-mock.html?v=${videos[0]}`,
+    );
+    await page.waitForTimeout(500); // Allow content script to initialize
+
     const startTime = Date.now();
 
-    // Rapidly navigate through all videos
-    for (const videoId of videos) {
-      await page.goto(
-        `chrome-extension://${extensionId}/tests/fixtures/youtube-mock.html?v=${videoId}`,
-      );
+    // Rapidly navigate through all videos using SPA events
+    for (let i = 1; i < videos.length; i++) {
+      const videoId = videos[i];
+      await page.evaluate((vid) => {
+        history.replaceState(null, "", `?v=${vid}`);
+        document.dispatchEvent(new CustomEvent("yt-navigate-finish"));
+      }, videoId);
       await page.waitForTimeout(50); // Very rapid navigation
     }
 

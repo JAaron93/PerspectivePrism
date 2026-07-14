@@ -59,7 +59,7 @@ test.describe("SPA Navigation Cleanup & Resilience", () => {
       
       const video = document.createElement("video");
       video.id = "movie_player-video";
-      video.duration = 100;
+      Object.defineProperty(video, "duration", { value: 100, writable: true });
       player.appendChild(video);
     });
 

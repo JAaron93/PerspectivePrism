@@ -2202,7 +2202,24 @@ function cleanup() {
   }
 }
 
-function handleNavigation() {
+let navigationTimer = null;
+
+function handleNavigation(immediate = false) {
+  if (navigationTimer) {
+    clearTimeout(navigationTimer);
+    navigationTimer = null;
+  }
+
+  if (immediate) {
+    performNavigation();
+  } else {
+    navigationTimer = setTimeout(() => {
+      performNavigation();
+    }, 500);
+  }
+}
+
+function performNavigation() {
   // If we are currently cleaning up, skip (or queue?)
   if (isCleaningUp) {
     logger.debug("Navigation skipped due to cleanup in progress.");
