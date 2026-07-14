@@ -36,6 +36,14 @@ const createChromeMock = () => {
       create: vi.fn(),
       query: vi.fn(),
       sendMessage: vi.fn(),
+      onActivated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onUpdated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
     },
     alarms: {
       create: vi.fn(),
@@ -154,6 +162,9 @@ beforeEach(() => {
     }
     return Promise.resolve(tabs);
   });
+
+  chrome.tabs.onActivated.addListener.mockImplementation(() => {});
+  chrome.tabs.onUpdated.addListener.mockImplementation(() => {});
 
   // Re-apply mock implementations for chrome.alarms
   chrome.alarms.create.mockImplementation(() => {});
