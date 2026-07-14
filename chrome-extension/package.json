@@ -7,7 +7,7 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:coverage": "vitest --run --coverage",
-    "test:integration": "playwright test tests/integration",
+    "test:integration": "playwright test tests/integration --config tests/integration/playwright.config.js",
     "lint": "eslint .",
     "build": "node build.js"
   },

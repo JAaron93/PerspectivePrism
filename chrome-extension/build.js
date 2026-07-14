@@ -117,9 +117,10 @@ async function runBuild() {
       const input = fs.readFileSync(srcPath, 'utf8');
       
       // Terser minification options
+      const isClassicScript = file.endsWith('-script.js') || ['consent.js', 'claim-navigator.js', 'content.js'].includes(file);
       const options = {
         ecma: 2022,
-        module: true,
+        module: !isClassicScript,
         compress: {
           // Remove console.log but keep console.error, console.warn, and console.info
           pure_funcs: ['console.log']

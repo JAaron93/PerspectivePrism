@@ -67,9 +67,7 @@ Chrome Web Store requires strict justifications for permissions requested in `ma
 
 1. **`storage`**
    - *Justification*: Required to persist extension configurations (sync) and cache video analysis results locally (local) to avoid redundant API requests.
-2. **`activeTab`**
-   - *Justification*: Required to inject the "Analyze Video" button and the side panel UI safely into the currently active YouTube page when a user navigates to it, minimizing host permission exposure.
-3. **`alarms`**
+2. **`alarms`**
    - *Justification*: Required to persist retry scheduling across Background Service Worker unloads. If a network request is interrupted by service worker termination, the alarm wakes up the service worker to resume the job.
-4. **`notifications`**
+3. **`notifications`**
    - *Justification*: Required to display error or status alerts to the user when the backend is unreachable or when settings require manual configuration.

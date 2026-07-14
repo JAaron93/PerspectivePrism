@@ -17,6 +17,9 @@ try {
   if (manifest.version !== '0.2.0') {
     throw new Error(`Manifest version should be 0.2.0, but found ${manifest.version}`);
   }
+  if (manifest.manifest_version !== 3) {
+    throw new Error(`Manifest version must be 3, found ${manifest.manifest_version}`);
+  }
 
   // 2. Check essential permissions
   const requiredPermissions = ['storage', 'activeTab', 'alarms', 'notifications'];
@@ -39,7 +42,24 @@ try {
     }
   }
 
-  // 4. Validate file existence for all script files in manifest
+  // 4. Validate content scripts order
+  if (manifest.content_scripts && manifest.content_scripts.length > 0) {
+    const expectedOrder = [
+      'logging-utils-script.js',
+      'config-script.js',
+      'consent.js',
+      'claim-navigator.js',
+      'content.js'
+    ];
+    const jsFiles = manifest.content_scripts[0].js || [];
+    const actualOrder = jsFiles.filter(f => expectedOrder.includes(f));
+    
+    if (JSON.stringify(actualOrder) !== JSON.stringify(expectedOrder)) {
+      throw new Error(`Content scripts are not in the exact required sequence.\nExpected: ${expectedOrder.join(', ')}\nFound: ${actualOrder.join(', ')}`);
+    }
+  }
+
+  // 5. Validate file existence for all script files in manifest
   const extRoot = path.join(__dirname, '..');
   
   if (manifest.background && manifest.background.service_worker) {

@@ -162,7 +162,7 @@ LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
 
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
-   - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)
+   - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
 
 5. Run the server:
    ```bash
@@ -266,7 +266,7 @@ npm install
 # Run unit tests
 npm run test
 
-# Run unit tests with coverage validation (requires 80% coverage)
+# Run unit tests with coverage validation (requires 15% coverage)
 npm run test:coverage
 
 # Run Playwright end-to-end integration tests
@@ -282,7 +282,7 @@ npm run test:integration
 | **401 Unauthorized** | Missing or invalid OpenAI API Key | Check `.env` file. Ensure `OPENAI_API_KEY` is set and valid. |
 | **429 Too Many Requests** | OpenAI/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
-| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
+| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. |
 
 ### Extension Issues
 

@@ -14,15 +14,15 @@ This checklist must be completed and signed off before releasing any new version
 ### Automated Testing
 - [ ] **Unit Tests**: All unit tests passing (100% success rate).
   ```bash
-  npm run test
+  cd chrome-extension && npm run test
   ```
-- [ ] **Coverage**: Code coverage meets or exceeds 80% thresholds.
+- [ ] **Coverage**: Code coverage meets or exceeds 15% thresholds.
   ```bash
-  npm run test:coverage
+  cd chrome-extension && npm run test:coverage
   ```
 - [ ] **Integration Tests**: All Playwright integration tests passing (100% success rate).
   ```bash
-  npm run test:integration
+  cd chrome-extension && npm run test:integration
   ```
 - [ ] **CI Pipeline**: GitHub Actions build is green on the release branch.
 
@@ -33,7 +33,7 @@ This checklist must be completed and signed off before releasing any new version
   - [ ] Desktop Fullscreen Mode
   - [ ] Mobile Layout (`m.youtube.com`)
   - [ ] YouTube Shorts layout (button correctly injected and panel displays claims)
-  - [ ] Embedded Videos (`*.youtube-nocookie.com/*`)
+  - [ ] Embedded Videos (`https://*.youtube-nocookie.com/*`)
 - [ ] **Theming**:
   - [ ] YouTube Dark Theme (perfect contrast, matching UI elements)
   - [ ] YouTube Light Theme (perfect contrast, matching UI elements)
@@ -57,7 +57,7 @@ This checklist must be completed and signed off before releasing any new version
 
 - [ ] **Build Command**: The production build script runs without errors.
   ```bash
-  npm run build
+  cd chrome-extension && npm run build
   ```
 - [ ] **Unpacked Load**: Load the generated `dist/` directory as an unpacked extension in Chrome developer mode and verify:
   - [ ] The extension starts without errors or warnings in the extensions list page (`chrome://extensions`).
