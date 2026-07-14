@@ -120,6 +120,8 @@ test.describe("Playback Synchronization Integration Flow", () => {
     await expect(cards.nth(1)).not.toHaveClass(/pp-claim-active/);
 
     // Case 2: currentTime = 15 (between first and second claim) -> highlight Claim 1
+    // Wait 300ms to allow throttle to reset
+    await page.waitForTimeout(300);
     await page.evaluate(() => {
       const video = document.querySelector("video");
       video.currentTime = 15;
@@ -131,6 +133,8 @@ test.describe("Playback Synchronization Integration Flow", () => {
     await expect(cards.nth(1)).not.toHaveClass(/pp-claim-active/);
 
     // Case 3: currentTime = 45 (after final claim at 30s) -> highlight Claim 2 (final claim remains highlighted)
+    // Wait 300ms to allow throttle to reset
+    await page.waitForTimeout(300);
     await page.evaluate(() => {
       const video = document.querySelector("video");
       video.currentTime = 45;
