@@ -1,5 +1,7 @@
 # Perspective Prism
 
+[![Chrome Extension CI](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml/badge.svg)](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml)
+
 An advanced AI agent that processes YouTube video transcripts to analyze claims across multiple perspectives, detect bias and potential deception, and output a rich "truth profile" per claim.
 
 ![Perspective Prism Banner](assets/perspective-prism-16-9.png)
@@ -199,33 +201,52 @@ LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
 
 ### Chrome Extension
 
-1. **Load the Extension**:
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable **Developer mode** (top right toggle).
-   - Click **Load unpacked** and select the `chrome-extension` directory.
+#### Development Setup (Unpacked)
+1. Install extension development dependencies:
+   ```bash
+   cd chrome-extension
+   npm install
+   ```
+2. Load the unpacked extension in Chrome:
+   - Open Google Chrome and navigate to `chrome://extensions/`.
+   - Enable **Developer mode** via the toggle switch in the top-right corner.
+   - Click the **Load unpacked** button.
+   - Select the `chrome-extension` directory from this repository.
 
-2. **Configure Backend CORS**:
-   - Note the **ID** of the loaded extension (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
-   - Open `backend/app/core/config.py`.
-   - Add your extension ID to the `CHROME_EXTENSION_IDS` list:
-     ```python
-     CHROME_EXTENSION_IDS: list[str] = [
-         "your-extension-id-here",
-     ]
-     ```
-   - **Restart the backend server** for changes to take effect.
+#### Production Build & Packaging
+For distribution or release testing, compile and package the extension:
+1. Run the build script:
+   ```bash
+   cd chrome-extension
+   npm run build
+   ```
+   This script minifies JavaScript (removing development `console.log` statements) and CSS files, creates a production-ready `dist/` directory, and bundles it into `perspective-prism-extension.zip`.
+2. Load the production build:
+   - Navigate to `chrome://extensions/`.
+   - Click **Load unpacked** and select the `chrome-extension/dist` directory.
 
-3. **Verify Connection**:
-   - Navigate to a YouTube video.
-   - Click the "Analyze Claims" button.
-   - If you see a connection error, ensure the backend is running and the extension ID is correct.
+#### Backend CORS Integration
+To allow the extension to communicate with your local Perspective Prism Backend:
+1. Load the extension in Chrome and note its **Extension ID** (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
+2. Open `backend/app/core/config.py`.
+3. Add the Extension ID to the `CHROME_EXTENSION_IDS` list:
+   ```python
+   CHROME_EXTENSION_IDS: list[str] = [
+       "your-extension-id-here",
+   ]
+   ```
+4. **Restart the backend server** to apply the configuration.
+
+#### Configuration Options
+Access settings by right-clicking the extension icon and selecting **Options**:
+- **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
+- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 24 hours).
+- **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
 
 ## 🧪 Testing
 
-The backend includes a comprehensive test suite, particularly for the security components.
-
-To run the tests:
-
+### Backend Tests
+To run the backend test suite:
 ```bash
 cd backend
 # Run all tests
@@ -233,6 +254,23 @@ pytest
 
 # Run specific reliability tests
 pytest tests/test_reliability.py
+```
+
+### Chrome Extension Tests
+The Chrome Extension has unit tests using Vitest and integration tests using Playwright.
+```bash
+cd chrome-extension
+# Install testing dependencies
+npm install
+
+# Run unit tests
+npm run test
+
+# Run unit tests with coverage validation (requires 80% coverage)
+npm run test:coverage
+
+# Run Playwright end-to-end integration tests
+npm run test:integration
 ```
 
 ## 🔧 Extended Troubleshooting
@@ -261,15 +299,21 @@ pytest tests/test_reliability.py
 2. **Reload Extension**: Click the refresh icon in `chrome://extensions/` after code changes.
 3. **Clear Cache**: If the frontend behaves oddly, try Hard Reload (Cmd+Shift+R).
 
-## 🔒 Security
+## 🔒 Privacy & Security
 
+### Backend Input Sanitization
 This project implements strict input sanitization to protect against Large Language Model (LLM) prompt injection attacks.
-
 - **Pattern Matching**: Blocks known injection patterns (e.g., "Ignore previous instructions").
 - **Delimiters**: Uses strict delimiters to separate user data from system instructions.
 - **Validation**: Enforces length limits and character whitelisting.
 
 See `backend/app/utils/input_sanitizer.py` for implementation details.
+
+### Extension Data Handling
+- **Minimal Transmission**: The extension only transmits the 11-character YouTube Video ID to the backend for claim extraction. Full URLs, queries, titles, PII, and browsing history are never transmitted.
+- **Strict HTTPS**: All communications with external backends enforce HTTPS encryption. Cleartext HTTP is restricted to localhost (`127.0.0.1` and `localhost`).
+- **Local Storage**: Analysis cache, settings, and statistics are stored locally within the browser context (`chrome.storage.local` and `chrome.storage.sync`).
+- **No Third-Party Scripts**: The extension is self-contained and does not load third-party scripts, trackers, or analytics packages.
 
 ## 📁 Project Structure
 

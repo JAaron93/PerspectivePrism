@@ -1,0 +1,54 @@
+name: Chrome Extension CI
+
+on:
+  push:
+    branches: [ main, implement-youtube-ux-track4 ]
+    paths:
+      - 'chrome-extension/**'
+      - '.github/workflows/chrome-extension.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'chrome-extension/**'
+      - '.github/workflows/chrome-extension.yml'
+
+jobs:
+  test-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'chrome-extension/package-lock.json'
+
+    - name: Install dependencies
+      run: |
+        cd chrome-extension
+        npm ci
+
+    - name: Run ESLint
+      run: |
+        cd chrome-extension
+        npm run lint
+
+    - name: Run Tests with Coverage
+      run: |
+        cd chrome-extension
+        npm run test:coverage
+
+    - name: Validate manifest.json
+      run: |
+        cd chrome-extension
+        node scripts/check-manifest.js
+
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: chrome-extension/coverage/
