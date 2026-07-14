@@ -340,8 +340,14 @@ async function checkCurrentTabState() {
     }
 
     const tab = tabs[0];
-    currentTabId = tab.id;
     const videoId = extractVideoIdFromUrl(tab.url || "");
+    
+    if (tab.id !== currentTabId || videoId !== currentVideoId) {
+      currentGenerationId = null;
+      lastSequence = -1;
+    }
+    
+    currentTabId = tab.id;
 
     if (!videoId) {
       currentVideoId = null;

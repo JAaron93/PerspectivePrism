@@ -32,7 +32,9 @@ describe("Playback Synchronization Engine", () => {
       tabs: {
         ...originalChrome.tabs,
         query: vi.fn(),
-        sendMessage: vi.fn()
+        sendMessage: vi.fn(),
+        onActivated: { addListener: vi.fn() },
+        onUpdated: { addListener: vi.fn() }
       }
     };
 
@@ -184,6 +186,27 @@ describe("Playback Synchronization Engine", () => {
       expect(syncMsgs.length).toBe(2);
       expect(syncMsgs[0].sequence).toBe(1);
       expect(syncMsgs[1].sequence).toBe(2);
+
+      // DOM video element replacement regression test:
+      // Replace the video element with a new node that retains the same id and URL
+      const video2 = document.createElement("video");
+      video2.id = "movie_player-video";
+      video2.src = "test.mp4";
+      video.replaceWith(video2);
+
+      // Advance timers by 1000ms to trigger handleNavigation polling check in content.js
+      vi.advanceTimersByTime(1000);
+
+      // Advance timers by 251ms to allow throttled handler on new video element to fire
+      vi.advanceTimersByTime(251);
+      video2.dispatchEvent(new Event("timeupdate"));
+
+      const syncMsgsAfterReplacement = sendMessageSpy.mock.calls
+        .map(c => c[0])
+        .filter(msg => msg.type === "SYNC_PLAYBACK");
+
+      expect(syncMsgsAfterReplacement.length).toBe(3);
+      expect(syncMsgsAfterReplacement[2].sequence).toBe(3);
     });
   });
 
@@ -224,8 +247,13 @@ describe("Playback Synchronization Engine", () => {
 
   describe("Side Panel - Synchronization & Active Claim Boundaries", () => {
     let messageListener;
+    let onActivatedListener;
 
     beforeEach(async () => {
+      chrome.tabs.onActivated.addListener.mockImplementation((listener) => {
+        onActivatedListener = listener;
+      });
+
       global.chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
         messageListener = listener;
       });
@@ -351,6 +379,49 @@ describe("Playback Synchronization Engine", () => {
       expect(cards[0].classList.contains("pp-claim-active")).toBe(false);
       expect(cards[1].classList.contains("pp-claim-active")).toBe(false);
       expect(cards[2].classList.contains("pp-claim-active")).toBe(true);
+    });
+
+    it("should accept lower sequence on tab switch with colliding generation ID", async () => {
+      // Send first message from Tab A (ID 123) with generation 1, sequence 5
+      messageListener({
+        type: "SYNC_PLAYBACK",
+        videoId: "abcdefghijk",
+        tabId: 123,
+        generationId: 1,
+        sequence: 5,
+        currentTime: 15
+      }, {}, () => {});
+
+      const cards = document.querySelectorAll(".claim-card");
+      expect(cards[0].classList.contains("pp-claim-active")).toBe(true);
+
+      // Reset card highlights for assertion
+      cards.forEach(c => c.classList.remove("pp-claim-active"));
+
+      // Change mocked active tab to Tab B (ID 456)
+      chrome.tabs.query.mockImplementation((queryInfo, callback) => {
+        const tabs = [{ id: 456, url: "https://www.youtube.com/watch?v=abcdefghijk" }];
+        if (callback) callback(tabs);
+        return Promise.resolve(tabs);
+      });
+
+      // Simulate tab switch/activation
+      if (onActivatedListener) {
+        await onActivatedListener();
+      }
+
+      // Send message from Tab B (ID 456) with generation 1, sequence 1 (lower sequence)
+      messageListener({
+        type: "SYNC_PLAYBACK",
+        videoId: "abcdefghijk",
+        tabId: 456,
+        generationId: 1,
+        sequence: 1,
+        currentTime: 15
+      }, {}, () => {});
+
+      // Assert it is accepted since the sequence state was reset
+      expect(cards[0].classList.contains("pp-claim-active")).toBe(true);
     });
   });
 });

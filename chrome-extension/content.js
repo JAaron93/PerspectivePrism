@@ -2189,7 +2189,6 @@ function setupVideoSync(video, videoId, generationId) {
   }
   
   activeVideoElement = video;
-  playbackSequence = 0;
   
   const onTimeUpdate = () => {
     playbackSequence++;
@@ -2371,7 +2370,7 @@ function performNavigation() {
       setupObservers();
     }
     const video = document.querySelector("#movie_player-video") || document.querySelector("video");
-    if (video && !activeVideoElement) {
+    if (video && video !== activeVideoElement) {
       setupVideoSync(video, currentVideoId, navigationGeneration);
     }
   }
