@@ -1,19 +1,25 @@
 {
   "name": "perspective-prism-chrome-extension",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Chrome extension for analyzing YouTube videos with Perspective Prism",
   "type": "module",
   "scripts": {
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:coverage": "vitest --run --coverage",
-    "test:integration": "playwright test -c tests/integration/playwright.config.js"
+    "test:integration": "playwright test -c tests/integration/playwright.config.js",
+    "lint": "eslint .",
+    "build": "node build.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "archiver": "^7.0.1",
+    "clean-css": "^5.3.3",
+    "eslint": "^9.16.0",
     "jsdom": "^27.0.1",
     "playwright": "^1.57.0",
+    "terser": "^5.37.0",
     "vitest": "^4.1.10"
   }
 }

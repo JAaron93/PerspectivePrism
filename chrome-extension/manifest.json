@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Perspective Prism - YouTube Analyzer",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Analyze YouTube videos for claims and perspectives",
   "permissions": ["storage", "activeTab", "alarms", "notifications", "sidePanel", "tabs"],
   "host_permissions": [
