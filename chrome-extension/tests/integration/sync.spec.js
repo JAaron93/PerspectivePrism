@@ -95,6 +95,9 @@ test.describe("Playback Synchronization Integration Flow", () => {
     const sidePanelPage = await context.newPage();
     await sidePanelPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
 
+    // Bring the YouTube page back to the front so it becomes the active tab
+    await page.bringToFront();
+
     // Verify it loads results (reaches complete status)
     const stateResults = sidePanelPage.locator("#state-results");
     await expect(stateResults).toBeVisible({ timeout: 10000 });
