@@ -220,6 +220,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "SAVE_TO_CACHE":
       return handleAsync(handleSaveToCache(message));
     
+    case "SYNC_PLAYBACK":
+    case "HIGHLIGHT_CLAIMS":
+      if (sender.tab && sender.tab.id) {
+        chrome.runtime.sendMessage({
+          ...message,
+          tabId: sender.tab.id
+        }).catch(() => {});
+      }
+      return false;
+
     // Sync handlers
     case "OPEN_PRIVACY_POLICY":
       chrome.tabs.create({ url: chrome.runtime.getURL("privacy.html") });

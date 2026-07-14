@@ -1,8 +1,12 @@
 // sidepanel.js - Perspective Prism Side Panel
 import { logger } from "./logging-utils.js";
 import { extractVideoIdFromUrl } from "./video-utils.js";
+import { parseTimestampToSeconds } from "./timeline-utils.js";
 
 let currentVideoId = null;
+let currentTabId = null;
+let lastSequence = -1;
+let currentGenerationId = null;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -71,6 +75,9 @@ function renderResults(data) {
     data.claims.forEach((claim) => {
       const claimCard = document.createElement("div");
       claimCard.className = "claim-card";
+      if (claim.timestamp) {
+        claimCard.dataset.timestampSeconds = parseTimestampToSeconds(claim.timestamp);
+      }
 
       // Card Header
       const header = document.createElement("div");
@@ -248,6 +255,81 @@ function seekToTimestamp(timestampStr) {
   });
 }
 
+function syncPlayback(currentTime) {
+  const cards = Array.from(claimsListContainer.querySelectorAll(".claim-card"))
+    .filter(c => c.dataset.timestampSeconds !== undefined);
+  
+  if (cards.length === 0) return;
+  
+  cards.sort((a, b) => parseFloat(a.dataset.timestampSeconds) - parseFloat(b.dataset.timestampSeconds));
+  
+  let activeCard = null;
+  
+  const firstTimestamp = parseFloat(cards[0].dataset.timestampSeconds);
+  if (currentTime < firstTimestamp) {
+    cards.forEach(c => c.classList.remove("pp-claim-active"));
+    return;
+  }
+  
+  for (let i = 0; i < cards.length; i++) {
+    const cardTime = parseFloat(cards[i].dataset.timestampSeconds);
+    if (cardTime <= currentTime) {
+      activeCard = cards[i];
+    } else {
+      break;
+    }
+  }
+  
+  let activeChanged = false;
+  cards.forEach(c => {
+    if (c === activeCard) {
+      if (!c.classList.contains("pp-claim-active")) {
+        c.classList.add("pp-claim-active");
+        activeChanged = true;
+      }
+    } else {
+      c.classList.remove("pp-claim-active");
+    }
+  });
+  
+  if (activeChanged && activeCard && typeof activeCard.scrollIntoView === "function") {
+    activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function highlightClaims(claimsToHighlight, timestampSeconds) {
+  const cards = Array.from(claimsListContainer.querySelectorAll(".claim-card"));
+  
+  let matchFn;
+  if (claimsToHighlight && claimsToHighlight.length > 0) {
+    const textsToHighlight = new Set(claimsToHighlight.map(c => c.claim_text));
+    matchFn = (c) => {
+      const titleText = c.querySelector(".claim-card-title")?.textContent;
+      return titleText && textsToHighlight.has(titleText);
+    };
+  } else if (typeof timestampSeconds === "number") {
+    matchFn = (c) => parseFloat(c.dataset.timestampSeconds) === timestampSeconds;
+  } else {
+    return;
+  }
+  
+  let firstHighlighted = null;
+  cards.forEach(c => {
+    if (matchFn(c)) {
+      c.classList.add("pp-claim-active");
+      if (!firstHighlighted) {
+        firstHighlighted = c;
+      }
+    } else {
+      c.classList.remove("pp-claim-active");
+    }
+  });
+  
+  if (firstHighlighted && typeof firstHighlighted.scrollIntoView === "function") {
+    firstHighlighted.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
 // Load and handle state for current video
 async function checkCurrentTabState() {
   try {
@@ -258,6 +340,7 @@ async function checkCurrentTabState() {
     }
 
     const tab = tabs[0];
+    currentTabId = tab.id;
     const videoId = extractVideoIdFromUrl(tab.url || "");
 
     if (!videoId) {
@@ -351,6 +434,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === "YOUTUBE_NAVIGATED") {
     checkCurrentTabState();
+  } else if (message.type === "SYNC_PLAYBACK") {
+    if (message.tabId === currentTabId && message.videoId === currentVideoId) {
+      if (message.generationId !== currentGenerationId) {
+        currentGenerationId = message.generationId;
+        lastSequence = -1;
+      }
+      if (message.sequence > lastSequence) {
+        lastSequence = message.sequence;
+        syncPlayback(message.currentTime);
+      }
+    }
+  } else if (message.type === "HIGHLIGHT_CLAIMS") {
+    if (message.tabId === currentTabId) {
+      highlightClaims(message.claims, message.timestampSeconds);
+    }
   }
   return false;
 });

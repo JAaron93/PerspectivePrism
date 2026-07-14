@@ -16,6 +16,10 @@ let loadingTimer = null;
 let previouslyFocusedElement = null; // Track focus before panel opens
 let wasPanelOpen = false; // Track if panel was open before navigation
 let claimNavigator = null; // Accessibility navigator
+let navigationGeneration = 0;
+let playbackSequence = 0;
+let activeVideoElement = null;
+let throttledTimeUpdateHandler = null;
 
 // Constants
 const BUTTON_ID = "pp-analysis-button";
@@ -2168,6 +2172,50 @@ function setupObservers() {
 
 // --- Cleanup & Navigation ---
 
+function throttle(func, limit) {
+  let inThrottle = false;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+function setupVideoSync(video, videoId, generationId) {
+  if (activeVideoElement) {
+    cleanupVideoSync();
+  }
+  
+  activeVideoElement = video;
+  playbackSequence = 0;
+  
+  const onTimeUpdate = () => {
+    playbackSequence++;
+    chrome.runtime.sendMessage({
+      type: "SYNC_PLAYBACK",
+      videoId: videoId,
+      generationId: generationId,
+      sequence: playbackSequence,
+      currentTime: video.currentTime
+    }).catch(() => {});
+  };
+  
+  throttledTimeUpdateHandler = throttle(onTimeUpdate, 250);
+  video.addEventListener("timeupdate", throttledTimeUpdateHandler);
+  logger.info(`Video sync set up for video: ${videoId}, generation: ${generationId}`);
+}
+
+function cleanupVideoSync() {
+  if (activeVideoElement && throttledTimeUpdateHandler) {
+    activeVideoElement.removeEventListener("timeupdate", throttledTimeUpdateHandler);
+  }
+  activeVideoElement = null;
+  throttledTimeUpdateHandler = null;
+  logger.info("Video sync cleaned up");
+}
+
 let isCleaningUp = false;
 
 function cleanup() {
@@ -2194,6 +2242,7 @@ function cleanup() {
     // 2. Cancel in-flight requests and timers
     cancelRequest = true;
     clearLoadingTimer();
+    cleanupVideoSync();
     
     // 3. Track panel state before cleanup
     wasPanelOpen = analysisPanel !== null;
@@ -2281,6 +2330,8 @@ function performNavigation() {
     // Setup new video state
     if (vid) {
       currentVideoId = vid;
+      navigationGeneration++;
+      playbackSequence = 0;
       
       // Broadcast navigation event to the extension (background/sidepanel)
       chrome.runtime.sendMessage({
@@ -2297,6 +2348,11 @@ function performNavigation() {
         if (extractVideoId() !== currentVideoId) return;
         injectButton();
         setupObservers();
+
+        const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+        if (video) {
+          setupVideoSync(video, currentVideoId, navigationGeneration);
+        }
         
         // If panel was open before navigation, automatically analyze the new video
         if (wasPanelOpen) {
@@ -2313,6 +2369,10 @@ function performNavigation() {
     }
     if (!observer) {
       setupObservers();
+    }
+    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+    if (video && !activeVideoElement) {
+      setupVideoSync(video, currentVideoId, navigationGeneration);
     }
   }
 }
@@ -2388,6 +2448,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       setButtonState('error');
     } else {
       setButtonState('idle');
+    }
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'SEEK_TO') {
+    const video = document.querySelector("#movie_player-video") || document.querySelector("video");
+    if (video) {
+      const seconds = typeof window.parseTimestampToSeconds === "function"
+        ? window.parseTimestampToSeconds(message.timestamp)
+        : 0;
+      video.currentTime = seconds;
+      logger.info(`Seeked video to timestamp: ${message.timestamp} (${seconds}s)`);
     }
   }
 });
