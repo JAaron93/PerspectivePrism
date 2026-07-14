@@ -1391,10 +1391,9 @@ async function handleAnalysisClick() {
     }
 
     // Guard against stale responses from a previous video after SPA navigation.
-    // Only discard when the page has moved to a *different* video (currentVideoId is
-    // a non-null string distinct from the one we started with). A null currentVideoId
-    // means cleanup is in progress on the same page, so we let the response through.
-    if (currentVideoId !== null && analysisVideoId !== currentVideoId) {
+    // null is a valid "no video" state (user navigated away from a video page),
+    // so a delayed response from a prior video must be discarded in that case too.
+    if (analysisVideoId !== currentVideoId) {
       logger.info(`Discarding stale response for ${analysisVideoId} (current: ${currentVideoId})`);
       return;
     }

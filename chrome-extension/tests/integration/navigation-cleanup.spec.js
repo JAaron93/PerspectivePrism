@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures.js";
+import { test, expect, buildMockResult } from "./fixtures.js";
 
 test.describe("SPA Navigation Cleanup & Resilience", () => {
   test("should clean up timeline markers and reset panel state on yt-navigate-start", async ({
@@ -22,27 +22,7 @@ test.describe("SPA Navigation Cleanup & Resilience", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: videoA,
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Claim 1",
-                timestamp: "0:10",
-                video_timestamp_start: 10,
-                video_timestamp_end: 15,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {},
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0.1
-                  }
-                }
-              }
-            ]
-          }
+          result: buildMockResult(videoA, "Claim 1", null, 0.1),
         })
       });
     });

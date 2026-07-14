@@ -61,7 +61,7 @@ export async function getBackgroundWorker(context) {
   return background;
 }
 
-export function buildMockResult(videoId, claimText, perspectiveKey = null) {
+export function buildMockResult(videoId, claimText, perspectiveKey = null, deceptionScore = 0) {
   const perspectives = {};
   if (perspectiveKey) {
     perspectives[perspectiveKey] = {
@@ -87,7 +87,7 @@ export function buildMockResult(videoId, claimText, perspectiveKey = null) {
           bias_indicators: {
             logical_fallacies: [],
             emotional_manipulation: [],
-            deception_score: 0,
+            deception_score: deceptionScore,
           },
         },
       },

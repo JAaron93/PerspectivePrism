@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, buildMockResult } from "./fixtures";
 
 test.describe("Cache Management", () => {
   test("should cache analysis results", async ({ page, context }) => {
@@ -14,27 +14,7 @@ test.describe("Cache Management", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            metadata: { analyzed_at: new Date().toISOString() },
-            claims: [
-              {
-                claim_text: "Cached Claim",
-                timestamp: "00:00",
-                video_timestamp_start: 0,
-                video_timestamp_end: 5,
-                truth_profile: {
-                  overall_assessment: "Likely True",
-                  perspectives: {},
-                  bias_indicators: {
-                    logical_fallacies: [],
-                    emotional_manipulation: [],
-                    deception_score: 0,
-                  },
-                },
-              },
-            ],
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Cached Claim"),
         }),
       });
     });
