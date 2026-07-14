@@ -18,7 +18,7 @@ class PerspectivePrismClient {
     this.CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     this.MAX_CACHE_ITEMS = 50;
     this.inMemoryCache = new Map();
-    this.delegateCache = options.delegateCache ?? (typeof window !== "undefined" && (typeof process === "undefined" || !process.env.VITEST));
+    this.delegateCache = options.delegateCache ?? (typeof window !== "undefined" && (typeof process === "undefined" || !globalThis.process?.env?.VITEST));
 
     this.recoveryComplete = false;
     this.requestQueue = [];
