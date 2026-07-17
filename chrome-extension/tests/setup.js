@@ -36,6 +36,14 @@ const createChromeMock = () => {
       create: vi.fn(),
       query: vi.fn(),
       sendMessage: vi.fn(),
+      onActivated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onUpdated: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
     },
     alarms: {
       create: vi.fn(),
@@ -49,6 +57,10 @@ const createChromeMock = () => {
     notifications: {
       create: vi.fn(),
       clear: vi.fn(),
+    },
+    sidePanel: {
+      open: vi.fn(),
+      setPanelBehavior: vi.fn(),
     },
   };
 };
@@ -151,6 +163,9 @@ beforeEach(() => {
     return Promise.resolve(tabs);
   });
 
+  chrome.tabs.onActivated.addListener.mockImplementation(() => {});
+  chrome.tabs.onUpdated.addListener.mockImplementation(() => {});
+
   // Re-apply mock implementations for chrome.alarms
   chrome.alarms.create.mockImplementation(() => {});
 
@@ -180,6 +195,21 @@ beforeEach(() => {
       return Promise.resolve(id);
     },
   );
+
+  // Re-apply mock implementations for chrome.sidePanel
+  chrome.sidePanel.open.mockImplementation((options, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
+  chrome.sidePanel.setPanelBehavior.mockImplementation((behavior, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
 
   // Reset fetch mock
   if (global.fetch.mockClear) {

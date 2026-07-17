@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Multiple Videos Analyzed in Sequence", () => {
   test("should handle analyzing multiple videos in sequence with correct cache behavior", async ({
@@ -16,7 +16,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     // Mock backend API for video A (dQw4w9WgXcQ)
     await context.route("**/analyze/jobs", async (route) => {
       const requestBody = route.request().postDataJSON();
-      const videoUrl = requestBody?.video_url || "";
+      const videoUrl = requestBody?.url ?? "";
 
       if (videoUrl.includes("dQw4w9WgXcQ")) {
         apiCalls.videoA++;
@@ -52,23 +52,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-a",
           status: "completed",
-          result: {
-            video_id: "dQw4w9WgXcQ",
-            claims: [
-              {
-                text: "Claim from Video A",
-                perspectives: [
-                  {
-                    source: "Scientific",
-                    text: "Analysis for video A",
-                    sentiment: "positive",
-                  },
-                ],
-                bias_indicators: [],
-              },
-            ],
-            truth_profile: { deception_score: 15 },
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Claim from Video A", "Scientific"),
         }),
       });
     });
@@ -80,23 +64,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-b",
           status: "completed",
-          result: {
-            video_id: "jNQXAC9IVRw",
-            claims: [
-              {
-                text: "Claim from Video B",
-                perspectives: [
-                  {
-                    source: "Journalistic",
-                    text: "Analysis for video B",
-                    sentiment: "neutral",
-                  },
-                ],
-                bias_indicators: [],
-              },
-            ],
-            truth_profile: { deception_score: 25 },
-          },
+          result: buildMockResult("jNQXAC9IVRw", "Claim from Video B", "Journalistic"),
         }),
       });
     });
@@ -108,23 +76,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         body: JSON.stringify({
           job_id: "job-video-c",
           status: "completed",
-          result: {
-            video_id: "9bZkp7q19f0",
-            claims: [
-              {
-                text: "Claim from Video C",
-                perspectives: [
-                  {
-                    source: "Partisan Left",
-                    text: "Analysis for video C",
-                    sentiment: "negative",
-                  },
-                ],
-                bias_indicators: [],
-              },
-            ],
-            truth_profile: { deception_score: 35 },
-          },
+          result: buildMockResult("9bZkp7q19f0", "Claim from Video C", "Partisan Left"),
         }),
       });
     });
@@ -207,8 +159,9 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     // Step 5: Check cache stats via popup
     console.log("Step 5: Checking cache statistics");
     
-    // Get cache stats from storage
-    const cacheStats = await page.evaluate(async () => {
+    // Get cache stats from background storage
+    const background = await getBackgroundWorker(context);
+    const cacheStats = await background.evaluate(async () => {
       return new Promise((resolve) => {
         chrome.storage.local.get(null, (items) => {
           const cacheEntries = Object.keys(items).filter((key) =>
@@ -250,11 +203,7 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
         status: 200,
         body: JSON.stringify({
           status: "completed",
-          result: {
-            video_id: "test123",
-            claims: [{ text: "Test Claim" }],
-            truth_profile: { deception_score: 10 },
-          },
+          result: buildMockResult("dQw4w9WgXcQ", "Test Claim"),
         }),
       });
     });

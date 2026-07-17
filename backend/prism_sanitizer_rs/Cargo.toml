@@ -1,0 +1,13 @@
+[package]
+name = "prism_sanitizer_rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "prism_sanitizer_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.29.0", features = ["extension-module"] }
+regex = "1.10.3"
+once_cell = "1.19.0"

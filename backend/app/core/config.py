@@ -9,20 +9,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     PROJECT_NAME: str = "Perspective Prism MVP"
-    LLM_API_KEY: str = ""
-    LLM_BASE_URL: str = "https://api.openai.com/v1"
-    LLM_MODEL: str = "gpt-3.5-turbo"  # Default model, can be overridden via .env
+    GEMINI_API_KEY: str = ""
+    LLM_API_KEY: str = "" # Fallback
+    LLM_MODEL: str = "gemini-3.5-flash"
     
     # Backup / Fallback Configuration
     BACKUP_LLM_API_KEY: str = ""
-    BACKUP_LLM_BASE_URL: str = "https://api.openai.com/v1"
-    BACKUP_LLM_MODEL: str = "gpt-4o"
+    BACKUP_LLM_MODEL: str = "gemini-3.1-flash-lite"
     
     # Reliability Settings
-    CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 5
+    CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 3
     CIRCUIT_BREAKER_RESET_TIMEOUT: int = 60  # seconds
 
-    LLM_PROVIDER: str = "openai"
+    LLM_PROVIDER: str = "google"
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
     GOOGLE_SEARCH_TIMEOUT: float = (

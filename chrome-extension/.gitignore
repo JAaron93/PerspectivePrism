@@ -13,3 +13,10 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build packages
+*.zip
+
+# Playwright
+playwright-report/
+test-results/

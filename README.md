@@ -1,5 +1,7 @@
 # Perspective Prism
 
+[![Chrome Extension CI](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml/badge.svg)](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml)
+
 An advanced AI agent that processes YouTube video transcripts to analyze claims across multiple perspectives, detect bias and potential deception, and output a rich "truth profile" per claim.
 
 ![Perspective Prism Banner](assets/perspective-prism-16-9.png)
@@ -22,14 +24,14 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
 3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
-    *   **AI Accelerator**: Routes requests through a high-performance gateway (Tensorblock/Hyperbolic) for sub-150ms latency.
-    *   **Reliability Layer**: Includes a circuit breaker and auto-fallback to OpenAI to ensure resilience against outages.
+    *   **AI Engine**: Utilizes Gemini API (`gemini-3.5-flash`) via the `google-genai` SDK and the `google-adk` framework for structured outputs.
+    *   **Reliability Layer**: Features a custom `google-genai` circuit breaker that automatically falls back to `gemini-3.1-flash-lite` during transient API errors (e.g. 429, 500, 503).
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
 ### 🚀 High-Performance Analysis
-With the integration of **Hyperbolic** acceleration, Perspective Prism now offers:
-- **Enhanced Claim Analysis**: The previous hardcoded cap of 3 claims has been removed. The system now supports a configurable limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting.
-- **Extended Transcript Coverage**: Increased transcript processing capacity from 12k to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
+Perspective Prism offers:
+- **Enhanced Claim Analysis**: The system supports a configurable claim limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting, allowing flexibility based on video complexity and API constraints.
+- **Extended Transcript Coverage**: Supports transcript processing up to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
 
 ## 🦾 Essential Tools and Utilities
 
@@ -37,7 +39,7 @@ The Perspective Prism multi-agent system is equipped with custom-built tools des
 
 ### Input Sanitizer (`input_sanitizer.py`)
 
-A critical security tool that protects against Large Language Model (LLM) prompt injection attacks. Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: control character detection, pattern matching against a curated blocklist, special character escaping, and strict length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers, making it explicit to the LLM where untrusted input begins and ends. This proactive approach prevents malicious actors from manipulating the agent's behavior or extracting sensitive system prompts.
+A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers to optimize Gemini's implicit context caching.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -81,41 +83,57 @@ I used Perspective Prism to analyze claims from a political commentary video, di
 
 ## 📊 Agent Evaluation
 
-We include a benchmark script to evaluate the agent's performance on a set of test videos.
-Run the evaluation:
+We include a comprehensive evaluation suite integrated with **Weights & Biases Weave** to track agent performance, latency, and extraction quality across a curated set of test videos containing verifiable claims.
+
+### Running the Evaluation
+To run the evaluation, execute the benchmark script:
 
 ```bash
 python .benchmarks/evaluate_agents.py
 ```
 
-This script measures:
+### Modes of Operation
+* **Weights & Biases Weave Mode (Cloud)**: If Weights & Biases credentials are configured in your environment (e.g., `WANDB_API_KEY`, netrc, or global W&B settings), the script initializes Weave under the project name `"perspective-prism-evals"`. It logs full LLM trace details, latencies, and custom scores using Weave's `Model`, `Dataset`, and `Scorer` APIs.
+* **Local Fallback Mode**: If no W&B credentials are found, the script automatically sets `WEAVE_DISABLED=true` to bypass cloud-logging. It runs a clean local fallback benchmarking loop in your terminal without displaying blocking login prompts, printing detailed per-video results and performance averages.
 
-- **Success Rate**: Percentage of successful analyses.
-- **Latency**: Time taken for extraction and analysis.
-- **Output Quality**: Basic validation of the generated Truth Profile.
+### Rate-Limit & Concurrency Configuration
+The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
+* **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
+* **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
+
+## ☁️ Deployment Strategy
+
+Perspective Prism's backend is designed to be deployed to **Modal Labs** using their serverless infrastructure. 
+
+**Important Note on Capacity:** This project is primarily a **portfolio project**, not a commercial product. The backend relies on the $30/month free tier of compute credits provided by Modal Labs. Based on standard usage (1 claim analysis per user per day), this free tier can only handle around **~2,000 monthly users**. 
+
+Since there are no funds allocated to scale this extension further, the extension is planned to fail gracefully. In a future release, if the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#setup-installation) section below.
 
 ## 🛠️ Tech Stack
 
-- **Backend**: FastAPI, Python 3.13
+- **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
 - **AI/LLM**:
-    - **Primary**: Hyperbolic / Tensorblock (Llama 3, GPT-OSS) for high-speed inference.
-    - **Backup**: OpenAI API (GPT-4o) for reliability.
+    - **Framework**: Agent Development Kit (ADK) 2.x
+    - **Primary**: Gemini API (`gemini-3.5-flash` via `google-genai` SDK)
+    - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **Security**: Custom input sanitizer with pattern detection
+- **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
 ## 📋 Prerequisites
 
 - **Operating System**: macOS, Linux, or Windows (via WSL2)
-- **Runtime**:
+- **Runtime & Toolchain**:
   - Python 3.10 or higher
+  - Rust compiler (`cargo`, `rustc` via rustup) & `maturin` for compiling the input sanitizer
   - Node.js 18+ (LTS) or 20+
 - **API Keys**:
-  - **OpenAI API Key**: Required for claim extraction and analysis (GPT-4o/mini).
+  - **Gemini API Key**: Required for claim extraction and perspective analysis.
   - **Google Custom Search JSON API Key**: Required for evidence retrieval.
   - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
+<a id="setup-installation"></a>
 ## ⚙️ Setup & Installation
 
 ### Backend
@@ -147,20 +165,19 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, you need to configure your LLM provider in `.env`. The system supports OpenAI-compatible APIs (like Hyperbolic, Tensorblock, or OpenAI itself) and Google Gemini.
+To run the full analysis, you need to configure your Gemini API credentials in `.env`:
 
-#### **Option A: using OpenAI-compatible provider (Hyperbolic, Tensorblock, etc.)**
 ```env
-LLM_PROVIDER=openai
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://api.hyperbolic.xyz/v1   # or https://api.openai.com/v1
-LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
+GEMINI_API_KEY=your_gemini_api_key_here
+LLM_PROVIDER=google
+LLM_MODEL=gemini-3.5-flash
+BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
 
-
+Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
-   - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)
+   - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
 
 5. Run the server:
    ```bash
@@ -199,33 +216,52 @@ LLM_MODEL=gpt-oss-120b                       # or gpt-4o, etc.
 
 ### Chrome Extension
 
-1. **Load the Extension**:
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable **Developer mode** (top right toggle).
-   - Click **Load unpacked** and select the `chrome-extension` directory.
+#### Development Setup (Unpacked)
+1. Install extension development dependencies:
+   ```bash
+   cd chrome-extension
+   npm install
+   ```
+2. Load the unpacked extension in Chrome:
+   - Open Google Chrome and navigate to `chrome://extensions/`.
+   - Enable **Developer mode** via the toggle switch in the top-right corner.
+   - Click the **Load unpacked** button.
+   - Select the `chrome-extension` directory from this repository.
 
-2. **Configure Backend CORS**:
-   - Note the **ID** of the loaded extension (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
-   - Open `backend/app/core/config.py`.
-   - Add your extension ID to the `CHROME_EXTENSION_IDS` list:
-     ```python
-     CHROME_EXTENSION_IDS: list[str] = [
-         "your-extension-id-here",
-     ]
-     ```
-   - **Restart the backend server** for changes to take effect.
+#### Production Build & Packaging
+For distribution or release testing, compile and package the extension:
+1. Run the build script:
+   ```bash
+   cd chrome-extension
+   npm run build
+   ```
+   This script minifies JavaScript (removing development `console.log` statements) and CSS files, creates a production-ready `dist/` directory, and bundles it into `perspective-prism-extension.zip`.
+2. Load the production build:
+   - Navigate to `chrome://extensions/`.
+   - Click **Load unpacked** and select the `chrome-extension/dist` directory.
 
-3. **Verify Connection**:
-   - Navigate to a YouTube video.
-   - Click the "Analyze Claims" button.
-   - If you see a connection error, ensure the backend is running and the extension ID is correct.
+#### Backend CORS Integration
+To allow the extension to communicate with your local Perspective Prism Backend:
+1. Load the extension in Chrome and note its **Extension ID** (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
+2. Open `backend/app/core/config.py`.
+3. Add the Extension ID to the `CHROME_EXTENSION_IDS` list:
+   ```python
+   CHROME_EXTENSION_IDS: list[str] = [
+       "your-extension-id-here",
+   ]
+   ```
+4. **Restart the backend server** to apply the configuration.
+
+#### Configuration Options
+Access settings by right-clicking the extension icon and selecting **Options**:
+- **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
+- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 24 hours).
+- **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
 
 ## 🧪 Testing
 
-The backend includes a comprehensive test suite, particularly for the security components.
-
-To run the tests:
-
+### Backend Tests
+To run the backend test suite:
 ```bash
 cd backend
 # Run all tests
@@ -235,16 +271,33 @@ pytest
 pytest tests/test_reliability.py
 ```
 
+### Chrome Extension Tests
+The Chrome Extension has unit tests using Vitest and integration tests using Playwright.
+```bash
+cd chrome-extension
+# Install testing dependencies
+npm install
+
+# Run unit tests
+npm run test
+
+# Run unit tests with coverage validation (requires 15% coverage)
+npm run test:coverage
+
+# Run Playwright end-to-end integration tests
+npm run test:integration
+```
+
 ## 🔧 Extended Troubleshooting
 
 ### Backend Issues
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **401 Unauthorized** | Missing or invalid OpenAI API Key | Check `.env` file. Ensure `OPENAI_API_KEY` is set and valid. |
-| **429 Too Many Requests** | OpenAI/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
+| **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
+| **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
-| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
+| **CORS Error** | Frontend origin not allowed | Distinguish the request origin: For Chrome extension requests, add the extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. For standalone web applications (e.g., React app), add the origin (e.g., `http://localhost:5173`) to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
 
 ### Extension Issues
 
@@ -261,15 +314,21 @@ pytest tests/test_reliability.py
 2. **Reload Extension**: Click the refresh icon in `chrome://extensions/` after code changes.
 3. **Clear Cache**: If the frontend behaves oddly, try Hard Reload (Cmd+Shift+R).
 
-## 🔒 Security
+## 🔒 Privacy & Security
 
+### Backend Input Sanitization
 This project implements strict input sanitization to protect against Large Language Model (LLM) prompt injection attacks.
-
 - **Pattern Matching**: Blocks known injection patterns (e.g., "Ignore previous instructions").
 - **Delimiters**: Uses strict delimiters to separate user data from system instructions.
 - **Validation**: Enforces length limits and character whitelisting.
 
 See `backend/app/utils/input_sanitizer.py` for implementation details.
+
+### Extension Data Handling
+- **Minimal Transmission**: The extension transmits the full YouTube Video URL via the `url` field to the backend to retrieve the video transcript and perform claim extraction. Unrelated data such as browsing history, search queries, user identifiers, or personal information is never collected or transmitted.
+- **Strict HTTPS**: All communications with external backends enforce HTTPS encryption. Cleartext HTTP is restricted to localhost (`127.0.0.1` and `localhost`).
+- **Local Storage**: Analysis cache, settings, and statistics are stored locally within the browser context (`chrome.storage.local` and `chrome.storage.sync`).
+- **No Third-Party Scripts**: The extension is self-contained and does not load third-party scripts, trackers, or analytics packages.
 
 ## 📁 Project Structure
 
@@ -330,20 +389,12 @@ The Perspective Prism analysis pipeline follows this workflow:
 
 2. **Transcript Retrieval**: The **Claim Extractor** service extracts the video ID from the URL and fetches the video transcript using the YouTube Transcript API. If no transcript is available, the analysis fails gracefully with an error message.
 
-3. **Claim Extraction**: The **Claim Extractor** uses an LLM (OpenAI GPT) to parse the transcript and identify distinct, verifiable claims. It filters out opinions, questions, and subjective statements, focusing only on factual assertions that can be verified.
+3. **Claim Extraction**: The **Claim Extractor** uses the ADK 2.0 `ExtractorAgent` (Gemini) to parse the transcript and extract distinct, verifiable claims conforming to a strict Pydantic output schema. It places raw transcript text first within the required `===USER DATA START===` and `===USER DATA END===` untrusted-data delimiters to leverage implicit context caching.
 
 4. **Evidence Gathering**: For each extracted claim, the **Evidence Retriever** performs targeted searches across multiple perspectives (scientific, journalistic, partisan left/right) using the Google Custom Search API. It collects relevant articles, studies, and sources for each perspective.
 
-5. **Perspective Analysis**: The **Analysis Service** synthesizes each claim with its gathered evidence. For each perspective, it determines:
-   - **Assessment**: Whether the evidence supports, refutes, or is neutral toward the claim
-   - **Confidence**: How strongly the evidence supports the assessment (0-100%)
-   - **Supporting Evidence**: Specific sources and quotes backing the assessment
+5. **Perspective & Bias Analysis**: The **Analysis Service** evaluates each claim against the retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances. It analyzes the claim from each perspective (stance, confidence, explanation) and performs bias/deception detection (detecting fallacies, emotional appeals, and a deception rating). Moderate deception ratings downgrade the overall assessment, while high deception ratings trigger an immediate short-circuit to "Suspicious/Deceptive".
 
-6. **Bias Detection**: The **Analysis Service** analyzes each claim for bias indicators, including:
-   - Logical fallacies (ad hominem, straw man, false dichotomy, etc.)
-   - Emotional manipulation tactics (fear-mongering, appeal to emotion)
-   - Deception score (0-100 scale indicating likelihood of intentional misinformation)
+6. **Truth Profile Generation**: The system aggregates all perspective analyses and bias indicators into a comprehensive "Truth Profile" for each claim, showing users a balanced view across multiple viewpoints.
 
-7. **Truth Profile Generation**: The system aggregates all perspective analyses and bias indicators into a comprehensive "Truth Profile" for each claim, showing users a balanced view across multiple viewpoints.
-
-8. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.
+7. **Response**: The backend returns the complete analysis (video metadata, claims, and Truth Profiles) to the frontend, which renders an interactive UI displaying the results with expandable claims, color-coded confidence bars, and detailed evidence citations.

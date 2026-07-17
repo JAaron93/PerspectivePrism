@@ -1,0 +1,49 @@
+# Architecture Design: Perspective Prism Chrome Extension UX v3
+
+## 1. Overview
+The Perspective Prism Chrome Extension is migrating its primary user interface from an injected, in-DOM overlay to the native Chrome Side Panel API. This migration aims to provide a persistent, native-feeling experience that survives YouTube SPA navigations and full page reloads. In conjunction with this structural shift, the extension will integrate deeply with the YouTube video player timeline, visualizing claims directly on the progress bar and synchronizing the side panel UI with video playback.
+
+## 2. Core Components
+
+### 2.1 Chrome Side Panel (Manifest V3)
+- **Role:** Serves as the primary viewing surface for analysis results (truth profiles, bias indicators, per-perspective analysis).
+- **Behavior:** Persists across navigations within the tab. The side panel maintains tab-persistent panel-shell state, which is distinct from video-scoped state; video-scoped state must be reset upon SPA navigation to a new video.
+- **Toggle Mechanism:** Users can toggle the side panel via the extension icon in the browser toolbar or an injected button within the YouTube interface (near the subscribe/share buttons).
+
+### 2.2 Timeline Marker System (Injected via Content Script)
+- **Role:** Visualizes the chronological locations of analyzed claims directly on the YouTube video progress bar (`.ytp-progress-list`).
+- **Clustering:** Given that YouTube videos can be dense with claims, individual claim markers that fall within a close temporal threshold (e.g., within 5 seconds of each other) will be grouped into "Cluster Markers."
+- **Visual Language:** Markers will be color-coded based on the aggregate truth profile of the claims they represent (e.g., Red = Suspicious/Deceptive, Yellow = Mixed, Green = Likely True).
+
+### 2.3 Playback Synchronization Engine
+- **Role:** A bidirectional sync bridge between the YouTube player (managed by `content.js`) and the Side Panel UI.
+- **Auto-Scrolling:** As the video's `currentTime` advances, `content.js` broadcasts time-update events. To ensure identity matching and strict tab isolation, all synchronization messages sent by `content.js` MUST include the active `videoId`, a navigation generation counter, and a monotonic playback sequence/order field. The service worker (`background.js`) must derive the originating tab ID from `sender.tab.id` before routing these messages exclusively to the Side Panel corresponding to that tab. The Side Panel listens to these events, rejects any stale messages from a previous video context, and specifically rejects any messages older than the latest accepted sequence within the same video and navigation generation. It then automatically scrolls to and highlights the claim currently being discussed.
+- **Click-to-Seek / Click-to-Highlight:** Clicking a timeline cluster marker seeks the video to that timestamp *and* triggers the Side Panel to scroll to that specific cluster, visually denoting all claims within it.
+
+## 3. Architecture & Data Flow
+
+```mermaid
+graph TD
+    A[YouTube Player] -- timeupdate --> B(Content Script);
+    A -- click timeline --> B;
+    B -- chrome.runtime.sendMessage --> C(Service Worker);
+    C -- chrome.runtime.sendMessage --> D(Side Panel UI);
+    
+    D -- user interaction --> C;
+    C -- chrome.tabs.sendMessage --> B;
+    B -- execute seek --> A;
+```
+
+### 3.1 State Management & Browser-First Caching
+Because the side panel and the content script operate in different contexts, state (such as the currently active video ID, the analysis results, and the playback time) must be synchronized via the Service Worker (`background.js`).
+- **Authoritative Cache Owner:** The Service Worker (`background.js`) is the sole authoritative owner of `chrome.storage.local` access. It is exclusively responsible for executing schema migrations, TTL/freshness validation, and LRU eviction logic. All other contexts (content script, side panel UI) must delegate cache read/write operations to the Service Worker via message passing.
+- **Browser-First Caching Constraint:** To minimize operational costs and ensure user privacy, the backend architecture MUST remain stateless regarding caching. All caching of analysis results across SPA navigations or tab closures MUST rely exclusively on `chrome.storage.local` within the user's browser. The backend should not host a database for storing video analysis histories.
+- **Cache Key Design & Isolation:** Cache keys must use the `cache_` prefix combined with the `videoId` (e.g., `cache_{videoId}`). This strict isolation ensures lookups can never inadvertently return another video's analysis. The `schemaVersion` must be stored as embedded metadata within the cached object itself, rather than in the key, to ensure readers, writers, and eviction logic can uniformly manage the cache entries.
+- **Freshness & Eviction Policy:** Cached results are evaluated across four specific scenarios: (1) Supported hits are returned immediately. (2) Schema migration (cached `schemaVersion` is older than current) requires a fresh network fetch, overwriting the stale entry. (3) Unsupported-version misses (cached `schemaVersion` is newer/unrecognized) require a fresh fetch. (4) TTL expiry renders the entry stale, requiring a fresh fetch. To prevent exceeding `chrome.storage.local` quotas, eviction follows an LRU (Least Recently Used) policy. If a storage read/write failure or quota exception occurs, the extension must gracefully fall back to an in-memory session cache and proceed with the analysis request without breaking the user experience.
+- When the side panel opens or the video changes, the side panel queries the Service Worker, which first evaluates the local cache before ever initiating a new request to the backend. Any storage access failures must be caught and handled without breaking the analysis pipeline.
+
+## 4. Constraints & Risks
+1. **YouTube DOM Volatility:** YouTube frequently A/B tests its player UI. The selector for the progress bar (`.ytp-progress-list`) must be resilient or easily updatable.
+2. **SPA Navigation (yt-navigate-finish):** YouTube does not reload the page when navigating between videos. The content script must gracefully clean up old timeline markers and re-initialize without memory leaks.
+3. **Performance:** The `timeupdate` event fires frequently (multiple times per second). The auto-scroll logic in the side panel must enforce a maximum of four updates per second using a fixed 250ms throttle. Do not rely on an unbounded `requestAnimationFrame` loop.
+4. **Side Panel API Limitations:** The side panel cannot be programmatically opened *by a content script directly* without a user gesture. To support both toggle methods: `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` must be configured by the Service Worker to automatically handle clicks on the extension action icon. Conversely, for the injected YouTube button, the content script's click handler must send a message to the Service Worker, which then triggers `chrome.sidePanel.open({ tabId })` while the user gesture is still active.
