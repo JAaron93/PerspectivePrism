@@ -87,6 +87,7 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 
 ## Testing & Mocking Conventions
 
+*   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
 *   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
 *   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `openai.AsyncOpenAI`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
 
@@ -152,6 +153,7 @@ Scripts are injected into YouTube pages in this order:
 
 *   Vanilla JS with ES module syntax — no framework, no build step.
 *   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
+*   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`) and attached to `window` must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when those functions are consumed by other scripts.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
 ## Architectural Guidelines
