@@ -14,27 +14,27 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [x] **Task 1.1: Test Suite Setup for Side Panel**
   - **Dependency:** None
-  - **Action:** Write failing unit tests in `chrome-extension/tests/` that mock the `chrome.sidePanel` API to verify state changes, toggle commands, and UI rendering functions.
+  - **Evidence:** Created unit tests in `chrome-extension/tests/unit/sidepanel.test.js` mocking the `chrome.sidePanel` API to verify state changes, toggle commands, and UI rendering. Mock implementation is defined in `tests/setup.js`.
   - **Traceability:** TDD Constraint
 
 - [x] **Task 1.2: Manifest Updates**
   - **Dependency:** Task 1.1
-  - **Action:** Update `manifest.json` to include the `"sidePanel"` permission and configure the default side panel HTML page (e.g., `"side_panel": { "default_path": "sidepanel.html" }`).
+  - **Evidence:** Updated `manifest.json` to include the `"sidePanel"` permission and configure the default side panel HTML page (`"side_panel": { "default_path": "sidepanel.html" }`).
   - **Traceability:** FR-1
 
 - [x] **Task 1.3: Side Panel UI Scaffold**
   - **Dependency:** Task 1.2
-  - **Action:** Create `sidepanel.html` and `sidepanel.js`. Port the existing React/Vanilla UI rendering logic from `content.js`'s shadow DOM into this new context. Verify tests pass.
+  - **Evidence:** Ported core UI rendering logic into `sidepanel.html` and `sidepanel.js` from the original content script shadows. Verified correct idle, loading, error, and results state rendering via unit tests in `sidepanel.test.js`.
   - **Traceability:** FR-1, US-1
 
 - [x] **Task 1.4: Toggle Mechanisms & Integration Testing**
   - **Dependency:** Task 1.3
-  - **Action:** Implement side panel toggling via background service worker. Write a Playwright integration test that simulates an extension action click and verifies the side panel opens. Write a separate Playwright integration test that locates and clicks the content-script-injected YouTube toggle button and verifies the side panel opens.
+  - **Evidence:** Implemented background service worker toggle logic in `background.js` and verified opening mechanics on extension action click or page button click via Playwright tests in `tests/integration/side-panel.spec.js`.
   - **Traceability:** FR-2, FR-3
 
 - [x] **Task 1.5: Verify Browser-First Caching Constraints (TDD)**
   - **Dependency:** None (Can run parallel to 1.1)
-  - **Action:** Designate `background.js` as the sole cache owner. Write tests proving the side panel delegates all storage logic to the Service Worker via messages. Write unit tests covering `background.js` cache outcomes: add separate tests covering supported schema migrations (overwrites stale cache), unsupported-version misses (triggers fresh fetch), TTL expiration (triggers fresh fetch), and `chrome.storage.local` read/write failures (verifying the required in-memory fallback continues analysis without breaking the flow).
+  - **Evidence:** Configured `background.js` as the sole cache owner and verified delegation behavior, expiration rules, TTL, schema migrations, and local storage read/write fallback paths via unit tests in `tests/unit/background-cache.test.js` and `tests/unit/client-cache.test.js`.
   - **Traceability:** FR-12, NFR-4
 
 
@@ -43,17 +43,17 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [x] **Task 2.1: Timestamp Parsing & Clustering Logic (TDD)**
   - **Dependency:** None
-  - **Action:** Write failing unit tests for `parseTimestampToSeconds` and timeline marker positioning. Expand tests to cover unknown or zero video duration, negative timestamps, and timestamps beyond the video duration, asserting resulting marker percentages remain finite and clamped within the valid range. Add shuffled-input coverage to verify order-independent clustering (claims must be sorted first) and correct cluster starts. Preserve the existing exact 5-second boundary and chained claims testing for transitive grouping. Then implement the utilities until tests pass.
+  - **Evidence:** Implemented parsing and clustering utilities in `chrome-extension/timeline-utils.js` and verified clamping/boundary conditions, negative timestamps, shuffled inputs, and transitive grouping via unit tests in `tests/unit/timeline-utils.test.js`.
   - **Traceability:** FR-4, FR-6, BDD (Timeline Visualization)
 
 - [x] **Task 2.2: Marker DOM Injection (TDD)**
   - **Dependency:** Task 2.1
-  - **Action:** Write failing unit tests using `jsdom` to mock the YouTube `.ytp-progress-list` DOM. Implement `renderTimelineMarkers()` to inject absolute `<div>` markers with correct percentage widths and color classes.
+  - **Evidence:** Implemented progress bar injection in `renderTimelineMarkers()` and verified marker element layout percentages and styling colors via jsdom unit tests in `tests/unit/timeline-markers.test.js`.
   - **Traceability:** FR-5, NFR-3, US-2
 
 - [x] **Task 2.3: SPA Navigation Cleanup & E2E Testing**
   - **Dependency:** Task 2.2
-  - **Action:** Hook into YouTube's `yt-navigate-start` and `yt-navigate-finish` events. Write a Playwright integration test simulating repeated YouTube SPA navigations to ensure listener cleanup: after multiple navigations, assert that a single navigation event produces exactly one request/render cycle, while preserving the existing marker removal and side-panel state reset checks (claims, highlights, and active video identity). Add coverage ensuring a delayed analysis response from a previous video is ignored.
+  - **Evidence:** Hooked into YouTube `yt-navigate-start` and `yt-navigate-finish` events for automatic teardown/reset of timeline markers and side-panel state, verified with Playwright integration tests in `tests/integration/navigation-cleanup.spec.js` and `tests/integration/rapid-navigation.spec.js`.
   - **Traceability:** FR-11, NFR-2
 
 ## Track 3: Playback Synchronization Engine
@@ -61,20 +61,20 @@ This document outlines the test-driven implementation plan for migrating to the 
 
 - [x] **Task 3.1: Synchronization Logic Tests**
   - **Dependency:** Track 1, Track 2
-  - **Action:** Write unit tests for message passing between the mocked Content Script and Side Panel. Mock `timeupdate` events to verify that the throttling logic correctly filters broadcast rate. Add tests covering delayed messages from a previous video and identical timestamps across different videos to ensure identity-bearing isolation. Add coverage verifying two tabs playing the same video synchronize independently based on tab routing. Test delayed messages with lower playback time or sequence values from the same video generation to ensure strict monotonic ordering.
+  - **Evidence:** Implemented tab and video isolation logic to prevent cross-context leakage. Verified isolation, message sequencing, sequence preservation, and state resets under unit tests in `tests/unit/sync.test.js`.
   - **Traceability:** TDD Constraint
 
 - [x] **Task 3.2: Click-to-Seek & Highlight**
   - **Dependency:** Task 3.1
-  - **Action:** Add click event listeners to timeline markers to seek the `<video>` and dispatch a message. The side panel listens, applies CSS highlight, and scrolls to the claim.
+  - **Evidence:** Linked timeline markers to media seeking and coordinated side-panel scrolls and class highlights. Verified E2E flow in `tests/integration/sync.spec.js`.
   - **Traceability:** FR-7, FR-8, US-4, BDD (Clicking a timeline marker)
 
 - [x] **Task 3.3: Throttled Playback Broadcasting & Auto-Scrolling**
   - **Dependency:** Task 3.2
-  - **Action:** Add throttled `timeupdate` listeners (max 4/sec). Side panel maps time to claims based on the active-claim boundary rule. Add tests covering behavior for playback times before the first claim (asserting highlights are cleared), between claims (including throttled gaps), and after the final claim (asserting the final claim retains its highlight).
+  - **Evidence:** Implemented throttled `timeupdate` broadcaster in `content.js` (max 4/sec) and matching highlight update boundaries in `sidepanel.js`. Verified highlight behaviors before, during, and after claims under unit tests in `tests/unit/sync.test.js` and integration tests in `tests/integration/sync.spec.js`.
   - **Traceability:** FR-9, NFR-1, FR-10, US-3, BDD (Auto-scrolling)
 
 - [x] **Task 3.4: E2E BDD Verification & Full-Page Reload Rehydration**
   - **Dependency:** Task 3.3
-  - **Action:** Execute a full Playwright E2E suite covering the BDD scenarios defined in `requirements.md` (Timeline Visualization, Auto-scrolling, Clicking markers). Add full-page reload rehydration coverage: reload YouTube and the side panel, then assert that the active video and cached analysis are restored seamlessly, while stale state is discarded.
+  - **Evidence:** Executed full Playwright E2E test runs verifying auto-scrolling, marker clicks, seeking, and full-page reload/rehydration flows in `tests/integration/sync.spec.js`.
   - **Traceability:** BDD Constraints
