@@ -281,6 +281,9 @@ npm install
 # Run unit tests
 npm run test
 
+# Run ESLint to check for code quality and global variable definitions
+npm run lint
+
 # Run unit tests with coverage validation (requires 15% coverage)
 npm run test:coverage
 
