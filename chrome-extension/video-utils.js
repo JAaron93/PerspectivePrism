@@ -50,7 +50,7 @@ export function extractVideoIdFromUrl(url) {
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
