@@ -6,7 +6,7 @@ This document catalogs the utility modules and reusable helper functions extract
 
 ## 1. Backend Utilities (`backend/app/utils`)
 
-### [LLMClient](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/refactor-dry-helper-functions/backend/app/utils/llm_client.py)
+### [LLMClient](backend/app/utils/llm_client.py)
 A centralized wrapper for OpenAI client operations, including fallback logic and circuit breaking features.
 
 *   **Location**: `app.utils.llm_client.LLMClient`
@@ -16,7 +16,7 @@ A centralized wrapper for OpenAI client operations, including fallback logic and
     *   `execute_with_fallback(...)`: Standardized execution path that implements the circuit-breaker logic.
 *   **Usage**: Used by `ClaimExtractor` and `AnalysisService`.
 
-### [Video Utilities](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/refactor-dry-helper-functions/backend/app/utils/video_utils.py)
+### [Video Utilities](backend/app/utils/video_utils.py)
 YouTube video URL extraction helper.
 
 *   **Location**: `app.utils.video_utils`
@@ -29,7 +29,7 @@ YouTube video URL extraction helper.
 
 ## 2. Frontend Utilities (`frontend/src/utils`)
 
-### [Time Utilities](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/refactor-dry-helper-functions/frontend/src/utils/time.ts)
+### [Time Utilities](frontend/src/utils/time.ts)
 Time formatting utilities.
 
 *   **Location**: `src/utils/time.ts`
@@ -42,7 +42,7 @@ Time formatting utilities.
 
 ## 3. Chrome Extension Utilities (`chrome-extension`)
 
-### [Video Utilities (Module / Script)](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/refactor-dry-helper-functions/chrome-extension/video-utils.js)
+### [Video Utilities (Module / Script)](chrome-extension/video-utils.js)
 Unified video URL parsing and validation library for content scripts and popups.
 
 *   **Location**:
