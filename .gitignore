@@ -40,3 +40,18 @@ test-results/
 
 # TypeScript Build Info
 .tsbuildinfo*
+
+# Pytest
+.pytest_cache/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Weights & Biases / Weave
+wandb/
+.weave/
