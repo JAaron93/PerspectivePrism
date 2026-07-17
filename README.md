@@ -83,18 +83,23 @@ I used Perspective Prism to analyze claims from a political commentary video, di
 
 ## 📊 Agent Evaluation
 
-We include a benchmark script to evaluate the agent's performance on a set of test videos.
-Run the evaluation:
+We include a comprehensive evaluation suite integrated with **Weights & Biases Weave** to track agent performance, latency, and extraction quality across a curated set of test videos containing verifiable claims.
+
+### Running the Evaluation
+To run the evaluation, execute the benchmark script:
 
 ```bash
 python .benchmarks/evaluate_agents.py
 ```
 
-This script measures:
+### Modes of Operation
+* **Weights & Biases Weave Mode (Cloud)**: If Weights & Biases credentials are configured in your environment (e.g., `WANDB_API_KEY`, netrc, or global W&B settings), the script initializes Weave under the project name `"perspective-prism-evals"`. It logs full LLM trace details, latencies, and custom scores using Weave's `Model`, `Dataset`, and `Scorer` APIs.
+* **Local Fallback Mode**: If no W&B credentials are found, the script automatically sets `WEAVE_DISABLED=true` to bypass cloud-logging. It runs a clean local fallback benchmarking loop in your terminal without displaying blocking login prompts, printing detailed per-video results and performance averages.
 
-- **Success Rate**: Percentage of successful analyses.
-- **Latency**: Time taken for extraction and analysis.
-- **Output Quality**: Basic validation of the generated Truth Profile.
+### Rate-Limit & Concurrency Configuration
+The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
+* **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
+* **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
 
 ## ☁️ Deployment Strategy
 

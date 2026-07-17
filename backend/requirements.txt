@@ -12,3 +12,4 @@ google-genai==2.9.0
 google-adk==2.4.0
 maturin>=1.14,<2.0
 -e ./prism_sanitizer_rs
+weave
