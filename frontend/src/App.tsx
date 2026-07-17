@@ -2,6 +2,7 @@ import { useState } from 'react'
 import './App.css'
 
 import { ThinkingComponent } from './components/ThinkingComponent'
+import { formatTimestamp } from './utils/time'
 
 interface ClaimAnalysis {
   claim_text: string
@@ -158,16 +159,7 @@ function App() {
     return `stance stance-${stance.toLowerCase()}`
   }
 
-  const formatTimestamp = (start: number | null, end: number | null) => {
-    if (start === null) return 'N/A'
-    const formatTime = (seconds: number) => {
-      const mins = Math.floor(seconds / 60)
-      const secs = Math.floor(seconds % 60)
-      return `${mins}:${secs.toString().padStart(2, '0')}`
-    }
-    if (end === null) return formatTime(start)
-    return `${formatTime(start)} - ${formatTime(end)}`
-  }
+
 
   const getDeceptionLevel = (score: number | null) => {
     if (score === null) return null

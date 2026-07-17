@@ -13,6 +13,7 @@ from app.models.schemas import (
 from app.services.claim_extractor import ClaimExtractor
 from app.services.evidence_retriever import EvidenceRetriever
 from app.services.analysis_service import AnalysisService
+from app.utils.video_utils import extract_video_id
 import asyncio
 import logging
 import uuid
@@ -190,7 +191,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
 
 
 
-        video_id = claim_extractor.extract_video_id(str(request.url))
+        video_id = extract_video_id(str(request.url))
         # Validation is now done in create_analysis_job
         
         transcript = claim_extractor.get_transcript(video_id)
@@ -330,7 +331,7 @@ async def create_analysis_job(request: VideoRequest, background_tasks: Backgroun
     Starts a background job to analyze a YouTube video.
     """
     # Validate video ID upfront
-    video_id = claim_extractor.extract_video_id(str(request.url))
+    video_id = extract_video_id(str(request.url))
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
 

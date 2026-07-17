@@ -283,11 +283,14 @@ The project is organized as follows:
     - `analysis_service.py`: Synthesizes evidence and analyzes claims from multiple perspectives
   - `app/models/`: Defines Pydantic data models for requests and responses
   - `app/utils/`: Contains utility modules (input sanitization, configuration)
+    - `llm_client.py`: Centralized wrapper for OpenAI client operations and circuit breaker logic
+    - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application
   - `src/`: Contains React components, API clients, and application logic
   - `src/components/`: Reusable UI components for displaying Truth Profiles
   - `src/services/`: API client for communicating with the backend
+  - `src/utils/time.ts`: Time formatting utilities for video timestamps
 - **.benchmarks/**: Contains the agent evaluation framework
   - `evaluate_agents.py`: Benchmark script measuring success rate, latency, and output quality
 - **chrome-extension/**: YouTube Chrome Extension (Manifest V3) - Nearly Complete Implementation
@@ -308,6 +311,7 @@ The project is organized as follows:
     - `metrics-tracker.js`: Performance metrics collection (cache hits, API latency)
     - `memory-monitor.js`: Memory profiling for extension performance
     - `panel-styles.js`: Shadow DOM styling for analysis panel (dark/light theme support)
+    - `video-utils.js / video-utils-script.js`: Shared video URL validation and extraction logic
   - **Accessibility**:
     - `ClaimNavigator` class for keyboard navigation (Arrow keys, Home/End)
     - Screen reader announcements (ARIA live regions)

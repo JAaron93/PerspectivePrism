@@ -22,7 +22,7 @@ from app.utils.input_sanitizer import (
     sanitize_perspective_value,
     wrap_user_data,
 )
-from openai import AsyncOpenAI
+from app.utils.llm_client import LLMClient
 
 
 
@@ -30,170 +30,80 @@ logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
-    def __init__(self):
-        self.provider = settings.LLM_PROVIDER.lower()
+    def __init__(self, llm_client: Optional[LLMClient] = None):
+        self.llm_client = llm_client or LLMClient(settings=settings)
 
-        if self.provider == "openai":
-            # Validate that LLM API key is present and non-empty
-            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
-                raise ValueError(
-                    "LLM_API_KEY is not configured. Please set it in your .env file. "
-                    "Example: LLM_API_KEY=sk-..."
-                )
+    @property
+    def provider(self):
+        return self.llm_client.provider
 
-            # Initialize client only after validation
-            self.client = AsyncOpenAI(
-                api_key=settings.LLM_API_KEY,
-                base_url=settings.LLM_BASE_URL
-            )
-            self.model = settings.LLM_MODEL
+    @property
+    def client(self):
+        return self.llm_client.client
 
-            # Initialize Backup Client if configured
-            self.backup_client = None
-            if settings.BACKUP_LLM_API_KEY:
-                self.backup_client = AsyncOpenAI(
-                    api_key=settings.BACKUP_LLM_API_KEY,
-                    base_url=settings.BACKUP_LLM_BASE_URL
-                )
-                self.backup_model = settings.BACKUP_LLM_MODEL
-                logger.info("Backup LLM client initialized.")
+    @client.setter
+    def client(self, value):
+        self.llm_client.client = value
 
-            # Circuit Breaker State
-            self.cb_failures = 0
-            self.cb_last_failure_time = 0
-            self.cb_open = False
-            self.cb_half_open = False
-            self._cb_lock = asyncio.Lock()
+    @property
+    def backup_client(self):
+        return self.llm_client.backup_client
 
+    @backup_client.setter
+    def backup_client(self, value):
+        self.llm_client.backup_client = value
 
+    @property
+    def model(self):
+        return self.llm_client.model
 
-        else:
-            raise ValueError(
-                f"Unsupported LLM_PROVIDER: {self.provider}. Use 'openai'"
-            )
+    @model.setter
+    def model(self, value):
+        self.llm_client.model = value
 
-    async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
+    @property
+    def backup_model(self):
+        return self.llm_client.backup_model
 
-    async def _execute_with_fallback(self, messages: list, response_format: dict = None, primary_callable: Optional[Callable[[], Awaitable[str]]] = None) -> str:
-        """
-        Executes LLM call with Circuit Breaker and Fallback logic.
-        """
-        # 1. Check Circuit Breaker State (Locked)
-        use_backup = False
-        
-        async with self._cb_lock:
-            # Check if OPEN
-            if self.cb_open:
-                # Check for RESET timeout
-                if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
-                    logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
-                    self.cb_open = False
-                    self.cb_half_open = True
-                    # Allowed to proceed as probe
-                else:
-                    # Still OPEN and not ready to reset
-                    use_backup = True
+    @backup_model.setter
+    def backup_model(self, value):
+        self.llm_client.backup_model = value
 
-            # If HALF-OPEN, we allow the request (it's the probe)
-            elif self.cb_half_open:
-                logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+    @property
+    def cb_failures(self):
+        return self.llm_client.cb_failures
 
-        # 2. Executing Action (Unlocked IO)
-        if use_backup:
-            if self.backup_client:
-                logger.warning("Circuit breaker OPEN. Using backup provider.")
-                return await self._call_backup_provider(messages, response_format)
-            else:
-                raise Exception("Circuit breaker OPEN and no backup provider configured.")
+    @cb_failures.setter
+    def cb_failures(self, value):
+        self.llm_client.cb_failures = value
 
-        # 3. Try Primary Provider (Closed or Half-Open Probe)
-        try:
-            content = ""
-            if primary_callable:
-                content = await primary_callable()
-            else:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    response_format=response_format,
-                )
-                content = response.choices[0].message.content
-            
-            # 4. Primary Success - Update State (Locked)
-            async with self._cb_lock:
-                if self.cb_half_open:
-                    logger.info("Probe request successful. Closing circuit breaker.")
-                    self.cb_half_open = False
-                    self.cb_failures = 0
-                elif self.cb_failures > 0:
-                    # If we were closed but had some failures, reset them on success
-                    logger.info("Primary provider recovered. Resetting failure count.")
-                    self.cb_failures = 0
-            
-            return content
+    @property
+    def cb_last_failure_time(self):
+        return self.llm_client.cb_last_failure_time
 
-        except Exception as e:
-            # 5. Handle Failure - Update State (Locked)
-            current_use_backup = False
-            
-            async with self._cb_lock:
-                self.cb_last_failure_time = time.time()
-                
-                if self.cb_half_open:
-                    logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
-                    self.cb_open = True
-                    self.cb_half_open = False
-                    # failures count remains high (or could be incremented)
-                else:
-                    self.cb_failures += 1
-                    logger.error(f"Primary provider failed (Count: {self.cb_failures}): {str(e)}")
+    @cb_last_failure_time.setter
+    def cb_last_failure_time(self, value):
+        self.llm_client.cb_last_failure_time = value
 
-                    if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
-                        self.cb_open = True
-                        logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
-                
-                # Check if we should fallback NOW (if we just tripped it or it was already open/failed)
-                # If we are here, primary failed. If we have backup, we should use it.
-                if self.backup_client:
-                    current_use_backup = True
+    @property
+    def cb_open(self):
+        return self.llm_client.cb_open
 
-            # 6. Fallback (Unlocked IO)
-            if current_use_backup:
-                logger.info("Falling back to backup provider...")
-                return await self._call_backup_provider(messages, response_format)
-            
-            raise e  # Propagate if no backup
+    @cb_open.setter
+    def cb_open(self, value):
+        self.llm_client.cb_open = value
 
-    async def _call_backup_provider(self, messages: list, response_format: dict = None) -> str:
-        try:
-            response = await self.backup_client.chat.completions.create(
-                model=self.backup_model,
-                messages=messages,
-                response_format=response_format,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Backup provider ALSO failed: {str(e)}")
-            raise e
+    @property
+    def cb_half_open(self):
+        return self.llm_client.cb_half_open
+
+    @cb_half_open.setter
+    def cb_half_open(self, value):
+        self.llm_client.cb_half_open = value
 
     async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            return await self._execute_with_fallback(
-                messages=messages,
-                response_format={"type": "json_object"}
-            )
+        """Wrapper to call centralized LLMClient."""
+        return await self.llm_client.call_llm(prompt, system_prompt)
 
 
 

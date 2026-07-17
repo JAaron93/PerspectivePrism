@@ -363,38 +363,7 @@ function getTimeAgo(timestamp) {
   }
 }
 
-/**
- * Extract video ID from YouTube URL
- * @param {string} url - YouTube URL
- * @returns {string|null} - Video ID or null
- */
-function extractVideoIdFromUrl(url) {
-  try {
-    const urlObj = new URL(url);
 
-    // Standard watch URL
-    const vParam = urlObj.searchParams.get("v");
-    if (vParam) {
-      return vParam;
-    }
-
-    // Short URL (youtu.be)
-    if (urlObj.hostname.includes("youtu.be")) {
-      const pathParts = urlObj.pathname.split("/");
-      return pathParts[1] || null;
-    }
-
-    // Shorts format
-    const shortsMatch = urlObj.pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/);
-    if (shortsMatch) {
-      return shortsMatch[1];
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Handle "Open Settings" button click

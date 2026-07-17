@@ -1,12 +1,12 @@
 import json
 import logging
-from typing import List
-from urllib.parse import parse_qs, urlparse
+from typing import List, Optional
 
 from app.core.config import settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment
 from app.utils.input_sanitizer import wrap_user_data
-from openai import AsyncOpenAI
+from app.utils.llm_client import LLMClient
+from app.utils.video_utils import extract_video_id
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
@@ -15,65 +15,34 @@ logger = logging.getLogger(__name__)
 
 
 class ClaimExtractor:
-    def __init__(self):
-        self.provider = settings.LLM_PROVIDER.lower()
+    def __init__(self, llm_client: Optional[LLMClient] = None):
+        self.llm_client = llm_client or LLMClient(settings=settings)
 
-        if self.provider == "openai":
-            if not settings.LLM_API_KEY or settings.LLM_API_KEY.strip() == "":
-                raise ValueError(
-                    "LLM_API_KEY is not configured. Please set it in your .env file."
-                )
-            self.client = AsyncOpenAI(api_key=settings.LLM_API_KEY)
-            self.model = settings.LLM_MODEL
+    @property
+    def client(self):
+        return self.llm_client.client
 
-        else:
-            raise ValueError(f"Unsupported LLM_PROVIDER: {self.provider}")
+    @client.setter
+    def client(self, value):
+        self.llm_client.client = value
+
+    @property
+    def model(self):
+        return self.llm_client.model
+
+    @model.setter
+    def model(self, value):
+        self.llm_client.model = value
 
     async def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """Provider-agnostic LLM call that returns JSON string."""
-        if self.provider == "openai":
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                response_format={"type": "json_object"},
-                timeout=60.0,
-            )
-            return response.choices[0].message.content
-
-
+        """Wrapper to call centralized LLMClient."""
+        return await self.llm_client.call_llm(prompt, system_prompt)
 
     def extract_video_id(self, url: str) -> str:
         """
-        Extracts the video ID from a YouTube URL.
+        Delegates to the shared extract_video_id utility.
         """
-        parsed_url = urlparse(url)
-        if parsed_url.hostname == "youtu.be":
-            video_id = parsed_url.path[1:]
-            if not video_id:
-                raise ValueError("Invalid YouTube URL")
-            return video_id
-        if parsed_url.hostname in ("www.youtube.com", "youtube.com"):
-            if parsed_url.path == "/watch":
-                p = parse_qs(parsed_url.query)
-                if "v" not in p or not p["v"] or not p["v"][0]:
-                    raise ValueError("Invalid YouTube URL")
-                return p["v"][0]
-            if parsed_url.path[:7] == "/embed/":
-                parts = parsed_url.path.split("/")
-                if len(parts) < 3 or not parts[2]:
-                    raise ValueError("Invalid YouTube URL")
-                return parts[2]
-            if parsed_url.path[:3] == "/v/":
-                parts = parsed_url.path.split("/")
-                if len(parts) < 3 or not parts[2]:
-                    raise ValueError("Invalid YouTube URL")
-                return parts[2]
-        raise ValueError("Invalid YouTube URL")
+        return extract_video_id(url)
 
     def get_transcript(self, video_id: str) -> Transcript:
         """

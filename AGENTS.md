@@ -78,6 +78,11 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   Configuration via `pydantic-settings` and `.env` files — never hardcode secrets.
 *   Catch specific exceptions; avoid bare `except` clauses.
 
+## Testing & Mocking Conventions
+
+*   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
+*   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `openai.AsyncOpenAI`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
+
 # Frontend Development
 
 The frontend is located in the `frontend/` directory. It uses React 19, TypeScript, and Vite.

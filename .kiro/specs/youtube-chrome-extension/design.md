@@ -269,61 +269,21 @@ The extension uses a multi-layered selector strategy with fallbacks to handle Yo
 
 **Video ID Extraction:**
 
-The extension implements a comprehensive video ID extraction strategy that handles multiple YouTube URL formats:
+The extension implements a comprehensive video ID extraction strategy that handles multiple YouTube URL formats (standard, shorts, embeds, and legacy paths).
 
-```typescript
-function extractVideoId(): string | null {
-  // Strategy 1: Standard watch URL parameter (?v=VIDEO_ID)
-  const urlParams = new URLSearchParams(window.location.search);
-  const watchParam = urlParams.get('v');
-  if (watchParam && isValidVideoId(watchParam)) {
-    return watchParam;
-  }
-  
-  // Strategy 2: Path-based patterns
-  const pathname = window.location.pathname;
-  
-  // Shorts format: /shorts/VIDEO_ID
-  const shortsMatch = pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/);
-  if (shortsMatch && isValidVideoId(shortsMatch[1])) {
-    return shortsMatch[1];
-  }
-  
-  // Embed format: /embed/VIDEO_ID
-  const embedMatch = pathname.match(/\/embed\/([A-Za-z0-9_-]+)/);
-  if (embedMatch && isValidVideoId(embedMatch[1])) {
-    return embedMatch[1];
-  }
-  
-  // Legacy format: /v/VIDEO_ID
-  const legacyMatch = pathname.match(/\/v\/([A-Za-z0-9_-]+)/);
-  if (legacyMatch && isValidVideoId(legacyMatch[1])) {
-    return legacyMatch[1];
-  }
-  
-  // Strategy 3: Check for video ID in hash fragment (rare but possible)
-  const hashMatch = window.location.hash.match(/[?&]v=([A-Za-z0-9_-]+)/);
-  if (hashMatch && isValidVideoId(hashMatch[1])) {
-    return hashMatch[1];
-  }
-  
-  // No valid video ID found
-  return null;
-}
+To keep the codebase DRY, video parsing logic has been extracted from `content.js` and `popup.js` into a shared utility script.
 
-function isValidVideoId(id: string): boolean {
-  // YouTube video IDs are exactly 11 characters
-  // Valid characters: A-Z, a-z, 0-9, underscore, hyphen
-  const videoIdRegex = /^[a-zA-Z0-9_-]{11}$/;
-  return videoIdRegex.test(id);
-}
+```javascript
+// Provided globally by video-utils-script.js
+const videoId = extractVideoIdFromUrl(window.location.href);
 ```
 
 **Extraction Strategy Details:**
+- **Shared Global Utility**: Handled by `video-utils-script.js` which is injected prior to `content.js` via the manifest, and loaded directly into `popup.html`.
 - Try standard watch parameter first (most common)
 - Fall back to path-based patterns for Shorts, embeds, and legacy URLs
 - Check hash fragment as last resort
-- Validate all candidate IDs with permissive regex
+- Validate all candidate IDs with permissive regex (`/^[a-zA-Z0-9_-]{11}$/`)
 - Return null if no valid ID found (triggers appropriate error handling)
 - Log extraction method used for monitoring and debugging
 
