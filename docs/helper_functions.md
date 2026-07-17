@@ -46,7 +46,7 @@ Time formatting utilities.
 Unified video URL parsing and validation library for content scripts and popups.
 
 *   **Location**:
-    *   ES Module: `video-utils.js` (for popup module imports)
+    *   ES Module: `video-utils.js` (for sidepanel module imports)
     *   Vanilla Script: `video-utils-script.js` (for direct manifest content script injection)
 *   **Purpose**: Validates video ID formats and extracts IDs from standard URLs, shorts, legacy `/v/` paths, and hash fragment variables.
 *   **Key Functions**:

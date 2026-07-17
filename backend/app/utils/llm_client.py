@@ -28,7 +28,7 @@ class LLMClient:
                 "Example: LLM_API_KEY=sk-..."
             )
 
-        base_url = self.settings.LLM_BASE_URL
+        base_url = getattr(self.settings, "LLM_BASE_URL", None)
         if not isinstance(base_url, str):
             base_url = "https://api.openai.com/v1"
 
@@ -43,7 +43,7 @@ class LLMClient:
         self.backup_client = None
         backup_api_key = self.settings.BACKUP_LLM_API_KEY
         if isinstance(backup_api_key, str) and backup_api_key.strip():
-            backup_base_url = self.settings.BACKUP_LLM_BASE_URL
+            backup_base_url = getattr(self.settings, "BACKUP_LLM_BASE_URL", None)
             if not isinstance(backup_base_url, str):
                 backup_base_url = "https://api.openai.com/v1"
                 
