@@ -1,5 +1,7 @@
 # Perspective Prism
 
+[![Chrome Extension CI](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml/badge.svg)](https://github.com/JAaron93/PerspectivePrism/actions/workflows/chrome-extension.yml)
+
 An advanced AI agent that processes YouTube video transcripts to analyze claims across multiple perspectives, detect bias and potential deception, and output a rich "truth profile" per claim.
 
 ![Perspective Prism Banner](assets/perspective-prism-16-9.png)
@@ -94,6 +96,14 @@ This script measures:
 - **Latency**: Time taken for extraction and analysis.
 - **Output Quality**: Basic validation of the generated Truth Profile.
 
+## ☁️ Deployment Strategy
+
+Perspective Prism's backend is designed to be deployed to **Modal Labs** using their serverless infrastructure. 
+
+**Important Note on Capacity:** This project is primarily a **portfolio project**, not a commercial product. The backend relies on the $30/month free tier of compute credits provided by Modal Labs. Based on standard usage (1 claim analysis per user per day), this free tier can only handle around **~2,000 monthly users**. 
+
+Since there are no funds allocated to scale this extension further, the extension is planned to fail gracefully. In a future release, if the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#setup-installation) section below.
+
 ## 🛠️ Tech Stack
 
 - **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
@@ -118,6 +128,7 @@ This script measures:
   - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
+<a id="setup-installation"></a>
 ## ⚙️ Setup & Installation
 
 ### Backend
@@ -161,7 +172,7 @@ BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
-   - `BACKEND_CORS_ORIGINS`: List of allowed frontend origins (e.g., `["http://localhost:5173"]`)
+   - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
 
 5. Run the server:
    ```bash
@@ -200,33 +211,52 @@ Additional configuration:
 
 ### Chrome Extension
 
-1. **Load the Extension**:
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable **Developer mode** (top right toggle).
-   - Click **Load unpacked** and select the `chrome-extension` directory.
+#### Development Setup (Unpacked)
+1. Install extension development dependencies:
+   ```bash
+   cd chrome-extension
+   npm install
+   ```
+2. Load the unpacked extension in Chrome:
+   - Open Google Chrome and navigate to `chrome://extensions/`.
+   - Enable **Developer mode** via the toggle switch in the top-right corner.
+   - Click the **Load unpacked** button.
+   - Select the `chrome-extension` directory from this repository.
 
-2. **Configure Backend CORS**:
-   - Note the **ID** of the loaded extension (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
-   - Open `backend/app/core/config.py`.
-   - Add your extension ID to the `CHROME_EXTENSION_IDS` list:
-     ```python
-     CHROME_EXTENSION_IDS: list[str] = [
-         "your-extension-id-here",
-     ]
-     ```
-   - **Restart the backend server** for changes to take effect.
+#### Production Build & Packaging
+For distribution or release testing, compile and package the extension:
+1. Run the build script:
+   ```bash
+   cd chrome-extension
+   npm run build
+   ```
+   This script minifies JavaScript (removing development `console.log` statements) and CSS files, creates a production-ready `dist/` directory, and bundles it into `perspective-prism-extension.zip`.
+2. Load the production build:
+   - Navigate to `chrome://extensions/`.
+   - Click **Load unpacked** and select the `chrome-extension/dist` directory.
 
-3. **Verify Connection**:
-   - Navigate to a YouTube video.
-   - Click the "Analyze Claims" button.
-   - If you see a connection error, ensure the backend is running and the extension ID is correct.
+#### Backend CORS Integration
+To allow the extension to communicate with your local Perspective Prism Backend:
+1. Load the extension in Chrome and note its **Extension ID** (e.g., `amnjngnkcgooljnblcejpmkdhpikcdlp`).
+2. Open `backend/app/core/config.py`.
+3. Add the Extension ID to the `CHROME_EXTENSION_IDS` list:
+   ```python
+   CHROME_EXTENSION_IDS: list[str] = [
+       "your-extension-id-here",
+   ]
+   ```
+4. **Restart the backend server** to apply the configuration.
+
+#### Configuration Options
+Access settings by right-clicking the extension icon and selecting **Options**:
+- **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
+- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 24 hours).
+- **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
 
 ## 🧪 Testing
 
-The backend includes a comprehensive test suite, particularly for the security components.
-
-To run the tests:
-
+### Backend Tests
+To run the backend test suite:
 ```bash
 cd backend
 # Run all tests
@@ -234,6 +264,23 @@ pytest
 
 # Run specific reliability tests
 pytest tests/test_reliability.py
+```
+
+### Chrome Extension Tests
+The Chrome Extension has unit tests using Vitest and integration tests using Playwright.
+```bash
+cd chrome-extension
+# Install testing dependencies
+npm install
+
+# Run unit tests
+npm run test
+
+# Run unit tests with coverage validation (requires 15% coverage)
+npm run test:coverage
+
+# Run Playwright end-to-end integration tests
+npm run test:integration
 ```
 
 ## 🔧 Extended Troubleshooting
@@ -245,7 +292,7 @@ pytest tests/test_reliability.py
 | **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
 | **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
-| **CORS Error** | Frontend origin not allowed | Add your frontend/extension ID to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
+| **CORS Error** | Frontend origin not allowed | Distinguish the request origin: For Chrome extension requests, add the extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. For standalone web applications (e.g., React app), add the origin (e.g., `http://localhost:5173`) to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |
 
 ### Extension Issues
 
@@ -262,15 +309,21 @@ pytest tests/test_reliability.py
 2. **Reload Extension**: Click the refresh icon in `chrome://extensions/` after code changes.
 3. **Clear Cache**: If the frontend behaves oddly, try Hard Reload (Cmd+Shift+R).
 
-## 🔒 Security
+## 🔒 Privacy & Security
 
+### Backend Input Sanitization
 This project implements strict input sanitization to protect against Large Language Model (LLM) prompt injection attacks.
-
 - **Pattern Matching**: Blocks known injection patterns (e.g., "Ignore previous instructions").
 - **Delimiters**: Uses strict delimiters to separate user data from system instructions.
 - **Validation**: Enforces length limits and character whitelisting.
 
 See `backend/app/utils/input_sanitizer.py` for implementation details.
+
+### Extension Data Handling
+- **Minimal Transmission**: The extension transmits the full YouTube Video URL via the `url` field to the backend to retrieve the video transcript and perform claim extraction. Unrelated data such as browsing history, search queries, user identifiers, or personal information is never collected or transmitted.
+- **Strict HTTPS**: All communications with external backends enforce HTTPS encryption. Cleartext HTTP is restricted to localhost (`127.0.0.1` and `localhost`).
+- **Local Storage**: Analysis cache, settings, and statistics are stored locally within the browser context (`chrome.storage.local` and `chrome.storage.sync`).
+- **No Third-Party Scripts**: The extension is self-contained and does not load third-party scripts, trackers, or analytics packages.
 
 ## 📁 Project Structure
 
