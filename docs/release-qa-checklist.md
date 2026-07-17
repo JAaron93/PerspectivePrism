@@ -24,6 +24,10 @@ This checklist must be completed and signed off before releasing any new version
   ```bash
   cd chrome-extension && npm run test:integration
   ```
+- [ ] **Agent Evaluation**: The evaluation suite runs and passes (verifying LLM claim extraction and perspective analysis).
+  ```bash
+  python .benchmarks/evaluate_agents.py
+  ```
 - [ ] **CI Pipeline**: GitHub Actions build is green on the release branch.
 
 ### Manual Verification Checkpoints
