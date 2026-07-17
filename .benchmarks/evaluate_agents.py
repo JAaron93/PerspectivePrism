@@ -48,6 +48,7 @@ if not has_wandb_credentials():
 
 import weave
 
+from app.core.config import settings
 from app.models.schemas import PerspectiveType
 from app.services.analysis_service import AnalysisService
 from app.services.claim_extractor import ClaimExtractor
@@ -67,16 +68,16 @@ else:
 
 # Define the Pipeline Model for Evaluation
 class PerspectivePrismPipeline(weave.Model):
-    extractor_model: str = "gemini-3.5-flash"
-    analysis_model: str = "gemini-3.5-flash"
+    extractor_model: str = settings.LLM_MODEL
+    analysis_model: str = settings.LLM_MODEL
 
     @weave.op()
     async def predict(self, url: str) -> dict:
         """Runs the end-to-end extraction and single claim perspective analysis."""
-        # Initialize service instances inside predict to avoid Weave serialization issues
-        claim_extractor = ClaimExtractor()
+        # Initialize service instances inside predict, passing in Weave parameters
+        claim_extractor = ClaimExtractor(model_name=self.extractor_model)
         evidence_retriever = EvidenceRetriever()
-        analysis_service = AnalysisService()
+        analysis_service = AnalysisService(model_name=self.analysis_model)
 
         # Inject artificial delays on free tier
         if not is_paid_tier:

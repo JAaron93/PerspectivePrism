@@ -44,7 +44,7 @@ class BiasAnalysisAgent(Agent):
 
 
 class AnalysisService:
-    def __init__(self):
+    def __init__(self, model_name: str | None = None):
         self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
         if self.api_key:
             os.environ["GEMINI_API_KEY"] = self.api_key
@@ -59,7 +59,7 @@ class AnalysisService:
 
         self.perspective_agent_primary = PerspectiveAnalysisAgent(
             name="perspective_agent_primary",
-            model=settings.LLM_MODEL,
+            model=model_name or settings.LLM_MODEL,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -89,7 +89,7 @@ class AnalysisService:
 
         self.bias_agent_primary = BiasAnalysisAgent(
             name="bias_agent_primary",
-            model=settings.LLM_MODEL,
+            model=model_name or settings.LLM_MODEL,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"

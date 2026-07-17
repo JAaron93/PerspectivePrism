@@ -21,7 +21,7 @@ class ExtractorAgent(Agent):
 
 
 class ClaimExtractor:
-    def __init__(self):
+    def __init__(self, model_name: str | None = None):
         self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
         if self.api_key:
             os.environ["GEMINI_API_KEY"] = self.api_key
@@ -33,7 +33,7 @@ class ClaimExtractor:
 
         self.agent = ExtractorAgent(
             name="extractor_agent",
-            model=settings.LLM_MODEL,
+            model=model_name or settings.LLM_MODEL,
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
