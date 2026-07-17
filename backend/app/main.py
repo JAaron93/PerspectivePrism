@@ -331,8 +331,9 @@ async def create_analysis_job(request: VideoRequest, background_tasks: Backgroun
     Starts a background job to analyze a YouTube video.
     """
     # Validate video ID upfront
-    video_id = extract_video_id(str(request.url))
-    if not video_id:
+    try:
+        video_id = extract_video_id(str(request.url))
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
 
     job_id = str(uuid.uuid4())

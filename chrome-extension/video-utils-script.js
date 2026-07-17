@@ -45,7 +45,7 @@
       }
 
       // Hash fragment (e.g. #v=VIDEO_ID)
-      const hashMatch = urlObj.hash.match(/[?&]v=([A-Za-z0-9_-]+)/);
+      const hashMatch = urlObj.hash.match(/[#?&]v=([A-Za-z0-9_-]+)/);
       if (hashMatch && isValidVideoId(hashMatch[1])) {
         return hashMatch[1];
       }

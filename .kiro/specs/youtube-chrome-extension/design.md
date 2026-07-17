@@ -269,7 +269,7 @@ The extension uses a multi-layered selector strategy with fallbacks to handle Yo
 
 **Video ID Extraction:**
 
-The extension implements a comprehensive video ID extraction strategy that handles multiple YouTube URL formats (standard, shorts, embeds, and legacy paths).
+The extension implements a comprehensive video ID extraction strategy that handles multiple YouTube URL formats (standard, shorts, embeds, legacy paths, and youtu.be short URLs).
 
 To keep the codebase DRY, video parsing logic has been extracted from `content.js` and `popup.js` into a shared utility script.
 

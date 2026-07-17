@@ -20,7 +20,7 @@ A centralized wrapper for OpenAI client operations, including fallback logic and
 YouTube video URL extraction helper.
 
 *   **Location**: `app.utils.video_utils`
-*   **Purpose**: Extract YouTube Video IDs from various URL patterns (standard watch pages, embed links, shorts format, youtu.be short URLs).
+*   **Purpose**: Extract YouTube Video IDs from various URL patterns (standard watch pages, embed links, youtu.be short URLs).
 *   **Key Functions**:
     *   `extract_video_id(url: str) -> str`: Extracts the 11-character video ID from a YouTube link, throwing `ValueError` for invalid formats.
 *   **Usage**: Used in API routers and during claim processing in `main.py`.

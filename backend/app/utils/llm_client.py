@@ -87,6 +87,7 @@ class LLMClient:
         """
         # 1. Check Circuit Breaker State (Locked)
         use_backup = False
+        is_half_open_probe = False
         
         async with self._cb_lock:
             # Check if OPEN
@@ -100,6 +101,7 @@ class LLMClient:
                     logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN state.")
                     self.cb_open = False
                     self.cb_half_open = True
+                    is_half_open_probe = True
                     # Allowed to proceed as probe
                 else:
                     # Still OPEN and not ready to reset
@@ -108,6 +110,7 @@ class LLMClient:
             # If HALF-OPEN, we allow the request (it's the probe)
             elif self.cb_half_open:
                 logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+                is_half_open_probe = True
 
         # 2. Executing Action (Unlocked IO)
         if use_backup:
@@ -133,7 +136,7 @@ class LLMClient:
             
             # 4. Primary Success - Update State (Locked)
             async with self._cb_lock:
-                if self.cb_half_open:
+                if is_half_open_probe:
                     logger.info("Probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
                     self.cb_failures = 0
@@ -151,7 +154,7 @@ class LLMClient:
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
                 
-                if self.cb_half_open:
+                if is_half_open_probe:
                     logger.error(f"Probe request FAILED: {str(e)}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False

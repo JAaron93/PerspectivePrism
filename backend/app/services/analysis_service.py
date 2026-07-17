@@ -43,6 +43,7 @@ class BiasAnalysisAgent(Agent):
     pass
 
 
+class AnalysisService:
     def __init__(self, model_name: str | None = None):
         self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
         if self.api_key:
