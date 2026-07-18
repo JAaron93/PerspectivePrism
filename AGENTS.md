@@ -42,7 +42,7 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 2.  Create a virtual environment: `python3 -m venv venv`.
 3.  Activate it: `source venv/bin/activate`.
 4.  Install dependencies: `pip install -r requirements.txt`.
-5.  Set up `.env` from `.env.example` (requires OpenAI and Google Search API keys).
+5.  Set up `.env` from `.env.example` (requires Gemini and Google Search API keys).
 6.  **Rust Toolchain Configuration**:
     When compiling the Rust extension (`prism_sanitizer_rs`), if the Rust compiler (`rustc`/`cargo`) is not found on the `PATH`, prepend the local Rustup stable toolchain bin directory to your `PATH` (typically located at `~/.rustup/toolchains/stable-x86_64-apple-darwin/bin` on macOS):
     ```bash
@@ -89,7 +89,7 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 
 *   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
 *   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
-*   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `openai.AsyncOpenAI`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
+*   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `google.genai.Client`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
 
 # Frontend Development
 

@@ -345,7 +345,6 @@ The project is organized as follows:
     - `analysis_service.py`: Synthesizes evidence and analyzes claims from multiple perspectives
   - `app/models/`: Defines Pydantic data models for requests and responses
   - `app/utils/`: Contains utility modules (input sanitization, configuration)
-    - `llm_client.py`: Centralized wrapper for OpenAI client operations and circuit breaker logic
     - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application

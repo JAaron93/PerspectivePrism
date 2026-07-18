@@ -6,16 +6,6 @@ This document catalogs the utility modules and reusable helper functions extract
 
 ## 1. Backend Utilities (`backend/app/utils`)
 
-### [LLMClient](backend/app/utils/llm_client.py)
-A centralized wrapper for OpenAI client operations, including fallback logic and circuit breaking features.
-
-*   **Location**: `app.utils.llm_client.LLMClient`
-*   **Purpose**: Manages OpenAI connection lifecycle, handles backup provider switching, and controls circuit-breaking transitions (`CLOSED` → `OPEN` → `HALF-OPEN`).
-*   **Key Methods**:
-    *   `call_llm(prompt: str, system_prompt: str = None, timeout: float = 60.0) -> str`: Calls the active LLM provider returning the raw JSON string response.
-    *   `execute_with_fallback(...)`: Standardized execution path that implements the circuit-breaker logic.
-*   **Usage**: Used by `ClaimExtractor` and `AnalysisService`.
-
 ### [Video Utilities](backend/app/utils/video_utils.py)
 YouTube video URL extraction helper.
 

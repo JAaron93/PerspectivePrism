@@ -80,7 +80,7 @@ def health_check():
 async def health_check_llm():
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
-        "primary_provider": settings.LLM_PROVIDER,  # or similar config key
+        "primary_model": settings.LLM_MODEL,
         "circuit_breaker_open": analysis_service.cb_open,
         "features": {
             "backup_configured": analysis_service.backup_client is not None,
