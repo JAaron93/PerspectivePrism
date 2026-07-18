@@ -42,7 +42,7 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 2.  Create a virtual environment: `python3 -m venv venv`.
 3.  Activate it: `source venv/bin/activate`.
 4.  Install dependencies: `pip install -r requirements.txt`.
-5.  Set up `.env` from `.env.example` (requires OpenAI and Google Search API keys).
+5.  Set up `.env` from `.env.example` (requires Gemini and Google Search API keys).
 6.  **Rust Toolchain Configuration**:
     When compiling the Rust extension (`prism_sanitizer_rs`), if the Rust compiler (`rustc`/`cargo`) is not found on the `PATH`, prepend the local Rustup stable toolchain bin directory to your `PATH` (typically located at `~/.rustup/toolchains/stable-x86_64-apple-darwin/bin` on macOS):
     ```bash
@@ -84,6 +84,12 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   Use structured logging via the `logging` module; log details server-side and return generic errors to clients.
 *   Configuration via `pydantic-settings` and `.env` files — never hardcode secrets.
 *   Catch specific exceptions; avoid bare `except` clauses.
+
+## Testing & Mocking Conventions
+
+*   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
+*   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
+*   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `google.genai.Client`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
 
 # Frontend Development
 
@@ -147,6 +153,7 @@ Scripts are injected into YouTube pages in this order:
 
 *   Vanilla JS with ES module syntax — no framework, no build step.
 *   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
+*   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`) and attached to `window` must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when those functions are consumed by other scripts.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
 ## Architectural Guidelines

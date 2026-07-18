@@ -13,6 +13,7 @@ from app.models.schemas import (
 from app.services.claim_extractor import ClaimExtractor
 from app.services.evidence_retriever import EvidenceRetriever
 from app.services.analysis_service import AnalysisService
+from app.utils.video_utils import extract_video_id
 import asyncio
 import logging
 import uuid
@@ -79,7 +80,7 @@ def health_check():
 async def health_check_llm():
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
-        "primary_provider": settings.LLM_PROVIDER,  # or similar config key
+        "primary_model": settings.LLM_MODEL,
         "circuit_breaker_open": analysis_service.cb_open,
         "features": {
             "backup_configured": analysis_service.backup_client is not None,
@@ -190,7 +191,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
 
 
 
-        video_id = claim_extractor.extract_video_id(str(request.url))
+        video_id = extract_video_id(str(request.url))
         # Validation is now done in create_analysis_job
         
         transcript = claim_extractor.get_transcript(video_id)
@@ -330,8 +331,9 @@ async def create_analysis_job(request: VideoRequest, background_tasks: Backgroun
     Starts a background job to analyze a YouTube video.
     """
     # Validate video ID upfront
-    video_id = claim_extractor.extract_video_id(str(request.url))
-    if not video_id:
+    try:
+        video_id = extract_video_id(str(request.url))
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
 
     job_id = str(uuid.uuid4())

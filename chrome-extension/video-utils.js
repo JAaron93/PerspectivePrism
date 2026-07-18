@@ -5,7 +5,7 @@
 export function isValidVideoId(id) {
   // YouTube video IDs are exactly 11 characters
   // Valid characters: A-Z, a-z, 0-9, underscore, hyphen
-  return id && /^[a-zA-Z0-9_-]{11}$/.test(id);
+  return id && typeof id === "string" && /^[a-zA-Z0-9_-]{11}$/.test(id);
 }
 
 export function extractVideoIdFromUrl(url) {
@@ -43,8 +43,14 @@ export function extractVideoIdFromUrl(url) {
       if (isValidVideoId(id)) return id;
     }
 
+    // Hash fragment (e.g. #v=VIDEO_ID)
+    const hashMatch = urlObj.hash.match(/[#?&]v=([A-Za-z0-9_-]+)/);
+    if (hashMatch && isValidVideoId(hashMatch[1])) {
+      return hashMatch[1];
+    }
+
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

@@ -12,6 +12,10 @@ This checklist must be completed and signed off before releasing any new version
 ## 1. Pre-Release Validation
 
 ### Automated Testing
+- [ ] **Linting**: No ESLint warnings or errors.
+  ```bash
+  cd chrome-extension && npm run lint
+  ```
 - [ ] **Unit Tests**: All unit tests passing (100% success rate).
   ```bash
   cd chrome-extension && npm run test

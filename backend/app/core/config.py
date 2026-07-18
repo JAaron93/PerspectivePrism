@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 3
     CIRCUIT_BREAKER_RESET_TIMEOUT: int = 60  # seconds
 
-    LLM_PROVIDER: str = "google"
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
     GOOGLE_SEARCH_TIMEOUT: float = (

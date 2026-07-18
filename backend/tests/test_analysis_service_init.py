@@ -1,8 +1,8 @@
 """
-Test to verify OpenAI API key validation in AnalysisService.
+Test to verify Gemini API key validation in AnalysisService.
 
 This test ensures that the AnalysisService properly validates
-the OPENAI_API_KEY configuration before initializing.
+the GEMINI_API_KEY / LLM_API_KEY configuration before initializing.
 """
 
 from unittest.mock import patch
@@ -20,7 +20,6 @@ class TestAnalysisServiceInitialization:
             mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
             mock_settings.LLM_API_KEY = ""
             mock_settings.LLM_MODEL = "gemini-3.5-flash"
-            mock_settings.LLM_PROVIDER = "google"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             service = AnalysisService()
@@ -42,7 +41,6 @@ class TestAnalysisServiceInitialization:
             mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = api_key
             mock_settings.LLM_MODEL = "gemini-3.5-flash"
-            mock_settings.LLM_PROVIDER = "google"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             with pytest.raises(ValueError) as exc_info:
@@ -58,7 +56,6 @@ class TestAnalysisServiceInitialization:
             mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
             mock_settings.LLM_API_KEY = ""
             mock_settings.LLM_MODEL = "gemini-test-model"
-            mock_settings.LLM_PROVIDER = "google"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             service = AnalysisService()
@@ -71,7 +68,6 @@ class TestAnalysisServiceInitialization:
             mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = ""
             mock_settings.LLM_MODEL = "gemini-3.5-flash"
-            mock_settings.LLM_PROVIDER = "google"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
 
             with pytest.raises(ValueError) as exc_info:

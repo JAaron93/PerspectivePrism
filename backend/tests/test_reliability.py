@@ -16,7 +16,6 @@ def analysis_service_mock():
         mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
         mock_settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
         mock_settings.CIRCUIT_BREAKER_RESET_TIMEOUT = 10
-        mock_settings.LLM_PROVIDER = "google"
 
 
         service = AnalysisService()

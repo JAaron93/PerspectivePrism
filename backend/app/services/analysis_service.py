@@ -186,7 +186,6 @@ class AnalysisService:
                 else:
                     raise e
 
-
         raise last_err or Exception("Agent execution failed with no result")
 
     async def _run_agent_with_fallback(
@@ -259,7 +258,6 @@ class AnalysisService:
                     raise AnalysisServiceError(f"Primary and backup providers both failed. Backup error: {backup_err}") from backup_err
 
             raise e
-
 
 
 

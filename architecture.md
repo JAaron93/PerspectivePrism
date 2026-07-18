@@ -16,7 +16,7 @@ graph TD
     subgraph External APIs
         CE -->|Fetches| YT[YouTube Transcript API]
         ER -->|Queries| GCS[Google Custom Search API]
-        AS -->|Prompts| LLM[OpenAI API]
+        AS -->|Prompts| LLM[Gemini API]
     end
     
     style User fill:#f9f,stroke:#333,stroke-width:2px
@@ -37,7 +37,7 @@ sequenceDiagram
     participant CE as Claim Extractor
     participant ER as Evidence Retriever
     participant AS as Analysis Service
-    participant EXT as External APIs (Google/OpenAI)
+    participant EXT as External APIs (Google Search/Gemini)
 
     User->>FE: Enter YouTube URL & Click Analyze
     FE->>BE: POST /analyze {url}
