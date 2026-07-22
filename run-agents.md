@@ -72,6 +72,11 @@ cd backend && pytest
 > [!NOTE]
 > **Playwright Persistent Context Harness**: Integration tests use Playwright's `chromium.launchPersistentContext()` in [fixtures.js](chrome-extension/tests/integration/fixtures.js) to load the unpacked extension, capture background Service Worker instances (`context.serviceWorkers()`), and test `side-panel.html` rendering.
 
+> [!IMPORTANT]
+> **Testing vs Debugging Tool Routing Discipline**:
+> - **Automated Testing & QA**: Use **Playwright's Persistent Extension Context** (`npm run test:integration`) as the primary harness for all automated integration testing, assertions, and CI quality gates.
+> - **Interactive Debugging**: Use **Chrome DevTools MCP** (via `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively investigating tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT invoke Chrome DevTools MCP for routine test suite execution.
+
 ---
 
 ## 5. File Mapping Reference

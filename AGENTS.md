@@ -134,6 +134,11 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 *   **Run Coverage**: `npm run test:coverage`
 *   **Run Integration Tests**: `npm run test:integration` (Playwright)
 
+## Testing & Debugging Tool Routing Discipline
+
+* **Primary Integration Test Harness**: Always use **Playwright's Persistent Extension Context** (`npm run test:integration` in `chrome-extension/`) for automated integration testing, assertions, regression checks, and CI quality gates.
+* **Selective Interactive Debugging**: Use **Chrome DevTools MCP** (via the `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively diagnosing tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT use Chrome DevTools MCP for routine test suite execution.
+
 ## Key Files
 
 *   `manifest.json`: Extension configuration (Manifest V3).
