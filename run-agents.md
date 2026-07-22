@@ -75,6 +75,7 @@ cd backend && pytest
 > [!IMPORTANT]
 > **Testing vs Debugging Tool Routing Discipline**:
 > - **Automated Testing & QA**: Use **Playwright's Persistent Extension Context** (`npm run test:integration`) as the primary harness for all automated integration testing, assertions, and CI quality gates.
+> - **Network Mocking & Stubbing**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/` + `msw` skill) to intercept network calls (`/analyze/jobs`), simulate stream progress chunks, test backend error codes (500/429), and verify local cache hit/miss behavior deterministically without sending real API requests.
 > - **Interactive Debugging**: Use **Chrome DevTools MCP** (via `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively investigating tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT invoke Chrome DevTools MCP for routine test suite execution.
 
 ---
