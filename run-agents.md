@@ -62,12 +62,15 @@ Macroscope review agents MUST verify that the following test suites pass prior t
 # 1. Extension Unit Tests (Vitest)
 cd chrome-extension && npm test
 
-# 2. Extension Integration Tests (Playwright)
+# 2. Extension Integration Tests (Playwright Persistent Extension Context)
 cd chrome-extension && npm run test:integration
 
 # 3. Backend Unit/Integration Tests (Pytest)
 cd backend && pytest
 ```
+
+> [!NOTE]
+> **Playwright Persistent Context Harness**: Integration tests use Playwright's `chromium.launchPersistentContext()` in [fixtures.js](chrome-extension/tests/integration/fixtures.js) to load the unpacked extension, capture background Service Worker instances (`context.serviceWorkers()`), and test `side-panel.html` rendering.
 
 ---
 
