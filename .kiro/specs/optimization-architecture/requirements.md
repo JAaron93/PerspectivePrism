@@ -38,7 +38,7 @@
 
 ### FR-1: Legacy DOM Overlay Removal & Non-Breakage
 - **FR-1.1**: The extension MUST completely remove all legacy in-DOM overlay element creation (`#pp-analysis-panel`, Shadow DOM overlay mounting in `content.js`, `panel-styles.js` DOM injection).
-- **FR-1.2**: All content script helper functions (e.g. `claim-navigator.js`, button click handlers) MUST be decoupled from `#pp-analysis-panel` DOM references so that removing the overlay does NOT throw `NullPointerException` or `TypeError`.
+- **FR-1.2**: All content script helper functions (e.g. `claim-navigator.js`, button click handlers) MUST be decoupled from `#pp-analysis-panel` DOM references so that removing the overlay does NOT throw `TypeError` or unhandled DOM exception.
 - **FR-1.3**: The YouTube page "Analyze" action button handler MUST dispatch an `OPEN_SIDE_PANEL` message to `background.js` to open `chrome.sidePanel`.
 
 ### FR-2: Content-Hashed Local Storage Caching (`chrome.storage.local`)

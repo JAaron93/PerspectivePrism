@@ -9,7 +9,7 @@ This file provides context, architectural constraints, and review criteria for M
 - **Repository**: PerspectivePrism (YouTube claim, bias & deception analyzer)
 - **Active Branch**: `audit-browser-extension-standards`
 - **Active Specification**: `optimization-architecture`
-- **Spec Root Directory**: [.kiro/specs/optimization-architecture/](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/.kiro/specs/optimization-architecture/)
+- **Spec Root Directory**: [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/)
 
 ---
 
@@ -17,16 +17,16 @@ This file provides context, architectural constraints, and review criteria for M
 
 Review agents MUST validate all pull requests, code modifications, and commits against the authoritative specification files:
 
-1. **[design.md](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/.kiro/specs/optimization-architecture/design.md)**: Architectural design detailing `chrome.sidePanel` migration, legacy overlay removal, Optimistic UI skeletons, Content-Hashed `chrome.storage.local` caching, Vite bundling, and Service Worker lazy initialization.
-2. **[requirements.md](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/.kiro/specs/optimization-architecture/requirements.md)**: Functional/Non-Functional requirements (FR-1 to FR-7, NFR-1 to NFR-4) and BDD Gherkin acceptance criteria.
-3. **[tasks.md](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/.kiro/specs/optimization-architecture/tasks.md)**: 6-Track task breakdown with explicit dependencies and parallelism.
+1. **[design.md](.kiro/specs/optimization-architecture/design.md)**: Architectural design detailing `chrome.sidePanel` migration, legacy overlay removal, Optimistic UI skeletons, Content-Hashed `chrome.storage.local` caching, Vite bundling, and Service Worker lazy initialization.
+2. **[requirements.md](.kiro/specs/optimization-architecture/requirements.md)**: Functional/Non-Functional requirements (FR-1 to FR-7, NFR-1 to NFR-4) and BDD Gherkin acceptance criteria.
+3. **[tasks.md](.kiro/specs/optimization-architecture/tasks.md)**: 6-Track task breakdown with explicit dependencies and parallelism.
 
 ---
 
 ## 3. Major Architectural Guardrails & Guidelines for Review Agents
 
 ### A. Legacy In-DOM Overlay Excise (`#pp-analysis-panel`)
-- **Rule**: All legacy floating DOM overlay code (`#pp-analysis-panel`, Shadow DOM mounting to `document.body`, `createPanelContainer`, `removePanel`, and overlay z-index manipulation) MUST be removed from [content.js](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/content.js).
+- **Rule**: All legacy floating DOM overlay code (`#pp-analysis-panel`, Shadow DOM mounting to `document.body`, `createPanelContainer`, `removePanel`, and overlay z-index manipulation) MUST be removed from [content.js](chrome-extension/content.js).
 - **Review Check**: Verify that `content.js` does NOT inject modal overlay dialogs into YouTube's DOM tree.
 
 ### B. Exclusive Native Chrome Side Panel (`chrome.sidePanel`)
@@ -34,7 +34,7 @@ Review agents MUST validate all pull requests, code modifications, and commits a
 - **Review Check**: Ensure `manifest.json` declares `"permissions": ["sidePanel"]` and `"side_panel": { "default_path": "side-panel.html" }`.
 
 ### C. Zero Breakdown & Non-Breaking Navigation
-- **Rule**: Helper scripts ([claim-navigator.js](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/claim-navigator.js)) and YouTube player action buttons MUST NOT depend on panel DOM references (`panel._keydownHandler`, `shadowRoot`).
+- **Rule**: Helper scripts ([claim-navigator.js](chrome-extension/claim-navigator.js)) and YouTube player action buttons MUST NOT depend on panel DOM references (`panel._keydownHandler`, `shadowRoot`).
 - **Review Check**: The "Analyze Video" action button MUST dispatch an `OPEN_SIDE_PANEL` message to `background.js` to open/focus `chrome.sidePanel`.
 
 ### D. Service Worker Lifetime Resilience
@@ -75,9 +75,9 @@ cd backend && pytest
 
 | Component | Primary Files |
 | :--- | :--- |
-| **Service Worker** | [background.js](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/background.js) |
-| **Content Script** | [content.js](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/content.js), [claim-navigator.js](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/claim-navigator.js) |
-| **Side Panel UI** | `chrome-extension/side-panel.html`, `chrome-extension/side-panel.js` |
-| **Extension Manifest** | [manifest.json](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/chrome-extension/manifest.json) |
-| **FastAPI Backend** | [main.py](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/backend/app/main.py), [input_sanitizer.py](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/backend/app/utils/input_sanitizer.py) |
-| **Specification Suite** | [.kiro/specs/optimization-architecture/](file:///Users/pretermodernist/.gemini/antigravity/worktrees/PerspectivePrism/audit-browser-extension-standards/.kiro/specs/optimization-architecture/) |
+| **Service Worker** | [background.js](chrome-extension/background.js) |
+| **Content Script** | [content.js](chrome-extension/content.js), [claim-navigator.js](chrome-extension/claim-navigator.js) |
+| **Side Panel UI** | [side-panel.html](chrome-extension/side-panel.html), [side-panel.js](chrome-extension/side-panel.js) |
+| **Extension Manifest** | [manifest.json](chrome-extension/manifest.json) |
+| **FastAPI Backend** | [main.py](backend/app/main.py), [input_sanitizer.py](backend/app/utils/input_sanitizer.py) |
+| **Specification Suite** | [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/) |
