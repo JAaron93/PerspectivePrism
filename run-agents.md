@@ -77,7 +77,7 @@ cd backend && pytest
 | :--- | :--- |
 | **Service Worker** | [background.js](chrome-extension/background.js) |
 | **Content Script** | [content.js](chrome-extension/content.js), [claim-navigator.js](chrome-extension/claim-navigator.js) |
-| **Side Panel UI** | [side-panel.html](chrome-extension/side-panel.html), [side-panel.js](chrome-extension/side-panel.js) |
+| **Side Panel UI** | side-panel.html, side-panel.js (planned) |
 | **Extension Manifest** | [manifest.json](chrome-extension/manifest.json) |
 | **FastAPI Backend** | [main.py](backend/app/main.py), [input_sanitizer.py](backend/app/utils/input_sanitizer.py) |
 | **Specification Suite** | [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/) |
