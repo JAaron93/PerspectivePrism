@@ -103,3 +103,22 @@ cd backend && pytest
 | **Extension Manifest** | [manifest.json](chrome-extension/manifest.json) |
 | **FastAPI Backend** | [main.py](backend/app/main.py), [input_sanitizer.py](backend/app/utils/input_sanitizer.py) |
 | **Specification Suite** | [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/) |
+
+---
+
+## 6. Macroscope Review Exclusions & Allowed Architectural Patterns
+
+Macroscope review agents MUST NOT flag the following approved architectural decisions as bugs or regressions:
+
+1. **Removal of `#pp-analysis-panel` and Shadow DOM overlays from `content.js`**:
+   - **Allowed**: Completely excising floating in-DOM overlays in favor of native `chrome.sidePanel`.
+   - **Do NOT Flag**: Do NOT flag the absence of `#pp-analysis-panel` or `createPanelContainer()` in `content.js` as missing UI functionality.
+2. **Deleting Standalone `-script.js` Duplicate Utilities**:
+   - **Allowed**: Deleting `config-script.js` and `logging-utils-script.js` once Vite bundling compiles ES modules.
+   - **Do NOT Flag**: Do NOT flag deleting duplicate script fallbacks as missing imports.
+3. **Instant Storage Cache Hits (`chrome.storage.local`)**:
+   - **Allowed**: Returning `cache_${videoId}_${contentHash}` analysis directly from local storage.
+   - **Do NOT Flag**: Do NOT flag cache hit responses returning in <20ms without backend HTTP requests as skipped API processing.
+4. **Network Interception via MSW v2 in Integration Tests**:
+   - **Allowed**: Using MSW v2 (`http.get`, `http.post`) in Playwright integration tests to mock `/analyze/jobs` API streams and backend error codes (500/429).
+   - **Do NOT Flag**: Do NOT flag MSW mocks as missing live server integration during automated testing runs.
