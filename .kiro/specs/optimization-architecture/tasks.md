@@ -51,7 +51,7 @@
 ## Track 3: Native Side Panel UI, Optimistic UI & Progressive Streaming
 
 ### TASK-3.1: Manifest V3 Side Panel Configuration & HTML View
-- **Description**: Update `manifest.json` with `"permissions": ["sidePanel"]` and `"side_panel": { "default_path": "side-panel.html" }`. Create `side-panel.html` and `side-panel.js`.
+- **Description**: Update `manifest.json` with `"permissions": ["sidePanel"]` and `"side_panel": { "default_path": "sidepanel.html" }`. Create `sidepanel.html` and `sidepanel.js`.
 - **Traceability**: Covers FR-4.1, US-1.
 - **Dependencies**: TASK-2.2.
 - **Acceptance Criteria**: `side-panel.html` mounts in Chrome's native side panel container.
