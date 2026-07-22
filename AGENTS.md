@@ -140,6 +140,16 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 * **Network Mocking & Stubbing (MSW v2)**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/` + `msw` skill) for intercepting FastAPI backend requests (`/analyze/jobs`), simulating stream progress chunks, testing network errors (500/429), and verifying local cache hit/miss behavior without making live API calls.
 * **Selective Interactive Debugging**: Use **Chrome DevTools MCP** (via the `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively diagnosing tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT use Chrome DevTools MCP for routine test suite execution.
 
+### Automated Accessibility (axe-core MCP) Rules
+- **Prerequisites Before Scanning:**
+  1. Wait for client-side rendering/hydration to complete before invoking `analyze`.
+  2. Dismiss modal overlays, cookie consent banners, or dropdowns that block page interaction.
+  3. For auth-gated routes, read credentials/tokens from local `.env` or session cookies—do not guess credentials.
+- **Workflow Pattern:**
+  1. Run `analyze` on specific, isolated selectors (e.g., `#main-content`, `form.checkout`) rather than whole-page scans when debugging specific components.
+  2. Call `remediate` on returned violation IDs to get code-level fixes.
+  3. Focus fixes on semantic HTML elements (`<button>` over `<div onClick>`), proper ARIA labels, and WCAG AA color contrast compliance.
+
 ## Key Files
 
 *   `manifest.json`: Extension configuration (Manifest V3).
