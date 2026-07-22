@@ -43,6 +43,39 @@ export const test = base.extend({
       });
     });
 
+    // Intercept live YouTube watch requests to serve deterministic mock DOM in CI
+    await context.route("https://www.youtube.com/watch*", async (route) => {
+      const mockYouTubeHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Watch Mock</title>
+</head>
+<body>
+  <div id="content">
+    <div id="page-manager">
+      <div id="columns">
+        <div id="primary">
+          <div id="primary-inner">
+            <div id="player"><video src=""></video></div>
+            <div id="below">
+              <div id="top-level-buttons-computed"></div>
+              <div id="actions"></div>
+              <div id="menu-container"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: mockYouTubeHtml,
+      });
+    });
+
     await use(context);
     await context.close();
   },

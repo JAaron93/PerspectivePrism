@@ -1,6 +1,9 @@
 # AGENTS.md
 
-This file provides guidance to Software Engineering Agents (SEAs) when working with code in this repository.
+This file provides guidance to Software Engineering Agents (SEAs) and Macroscope Review Agents when working with code in this repository.
+
+> [!IMPORTANT]
+> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Macroscope review rules, refer to **[run-agents.md](run-agents.md)** and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
 
 # Project Overview
 
@@ -130,6 +133,26 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 *   **Run Unit Tests (watch)**: `npm run test:watch`
 *   **Run Coverage**: `npm run test:coverage`
 *   **Run Integration Tests**: `npm run test:integration` (Playwright)
+
+## Testing & Debugging Tool Routing Discipline
+
+* **Primary Integration Test Harness**: Always use **Playwright's Persistent Extension Context** (`npm run test:integration` in `chrome-extension/`) for automated integration testing, assertions, regression checks, and CI quality gates.
+* **Domain-Relevant Test Fixtures**: **Never use pop music videos or dummy Rick Astley IDs (`dQw4w9WgXcQ`) for automated testing or browser QA**. Always use realistic journalism, news analysis, science reporting, or policy documentary video URLs/IDs (e.g. PBS NewsHour, BBC News, DW News, or Veritasium claims) so test data accurately reflects Perspective Prism's claim extraction domain.
+* **Network Mocking & Stubbing (MSW v2)**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/` + `msw` skill) for intercepting FastAPI backend requests (`/analyze/jobs`), simulating stream progress chunks, testing network errors (500/429), and verifying local cache hit/miss behavior without making live API calls.
+* **Selective Interactive Debugging**: Use **Chrome DevTools MCP** (via the `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively diagnosing tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT use Chrome DevTools MCP for routine test suite execution.
+
+### Automated Accessibility (axe-core MCP & a11y-debugging) Rules
+- **Prerequisites Before Scanning:**
+  1. Wait for client-side rendering/hydration to complete before invoking `analyze`.
+  2. Dismiss modal overlays, cookie consent banners, or dropdowns that block page interaction.
+  3. For auth-gated routes, read credentials/tokens from local `.env` or session cookies—do not guess credentials.
+- **Workflow Pattern:**
+  1. Run `analyze` on specific, isolated selectors (e.g., `#main-content`, `form.checkout`) rather than whole-page scans when debugging specific components.
+  2. Call `remediate` on returned violation IDs to get code-level fixes.
+  3. Focus fixes on semantic HTML elements (`<button>` over `<div onClick>`), proper ARIA labels, and WCAG AA color contrast compliance.
+- **Tool Complementarity (`axe-core-mcp` vs `a11y-debugging` skill):**
+  - **`axe-core-mcp`**: Primary tool for component-level DOM scanning (`analyze` on specific selectors) and direct code-level remediation (`remediate`).
+  - **`a11y-debugging` skill**: Used for full-page Lighthouse accessibility scores, visual tap-target size validation (48x48px), and testing interactive keyboard focus traps (`Tab`/`Shift+Tab` cycling).
 
 ## Key Files
 
