@@ -12,9 +12,35 @@ export class CacheManager {
   static CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
   static MAX_STORAGE_BYTES = 10 * 1024 * 1024; // 10 MB
   static CURRENT_SCHEMA_VERSION = 1;
+  static RESERVED_KEYS = new Set([
+    "cache_metrics",
+    "cache_metadata",
+    "cache_stats",
+    "cache_settings",
+  ]);
 
   constructor() {
     this.inMemoryCache = new Map();
+  }
+
+  /**
+   * Check if a storage key (and optional entry object) is a video analysis cache entry
+   * @param {string} key
+   * @param {Object} [entry]
+   * @returns {boolean}
+   */
+  isCacheEntry(key, entry) {
+    if (!key || typeof key !== "string" || !key.startsWith("cache_")) {
+      return false;
+    }
+    if (CacheManager.RESERVED_KEYS.has(key)) {
+      return false;
+    }
+    if (entry !== undefined && entry !== null) {
+      if (typeof entry !== "object") return false;
+      return Boolean(entry.data || entry.timestamp || entry.videoId);
+    }
+    return true;
   }
 
   /**
@@ -263,7 +289,7 @@ export class CacheManager {
   async evictExpiredAndLRU(requiredSpaceBytes = 0) {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       const keysToRemove = [];
       const validEntries = [];
       let totalSize = 0;
@@ -314,7 +340,7 @@ export class CacheManager {
   async clear() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       if (cacheKeys.length > 0) {
         await chrome.storage.local.remove(cacheKeys);
       }
@@ -357,7 +383,7 @@ export class CacheManager {
   async getStats() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       let totalSize = 0;
       for (const key of cacheKeys) {
         totalSize += this.estimateSize(all[key]);

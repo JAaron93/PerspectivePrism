@@ -719,13 +719,28 @@ class PerspectivePrismClient {
     }
   }
 
+  isCacheEntry(key, entry) {
+    if (!key || typeof key !== "string" || !key.startsWith("cache_")) {
+      return false;
+    }
+    const reserved = new Set(["cache_metrics", "cache_metadata", "cache_stats", "cache_settings"]);
+    if (reserved.has(key)) {
+      return false;
+    }
+    if (entry !== undefined && entry !== null) {
+      if (typeof entry !== "object") return false;
+      return Boolean(entry.data || entry.timestamp || entry.videoId);
+    }
+    return true;
+  }
+
   /**
    * Enforce LRU cache limits.
    */
   async enforceCacheLimits() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       if (cacheKeys.length <= this.MAX_CACHE_ITEMS) return;
 
@@ -771,7 +786,7 @@ class PerspectivePrismClient {
   async cleanupExpiredCache() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       const keysToRemove = [];
 
       for (const key of cacheKeys) {
@@ -802,7 +817,7 @@ class PerspectivePrismClient {
   async clear() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       if (cacheKeys.length > 0) {
         console.log(
@@ -857,7 +872,7 @@ class PerspectivePrismClient {
   async getStats() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       let totalSize = 0;
       for (const key of cacheKeys) {

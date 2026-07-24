@@ -81,7 +81,12 @@ export class QuotaManager {
         return true;
       }
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) =>
+        this.client?.isCacheEntry
+          ? this.client.isCacheEntry(k, all[k])
+          : k.startsWith("cache_") &&
+            !["cache_metrics", "cache_metadata", "cache_stats", "cache_settings"].includes(k),
+      );
 
       // Sort by lastAccessed (oldest first)
       const entries = cacheKeys

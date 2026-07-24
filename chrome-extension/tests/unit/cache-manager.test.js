@@ -195,16 +195,27 @@ describe("CacheManager - Content-Hashed Caching & Eviction", () => {
       expect(retrieved).toEqual(testData);
     });
 
-    it("should clear all cache entries on clear()", async () => {
-      mockStorage["cache_v1_h1"] = { data: {} };
-      mockStorage["cache_v2_h2"] = { data: {} };
-      mockStorage["non_cache_key"] = { data: {} };
+    it("should preserve non-entry keys like cache_metrics and cache_metadata during eviction and clear", async () => {
+      mockStorage["cache_metrics"] = { totalHits: 5, totalMisses: 2 };
+      mockStorage["cache_metadata"] = { schemaVersion: 1 };
+      mockStorage["cache_validVideo_h1"] = {
+        schemaVersion: 1,
+        timestamp: Date.now(),
+        lastAccessed: Date.now(),
+        data: { video_id: "validVideo", claims: [] },
+      };
+
+      await cacheManager.evictExpiredAndLRU();
+
+      expect(mockStorage["cache_metrics"]).toEqual({ totalHits: 5, totalMisses: 2 });
+      expect(mockStorage["cache_metadata"]).toEqual({ schemaVersion: 1 });
+      expect(mockStorage["cache_validVideo_h1"]).toBeDefined();
 
       await cacheManager.clear();
 
-      expect(mockStorage["cache_v1_h1"]).toBeUndefined();
-      expect(mockStorage["cache_v2_h2"]).toBeUndefined();
-      expect(mockStorage["non_cache_key"]).toBeDefined();
+      expect(mockStorage["cache_metrics"]).toEqual({ totalHits: 5, totalMisses: 2 });
+      expect(mockStorage["cache_metadata"]).toEqual({ schemaVersion: 1 });
+      expect(mockStorage["cache_validVideo_h1"]).toBeUndefined();
     });
   });
 });
