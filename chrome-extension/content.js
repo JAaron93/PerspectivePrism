@@ -2332,7 +2332,11 @@ function performNavigation() {
       navigationGeneration++;
       playbackSequence = 0;
       
-      // Broadcast navigation event to the extension (background/sidepanel)
+      // Broadcast navigation event to the extension (background/sidepanel) (FR-6.2)
+      chrome.runtime.sendMessage({
+        type: "VIDEO_NAVIGATED",
+        videoId: vid
+      }).catch(() => {});
       chrome.runtime.sendMessage({
         type: "YOUTUBE_NAVIGATED",
         videoId: vid
