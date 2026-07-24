@@ -330,6 +330,28 @@ async function handleAnalysisClick() {
     videoId: analysisVideoId,
   }).catch((err) => logger.debug("OPEN_SIDE_PANEL ignored:", err));
 
+  // Check user consent before proceeding with analysis API request
+  try {
+    if (typeof ConsentManager !== "undefined") {
+      const consentManager = new ConsentManager();
+      const consentResult = await consentManager.checkConsent();
+
+      if (!consentResult || !consentResult.hasConsent) {
+        setButtonState("idle");
+        consentManager.showConsentDialog(async (allowed) => {
+          if (allowed) {
+            handleAnalysisClick();
+          }
+        }, { reason: consentResult?.reason });
+        return;
+      }
+    }
+  } catch (error) {
+    logger.error("Consent check failed:", error);
+    setButtonState("error");
+    return;
+  }
+
   setButtonState("loading");
   cancelRequest = false;
 

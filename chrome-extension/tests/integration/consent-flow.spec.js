@@ -49,10 +49,32 @@ test.describe("Consent Flow", () => {
     await expect(analysisButton).toBeVisible();
     await analysisButton.click();
 
-    // Verify analysis request is dispatched and button transitions to success without DOM overlay injection
+    // Check for consent dialog host
+    const consentHost = page.locator("#pp-consent-dialog-host");
+    await expect(consentHost).toBeAttached();
+
+    // --- Test "Deny" Flow ---
+    await consentHost.locator("#deny-btn").click();
+    await expect(consentHost).toBeHidden();
+
+    // Assert NO analysis request was made
+    expect(analysisRequestMade).toBe(false);
+
+    // Assert button is still enabled/visible (reset state)
+    await expect(analysisButton).toBeEnabled();
+    await expect(analysisButton).not.toHaveAttribute("aria-busy", "true");
+
+    // --- Test "Allow" Flow ---
+    await analysisButton.click();
+    await expect(consentHost).toBeAttached();
+
+    // Click Allow inside shadow DOM
+    await consentHost.locator("#allow-btn").click();
+    await expect(consentHost).toBeHidden();
+
+    // Assert analysis request WAS made and button transitions to success state
     await expect.poll(() => analysisRequestMade).toBe(true);
     await expect(analysisButton).toHaveClass(/pp-state-success/, { timeout: 10000 });
-    await expect(page.locator("#pp-consent-dialog-host")).toHaveCount(0);
     await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
   });
 });
