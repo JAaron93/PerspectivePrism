@@ -208,6 +208,11 @@ Scripts are injected into YouTube pages in this order:
 
 *   **Component & Modal Scope Isolation**: When excising or refactoring DOM overlays (e.g., `#pp-analysis-panel`), do NOT alter or bypass independent user dialogs (e.g., Privacy & Data Collection Consent modals `#pp-consent-dialog-host` managed by `ConsentManager`).
 *   **Integration Test Intent Alignment**: When updating integration test assertions (Playwright), ensure tests asserting user choice/consent (such as `consent-flow.spec.js`) verify the active attachment and user action flow for modal dialogs rather than checking for element absence when test setup explicitly clears consent storage.
+
+### Service Worker Resilience & Vitest Mocking Rules
+
+*   **Storage Session Mocking**: Any Vitest test suite executing background code that interacts with `chrome.storage.session` or `chrome.runtime.onInstalled`/`onStartup` must verify those properties are defined in `chrome-extension/tests/setup.js`.
+*   **Idempotent Promise Getters**: In Service Worker modules, lazy initialization getters (`getClient()`) should return the cached Promise reference (`clientPromise`) directly rather than decorating the getter function with `async`, ensuring strict promise reference identity across concurrent callers during Service Worker wake-up.
 # System Architecture
 
 The system follows a pipeline approach:
