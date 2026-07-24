@@ -33,7 +33,7 @@
   - `manifest.json` - Extension configuration
 
 ## External APIs
-- Gemini API (`gemini-3.5-flash` primary, `gemini-3.1-flash-lite` backup)
+- Gemini API (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup)
 - Google Custom Search API (evidence retrieval)
 - YouTube Transcript API (transcript fetching)
 
