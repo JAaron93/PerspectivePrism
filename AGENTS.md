@@ -3,7 +3,7 @@
 This file provides guidance to Software Engineering Agents (SEAs) and Macroscope Review Agents when working with code in this repository.
 
 > [!IMPORTANT]
-> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Macroscope review rules, refer to **[run-agents.md](docs/run-agents.md)** and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
+> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Macroscope review rules, refer to **[run-agents.md](.macroscope/run-agents.md)** and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
 
 # Project Overview
 
