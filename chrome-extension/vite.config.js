@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Custom Vite plugin to copy static extension manifest, CSS, and icons to dist/
+// Custom Vite plugin to copy static extension manifest, CSS, scripts, and icons to dist/
 function copyExtensionAssets() {
   return {
     name: 'copy-extension-assets',
@@ -18,18 +18,23 @@ function copyExtensionAssets() {
         fs.mkdirSync(distDir, { recursive: true });
       }
 
-      // Copy manifest.json
-      const manifestSrc = path.resolve(__dirname, 'manifest.json');
-      const manifestDist = path.resolve(distDir, 'manifest.json');
-      if (fs.existsSync(manifestSrc)) {
-        fs.copyFileSync(manifestSrc, manifestDist);
-      }
+      // Files to copy directly to dist root
+      const filesToCopy = [
+        'manifest.json',
+        'content.css',
+        'video-utils-script.js',
+        'consent.js',
+        'claim-navigator.js',
+        'timeline-utils-script.js',
+        'content-markers-script.js'
+      ];
 
-      // Copy content.css
-      const cssSrc = path.resolve(__dirname, 'content.css');
-      const cssDist = path.resolve(distDir, 'content.css');
-      if (fs.existsSync(cssSrc)) {
-        fs.copyFileSync(cssSrc, cssDist);
+      for (const file of filesToCopy) {
+        const srcPath = path.resolve(__dirname, file);
+        const distPath = path.resolve(distDir, file);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, distPath);
+        }
       }
 
       // Copy icons folder

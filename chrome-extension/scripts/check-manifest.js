@@ -61,31 +61,39 @@ try {
     }
   }
 
-  // 5. Validate file existence for all script files in manifest
+  // 5. Validate file existence for all script files in manifest (both root and dist if built)
   const extRoot = path.join(__dirname, '..');
-  
-  if (manifest.background && manifest.background.service_worker) {
-    const bgPath = path.join(extRoot, manifest.background.service_worker);
-    if (!fs.existsSync(bgPath)) {
-      throw new Error(`Background service worker file does not exist: ${manifest.background.service_worker}`);
-    }
+  const targetDirs = [extRoot];
+  const distDir = path.join(__dirname, '..', 'dist');
+  if (fs.existsSync(distDir)) {
+    targetDirs.push(distDir);
   }
 
-  if (manifest.content_scripts) {
-    for (const script of manifest.content_scripts) {
-      if (script.js) {
-        for (const jsFile of script.js) {
-          const jsPath = path.join(extRoot, jsFile);
-          if (!fs.existsSync(jsPath)) {
-            throw new Error(`Content script JS file does not exist: ${jsFile}`);
+  for (const checkDir of targetDirs) {
+    const dirLabel = checkDir === distDir ? 'dist' : 'root';
+    if (manifest.background && manifest.background.service_worker) {
+      const bgPath = path.join(checkDir, manifest.background.service_worker);
+      if (!fs.existsSync(bgPath)) {
+        throw new Error(`Background service worker file does not exist in ${dirLabel}: ${manifest.background.service_worker}`);
+      }
+    }
+
+    if (manifest.content_scripts) {
+      for (const script of manifest.content_scripts) {
+        if (script.js) {
+          for (const jsFile of script.js) {
+            const jsPath = path.join(checkDir, jsFile);
+            if (!fs.existsSync(jsPath)) {
+              throw new Error(`Content script JS file does not exist in ${dirLabel}: ${jsFile}`);
+            }
           }
         }
-      }
-      if (script.css) {
-        for (const cssFile of script.css) {
-          const cssPath = path.join(extRoot, cssFile);
-          if (!fs.existsSync(cssPath)) {
-            throw new Error(`Content script CSS file does not exist: ${cssFile}`);
+        if (script.css) {
+          for (const cssFile of script.css) {
+            const cssPath = path.join(checkDir, cssFile);
+            if (!fs.existsSync(cssPath)) {
+              throw new Error(`Content script CSS file does not exist in ${dirLabel}: ${cssFile}`);
+            }
           }
         }
       }
