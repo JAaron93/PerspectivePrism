@@ -732,13 +732,17 @@ class PerspectivePrismClient {
     } catch (_e) {
       // Fallback
     }
-    let hash = 0;
+    // High-entropy 64-bit dual-pass hash fallback (DJB2 + SDBM) if crypto.subtle is unavailable
+    let h1 = 5381;
+    let h2 = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash |= 0;
+      h1 = Math.imul(h1, 33) ^ char;
+      h2 = char + (h2 << 6) + (h2 << 16) - h2;
+      h1 |= 0;
+      h2 |= 0;
     }
-    return Math.abs(hash).toString(16).padStart(8, "0");
+    return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
   }
 
   /**

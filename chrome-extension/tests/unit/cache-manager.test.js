@@ -235,5 +235,20 @@ describe("CacheManager - Content-Hashed Caching & Eviction", () => {
       expect(retrieved).toBeNull();
       expect(mockStorage["cache_vid2h_h2"]).toBeUndefined();
     });
+
+    it("should generate 16-character collision-resistant 64-bit fallback hashes when crypto.subtle is unavailable", async () => {
+      const origCrypto = globalThis.crypto;
+      try {
+        delete globalThis.crypto;
+        const hash1 = await cacheManager.sha256Hex("payload string 1");
+        const hash2 = await cacheManager.sha256Hex("payload string 2");
+
+        expect(hash1.length).toBe(16);
+        expect(hash2.length).toBe(16);
+        expect(hash1).not.toEqual(hash2);
+      } finally {
+        globalThis.crypto = origCrypto;
+      }
+    });
   });
 });
