@@ -23,8 +23,9 @@ test.describe("Cache Management", () => {
     const analysisButton = page.locator('[data-pp-analysis-button="true"]');
     await analysisButton.click();
 
-    // Wait for results
-    await expect(page.locator('text="Cached Claim"')).toBeVisible();
+    // Wait for analysis button state to become success
+    await expect(analysisButton).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Reload page to test cache
     await page.reload();
@@ -45,8 +46,9 @@ test.describe("Cache Management", () => {
     await expect(analysisButton).toBeVisible();
     await analysisButton.click();
 
-    // Should show results immediately (or very quickly) without new network request
-    await expect(page.locator('text="Cached Claim"')).toBeVisible();
+    // Should transition to success state without new network request
+    await expect(analysisButton).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Assert no network requests were made
     expect(requestCount).toBe(0);

@@ -91,9 +91,7 @@ test.describe("Rapid Navigation Between Videos", () => {
     const button = page.locator('[data-pp-analysis-button="true"]');
     await expect(button).toBeVisible({ timeout: 5000 });
     await button.click();
-
-    // Wait for panel to appear
-    await page.waitForSelector("#pp-analysis-panel", { timeout: 5000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Rapidly navigate away before analysis completes
     await page.goto(
@@ -279,10 +277,7 @@ test.describe("Rapid Navigation Between Videos", () => {
 
     // Click button to verify functionality
     await button.click();
-    await page.waitForSelector("#pp-analysis-panel", { timeout: 5000 });
-
-    // Verify panel appears
-    const panel = page.locator("#pp-analysis-panel");
-    await expect(panel).toBeVisible();
+    await expect(button).toHaveAttribute("aria-busy", "true");
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
   });
 });
