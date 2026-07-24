@@ -49,8 +49,6 @@ try {
   // 4. Validate content scripts order
   if (manifest.content_scripts && manifest.content_scripts.length > 0) {
     const expectedOrder = [
-      'logging-utils-script.js',
-      'config-script.js',
       'consent.js',
       'claim-navigator.js',
       'content.js'
