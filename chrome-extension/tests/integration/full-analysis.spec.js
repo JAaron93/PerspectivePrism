@@ -56,15 +56,9 @@ test.describe("Full Analysis Flow", () => {
     // Click the analysis button
     await analysisButton.click();
 
-    // Verify loading state
-    const panel = page.locator("#pp-analysis-panel");
-    await expect(panel).toBeAttached();
-
-    // Check that we are polling (wait for completion)
-    // The UI should eventually show the result
-    await expect(page.locator('text="This is a test claim."')).toBeVisible({
-      timeout: 10000,
-    });
+    // Verify analysis completes and button transitions to success state
+    await expect(analysisButton).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Assert that polling occurred at least 3 times (initial + retries)
     expect(pollCount).toBeGreaterThanOrEqual(3);
