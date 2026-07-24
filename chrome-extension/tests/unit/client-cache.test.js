@@ -91,11 +91,11 @@ describe("PerspectivePrismClient - Cache Operations", () => {
         metadata: { analyzed_at: new Date().toISOString() },
       };
 
-      // Entry from 25 hours ago (expired, TTL is 24 hours)
+      // Entry from 8 days ago (expired, TTL is 7 days)
       const cacheEntry = {
         schemaVersion: 1,
-        timestamp: Date.now() - 25 * 60 * 60 * 1000,
-        lastAccessed: Date.now() - 25 * 60 * 60 * 1000,
+        timestamp: Date.now() - 8 * 24 * 60 * 60 * 1000,
+        lastAccessed: Date.now() - 8 * 24 * 60 * 60 * 1000,
         data: testData,
       };
 
@@ -242,7 +242,7 @@ describe("PerspectivePrismClient - Cache Operations", () => {
   describe("isExpired()", () => {
     it("should return true for expired entries", () => {
       const expiredEntry = {
-        timestamp: Date.now() - 25 * 60 * 60 * 1000, // 25 hours ago
+        timestamp: Date.now() - 8 * 24 * 60 * 60 * 1000, // 8 days ago
       };
 
       expect(client.isExpired(expiredEntry)).toBe(true);
@@ -348,7 +348,7 @@ describe("PerspectivePrismClient - Cache Operations", () => {
   describe("cleanupExpiredCache()", () => {
     it("should remove only expired entries", async () => {
       const now = Date.now();
-      const oldTimestamp = now - 25 * 60 * 60 * 1000; // 25 hours ago
+      const oldTimestamp = now - 8 * 24 * 60 * 60 * 1000; // 8 days ago
       const freshTimestamp = now - 1 * 60 * 60 * 1000; // 1 hour ago
 
       mockStorage["cache_expired1"] = {

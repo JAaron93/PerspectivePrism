@@ -15,7 +15,7 @@ class PerspectivePrismClient {
     this.MAX_REQUEST_AGE = 300000; // 5 minutes
 
     // Cache Configuration
-    this.CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    this.CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (604,800,000 ms)
     this.MAX_CACHE_ITEMS = 50;
     this.inMemoryCache = new Map();
     this.delegateCache = options.delegateCache ?? (typeof window !== "undefined" && (typeof process === "undefined" || !globalThis.process?.env?.VITEST));
@@ -488,24 +488,33 @@ class PerspectivePrismClient {
       return null;
     }
 
-    const key = `cache_${videoId}`;
+    let key = `cache_${videoId}`;
 
     // Check in-memory cache first (fallback)
-    if (this.inMemoryCache.has(key)) {
-      const entry = this.inMemoryCache.get(key);
+    let memKey = Array.from(this.inMemoryCache.keys()).find(
+      (k) => k === key || k.startsWith(`cache_${videoId}_`),
+    );
+    if (memKey) {
+      const entry = this.inMemoryCache.get(memKey);
       const age = Date.now() - entry.timestamp;
       if (age > this.CACHE_TTL_MS) {
-        this.inMemoryCache.delete(key);
+        this.inMemoryCache.delete(memKey);
         return null;
       }
       return entry.data;
     }
 
-    // Primary cache key strategy: Simple key = `cache_{videoId}`
-    // This ensures one analysis per video (latest overwrites previous)
     try {
-      const result = await chrome.storage.local.get(key);
-      let entry = result[key];
+      const allStorage = await chrome.storage.local.get(null);
+      const prefix = `cache_${videoId}_`;
+      let matchedKey =
+        key in allStorage
+          ? key
+          : Object.keys(allStorage).find((k) => k.startsWith(prefix));
+
+      if (!matchedKey) return null;
+      key = matchedKey;
+      let entry = allStorage[key];
 
       if (!entry) return null;
 
@@ -625,11 +634,13 @@ class PerspectivePrismClient {
       return;
     }
 
-    const key = `cache_${videoId}`;
+    const contentHash = data.content_hash || data.metadata?.content_hash;
+    const key = contentHash ? `cache_${videoId}_${contentHash}` : `cache_${videoId}`;
     const entry = {
       schemaVersion: PerspectivePrismClient.CURRENT_SCHEMA_VERSION,
       timestamp: Date.now(),
       lastAccessed: Date.now(),
+      contentHash: contentHash || "default",
       data: data,
     };
 

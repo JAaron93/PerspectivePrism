@@ -2,11 +2,13 @@
 import { ConfigManager } from "./config.js";
 import { logger } from "./logging-utils.js";
 import PerspectivePrismClient from "./client.js";
+import CacheManager from "./cache-manager.js";
 
 logger.info("Perspective Prism background service worker loaded");
 
 let client;
 const configManager = new ConfigManager();
+const cacheManager = new CacheManager();
 
 /**
  * StateManager handles persistence of analysis state using chrome.storage.session.
@@ -83,6 +85,7 @@ async function getClient() {
       const config = await configManager.load();
       client = new PerspectivePrismClient(config.backendUrl);
       try {
+        await cacheManager.evictExpiredAndLRU();
         await client.cleanupExpiredCache();
       } catch (err) {
         logger.error("Failed to cleanup expired cache on startup:", err);
