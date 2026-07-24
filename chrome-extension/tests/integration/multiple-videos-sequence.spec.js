@@ -89,19 +89,12 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     await expect(analysisButtonA).toBeVisible({ timeout: 10000 });
     await analysisButtonA.click();
 
-    // Wait for Video A results
-    await expect(page.locator('text="Claim from Video A"')).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for Video A completion
+    await expect(analysisButtonA).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Verify API was called for Video A
     expect(apiCalls.videoA).toBe(1);
-
-    // Close panel before navigating
-    const closeButton = page.locator("#pp-analysis-panel button[aria-label='Close']");
-    if (await closeButton.isVisible()) {
-      await closeButton.click();
-    }
 
     // Step 2: Navigate to Video B and analyze
     console.log("Step 2: Analyzing Video B");
@@ -111,18 +104,12 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     await expect(analysisButtonB).toBeVisible({ timeout: 10000 });
     await analysisButtonB.click();
 
-    // Wait for Video B results
-    await expect(page.locator('text="Claim from Video B"')).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for Video B completion
+    await expect(analysisButtonB).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Verify API was called for Video B
     expect(apiCalls.videoB).toBe(1);
-
-    // Close panel before navigating
-    if (await closeButton.isVisible()) {
-      await closeButton.click();
-    }
 
     // Step 3: Navigate to Video C and analyze
     console.log("Step 3: Analyzing Video C");
@@ -132,10 +119,9 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     await expect(analysisButtonC).toBeVisible({ timeout: 10000 });
     await analysisButtonC.click();
 
-    // Wait for Video C results
-    await expect(page.locator('text="Claim from Video C"')).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for Video C completion
+    await expect(analysisButtonC).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Verify API was called for Video C
     expect(apiCalls.videoC).toBe(1);
@@ -149,9 +135,8 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     await analysisButtonA2.click();
 
     // Should show cached results immediately without new API call
-    await expect(page.locator('text="Claim from Video A"')).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(analysisButtonA2).toHaveClass(/pp-state-success/, { timeout: 5000 });
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Verify no additional API call was made (still 1)
     expect(apiCalls.videoA).toBe(1);
@@ -214,15 +199,14 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
     await expect(button1).toBeVisible({ timeout: 10000 });
     await button1.click();
 
-    // Wait for panel to open
-    const panel = page.locator("#pp-analysis-panel");
-    await expect(panel).toBeAttached();
+    // Verify no DOM panel overlay exists
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Navigate to second video (should trigger cleanup)
     await page.goto("https://www.youtube.com/watch?v=jNQXAC9IVRw");
 
-    // Verify old panel is cleaned up
-    await expect(panel).not.toBeAttached({ timeout: 5000 });
+    // Verify no DOM panel overlay was created
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
 
     // Verify new button is injected
     const button2 = page.locator('[data-pp-analysis-button="true"]');
