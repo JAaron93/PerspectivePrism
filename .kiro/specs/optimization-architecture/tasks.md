@@ -13,15 +13,15 @@
 
 ---
 
-## Track 1: Legacy DOM Overlay Excise & Non-Breakage Audit (Sequential First Step)
+## Track 1: Legacy DOM Overlay Excise & Non-Breakage Audit (Sequential First Step) [COMPLETED]
 
-### TASK-1.1: Audit & Safely Remove In-DOM Overlay Code from `content.js`
+### [x] TASK-1.1: Audit & Safely Remove In-DOM Overlay Code from `content.js`
 - **Description**: Remove `#pp-analysis-panel` creation, Shadow DOM overlay insertion into `document.body`, `createPanelContainer()`, `removePanel()`, and overlay z-index manipulation from `content.js`.
 - **Traceability**: Covers FR-1.1, NFR-2, US-1.
 - **Dependencies**: None.
 - **Acceptance Criteria**: `content.js` does NOT create or append `#pp-analysis-panel` to `document.body`. No floating panel overlays render on YouTube pages.
 
-### TASK-1.2: Decouple Navigation & Keyboard Helpers (`claim-navigator.js`)
+### [x] TASK-1.2: Decouple Navigation & Keyboard Helpers (`claim-navigator.js`)
 - **Description**: Refactor `claim-navigator.js` and button injection logic in `content.js` so they operate on timestamps/YouTube player events directly or communicate with `side-panel.js` via messaging without relying on panel DOM references (`panel._keydownHandler`, `shadowRoot`).
 - **Traceability**: Covers FR-1.2, US-1.
 - **Dependencies**: TASK-1.1.
