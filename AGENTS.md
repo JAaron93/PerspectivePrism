@@ -203,6 +203,11 @@ Scripts are injected into YouTube pages in this order:
 *   **Node-Level Element Comparison**: When checking if the active media element is current, compare node instances directly (`video !== activeVideoElement`) rather than checking for nullity (`!activeVideoElement`), to capture same-URL node substitutions.
 *   **Tab & Context Isolation**: In global views or side panels, always reset generation IDs and sequence state (e.g., `currentGenerationId = null` and `lastSequence = -1`) when switching active tabs or video contexts, to prevent state leak.
 *   **Vitest Chrome Mocking**: Ensure unit tests mocking Chrome tabs also mock `chrome.tabs.onActivated` and `chrome.tabs.onUpdated` to support simulated tab context switching and verify state reset flows.
+
+### UI Overlay Excise & Privacy Modal Invariants
+
+*   **Component & Modal Scope Isolation**: When excising or refactoring DOM overlays (e.g., `#pp-analysis-panel`), do NOT alter or bypass independent user dialogs (e.g., Privacy & Data Collection Consent modals `#pp-consent-dialog-host` managed by `ConsentManager`).
+*   **Integration Test Intent Alignment**: When updating integration test assertions (Playwright), ensure tests asserting user choice/consent (such as `consent-flow.spec.js`) verify the active attachment and user action flow for modal dialogs rather than checking for element absence when test setup explicitly clears consent storage.
 # System Architecture
 
 The system follows a pipeline approach:
