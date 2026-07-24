@@ -637,13 +637,16 @@ class PerspectivePrismClient {
       return;
     }
 
-    const contentHash = data.content_hash || data.metadata?.content_hash;
-    const key = contentHash ? `cache_${videoId}_${contentHash}` : `cache_${videoId}`;
+    const contentHash =
+      data.content_hash ||
+      data.metadata?.content_hash ||
+      (await this.computeContentHash(data));
+    const key = `cache_${videoId}_${contentHash}`;
     const entry = {
       schemaVersion: PerspectivePrismClient.CURRENT_SCHEMA_VERSION,
       timestamp: Date.now(),
       lastAccessed: Date.now(),
-      contentHash: contentHash || "default",
+      contentHash: contentHash,
       data: data,
     };
 
@@ -695,6 +698,69 @@ class PerspectivePrismClient {
       // Fallback to in-memory cache
       console.log(`[PerspectivePrismClient] Falling back to in-memory cache for ${videoId}`);
       this.inMemoryCache.set(key, entry);
+    }
+  }
+
+  /**
+   * Internal SHA-256 helper for client caching
+   * @param {string} str
+   * @returns {Promise<string>}
+   */
+  async sha256Hex(str) {
+    try {
+      const cryptoObj =
+        typeof globalThis !== "undefined"
+          ? globalThis.crypto
+          : typeof crypto !== "undefined"
+            ? crypto
+            : null;
+      const encoderObj =
+        typeof globalThis !== "undefined" && globalThis.TextEncoder
+          ? globalThis.TextEncoder
+          : typeof TextEncoder !== "undefined"
+            ? TextEncoder
+            : null;
+      if (cryptoObj && cryptoObj.subtle && cryptoObj.subtle.digest && encoderObj) {
+        const encoder = new encoderObj();
+        const data = encoder.encode(str);
+        const hashBuffer = await cryptoObj.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+        return hashHex.slice(0, 16);
+      }
+    } catch (_e) {
+      // Fallback
+    }
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(16).padStart(8, "0");
+  }
+
+  /**
+   * Compute a content hash for data when not provided by backend
+   * @param {Object|string} data
+   * @returns {Promise<string>}
+   */
+  async computeContentHash(data) {
+    if (!data) return "default";
+    if (typeof data === "string") {
+      return this.sha256Hex(data);
+    }
+    if (data.content_hash && typeof data.content_hash === "string") {
+      return data.content_hash;
+    }
+    if (data.metadata?.content_hash && typeof data.metadata.content_hash === "string") {
+      return data.metadata.content_hash;
+    }
+    try {
+      const jsonString = JSON.stringify(data);
+      return await this.sha256Hex(jsonString);
+    } catch (_err) {
+      return "default";
     }
   }
 
