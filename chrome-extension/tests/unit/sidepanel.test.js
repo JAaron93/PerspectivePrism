@@ -81,6 +81,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     const startTime = performance.now();
@@ -118,6 +121,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     // Put into loading/optimistic skeleton state first
@@ -190,6 +196,9 @@ describe("Side Panel UI & Message Handling", () => {
     
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     // Simulate sending an ANALYSIS_STATE_CHANGED message
@@ -221,6 +230,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     const message = {
@@ -279,6 +291,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     const message = {
