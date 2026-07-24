@@ -77,7 +77,7 @@ function validateVideoId(message) {
 
 let clientPromise = null;
 
-async function getClient() {
+function getClient() {
   if (!clientPromise) {
     clientPromise = (async () => {
       const config = await configManager.load();
@@ -104,36 +104,40 @@ getClient().catch((error) => {
 });
 
 // Handle extension installation
-chrome.runtime.onInstalled.addListener((details) => {
-  // Configure side panel behavior to open on action click
-  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
-      logger.error("Failed to set panel behavior:", err);
-    });
-  }
+if (chrome.runtime && chrome.runtime.onInstalled) {
+  chrome.runtime.onInstalled.addListener((details) => {
+    // Configure side panel behavior to open on action click
+    if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+        logger.error("Failed to set panel behavior:", err);
+      });
+    }
 
-  if (details.reason === "install") {
-    // First-time installation - show welcome page
-    logger.info(
-      "[Perspective Prism] Extension installed, opening welcome page",
-    );
-    chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
-  } else if (details.reason === "update") {
-    // Extension updated
-    logger.info(
-      "[Perspective Prism] Extension updated to version",
-      chrome.runtime.getManifest().version,
-    );
-    // Check for privacy policy version changes
-    checkPrivacyPolicyVersion();
-  }
-});
+    if (details.reason === "install") {
+      // First-time installation - show welcome page
+      logger.info(
+        "[Perspective Prism] Extension installed, opening welcome page",
+      );
+      chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+    } else if (details.reason === "update") {
+      // Extension updated
+      logger.info(
+        "[Perspective Prism] Extension updated to version",
+        chrome.runtime.getManifest().version,
+      );
+      // Check for privacy policy version changes
+      checkPrivacyPolicyVersion();
+    }
+  });
+}
 
 // Check privacy policy version on startup
-chrome.runtime.onStartup.addListener(() => {
-  logger.info("[Perspective Prism] Extension started");
-  checkPrivacyPolicyVersion();
-});
+if (chrome.runtime && chrome.runtime.onStartup) {
+  chrome.runtime.onStartup.addListener(() => {
+    logger.info("[Perspective Prism] Extension started");
+    checkPrivacyPolicyVersion();
+  });
+}
 
 /**
  * Check if privacy policy version has changed and notify user if needed.
@@ -393,6 +397,8 @@ async function setAnalysisState(videoId, state) {
 }
 
 async function handleGetAnalysisState(message) {
+  const activeClient = await getClient();
+
   const validation = validateVideoId(message);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -408,8 +414,6 @@ async function handleGetAnalysisState(message) {
   } 
   
   // 2. Check if we have cached data (completed analysis)
-  const activeClient = await getClient();
-
   try {
     const cachedData = await activeClient.checkCache(videoId);
     if (cachedData) {
@@ -537,6 +541,7 @@ async function handleRevokeConsent() {
 }
 
 async function handleCheckPolicyVersion() {
+  await getClient();
   try {
     const result = await chrome.storage.local.get(["policy_version_mismatch"]);
     const mismatch = result.policy_version_mismatch;
@@ -572,11 +577,19 @@ async function handleOpenSidePanel(sender) {
   if (!chrome.sidePanel || !chrome.sidePanel.open) {
     throw new Error("Side Panel API is not supported in this browser version.");
   }
-  const tabId = sender.tab ? sender.tab.id : null;
-  if (!tabId) {
+  if (!sender || !sender.tab) {
     throw new Error("Missing tab identifier.");
   }
-  await chrome.sidePanel.open({ tabId });
+  const windowId = sender.tab.windowId;
+  const tabId = sender.tab.id;
+
+  if (windowId !== undefined && windowId !== null) {
+    await chrome.sidePanel.open({ windowId });
+  } else if (tabId !== undefined && tabId !== null) {
+    await chrome.sidePanel.open({ tabId });
+  } else {
+    throw new Error("Missing window or tab identifier.");
+  }
   return { success: true };
 }
 
@@ -603,5 +616,21 @@ async function handleSaveToCache(message) {
     throw error;
   }
 }
+
+export {
+  getClient,
+  handleOpenSidePanel,
+  handleAnalysisRequest,
+  handleCancelAnalysis,
+  handleCacheCheck,
+  handleGetAnalysisState,
+  handleSaveToCache,
+  handleClearCache,
+  handleGetCacheStats,
+  handleRevokeConsent,
+  handleCheckPolicyVersion,
+  StateManager,
+  configManager,
+};
 
 
