@@ -224,6 +224,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "SAVE_TO_CACHE":
       return handleAsync(handleSaveToCache(message));
     
+    case "VIDEO_NAVIGATED":
+    case "YOUTUBE_NAVIGATED":
+      chrome.runtime.sendMessage(message).catch(() => {});
+      return false;
+
     case "SYNC_PLAYBACK":
     case "HIGHLIGHT_CLAIMS":
       if (sender.tab && sender.tab.id) {

@@ -18,6 +18,7 @@ describe("Side Panel UI & Message Handling", () => {
         <div id="loading-submessage">Retrieving transcript...</div>
         <div id="progress-bar-fill" style="width: 0%;"></div>
         <button id="pp-cancel-btn">Cancel</button>
+        <div id="skeleton-container"></div>
       </div>
       <div id="state-error" style="display: none;">
         <div id="error-title">Error</div>
@@ -71,6 +72,170 @@ describe("Side Panel UI & Message Handling", () => {
     });
   });
 
+  it("should render 4 optimistic shimmer skeleton cards when status is in_progress", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
+    });
+
+    const startTime = performance.now();
+
+    const message = {
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: {
+        status: "in_progress",
+        progress: 10
+      }
+    };
+
+    messageListener(message, {}, () => {});
+
+    const elapsed = performance.now() - startTime;
+    expect(elapsed).toBeLessThan(50); // FR-3.2: <50ms zero-latency rendering requirement
+
+    const stateLoading = document.getElementById("state-loading");
+    expect(stateLoading.style.display).toBe("flex");
+
+    const skeletonContainer = document.getElementById("skeleton-container");
+    expect(skeletonContainer.children.length).toBe(4); // 4 core perspectives: Scientific, Journalistic, Left, Right
+
+    const cardNames = Array.from(skeletonContainer.children).map(c => c.dataset.perspective);
+    expect(cardNames).toEqual(["Scientific", "Journalistic", "Partisan Left", "Partisan Right"]);
+  });
+
+  it("should update progressive stream updates and morph skeleton cards on JOB_PROGRESS", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
+    });
+
+    // Put into loading/optimistic skeleton state first
+    messageListener({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: { status: "in_progress", progress: 25 }
+    }, {}, () => {});
+
+    // Dispatch progressive stream chunk for Scientific perspective
+    const streamMessage = {
+      type: "JOB_PROGRESS",
+      videoId: "abcdefghijk",
+      payload: {
+        message: "Scientific perspective complete",
+        progress: 50,
+        perspective: "Scientific",
+        claims: ["Climate change model accuracy is supported by empirical satellite data"]
+      }
+    };
+
+    messageListener(streamMessage, {}, () => {});
+
+    const progressBarFill = document.getElementById("progress-bar-fill");
+    expect(progressBarFill.style.width).toBe("50%");
+
+    // Wait for morph animation setTimeout
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const skeletonContainer = document.getElementById("skeleton-container");
+    const sciCard = skeletonContainer.querySelector('[data-perspective="Scientific"]');
+    expect(sciCard).toBeDefined();
+    expect(sciCard.textContent).toContain("Scientific - Complete");
+    expect(sciCard.textContent).toContain("Climate change model accuracy is supported by empirical satellite data");
+  });
+
+  it("should preserve already-morphed cards during in_progress state refreshes", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
+    });
+
+    // Initial state in_progress
+    messageListener({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: { status: "in_progress", progress: 25 }
+    }, {}, () => {});
+
+    // Morph Scientific perspective card
+    messageListener({
+      type: "JOB_PROGRESS",
+      videoId: "abcdefghijk",
+      payload: {
+        message: "Scientific complete",
+        progress: 50,
+        perspective: "Scientific",
+        claims: ["Empirical evidence test claim"]
+      }
+    }, {}, () => {});
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Re-trigger in_progress state update (e.g. from tab re-activation or state refresh)
+    messageListener({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: { status: "in_progress", progress: 60 }
+    }, {}, () => {});
+
+    // Verify morphed card was preserved and NOT reset to empty skeleton
+    const skeletonContainer = document.getElementById("skeleton-container");
+    const sciCard = skeletonContainer.querySelector('[data-perspective="Scientific"]');
+    expect(sciCard).toBeDefined();
+    expect(sciCard.textContent).toContain("Scientific - Complete");
+    expect(sciCard.textContent).toContain("Empirical evidence test claim");
+  });
+
+  it("should handle VIDEO_NAVIGATED SPA event by resetting state and querying current tab state", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+    });
+
+    chrome.tabs.query.mockClear();
+    chrome.runtime.sendMessage.mockClear();
+
+    const navMessage = {
+      type: "VIDEO_NAVIGATED",
+      videoId: "xyz98765432"
+    };
+
+    messageListener(navMessage, {}, () => {});
+
+    await vi.waitFor(() => {
+      expect(chrome.tabs.query).toHaveBeenCalled();
+    });
+  });
+
   it("should update status UI on receiving state change message", async () => {
     let messageListener;
     chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
@@ -81,6 +246,9 @@ describe("Side Panel UI & Message Handling", () => {
     
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     // Simulate sending an ANALYSIS_STATE_CHANGED message
@@ -112,6 +280,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     const message = {
@@ -170,6 +341,9 @@ describe("Side Panel UI & Message Handling", () => {
     sidepanelModule = await import("../../sidepanel.js");
     await vi.waitFor(() => {
       expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
     });
 
     const message = {

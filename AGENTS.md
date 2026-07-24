@@ -170,6 +170,7 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 *   `claim-navigator.js`: Keyboard navigation and accessibility (`ClaimNavigator` class).
 *   `background.js`: Service worker for API coordination.
 *   `client.js`: Backend API client used by content and popup scripts.
+*   `sidepanel.html` / `sidepanel.css` / `sidepanel.js`: Native Chrome Side Panel UI, Optimistic UI shimmer skeletons, and progressive streaming.
 *   `config.js` / `config-script.js`: Extension configuration (module and script variants).
 *   `logging-utils.js` / `logging-utils-script.js`: Logging utilities (module and script variants).
 *   `popup.html` / `popup.js`: Browser action popup.
@@ -196,6 +197,14 @@ Scripts are injected into YouTube pages in this order:
     *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
     *   **CI/CD Configuration (Headless Linux)**: Chrome Extensions cannot be tested in true headless mode. In GitHub Actions (Linux), you must install system dependencies using `npx playwright install --with-deps` and wrap the test command in a virtual display server using `xvfb-run` (e.g., `xvfb-run npm run test:integration`).
 *   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
+
+### Native Side Panel UI & Progressive Streaming Rules
+
+*   **Zero-Latency Optimistic UI**: On video analysis start or cache miss, `sidepanel.js` must immediately render 4 animated CSS shimmer cards (<50ms execution latency) corresponding to Scientific, Journalistic, Partisan Left, and Partisan Right perspectives.
+*   **Progressive Stream Chunk Morphing**: As backend progress broadcasts (`JOB_PROGRESS` / `ANALYSIS_PROGRESS`) arrive, skeleton cards morph smoothly into populated claim stance cards with confidence fill meters and stance chips.
+*   **Idempotent Skeleton Rendering & DOM Preservation**: Skeleton loaders and placeholder card generators (`renderOptimisticSkeletons`) MUST check if the container already has populated or morphed child nodes before clearing container contents (`container.innerHTML = ""`). Container clearing MUST be explicitly restricted to context switches (e.g. `videoId` or `tabId` changes) or state resets (`idle`/`error`), preserving in-flight progressive stream cards during routine state refreshes or side panel re-activations.
+*   **SPA State Sync (`VIDEO_NAVIGATED` & `YOUTUBE_NAVIGATED`)**: Content script broadcasts `VIDEO_NAVIGATED` and `YOUTUBE_NAVIGATED` upon `yt-navigate-finish`. The Side Panel handles these messages to reset generation state, check `chrome.storage.local` cache (<20ms hit response), or render optimistic skeletons (<50ms miss response).
+*   **Vitest Async Init Guard**: Any Vitest test suite executing a module with top-level or DOMContentLoaded asynchronous initialization (such as `sidepanel.js` calling `checkCurrentTabState()`) MUST wait for the initial outbound `chrome.runtime.sendMessage` payload (e.g. `type: "GET_ANALYSIS_STATE"`) inside a `vi.waitFor` block prior to dispatching synthetic listener messages. Rationale: Synchronous `onMessage` listener registration happens before `checkCurrentTabState()` resolves; dispatching messages without waiting will evaluate state guards against uninitialized `null` variables (e.g. `message.videoId === currentVideoId`), silently dropping test events.
 
 ### State Management & Rebinding Rules
 
