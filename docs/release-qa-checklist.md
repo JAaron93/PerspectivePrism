@@ -45,8 +45,10 @@ This checklist must be completed and signed off before releasing any new version
 - [ ] **Theming**:
   - [ ] YouTube Dark Theme (perfect contrast, matching UI elements)
   - [ ] YouTube Light Theme (perfect contrast, matching UI elements)
-- [ ] **Cleanups & Navigation**:
-  - [ ] SPA Navigation: Navigate video -> video -> homepage -> video. Check that observers are correctly disconnected/reconnected and old panel UIs are clean.
+- [ ] **Cleanups & Service Worker Resilience**:
+  - [ ] Action Button Trigger: Clicking "Analyze Claims" dispatches `OPEN_SIDE_PANEL` and successfully calls `chrome.sidePanel.open({ windowId: sender.tab.windowId })` to focus native Side Panel.
+  - [ ] Service Worker Resilience: All background message handlers await `getClient()` getter, processing requests cleanly after Service Worker sleep/wake cycle without initialization race conditions.
+  - [ ] SPA Navigation: Navigate video -> video -> homepage -> video. Check that observers are correctly disconnected/reconnected and side panel state stays in sync.
   - [ ] Cache persistence verified across SPA navigation.
   - [ ] Request state survives Service Worker termination.
 - [ ] **Consent Flow**:

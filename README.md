@@ -356,11 +356,12 @@ The project is organized as follows:
   - `evaluate_agents.py`: Benchmark script measuring success rate, latency, and output quality
 - **chrome-extension/**: YouTube Chrome Extension (Manifest V3) - Nearly Complete Implementation
   - **Core Components**:
-    - `manifest.json`: Extension configuration with permissions, content scripts, and background service worker
-    - `background.js`: Service worker handling message passing, API requests, and extension lifecycle
-    - `content.js`: Injected script that detects YouTube videos, injects analysis button, and renders results panel
-    - `client.js`: API client with async job polling, retry logic, cache management, and MV3 persistence
+    - `manifest.json`: Extension configuration with Manifest V3 permissions (`sidePanel`, `storage`), content scripts, and background service worker
+    - `background.js`: Service worker handling message passing, lazy API client initialization (`getClient()`), native Side Panel triggering (`OPEN_SIDE_PANEL`), and extension lifecycle resilience
+    - `content.js`: Injected script that detects YouTube videos, injects action button, handles SPA navigation, and dispatches side panel open requests
+    - `client.js`: API client with async job polling, retry logic, content-hashed local cache management, and MV3 persistence
   - **UI Pages**:
+    - `sidepanel.html/js/css`: Native Chrome Side Panel UI showing claim timeline, progressive perspective streams, and truth profiles
     - `popup.html/js/css`: Extension popup showing analysis status and cache statistics
     - `options.html/js/css`: Settings page for backend URL configuration, cache controls, and privacy settings
     - `welcome.html/js/css`: Onboarding page for first-time users
@@ -371,14 +372,13 @@ The project is organized as follows:
     - `quota-manager.js`: Chrome storage quota monitoring and LRU cache eviction
     - `metrics-tracker.js`: Performance metrics collection (cache hits, API latency)
     - `memory-monitor.js`: Memory profiling for extension performance
-    - `panel-styles.js`: Shadow DOM styling for analysis panel (dark/light theme support)
     - `video-utils.js / video-utils-script.js`: Shared video URL validation and extraction logic
   - **Accessibility**:
     - `ClaimNavigator` class for keyboard navigation (Arrow keys, Home/End)
     - Screen reader announcements (ARIA live regions)
     - Roving tabindex focus management
   - **Testing Infrastructure**:
-    - `tests/unit/`: Vitest unit tests for cache, config, and API client
+    - `tests/unit/`: Vitest unit tests for cache, config, API client, and Service Worker resilience (`background-resilience.test.js`)
     - `tests/integration/`: Integration tests for end-to-end flows
     - `tests/manual_qa/`: Manual QA test guides and regression scenarios
     - Multiple test HTML pages for component validation and performance benchmarking
