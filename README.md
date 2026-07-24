@@ -24,7 +24,7 @@ Perspective Prism operates as a pipeline of specialized sub-agents:
 1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
 2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
 3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
-    *   **AI Engine**: Utilizes Gemini API (`gemini-3.5-flash`) via the `google-genai` SDK and the `google-adk` framework for structured outputs.
+    *   **AI Engine**: Utilizes Gemini API (`gemini-3.5-flash-lite`) via the `google-genai` SDK and the `google-adk` framework for structured outputs.
     *   **Reliability Layer**: Features a custom `google-genai` circuit breaker that automatically falls back to `gemini-3.1-flash-lite` during transient API errors (e.g. 429, 500, 503).
 4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
 
@@ -114,7 +114,7 @@ Since there are no funds allocated to scale this extension further, the extensio
 - **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
 - **AI/LLM**:
     - **Framework**: Agent Development Kit (ADK) 2.x
-    - **Primary**: Gemini API (`gemini-3.5-flash` via `google-genai` SDK)
+    - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
@@ -170,7 +170,7 @@ To run the full analysis, you need to configure your Gemini API credentials in `
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 LLM_PROVIDER=google
-LLM_MODEL=gemini-3.5-flash
+LLM_MODEL=gemini-3.5-flash-lite
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
 

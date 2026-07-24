@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Perspective Prism MVP"
     GEMINI_API_KEY: str = ""
     LLM_API_KEY: str = "" # Fallback
-    LLM_MODEL: str = "gemini-3.5-flash"
+    LLM_MODEL: str = "gemini-3.5-flash-lite"
     
     # Backup / Fallback Configuration
     BACKUP_LLM_API_KEY: str = ""
