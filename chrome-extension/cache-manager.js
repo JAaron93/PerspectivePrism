@@ -84,7 +84,7 @@ export class CacheManager {
         const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
         return hashHex.slice(0, 16);
       }
-    } catch (e) {
+    } catch (_e) {
       // Fallback
     }
     // Simple deterministic fallback hash if crypto.subtle is unavailable
@@ -106,7 +106,7 @@ export class CacheManager {
     try {
       const jsonString = JSON.stringify(entry);
       return jsonString.length * 2;
-    } catch (e) {
+    } catch (_e) {
       return 0;
     }
   }
@@ -394,7 +394,7 @@ export class CacheManager {
         totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
         lastCleanup: Date.now(),
       };
-    } catch (error) {
+    } catch (_error) {
       return { totalEntries: 0, totalSize: 0, totalSizeMB: "0.00", lastCleanup: Date.now() };
     }
   }
