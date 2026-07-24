@@ -146,7 +146,9 @@ export class QuotaManager {
 
         // Track eviction event in metrics
         if (this.client.metricsTracker) {
-          const videoIds = keysToRemove.map((k) => k.replace("cache_", ""));
+          const videoIds = keysToRemove.map((k) =>
+            k.replace("cache_", "").split("_")[0],
+          );
           await this.client.metricsTracker.recordEviction(
             videoIds,
             freedSpace,
