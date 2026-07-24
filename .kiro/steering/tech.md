@@ -7,7 +7,8 @@
 - **Build System**: setuptools (pyproject.toml)
 - **Testing**: pytest with pytest-asyncio
 - **Key Libraries**:
-  - `openai` - LLM integration
+  - `google-genai` & `google-adk` - Google Gemini LLM integration & Agent Development Kit 2.0
+  - `prism_sanitizer_rs` - High-performance compiled Rust input sanitizer (PyO3)
   - `youtube-transcript-api` - Transcript extraction
   - `httpx` - HTTP client for API calls
   - `pydantic` & `pydantic-settings` - Data validation and settings management
@@ -32,7 +33,7 @@
   - `manifest.json` - Extension configuration
 
 ## External APIs
-- OpenAI API (GPT models for claim extraction and analysis)
+- Gemini API (`gemini-3.5-flash` primary, `gemini-3.1-flash-lite` backup)
 - Google Custom Search API (evidence retrieval)
 - YouTube Transcript API (transcript fetching)
 
