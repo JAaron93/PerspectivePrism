@@ -162,8 +162,9 @@ export class CacheManager {
   async checkCache(videoId, contentHash = null) {
     if (!videoId) return null;
 
+    let ttlMs = CacheManager.CACHE_TTL_MS;
     try {
-      const ttlMs = await this.getTtlMs();
+      ttlMs = await this.getTtlMs();
 
       if (contentHash) {
         const targetKey = this.getCacheKey(videoId, contentHash);
@@ -220,7 +221,7 @@ export class CacheManager {
       const validMem = [];
       for (const [key, memEntry] of this.inMemoryCache.entries()) {
         if (key === exactLegacyKey || key.startsWith(prefix)) {
-          if (!this.isExpired(memEntry)) {
+          if (!this.isExpired(memEntry, ttlMs)) {
             validMem.push(memEntry);
           } else {
             this.inMemoryCache.delete(key);
@@ -233,6 +234,7 @@ export class CacheManager {
         return validMem[0].data;
       }
 
+      return null;
     } catch (error) {
       logger.error(`[CacheManager] Cache check failed for ${videoId}:`, error);
       const prefix = `cache_${videoId}_`;
@@ -241,13 +243,13 @@ export class CacheManager {
 
       if (targetKey && this.inMemoryCache.has(targetKey)) {
         const memEntry = this.inMemoryCache.get(targetKey);
-        if (!this.isExpired(memEntry)) return memEntry.data;
+        if (!this.isExpired(memEntry, ttlMs)) return memEntry.data;
       }
 
       const validMem = [];
       for (const [key, memEntry] of this.inMemoryCache.entries()) {
         if (key === exactLegacyKey || key.startsWith(prefix)) {
-          if (!this.isExpired(memEntry)) {
+          if (!this.isExpired(memEntry, ttlMs)) {
             validMem.push(memEntry);
           } else {
             this.inMemoryCache.delete(key);

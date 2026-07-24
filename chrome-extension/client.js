@@ -490,13 +490,13 @@ class PerspectivePrismClient {
 
     const legacyKey = `cache_${videoId}`;
     const prefix = `cache_${videoId}_`;
+    const ttlMs = await this.getCacheTtlMs();
 
     // Check in-memory cache first (fallback)
     const validMem = [];
     for (const [memKey, entry] of this.inMemoryCache.entries()) {
       if (memKey === legacyKey || memKey.startsWith(prefix)) {
-        const age = Date.now() - entry.timestamp;
-        if (age > this.CACHE_TTL_MS) {
+        if (this.isExpired(entry, ttlMs)) {
           this.inMemoryCache.delete(memKey);
         } else {
           validMem.push(entry);
