@@ -519,9 +519,10 @@ class PerspectivePrismClient {
       const validEntries = [];
       const expiredKeys = [];
 
+      const ttlMs = await this.getCacheTtlMs();
       for (const k of matchingKeys) {
         const entry = allStorage[k];
-        if (!entry || Date.now() - entry.timestamp > this.CACHE_TTL_MS) {
+        if (this.isExpired(entry, ttlMs)) {
           expiredKeys.push(k);
         } else {
           validEntries.push({ key: k, entry });
@@ -833,16 +834,38 @@ class PerspectivePrismClient {
   }
 
   /**
+   * Get configured TTL in milliseconds from storage settings
+   * @returns {Promise<number>}
+   */
+  async getCacheTtlMs() {
+    try {
+      const syncStorage = await chrome.storage.sync.get("config");
+      if (typeof syncStorage?.config?.cacheDuration === "number" && syncStorage.config.cacheDuration > 0) {
+        return syncStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+      const localStorage = await chrome.storage.local.get("config");
+      if (typeof localStorage?.config?.cacheDuration === "number" && localStorage.config.cacheDuration > 0) {
+        return localStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+    } catch (_e) {
+      // Fallback
+    }
+    return this.CACHE_TTL_MS;
+  }
+
+  /**
    * Check if a cache entry is expired.
    * @param {Object} entry - The cache entry to check
+   * @param {number} [customTtlMs] - Optional custom TTL in milliseconds
    * @returns {boolean} - True if expired, false otherwise
    */
-  isExpired(entry) {
+  isExpired(entry, customTtlMs = null) {
     if (!entry || !entry.timestamp) {
       return true;
     }
+    const ttlMs = customTtlMs || this.CACHE_TTL_MS;
     const age = Date.now() - entry.timestamp;
-    return age > this.CACHE_TTL_MS;
+    return age > ttlMs;
   }
 
   /**
@@ -851,13 +874,14 @@ class PerspectivePrismClient {
    */
   async cleanupExpiredCache() {
     try {
+      const ttlMs = await this.getCacheTtlMs();
       const all = await chrome.storage.local.get(null);
       const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       const keysToRemove = [];
 
       for (const key of cacheKeys) {
         const entry = all[key];
-        if (this.isExpired(entry)) {
+        if (this.isExpired(entry, ttlMs)) {
           keysToRemove.push(key);
         }
       }

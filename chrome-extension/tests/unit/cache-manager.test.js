@@ -217,5 +217,23 @@ describe("CacheManager - Content-Hashed Caching & Eviction", () => {
       expect(mockStorage["cache_metadata"]).toEqual({ schemaVersion: 1 });
       expect(mockStorage["cache_validVideo_h1"]).toBeUndefined();
     });
+
+    it("should respect custom cacheDuration setting when checking expiration", async () => {
+      chrome.storage.sync.get.mockResolvedValueOnce({ config: { cacheDuration: 2 } });
+
+      const entry2h = {
+        schemaVersion: 1,
+        timestamp: Date.now() - (3 * 60 * 60 * 1000), // 3 hours old
+        lastAccessed: Date.now(),
+        contentHash: "h2",
+        data: { video_id: "vid2h", claims: [] },
+      };
+
+      mockStorage["cache_vid2h_h2"] = entry2h;
+
+      const retrieved = await cacheManager.checkCache("vid2h", "h2");
+      expect(retrieved).toBeNull();
+      expect(mockStorage["cache_vid2h_h2"]).toBeUndefined();
+    });
   });
 });

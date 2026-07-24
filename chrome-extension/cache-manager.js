@@ -112,13 +112,35 @@ export class CacheManager {
   }
 
   /**
-   * Check if entry is expired (> 7 days)
+   * Get configured TTL in milliseconds from storage settings
+   * @returns {Promise<number>}
+   */
+  async getTtlMs() {
+    try {
+      const syncStorage = await chrome.storage.sync.get("config");
+      if (typeof syncStorage?.config?.cacheDuration === "number" && syncStorage.config.cacheDuration > 0) {
+        return syncStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+      const localStorage = await chrome.storage.local.get("config");
+      if (typeof localStorage?.config?.cacheDuration === "number" && localStorage.config.cacheDuration > 0) {
+        return localStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+    } catch (_e) {
+      // Ignore storage read errors
+    }
+    return CacheManager.CACHE_TTL_MS;
+  }
+
+  /**
+   * Check if entry is expired
    * @param {Object} entry
+   * @param {number} [customTtlMs]
    * @returns {boolean}
    */
-  isExpired(entry) {
+  isExpired(entry, customTtlMs = null) {
     if (!entry || !entry.timestamp) return true;
-    return Date.now() - entry.timestamp > CacheManager.CACHE_TTL_MS;
+    const ttlMs = customTtlMs || CacheManager.CACHE_TTL_MS;
+    return Date.now() - entry.timestamp > ttlMs;
   }
 
   /**
@@ -141,12 +163,14 @@ export class CacheManager {
     if (!videoId) return null;
 
     try {
+      const ttlMs = await this.getTtlMs();
+
       if (contentHash) {
         const targetKey = this.getCacheKey(videoId, contentHash);
         const result = await chrome.storage.local.get(targetKey);
         const entry = result[targetKey];
         if (entry) {
-          if (this.isExpired(entry)) {
+          if (this.isExpired(entry, ttlMs)) {
             await chrome.storage.local.remove(targetKey);
             return null;
           }
@@ -171,7 +195,7 @@ export class CacheManager {
 
       for (const key of matchingKeys) {
         const entry = all[key];
-        if (this.isExpired(entry)) {
+        if (this.isExpired(entry, ttlMs)) {
           expiredKeys.push(key);
         } else {
           validEntries.push({ key, entry });
@@ -288,6 +312,7 @@ export class CacheManager {
    */
   async evictExpiredAndLRU(requiredSpaceBytes = 0) {
     try {
+      const ttlMs = await this.getTtlMs();
       const all = await chrome.storage.local.get(null);
       const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       const keysToRemove = [];
@@ -296,7 +321,7 @@ export class CacheManager {
 
       for (const key of cacheKeys) {
         const entry = all[key];
-        if (!entry || this.isExpired(entry)) {
+        if (!entry || this.isExpired(entry, ttlMs)) {
           keysToRemove.push(key);
         } else {
           const size = this.estimateSize(entry);
