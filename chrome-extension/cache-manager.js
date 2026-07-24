@@ -115,62 +115,101 @@ export class CacheManager {
     if (!videoId) return null;
 
     try {
-      let targetKey = contentHash ? this.getCacheKey(videoId, contentHash) : null;
-      let entry = null;
-
-      if (targetKey) {
+      if (contentHash) {
+        const targetKey = this.getCacheKey(videoId, contentHash);
         const result = await chrome.storage.local.get(targetKey);
-        entry = result[targetKey];
-      } else {
-        // Search for any matching key starting with cache_${videoId}_ or exact legacy key cache_${videoId}
-        const all = await chrome.storage.local.get(null);
-        const prefix = `cache_${videoId}_`;
-        const exactLegacyKey = `cache_${videoId}`;
-
-        const matchedKey =
-          Object.keys(all).find((k) => k.startsWith(prefix)) ||
-          (all[exactLegacyKey] ? exactLegacyKey : null);
-
-        if (matchedKey) {
-          targetKey = matchedKey;
-          entry = all[matchedKey];
+        const entry = result[targetKey];
+        if (entry) {
+          if (this.isExpired(entry)) {
+            await chrome.storage.local.remove(targetKey);
+            return null;
+          }
+          entry.lastAccessed = Date.now();
+          chrome.storage.local.set({ [targetKey]: entry }).catch(() => {});
+          return entry.data;
         }
       }
 
-      if (!entry) {
-        // Check in-memory fallback
-        for (const [key, memEntry] of this.inMemoryCache.entries()) {
-          if (key.startsWith(`cache_${videoId}_`) || key === `cache_${videoId}`) {
-            if (!this.isExpired(memEntry)) {
-              return memEntry.data;
-            } else {
-              this.inMemoryCache.delete(key);
-            }
+      // If contentHash is omitted or exact hashed key was not found:
+      // Collect all matching keys: cache_${videoId} or cache_${videoId}_*
+      const all = await chrome.storage.local.get(null);
+      const prefix = `cache_${videoId}_`;
+      const exactLegacyKey = `cache_${videoId}`;
+
+      const matchingKeys = Object.keys(all).filter(
+        (k) => k === exactLegacyKey || k.startsWith(prefix),
+      );
+
+      const validEntries = [];
+      const expiredKeys = [];
+
+      for (const key of matchingKeys) {
+        const entry = all[key];
+        if (this.isExpired(entry)) {
+          expiredKeys.push(key);
+        } else {
+          validEntries.push({ key, entry });
+        }
+      }
+
+      if (expiredKeys.length > 0) {
+        chrome.storage.local.remove(expiredKeys).catch(() => {});
+      }
+
+      if (validEntries.length > 0) {
+        // Sort by timestamp descending (newest entry first)
+        validEntries.sort((a, b) => (b.entry.timestamp || 0) - (a.entry.timestamp || 0));
+        const newest = validEntries[0];
+
+        newest.entry.lastAccessed = Date.now();
+        chrome.storage.local.set({ [newest.key]: newest.entry }).catch(() => {});
+        return newest.entry.data;
+      }
+
+      // Check in-memory fallback
+      const validMem = [];
+      for (const [key, memEntry] of this.inMemoryCache.entries()) {
+        if (key === exactLegacyKey || key.startsWith(prefix)) {
+          if (!this.isExpired(memEntry)) {
+            validMem.push(memEntry);
+          } else {
+            this.inMemoryCache.delete(key);
           }
         }
-        return null;
       }
 
-      // Check TTL
-      if (this.isExpired(entry)) {
-        logger.info(`[CacheManager] Evicting expired cache entry for ${videoId}`);
-        await chrome.storage.local.remove(targetKey);
-        return null;
+      if (validMem.length > 0) {
+        validMem.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        return validMem[0].data;
       }
 
-      // Update lastAccessed timestamp (async write)
-      entry.lastAccessed = Date.now();
-      chrome.storage.local.set({ [targetKey]: entry }).catch(() => {});
-
-      return entry.data;
     } catch (error) {
       logger.error(`[CacheManager] Cache check failed for ${videoId}:`, error);
-      // Check in-memory fallback
+      const prefix = `cache_${videoId}_`;
+      const exactLegacyKey = `cache_${videoId}`;
+      const targetKey = contentHash ? this.getCacheKey(videoId, contentHash) : null;
+
+      if (targetKey && this.inMemoryCache.has(targetKey)) {
+        const memEntry = this.inMemoryCache.get(targetKey);
+        if (!this.isExpired(memEntry)) return memEntry.data;
+      }
+
+      const validMem = [];
       for (const [key, memEntry] of this.inMemoryCache.entries()) {
-        if (key.startsWith(`cache_${videoId}_`) || key === `cache_${videoId}`) {
-          if (!this.isExpired(memEntry)) return memEntry.data;
+        if (key === exactLegacyKey || key.startsWith(prefix)) {
+          if (!this.isExpired(memEntry)) {
+            validMem.push(memEntry);
+          } else {
+            this.inMemoryCache.delete(key);
+          }
         }
       }
+
+      if (validMem.length > 0) {
+        validMem.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        return validMem[0].data;
+      }
+
       return null;
     }
   }

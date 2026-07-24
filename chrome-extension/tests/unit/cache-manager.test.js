@@ -85,16 +85,42 @@ describe("CacheManager - Content-Hashed Caching & Eviction", () => {
       expect(duration).toBeLessThan(20);
     });
 
-    it("should lookup by videoId prefix when no hash is specified", async () => {
-      const testData = {
-        video_id: "12345678901",
-        claims: [{ claim_text: "Prefix match claim" }],
+    it("should lookup by videoId prefix and select the newest entry by timestamp", async () => {
+      const olderData = { video_id: "12345678901", version: "old" };
+      const newerData = { video_id: "12345678901", version: "new" };
+
+      mockStorage["cache_12345678901_hash1"] = {
+        schemaVersion: 1,
+        timestamp: Date.now() - 10000,
+        lastAccessed: Date.now() - 10000,
+        contentHash: "hash1",
+        data: olderData,
       };
 
-      await cacheManager.saveToCache("12345678901", testData, "abc123hash");
+      mockStorage["cache_12345678901_hash2"] = {
+        schemaVersion: 1,
+        timestamp: Date.now(),
+        lastAccessed: Date.now(),
+        contentHash: "hash2",
+        data: newerData,
+      };
 
       const result = await cacheManager.checkCache("12345678901");
-      expect(result).toEqual(testData);
+      expect(result).toEqual(newerData);
+    });
+
+    it("should remove all hashed and unhashed keys on remove(videoId)", async () => {
+      mockStorage["cache_v99"] = { data: { v: 1 } };
+      mockStorage["cache_v99_hashA"] = { data: { v: 2 } };
+      mockStorage["cache_v99_hashB"] = { data: { v: 3 } };
+      mockStorage["cache_other"] = { data: { v: 4 } };
+
+      await cacheManager.remove("v99");
+
+      expect(mockStorage["cache_v99"]).toBeUndefined();
+      expect(mockStorage["cache_v99_hashA"]).toBeUndefined();
+      expect(mockStorage["cache_v99_hashB"]).toBeUndefined();
+      expect(mockStorage["cache_other"]).toBeDefined();
     });
   });
 

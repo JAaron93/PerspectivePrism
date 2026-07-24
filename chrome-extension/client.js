@@ -488,54 +488,57 @@ class PerspectivePrismClient {
       return null;
     }
 
-    let key = `cache_${videoId}`;
+    const legacyKey = `cache_${videoId}`;
+    const prefix = `cache_${videoId}_`;
 
     // Check in-memory cache first (fallback)
-    let memKey = Array.from(this.inMemoryCache.keys()).find(
-      (k) => k === key || k.startsWith(`cache_${videoId}_`),
-    );
-    if (memKey) {
-      const entry = this.inMemoryCache.get(memKey);
-      const age = Date.now() - entry.timestamp;
-      if (age > this.CACHE_TTL_MS) {
-        this.inMemoryCache.delete(memKey);
-        return null;
+    const validMem = [];
+    for (const [memKey, entry] of this.inMemoryCache.entries()) {
+      if (memKey === legacyKey || memKey.startsWith(prefix)) {
+        const age = Date.now() - entry.timestamp;
+        if (age > this.CACHE_TTL_MS) {
+          this.inMemoryCache.delete(memKey);
+        } else {
+          validMem.push(entry);
+        }
       }
-      return entry.data;
+    }
+    if (validMem.length > 0) {
+      validMem.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      return validMem[0].data;
     }
 
     try {
       const allStorage = await chrome.storage.local.get(null);
-      const prefix = `cache_${videoId}_`;
-      let matchedKey =
-        key in allStorage
-          ? key
-          : Object.keys(allStorage).find((k) => k.startsWith(prefix));
+      const matchingKeys = Object.keys(allStorage).filter(
+        (k) => k === legacyKey || k.startsWith(prefix),
+      );
 
-      if (!matchedKey) return null;
-      key = matchedKey;
-      let entry = allStorage[key];
+      if (matchingKeys.length === 0) return null;
 
-      if (!entry) return null;
+      const validEntries = [];
+      const expiredKeys = [];
 
-      // Check expiration
-      const age = Date.now() - entry.timestamp;
-      if (age > this.CACHE_TTL_MS) {
-        console.log(`[PerspectivePrismClient] Cache expired for ${videoId}`);
-        await chrome.storage.local.remove(key);
-        // Track cache miss due to expiration
-        if (this.metricsTracker) {
-          try {
-            await this.metricsTracker.recordCacheMiss(videoId);
-          } catch (metricsError) {
-            console.warn(
-              "[PerspectivePrismClient] Failed to record cache miss metric:",
-              metricsError,
-            );
-          }
+      for (const k of matchingKeys) {
+        const entry = allStorage[k];
+        if (!entry || Date.now() - entry.timestamp > this.CACHE_TTL_MS) {
+          expiredKeys.push(k);
+        } else {
+          validEntries.push({ key: k, entry });
         }
-        return null;
       }
+
+      if (expiredKeys.length > 0) {
+        chrome.storage.local.remove(expiredKeys).catch(() => {});
+      }
+
+      if (validEntries.length === 0) return null;
+
+      // Sort by timestamp descending (newest entry first)
+      validEntries.sort((a, b) => (b.entry.timestamp || 0) - (a.entry.timestamp || 0));
+      const newestItem = validEntries[0];
+      let entry = newestItem.entry;
+      const key = newestItem.key;
 
       // Apply Migrations
       const migratedEntry = await this.migrateCacheEntry(entry);
@@ -818,9 +821,23 @@ class PerspectivePrismClient {
    * @param {string} videoId - The video ID to remove from cache
    */
   async remove(videoId) {
-    const key = `cache_${videoId}`;
+    const legacyKey = `cache_${videoId}`;
+    const prefix = `cache_${videoId}_`;
     try {
-      await chrome.storage.local.remove(key);
+      const all = await chrome.storage.local.get(null);
+      const keysToRemove = Object.keys(all).filter(
+        (k) => k === legacyKey || k.startsWith(prefix),
+      );
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      } else {
+        await chrome.storage.local.remove(legacyKey);
+      }
+      for (const k of Array.from(this.inMemoryCache.keys())) {
+        if (k === legacyKey || k.startsWith(prefix)) {
+          this.inMemoryCache.delete(k);
+        }
+      }
       console.log(
         `[PerspectivePrismClient] Removed cache entry for ${videoId}`,
       );
