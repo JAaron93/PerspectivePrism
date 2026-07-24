@@ -39,10 +39,17 @@ const SKELETON_PERSPECTIVES = [
 /**
  * Render optimistic UI shimmer skeletons for 4 core perspectives (FR-3.1, FR-3.2, US-3)
  * Renders instantly (<50ms execution latency) upon analysis start on a cache miss.
+ * @param {boolean} force - Force re-rendering even if cards already exist.
  */
-function renderOptimisticSkeletons() {
+function renderOptimisticSkeletons(force = false) {
   const container = document.getElementById("skeleton-container") || skeletonContainer;
   if (!container) return;
+
+  // Preserve existing cards if container is already populated and force is false
+  if (!force && container.children.length > 0) {
+    container.style.display = "flex";
+    return;
+  }
 
   container.innerHTML = "";
   container.style.display = "flex";
@@ -405,6 +412,10 @@ async function checkCurrentTabState() {
     if (tab.id !== currentTabId || videoId !== currentVideoId) {
       currentGenerationId = null;
       lastSequence = -1;
+      const container = document.getElementById("skeleton-container") || skeletonContainer;
+      if (container) {
+        container.innerHTML = "";
+      }
     }
     
     currentTabId = tab.id;

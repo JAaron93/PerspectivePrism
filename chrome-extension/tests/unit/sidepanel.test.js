@@ -160,6 +160,56 @@ describe("Side Panel UI & Message Handling", () => {
     expect(sciCard.textContent).toContain("Climate change model accuracy is supported by empirical satellite data");
   });
 
+  it("should preserve already-morphed cards during in_progress state refreshes", async () => {
+    let messageListener;
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
+
+    sidepanelModule = await import("../../sidepanel.js");
+    await vi.waitFor(() => {
+      expect(messageListener).toBeDefined();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "GET_ANALYSIS_STATE", videoId: "abcdefghijk" })
+      );
+    });
+
+    // Initial state in_progress
+    messageListener({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: { status: "in_progress", progress: 25 }
+    }, {}, () => {});
+
+    // Morph Scientific perspective card
+    messageListener({
+      type: "JOB_PROGRESS",
+      videoId: "abcdefghijk",
+      payload: {
+        message: "Scientific complete",
+        progress: 50,
+        perspective: "Scientific",
+        claims: ["Empirical evidence test claim"]
+      }
+    }, {}, () => {});
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Re-trigger in_progress state update (e.g. from tab re-activation or state refresh)
+    messageListener({
+      type: "ANALYSIS_STATE_CHANGED",
+      videoId: "abcdefghijk",
+      state: { status: "in_progress", progress: 60 }
+    }, {}, () => {});
+
+    // Verify morphed card was preserved and NOT reset to empty skeleton
+    const skeletonContainer = document.getElementById("skeleton-container");
+    const sciCard = skeletonContainer.querySelector('[data-perspective="Scientific"]');
+    expect(sciCard).toBeDefined();
+    expect(sciCard.textContent).toContain("Scientific - Complete");
+    expect(sciCard.textContent).toContain("Empirical evidence test claim");
+  });
+
   it("should handle VIDEO_NAVIGATED SPA event by resetting state and querying current tab state", async () => {
     let messageListener;
     chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
