@@ -37,7 +37,6 @@ export default [
         ClaimNavigator: "readonly",
         ConfigValidator: "readonly",
         DEFAULT_CONFIG: "readonly",
-        createPanelContainer: "readonly",
         extractVideoIdFromUrl: "readonly",
         isValidVideoId: "readonly"
       }

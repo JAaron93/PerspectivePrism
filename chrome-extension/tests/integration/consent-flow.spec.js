@@ -49,42 +49,10 @@ test.describe("Consent Flow", () => {
     await expect(analysisButton).toBeVisible();
     await analysisButton.click();
 
-    // Check for consent dialog
-    const consentHost = page.locator("#pp-consent-dialog-host");
-    await expect(consentHost).toBeAttached();
-
-    // --- Test "Deny" Flow ---
-    // Click Deny inside shadow DOM
-    await consentHost.locator("#deny-btn").click();
-    await expect(consentHost).toBeHidden();
-
-    // Assert NO analysis request was made
-    expect(analysisRequestMade).toBe(false);
-
-    // Assert button is still enabled/visible (reset state)
-    await expect(analysisButton).toBeEnabled();
-    await expect(analysisButton).not.toHaveAttribute("aria-busy", "true");
-
-    // --- Test "Allow" Flow ---
-    // Trigger analysis again
-    await analysisButton.click();
-    await expect(consentHost).toBeAttached();
-
-    // Click Allow inside shadow DOM
-    await consentHost.locator("#allow-btn").click();
-    await expect(consentHost).toBeHidden();
-
-    // Assert analysis request WAS made
-    // We might need to wait a bit if it's async, but route handler sets flag immediately on request
-    // Better to wait for the response or the UI change
+    // Verify analysis request is dispatched and button transitions to success without DOM overlay injection
     await expect.poll(() => analysisRequestMade).toBe(true);
-
-    // Verify loading state or results
-    // Assuming panel opens
-    const panel = page.locator("#pp-analysis-panel");
-    await expect(panel).toBeAttached();
-
-    // Verify results eventually appear
-    await expect(page.locator('text="Test Claim"')).toBeVisible();
+    await expect(analysisButton).toHaveClass(/pp-state-success/, { timeout: 10000 });
+    await expect(page.locator("#pp-consent-dialog-host")).toHaveCount(0);
+    await expect(page.locator("#pp-analysis-panel")).toHaveCount(0);
   });
 });
