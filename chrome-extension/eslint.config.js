@@ -28,8 +28,11 @@ export default [
         localStorage: "readonly",
         requestAnimationFrame: "readonly",
         module: "readonly",
+        crypto: "readonly",
+        TextEncoder: "readonly",
         
         // Custom extension globals shared across scripts
+        CacheManager: "readonly",
         QuotaManager: "readonly",
         MetricsTracker: "readonly",
         ConfigManager: "readonly",

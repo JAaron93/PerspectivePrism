@@ -2,7 +2,7 @@
 const DEFAULT_CONFIG = {
   backendUrl: "http://localhost:8000",
   cacheEnabled: true,
-  cacheDuration: 24,
+  cacheDuration: 168,
   allowInsecureUrls: false, // Never enable in production
   privacyPolicyUrl: undefined, // Use built-in policy by default
 };

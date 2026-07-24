@@ -154,7 +154,9 @@ test.describe("Multiple Videos Analyzed in Sequence", () => {
           );
           resolve({
             totalEntries: cacheEntries.length,
-            videoIds: cacheEntries.map((key) => key.replace("cache_", "")),
+            videoIds: cacheEntries.map((key) =>
+              key.replace("cache_", "").split("_")[0]
+            ),
           });
         });
       });

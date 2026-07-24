@@ -255,7 +255,7 @@ To allow the extension to communicate with your local Perspective Prism Backend:
 #### Configuration Options
 Access settings by right-clicking the extension icon and selecting **Options**:
 - **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
-- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 24 hours).
+- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 7 days, using content-hashed storage keys `cache_${videoId}_${contentHash}` with 10MB auto-LRU eviction).
 - **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
 
 ## 🧪 Testing
