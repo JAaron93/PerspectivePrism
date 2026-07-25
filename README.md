@@ -70,11 +70,11 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized under the `
 - **Optimistic UI & Zero-Latency Feedback**
   - Displays instant animated CSS shimmer loader cards (<50ms) upon analysis start before backend streaming begins.
 - **Content-Hashed Local Storage Caching (`chrome.storage.local`)**
-  - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond cache-hit loads.
+  - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
 - **Comprehensive Quality Assurance & E2E Testing**
-  - **Vitest Unit Test Suite**: 14 test files, 158 passed unit tests.
-  - **Playwright E2E Integration Suite**: 18 test specs passing via persistent browser extension context.
-  - **FastAPI Pytest Backend Suite**: 79 passed test items.
+  - **Vitest Unit Test Suite**: Full unit test coverage across extension client, side panel, and background service worker modules (`npm test`).
+  - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
+  - **FastAPI Pytest Backend Suite**: Complete backend test suite covering API endpoints, claim extraction, and reliability circuit breakers (`pytest`).
 - **AI Code Review & Quality Gates (Qodo)**
   - Automated PR reviews and hard compliance checks configured via [.qodo.yaml](.qodo.yaml) and [pr_compliance_checklist.yaml](pr_compliance_checklist.yaml).
 - **Chrome Web Store Submission Disclosure**

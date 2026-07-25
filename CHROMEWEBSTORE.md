@@ -25,7 +25,7 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 - **Native Chrome Side Panel Integration (`chrome.sidePanel`)**: All claim timelines, perspective stance chips, and deception scores display in Chrome's native side panel without cluttering or overlaying the YouTube player DOM.
 - **Optimistic UI & Zero-Latency Feedback**: Instant animated CSS shimmer loader cards render immediately upon analysis initiation (<50ms).
 - **Progressive Stream Rendering**: Claims and stance indicators (Scientific Consensus, Journalistic Consensus, Partisan (Left), Partisan (Right)) populate progressively as each perspective completes.
-- **Content-Hashed Local Storage Cache (`chrome.storage.local`)**: Analysis results are content-hashed (`cache_${videoId}_${contentHash}`) and cached locally with automatic 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond loads on re-analyzed videos without redundant API calls.
+- **Content-Hashed Local Storage Cache (`chrome.storage.local`)**: Analysis results are content-hashed (`cache_${videoId}_${contentHash}`) and cached locally with automatic 10MB LRU storage pruning, enabling instant (<20ms) loads on re-analyzed videos without redundant API calls.
 - **YouTube SPA Navigation Sync**: Detects single-page application (`yt-navigate-finish`) video switches to reset state, check local cache, and sync claim timeline seamlessly.
 - **Accessibility & Keyboard Navigation**: Full WCAG AA compliance with keyboard navigation, screen reader live announcements, and tap target optimization.
 
