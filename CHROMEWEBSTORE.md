@@ -40,7 +40,7 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 ## 3. Privacy Policy & Security Compliance
 
 ### Privacy Principles
-- **Local-First Data Architecture**: Analysis cache data and preferences remain strictly inside your local browser storage (`chrome.storage.local` and `chrome.storage.sync`).
+- **Local-First Data Architecture**: Analysis cache data remains strictly inside device-bound local browser storage (`chrome.storage.local`), while user preferences (backend URL, consent choices) sync across your signed-in Chrome browsers (`chrome.storage.sync`) with zero data sent to third-party servers.
 - **No Personal Data Collection**: Perspective Prism does NOT track personal identity, browsing history outside YouTube, Google account credentials, or user watch lists.
 - **No Third-Party Analytics**: The extension contains zero tracking scripts, cookies, or telemetry libraries.
 - **Explicit User Control**: Users can clear local cached analyses or revoke backend integration at any time through the extension Options menu.
@@ -58,7 +58,7 @@ The Chrome Web Store requires detailed justifications for each permission declar
 
 | Permission | Purpose & Technical Justification |
 | :--- | :--- |
-| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store analysis results (`cache_${videoId}`) in `chrome.storage.local` to enable instant cache-hit loads and eliminate redundant LLM API backend calls. Enforces 24-hour TTL and 10MB LRU storage bounds. Also persists user options in `chrome.storage.sync`. |
+| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store device-bound analysis results (`cache_${videoId}`) in `chrome.storage.local` (24-hour TTL, 10MB LRU limit) and sync user extension preferences (backend URL, consent choices) across signed-in Chrome browsers via `chrome.storage.sync`. |
 | **`sidePanel`** | **Required for Exclusive UI Surface (`chrome.sidePanel`).** Hosts `sidepanel.html` as the primary user interface. Renders progressive claim streams, optimistic shimmer loaders, stance chips, and deception ratings side-by-side with YouTube watch pages without inserting floating DOM overlays. |
 | **`alarms`** | **Required for Background Task Scheduling & Resilience.** Schedules service worker wakeups for cache TTL cleanup, LRU eviction cycles, and automatic backend job polling retry routines across Service Worker idle/terminate cycles. |
 | **`notifications`** | **Required for User Alerts & Background Error Handling.** Displays status notifications and actionable system alerts when an offline backend connection error occurs or when an analysis job completes while the side panel is closed. |
