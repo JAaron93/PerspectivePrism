@@ -128,20 +128,23 @@ The frontend is located in the `frontend/` directory. It uses React 19, TypeScri
 
 # Chrome Extension
 
-The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules), HTML, and CSS — no build step.
+The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules for pages/background, classic scripts for content scripts), HTML, and CSS, bundled with **Vite 6** (`vite.config.js`).
 
 ## Setup
 1.  Navigate to `chrome-extension/`.
 2.  Install dev dependencies: `npm install`.
+3.  Build production bundle: `npm run build`.
 
-**To load in Chrome**: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `chrome-extension/` directory.
+**To load in Chrome**: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select `chrome-extension/dist` (for production build) or `chrome-extension/` (for dev).
 
 ## Common Commands
 
+*   **Build Production Bundle**: `npm run build` (Vite 6 multi-entry bundling into `dist/`)
+*   **Validate Manifest**: `node scripts/check-manifest.js` (validates root and `dist/` manifests)
 *   **Run Unit Tests**: `npm test` (Vitest, single run)
 *   **Run Unit Tests (watch)**: `npm run test:watch`
 *   **Run Coverage**: `npm run test:coverage`
-*   **Run Integration Tests**: `npm run test:integration` (Playwright)
+*   **Run Integration Tests**: `npm run test:integration` (Playwright with `xvfb-run`)
 
 ## Testing & Debugging Tool Routing Discipline
 
@@ -165,6 +168,7 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 
 ## Key Files
 
+*   `vite.config.js`: Vite 6 multi-entry build configuration with `copyExtensionAssets` plugin and Terser minification.
 *   `manifest.json`: Extension configuration (Manifest V3).
 *   `content.js`: Content script — UI injection and DOM manipulation on YouTube pages.
 *   `claim-navigator.js`: Keyboard navigation and accessibility (`ClaimNavigator` class).
