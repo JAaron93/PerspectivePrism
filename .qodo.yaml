@@ -63,3 +63,19 @@ pr_code_suggestions:
 pr_description:
   publish_labels: true
   generate_ai_title: true
+
+github_app:
+  # Automated commands when a PR is opened, reopened, or marked ready
+  handle_pr_actions: ['opened', 'reopened', 'ready_for_review']
+  pr_commands:
+    - "/describe"
+    - "/review"
+
+  # Automatically re-run reviews whenever new commits are pushed to an open PR
+  handle_push_trigger: true
+  push_commands:
+    - "/review"
+
+  # Disable automatic runs on Draft PRs to avoid noise while work is in progress
+  feedback_on_draft_pr: false
+
