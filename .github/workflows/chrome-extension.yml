@@ -44,15 +44,31 @@ jobs:
         cd chrome-extension
         npm run test:coverage
 
-    - name: Install Playwright Browsers
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      id: playwright-cache
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('chrome-extension/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+
+    - name: Install Playwright Browsers & Deps
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: |
         cd chrome-extension
         npx playwright install --with-deps
 
+    - name: Install Playwright OS Deps (Cache Hit)
+      if: steps.playwright-cache.outputs.cache-hit == 'true'
+      run: |
+        cd chrome-extension
+        npx playwright install-deps
+
     - name: Run Integration Tests
       run: |
         cd chrome-extension
-        xvfb-run npm run test:integration
+        npm run test:integration
 
     - name: Build Extension
       run: |
