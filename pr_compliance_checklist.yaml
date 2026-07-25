@@ -32,9 +32,9 @@ requirement_checks:
 
   - id: four-perspective-alignment
     name: "Four-Perspective Consistency Check"
-    description: "Perspective claims must strictly align with Scientific, Journalistic, Partisan Left, and Partisan Right categories."
+    description: "Perspective claims must strictly align with Scientific, Journalistic, Partisan (Left), and Partisan (Right) categories."
     condition: "files.contains('backend/app/services/')"
-    pass_condition: "No perspective category string literals deviate from the four defined stances."
+    pass_condition: "No perspective category string literals deviate from the canonical enum values (Scientific, Journalistic, Partisan (Left), Partisan (Right))."
     severity: "MEDIUM"
 
   - id: wcag-a11y-keyboard-accessibility

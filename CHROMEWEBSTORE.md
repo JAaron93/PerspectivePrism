@@ -24,8 +24,8 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 ### Key Features
 - **Native Chrome Side Panel Integration (`chrome.sidePanel`)**: All claim timelines, perspective stance chips, and deception scores display in Chrome's native side panel without cluttering or overlaying the YouTube player DOM.
 - **Optimistic UI & Zero-Latency Feedback**: Instant animated CSS shimmer loader cards render immediately upon analysis initiation (<50ms).
-- **Progressive Stream Rendering**: Claims and stance indicators (Scientific Consensus, Journalistic Consensus, Partisan Left, Partisan Right) populate progressively as each perspective completes.
-- **Local Storage Cache (`chrome.storage.local`)**: Analysis results are cached locally (`cache_${videoId}`) for 24 hours with automatic 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond loads on re-analyzed videos without redundant API calls.
+- **Progressive Stream Rendering**: Claims and stance indicators (Scientific Consensus, Journalistic Consensus, Partisan (Left), Partisan (Right)) populate progressively as each perspective completes.
+- **Content-Hashed Local Storage Cache (`chrome.storage.local`)**: Analysis results are content-hashed (`cache_${videoId}_${contentHash}`) and cached locally with automatic 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond loads on re-analyzed videos without redundant API calls.
 - **YouTube SPA Navigation Sync**: Detects single-page application (`yt-navigate-finish`) video switches to reset state, check local cache, and sync claim timeline seamlessly.
 - **Accessibility & Keyboard Navigation**: Full WCAG AA compliance with keyboard navigation, screen reader live announcements, and tap target optimization.
 
@@ -58,13 +58,13 @@ The Chrome Web Store requires detailed justifications for each permission declar
 
 | Permission | Purpose & Technical Justification |
 | :--- | :--- |
-| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store device-bound analysis results (`cache_${videoId}`) in `chrome.storage.local` (24-hour TTL, 10MB LRU limit) and sync user extension preferences (backend URL, consent choices) across signed-in Chrome browsers via `chrome.storage.sync`. |
+| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store content-hashed analysis results (`cache_${videoId}_${contentHash}`) in `chrome.storage.local` (with 10MB LRU limit) and sync user extension preferences (backend URL, consent choices) across signed-in Chrome browsers via `chrome.storage.sync`. |
 | **`sidePanel`** | **Required for Exclusive UI Surface (`chrome.sidePanel`).** Hosts `sidepanel.html` as the primary user interface. Renders progressive claim streams, optimistic shimmer loaders, stance chips, and deception ratings side-by-side with YouTube watch pages without inserting floating DOM overlays. |
 | **`alarms`** | **Required for Background Task Scheduling & Resilience.** Schedules service worker wakeups for cache TTL cleanup, LRU eviction cycles, and automatic backend job polling retry routines across Service Worker idle/terminate cycles. |
 | **`notifications`** | **Required for User Alerts & Background Error Handling.** Displays status notifications and actionable system alerts when an offline backend connection error occurs or when an analysis job completes while the side panel is closed. |
 | **`activeTab`** | **Required for Temporary Context Inspection.** Grants temporary permission to inspect active YouTube tab metadata (video ID, title, URL) when the user clicks the action button or side panel trigger. |
 | **`tabs`** | **Required for YouTube SPA Navigation Monitoring.** Listens to tab context changes (`chrome.tabs.onUpdated`, `chrome.tabs.onActivated`) to synchronize active video state, clear tab-scoped generation keys, and maintain context isolation. |
-| **Host Permissions (`https://*.youtube.com/*`, `https://youtu.be/*`)** | **Required for YouTube Player Button Injection & DOM Context Binding.** Enables content script injection on YouTube watch pages to insert the "Analyze Video" action button near native player controls and listen for YouTube SPA navigation events (`yt-navigate-finish`). |
+| **Host Permissions (`https://*.youtube.com/*`, `https://youtu.be/*`, `https://*.youtube-nocookie.com/*`, `https://m.youtube.com/*`, `http://localhost:8000/*`, `http://127.0.0.1:8000/*`)** | **Required for YouTube DOM Binding & Backend API Communication.** Enables content script injection on standard, embedded, and mobile YouTube pages (`*.youtube.com`, `youtu.be`, `*.youtube-nocookie.com`, `m.youtube.com`) to insert the "Analyze Video" action button and listen for SPA navigation events (`yt-navigate-finish`). Also permits background service worker communications with the analysis backend endpoint (`localhost:8000`, `127.0.0.1:8000`). |
 
 ---
 

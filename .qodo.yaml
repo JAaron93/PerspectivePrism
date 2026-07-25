@@ -24,7 +24,7 @@ pr_reviewer:
     - Inspect `backend/app/utils/input_sanitizer.py` strictly for prompt injection vectors, Unicode edge cases, encoding tricks, or any weakening of existing sanitization logic.
     - Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` -> `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases.
     - Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService` during LLM provider failure handling.
-    - Ensure analysis perspective references strictly use the four supported categories: `Scientific`, `Journalistic`, `Partisan Left`, and `Partisan Right`. Flag any hardcoded strings that deviate.
+    - Ensure analysis perspective references strictly use the four canonical backend `PerspectiveType` categories: `Scientific`, `Journalistic`, `Partisan (Left)`, and `Partisan (Right)`. Flag any hardcoded strings that deviate.
     - Ensure configuration strictly relies on `pydantic-settings` (`app/core/config.py`).
     - Do NOT suggest adding authentication or authorization logic to backend endpoints.
 
