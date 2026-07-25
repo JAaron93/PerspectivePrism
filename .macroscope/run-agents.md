@@ -7,9 +7,10 @@ This file provides context, architectural constraints, and review criteria for M
 ## 1. Project Overview & Active Branch Context
 
 - **Repository**: PerspectivePrism (YouTube claim, bias & deception analyzer)
-- **Active Branch**: `audit-browser-extension-standards`
-- **Active Specification**: `optimization-architecture`
+- **Active Branch**: `implement-track-six-publishing`
+- **Active Specification**: `optimization-architecture` (All Tracks 1-6 Completed)
 - **Spec Root Directory**: [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/)
+- **Store Publishing Disclosure**: [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md)
 
 ---
 
@@ -100,8 +101,9 @@ cd backend && pytest
 | :--- | :--- |
 | **Service Worker** | [background.js](chrome-extension/background.js) |
 | **Content Script** | [content.js](chrome-extension/content.js), [claim-navigator.js](chrome-extension/claim-navigator.js) |
-| **Side Panel UI** | side-panel.html, side-panel.js (planned) |
+| **Side Panel UI** | [sidepanel.html](chrome-extension/sidepanel.html), [sidepanel.js](chrome-extension/sidepanel.js) |
 | **Extension Manifest** | [manifest.json](chrome-extension/manifest.json) |
+| **Store Publishing Disclosure** | [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md) |
 | **FastAPI Backend** | [main.py](backend/app/main.py), [input_sanitizer.py](backend/app/utils/input_sanitizer.py) |
 | **Specification Suite** | [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/) |
 
