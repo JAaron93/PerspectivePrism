@@ -5,7 +5,15 @@
 ```mermaid
 graph TD
     User[User] -->|Interacts with| Client[Frontend (React/Vite)]
+    User -->|Views YouTube| ExtUI["Chrome Extension Side Panel (sidepanel.html)"]
+    
+    subgraph Chrome Extension (MV3)
+        ExtUI -->|Message Channel| SW[Service Worker (background.js)]
+        SW <-->|Cache Read/Write| Storage[chrome.storage.local]
+    end
+
     Client -->|HTTP/JSON| API[Backend API (FastAPI)]
+    SW -->|HTTPS / Job Polling| API
     
     subgraph Backend Services
         API -->|Uses| CE[Claim Extractor]
@@ -21,6 +29,9 @@ graph TD
     
     style User fill:#f9f,stroke:#333,stroke-width:2px
     style Client fill:#bbf,stroke:#333,stroke-width:2px
+    style ExtUI fill:#bbf,stroke:#333,stroke-width:2px
+    style SW fill:#dfd,stroke:#333,stroke-width:1px
+    style Storage fill:#ffd,stroke:#333,stroke-width:1px
     style API fill:#bfb,stroke:#333,stroke-width:2px
     style CE fill:#dfd,stroke:#333,stroke-width:1px
     style ER fill:#dfd,stroke:#333,stroke-width:1px
