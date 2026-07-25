@@ -11,13 +11,11 @@ const extensionPath = path.resolve(__dirname, "../../");
 export const test = base.extend({
   context: async ({}, use) => {
     const pathToExtension = extensionPath;
-    const isCI = !!process.env.CI;
     const context = await chromium.launchPersistentContext("", {
-      headless: isCI,
+      headless: false,
       args: [
         `--disable-extensions-except=${pathToExtension}`,
         `--load-extension=${pathToExtension}`,
-        ...(isCI ? ["--headless=new"] : []),
       ],
     });
 

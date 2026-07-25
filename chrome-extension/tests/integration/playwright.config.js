@@ -11,7 +11,7 @@ export default defineConfig({
   reporter: "html",
   use: {
     trace: "on-first-retry",
-    headless: process.env.CI ? true : false,
+    headless: false,
     screenshot: "only-on-failure",
   },
   projects: [
