@@ -166,6 +166,15 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
   - **`axe-core-mcp`**: Primary tool for component-level DOM scanning (`analyze` on specific selectors) and direct code-level remediation (`remediate`).
   - **`a11y-debugging` skill**: Used for full-page Lighthouse accessibility scores, visual tap-target size validation (48x48px), and testing interactive keyboard focus traps (`Tab`/`Shift+Tab` cycling).
 
+## Git Merge & Documentation Invariants
+
+* **Git Merge Resolution & Parent Verification**:
+  - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit`.
+  - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
+* **Documentation Hygiene & Test Suite Claims**:
+  - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
+  - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).
+
 ## Key Files
 
 *   `vite.config.js`: Vite 6 multi-entry build configuration with `copyExtensionAssets` plugin and Terser minification.
