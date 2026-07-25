@@ -189,7 +189,7 @@ Scripts are injected into YouTube pages in this order:
 ## Coding Conventions
 
 *   Vanilla JS with ES module syntax — no framework, no build step.
-*   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
+*   Shared utilities MUST maintain two variants when exposed to content scripts: a module version (e.g. `config.js`) with `export` statements for modern module imports (`background.js`, `options.js`), and a classic script version (e.g. `config-script.js`) without `export` statements for direct `manifest.json` content script injection and synchronous HTML test fixture loading.
 *   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`), shared module classes (e.g. `CacheManager`), and standard Web APIs (`crypto`, `TextEncoder`) must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when consumed by other scripts.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
@@ -204,7 +204,7 @@ Scripts are injected into YouTube pages in this order:
 *   **Integration Testing (Playwright)**: 
     *   **No Arbitrary Timeouts**: When testing delayed API responses (e.g., simulating a long analysis to test cancellation or navigation), do not use arbitrary timeouts (e.g., `setTimeout`). Instead, expose a Promise signal from the route handler and `await` that signal in the test *before* triggering the cancellation or SPA navigation. This ensures the request is actually in-flight.
     *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
-    *   **CI/CD Configuration (Headless Linux)**: Chrome Extensions cannot be tested in true headless mode. In GitHub Actions (Linux), you must install system dependencies using `npx playwright install --with-deps` and wrap the test command in a virtual display server using `xvfb-run` (e.g., `xvfb-run npm run test:integration`).
+    *   **CI/CD Virtual Display Invariant (`xvfb-run`)**: Chrome Extensions CANNOT initialize background Service Workers or Side Panel APIs in pure headless mode on Linux. In GitHub Actions (Linux), you MUST install dependencies via `npx playwright install --with-deps`, launch Playwright persistent context with `headless: false`, and execute tests wrapped in `xvfb-run npm run test:integration`. Omitting `xvfb-run` causes execution to hang indefinitely.
 *   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
 
 ### Native Side Panel UI & Progressive Streaming Rules
