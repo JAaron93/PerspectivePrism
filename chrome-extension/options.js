@@ -71,7 +71,7 @@ async function loadSettings() {
     // Populate form fields
     backendUrlInput.value = config.backendUrl || "";
     cacheEnabledCheckbox.checked = config.cacheEnabled !== false;
-    cacheDurationInput.value = config.cacheDuration || 24;
+    cacheDurationInput.value = config.cacheDuration || 168;
     allowAnalysisCheckbox.checked = config.allowAnalysis !== false;
 
     logger.info("Settings loaded:", config);
