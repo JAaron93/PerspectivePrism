@@ -13,7 +13,7 @@
 
 ---
 
-## Track 1: Legacy DOM Overlay Excise & Non-Breakage Audit (Sequential First Step)
+## Track 1: Legacy DOM Overlay Excise & Non-Breakage Audit (Sequential First Step) [COMPLETED]
 
 ### - [x] TASK-1.1: Audit & Safely Remove In-DOM Overlay Code from `content.js`
 - **Description**: Remove `#pp-analysis-panel` creation, Shadow DOM overlay insertion into `document.body`, `createPanelContainer()`, `removePanel()`, and overlay z-index manipulation from `content.js`.
@@ -29,7 +29,7 @@
 
 ---
 
-## Track 2: Service Worker Resilience & Side Panel Triggering
+## Track 2: Service Worker Resilience & Side Panel Triggering [COMPLETED]
 
 ### - [x] TASK-2.1: Implement Lazy `getClient()` Getter in `background.js`
 - **Description**: Refactor top-level `configManager.load().then(...)` in `background.js` into an idempotent async getter `getClient()`. Ensure all `onMessage` async handlers invoke `await getClient()` first.
@@ -48,7 +48,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 3 (Side Panel & Streaming), Track 4 (Content-Hashed Caching), and Track 5 (Vite Setup) can be executed concurrently after Track 2 is complete.
 
-## Track 3: Native Side Panel UI, Optimistic UI & Progressive Streaming
+## Track 3: Native Side Panel UI, Optimistic UI & Progressive Streaming [COMPLETED]
 
 ### - [x] TASK-3.1: Manifest V3 Side Panel Configuration & HTML View
 - **Description**: Update `manifest.json` with `"permissions": ["sidePanel"]` and `"side_panel": { "default_path": "sidepanel.html" }`. Create `sidepanel.html` and `sidepanel.js`.
@@ -76,7 +76,7 @@
 
 ---
 
-## Track 4: Content-Hashed Local Storage Caching (`chrome.storage.local`)
+## Track 4: Content-Hashed Local Storage Caching (`chrome.storage.local`) [COMPLETED]
 
 ### - [x] TASK-4.1: Authoritative SW Content-Hashed Cache Manager
 - **Description**: Implement `CacheManager` in `background.js` using key schema `cache_${videoId}_${contentHash}` in `chrome.storage.local`. Intercept analysis requests to return cached results instantly on cache hits.
@@ -92,7 +92,7 @@
 
 ---
 
-## Track 5: Build System Modernization (Vite Setup)
+## Track 5: Build System Modernization (Vite Setup) [COMPLETED]
 
 ### - [x] TASK-5.1: Configure Vite Extension Bundler
 - **Description**: Create `chrome-extension/vite.config.js` for entrypoints (`background.js`, `content.js`, `popup.js`, `options.js`, `side-panel.js`).
@@ -108,7 +108,7 @@
 
 ---
 
-## Track 6: Store Publishing & E2E Verification
+## Track 6: Store Publishing & E2E Verification [COMPLETED]
 
 ### - [x] TASK-6.1: Draft Store Listing & Permissions (`CHROMEWEBSTORE.md`)
 - **Description**: Create `CHROMEWEBSTORE.md` with explicit permission justifications for `storage`, `sidePanel`, `alarms`, `notifications`.
@@ -120,4 +120,5 @@
 - **Traceability**: Covers all functional requirements.
 - **Dependencies**: All prior tasks.
 - **Acceptance Criteria**: 100% test pass rate with zero regression errors or overlay DOM leaks.
+
 

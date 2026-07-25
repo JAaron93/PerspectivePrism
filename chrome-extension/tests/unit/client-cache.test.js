@@ -91,11 +91,11 @@ describe("PerspectivePrismClient - Cache Operations", () => {
         metadata: { analyzed_at: new Date().toISOString() },
       };
 
-      // Entry from 25 hours ago (expired, TTL is 24 hours)
+      // Entry from 8 days ago (expired, TTL is 7 days)
       const cacheEntry = {
         schemaVersion: 1,
-        timestamp: Date.now() - 25 * 60 * 60 * 1000,
-        lastAccessed: Date.now() - 25 * 60 * 60 * 1000,
+        timestamp: Date.now() - 8 * 24 * 60 * 60 * 1000,
+        lastAccessed: Date.now() - 8 * 24 * 60 * 60 * 1000,
         data: testData,
       };
 
@@ -173,7 +173,8 @@ describe("PerspectivePrismClient - Cache Operations", () => {
 
       await client.saveToCache("abcdefghijk", testData);
 
-      const saved = mockStorage["cache_abcdefghijk"];
+      const savedKey = Object.keys(mockStorage).find((k) => k.startsWith("cache_abcdefghijk"));
+      const saved = mockStorage[savedKey];
       expect(saved).toBeDefined();
       expect(saved.data).toEqual(testData);
       expect(saved.timestamp).toBeDefined();
@@ -189,8 +190,37 @@ describe("PerspectivePrismClient - Cache Operations", () => {
 
       await client.saveToCache("abcdefghijk", testData);
 
-      const saved = mockStorage["cache_abcdefghijk"];
+      const savedKey = Object.keys(mockStorage).find((k) => k.startsWith("cache_abcdefghijk"));
+      const saved = mockStorage[savedKey];
       expect(saved.schemaVersion).toBe(1);
+    });
+
+    it("should compute content hash locally if not provided in backend response", async () => {
+      const testData = {
+        video_id: "abcdefghijk",
+        claims: [
+          {
+            claim_text: "Sample",
+            truth_profile: {
+              overall_assessment: "test",
+              perspectives: {},
+              bias_indicators: {
+                logical_fallacies: [],
+                emotional_manipulation: [],
+                deception_score: 0,
+              },
+            },
+          },
+        ],
+        metadata: { analyzed_at: new Date().toISOString() },
+      };
+
+      await client.saveToCache("abcdefghijk", testData);
+
+      const savedKey = Object.keys(mockStorage).find((k) => k.startsWith("cache_abcdefghijk_"));
+      expect(savedKey).toBeDefined();
+      expect(mockStorage[savedKey].contentHash).toBeDefined();
+      expect(mockStorage[savedKey].contentHash).not.toBe("default");
     });
 
     it("should reject entries > 1 MB", async () => {
@@ -242,7 +272,7 @@ describe("PerspectivePrismClient - Cache Operations", () => {
   describe("isExpired()", () => {
     it("should return true for expired entries", () => {
       const expiredEntry = {
-        timestamp: Date.now() - 25 * 60 * 60 * 1000, // 25 hours ago
+        timestamp: Date.now() - 8 * 24 * 60 * 60 * 1000, // 8 days ago
       };
 
       expect(client.isExpired(expiredEntry)).toBe(true);
@@ -348,7 +378,7 @@ describe("PerspectivePrismClient - Cache Operations", () => {
   describe("cleanupExpiredCache()", () => {
     it("should remove only expired entries", async () => {
       const now = Date.now();
-      const oldTimestamp = now - 25 * 60 * 60 * 1000; // 25 hours ago
+      const oldTimestamp = now - 8 * 24 * 60 * 60 * 1000; // 8 days ago
       const freshTimestamp = now - 1 * 60 * 60 * 1000; // 1 hour ago
 
       mockStorage["cache_expired1"] = {

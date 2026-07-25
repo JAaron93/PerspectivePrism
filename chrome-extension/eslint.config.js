@@ -28,8 +28,11 @@ export default [
         localStorage: "readonly",
         requestAnimationFrame: "readonly",
         module: "readonly",
+        crypto: "readonly",
+        TextEncoder: "readonly",
         
         // Custom extension globals shared across scripts
+        CacheManager: "readonly",
         QuotaManager: "readonly",
         MetricsTracker: "readonly",
         ConfigManager: "readonly",
@@ -37,7 +40,6 @@ export default [
         ClaimNavigator: "readonly",
         ConfigValidator: "readonly",
         DEFAULT_CONFIG: "readonly",
-        createPanelContainer: "readonly",
         extractVideoIdFromUrl: "readonly",
         isValidVideoId: "readonly"
       }
