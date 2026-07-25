@@ -230,12 +230,12 @@ Additional configuration:
 
 #### Production Build & Packaging
 For distribution or release testing, compile and package the extension:
-1. Run the build script:
+1. Run the build command:
    ```bash
    cd chrome-extension
    npm run build
    ```
-   This script minifies JavaScript (removing development `console.log` statements) and CSS files, creates a production-ready `dist/` directory, and bundles it into `perspective-prism-extension.zip`.
+   This command runs Vite (`vite build` via `vite.config.js`) to bundle entry points, minify JavaScript (stripping development `console.log` statements via Terser) and CSS files, copy static assets, and generate a production-ready `dist/` directory.
 2. Load the production build:
    - Navigate to `chrome://extensions/`.
    - Click **Load unpacked** and select the `chrome-extension/dist` directory.

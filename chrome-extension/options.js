@@ -1,7 +1,7 @@
-// Options page script for Perspective Prism extension
-// Handles settings UI, validation, and persistence
+import { ConfigManager, ConfigValidator } from "./config.js";
+import { Logger } from "./logging-utils.js";
 
-const logger = new window.Logger("[Options]");
+const logger = new Logger("[Options]");
 
 // DOM elements
 let backendUrlInput;

@@ -46,9 +46,6 @@ class ConfigValidator {
       if (typeof config.allowInsecureUrls !== "boolean") {
         errors.push("allowInsecureUrls must be a boolean");
       } else if (config.allowInsecureUrls === true) {
-        // Production Safeguard: Prevent enabling in production builds
-        // Note: process.env.NODE_ENV is replaced at build time, but here we can check for localhost
-        // For now, we just warn
         console.warn(
           "SECURITY WARNING: allowInsecureUrls is enabled. This should only be used for local development.",
         );
@@ -85,11 +82,9 @@ class ConfigValidator {
           parsed.hostname === "::1";
 
         if (!isLocalhost && !allowInsecureUrls) {
-          // HTTP not allowed for non-localhost addresses unless developer flag is set
           return false;
         }
 
-        // Log warning if developer flag is used
         if (!isLocalhost && allowInsecureUrls) {
           console.warn(
             "[ConfigValidator] allowInsecureUrls is enabled. " +
@@ -155,19 +150,15 @@ class ConfigManager {
           "Invalid config found, using defaults:",
           validation.errors,
         );
-        // Notify user of invalid config
         await this.notifyInvalidConfig(validation.errors);
-        // Fall back to defaults
         await this.save(DEFAULT_CONFIG);
         return { ...DEFAULT_CONFIG };
       }
 
-      // Merge with defaults (in case new fields were added)
       this.config = { ...DEFAULT_CONFIG, ...stored.config };
       return this.config;
     } catch (error) {
       console.error("Failed to load config from chrome.storage.sync:", error);
-      // Fall back to chrome.storage.local if sync is unavailable
       return this.loadFromLocal();
     }
   }
@@ -185,7 +176,6 @@ class ConfigManager {
       this.config = config;
     } catch (error) {
       console.error("Failed to save config to chrome.storage.sync:", error);
-      // Fall back to local storage
       await chrome.storage.local.set({ config });
       this.config = config;
     }
@@ -208,8 +198,7 @@ class ConfigManager {
     }
   }
 
-  async notifyInvalidConfig(errors) {
-    // Show notification to user
+  async notifyInvalidConfig(_errors) {
     if (chrome.notifications) {
       await chrome.notifications.create({
         type: "basic",

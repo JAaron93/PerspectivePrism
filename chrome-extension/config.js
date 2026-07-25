@@ -208,7 +208,7 @@ class ConfigManager {
     }
   }
 
-  async notifyInvalidConfig(errors) {
+  async notifyInvalidConfig(_errors) {
     // Show notification to user
     if (chrome.notifications) {
       await chrome.notifications.create({
@@ -225,6 +225,13 @@ class ConfigManager {
   get() {
     return { ...this.config };
   }
+}
+
+// Global assignments for window context
+if (typeof window !== "undefined") {
+  window.DEFAULT_CONFIG = DEFAULT_CONFIG;
+  window.ConfigValidator = ConfigValidator;
+  window.ConfigManager = ConfigManager;
 }
 
 // ES Module Exports (for unit testing and modern imports)
