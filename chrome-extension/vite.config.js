@@ -22,6 +22,8 @@ function copyExtensionAssets() {
       const filesToCopy = [
         'manifest.json',
         'content.css',
+        'logging-utils-script.js',
+        'config-script.js',
         'video-utils-script.js',
         'consent.js',
         'claim-navigator.js',
