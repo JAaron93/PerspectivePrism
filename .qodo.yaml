@@ -1,0 +1,81 @@
+# Qodo (PR-Agent) Configuration File
+# Modernized configuration replacing legacy Macroscope (.macroscope/*.md) rules
+
+config:
+  verbosity_level: 1
+
+pr_reviewer:
+  # Automation triggers (Macroscope-style low-noise posture)
+  auto_review: true
+  auto_describe: true
+  require_score_review: false
+  enable_sub_tool_suggestions: false
+  num_code_suggestions: 0
+  inline_suggestions_mode: "none"
+
+  # Comprehensive imperatively-styled rules translated from .macroscope/*.md
+  extra_instructions: |
+    # 1. Global Project Boundaries & Architecture Restrictions
+    - Do NOT suggest enterprise architecture patterns, including microservices, message queues (Celery/RabbitMQ), ORMs/database migrations, role-based access control (RBAC), multi-tenancy, external logging/telemetry (Datadog, Sentry, ELK), container orchestration (Docker/K8s), or CI/CD deployment pipelines.
+    - DO focus on code correctness, logic bugs, solo-developer maintainability, LLM integration security, user-facing performance, and missing exception handling on critical execution paths.
+
+    # 2. Backend & Security Rules (FastAPI + Python 3.13)
+    - Ensure all user-supplied inputs pass through `app/utils/input_sanitizer.py` before being forwarded to any LLM model. Flag any execution path or helper that bypasses input sanitization.
+    - Inspect `backend/app/utils/input_sanitizer.py` strictly for prompt injection vectors, Unicode edge cases, encoding tricks, or any weakening of existing sanitization logic.
+    - Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` -> `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases.
+    - Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService` during LLM provider failure handling.
+    - Ensure analysis perspective references strictly use the four canonical backend `PerspectiveType` categories: `Scientific`, `Journalistic`, `Partisan (Left)`, and `Partisan (Right)`. Flag any hardcoded strings that deviate.
+    - Ensure configuration strictly relies on `pydantic-settings` (`app/core/config.py`).
+    - Do NOT suggest adding authentication or authorization logic to backend endpoints.
+
+    # 3. Service Layer Architecture
+    - Ensure business logic remains strictly within service classes (`ClaimExtractor`, `EvidenceRetriever`, `AnalysisService`) and separate from FastAPI route handlers.
+    - Verify correct `async`/`await` usage and concurrent task management.
+    - Ensure evidence retrieval queries cover all four perspectives consistently.
+
+    # 4. Chrome Extension Standards (MV3 Vanilla JS)
+    - Do NOT suggest adding JS bundlers (Vite, webpack, Rollup), transpilers, or UI frameworks (React, Vue) to the Chrome extension directory.
+    - Verify that shared utility modules (`config.js`, `logging-utils.js`) maintain their respective standalone script variants (`config-script.js`, `logging-utils-script.js`) for direct manifest script injection.
+    - Preserve content script injection load order: `logging-utils-script.js` -> `config-script.js` -> `consent.js` -> `claim-navigator.js` -> `content.js`.
+    - Ensure `background.js` strictly adheres to Manifest V3 event-driven Service Worker lifecycles without assuming persistent background page state.
+    - Verify YouTube SPA navigation handling in `content.js` cleans up DOM observers and event listeners to prevent memory leaks on video switches.
+    - Verify keyboard navigation and accessibility in `claim-navigator.js` for WCAG 2.1 AA compliance (focus management, ARIA attributes, screen reader compatibility).
+
+    # 5. Frontend Guidelines (React 19 + TypeScript + Vite)
+    - Do NOT suggest routing libraries, state management frameworks (Redux, Zustand), or UI component libraries (Tailwind, CSS-in-JS).
+    - Ensure custom CSS is maintained without external UI utility framework additions.
+    - Verify job API polling logic for proper UX, loading states, and error handling.
+    - Ensure environment variables are strictly prefixed with `VITE_`.
+    - Ensure all API response shapes are explicitly typed in TypeScript interfaces; flag any usage of `any`.
+
+    # 6. Testing & Tooling Standards
+    - Verify tests assert meaningful behavior rather than simple code execution.
+    - Ensure Pytest async tests correctly use `pytest-asyncio` fixtures.
+    - Ensure Vitest/JSDOM tests properly mock Chrome Extension APIs (`chrome.storage`, `chrome.runtime`).
+    - Do NOT suggest complex test factories, fixture frameworks, or test databases.
+    - Ensure `.benchmarks/**/*` and documentation (`*.md`) are reviewed for factual accuracy against codebase state without imposing production code style rules.
+
+pr_code_suggestions:
+  # Reserved for manual trigger via /improve to prevent automated PR comment clutter
+  auto_improve: false
+  num_code_suggestions: 4
+
+pr_description:
+  publish_labels: true
+  generate_ai_title: true
+
+github_app:
+  # Automated commands when a PR is opened, reopened, or marked ready
+  handle_pr_actions: ['opened', 'reopened', 'ready_for_review']
+  pr_commands:
+    - "/describe"
+    - "/review"
+
+  # Automatically re-run reviews whenever new commits are pushed to an open PR
+  handle_push_trigger: true
+  push_commands:
+    - "/review"
+
+  # Disable automatic runs on Draft PRs to avoid noise while work is in progress
+  feedback_on_draft_pr: false
+

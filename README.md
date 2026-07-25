@@ -61,25 +61,24 @@ In an era where video content increasingly shapes public opinion and political d
 
 I used Perspective Prism to analyze claims from a political commentary video, discovering that 3 out of 7 major claims lacked credible supporting evidence and exhibited strong emotional manipulation tactics. Armed with this Truth Profile, I was able to disuade an acquaintance from taking the video's claims at face value, which would have otherwise reinforced their existing beliefs.
 
-**Future Enhancements**: With additional development time, I plan to apply comprehensive quality assurance to the Chrome extension, including:
+## 🧩 Chrome Extension & Store Publishing Readiness
 
+Perspective Prism features a Manifest V3 Chrome Extension modernized under the `optimization-architecture` specification:
 
-- **Comprehensive Testing Strategy**
-  - CI/CD pipeline with automated unit and integration tests on every commit
-  - Manual testing across browser variants (Chrome, Brave, Edge) and YouTube layouts (desktop, mobile, Shorts, embedded)
-  - Accessibility testing with screen readers (NVDA/JAWS) and keyboard-only navigation
-  - Performance benchmarking (memory usage, page load impact, cache efficiency)
-
-- **Structured Logging & Monitoring**
-  - Privacy-safe logging utility that sanitizes URLs, tokens, and user data
-  - Metrics tracking for selector success rates, cache hit/miss ratios, and API performance
-  - Error aggregation for debugging production issues
-
-- **Release Quality Validation**
-  - Pre-release checklist requiring 100% test pass rate and manual QA completion
-  - Build validation ensuring minified assets work correctly and package size is optimized
-  - Store submission validation with up-to-date screenshots and privacy policy alignment
-  - Performance targets: <10MB memory usage, <100ms page load impact, <5s cached analysis
+- **Native Chrome Side Panel Integration (`chrome.sidePanel`)**
+  - Renders progressive claim streams, stance chips, and deception ratings exclusively in Chrome's native side panel without creating or mounting in-page floating DOM overlays (`#pp-analysis-panel` excised).
+- **Optimistic UI & Zero-Latency Feedback**
+  - Displays instant animated CSS shimmer loader cards (<50ms) upon analysis start before backend streaming begins.
+- **Content-Hashed Local Storage Caching (`chrome.storage.local`)**
+  - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
+- **Comprehensive Quality Assurance & E2E Testing**
+  - **Vitest Unit Test Suite**: Vitest unit tests covering key extension modules (`npm test`), with optional coverage reporting (`npm run test:coverage`).
+  - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
+  - **FastAPI Pytest Backend Suite**: Complete backend test suite covering API endpoints, claim extraction, and reliability circuit breakers (`pytest`).
+- **AI Code Review & Quality Gates (Qodo)**
+  - Automated PR reviews and hard compliance checks configured via [.qodo.yaml](.qodo.yaml) and [pr_compliance_checklist.yaml](pr_compliance_checklist.yaml).
+- **Chrome Web Store Submission Disclosure**
+  - Full metadata, privacy disclosure, CSP compliance, and permission justifications documented in [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md).
 
 ## 📊 Agent Evaluation
 
