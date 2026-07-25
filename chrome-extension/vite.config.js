@@ -2,15 +2,35 @@ import { defineConfig } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import archiver from 'archiver';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Custom Vite plugin to copy static extension manifest, CSS, scripts, and icons to dist/
+function createZipArchive(distDir, zipPath) {
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => {
+      resolve();
+    });
+
+    archive.on('error', (err) => {
+      reject(err);
+    });
+
+    archive.pipe(output);
+    archive.directory(distDir, false);
+    archive.finalize();
+  });
+}
+
+// Custom Vite plugin to copy static extension manifest, CSS, scripts, and icons to dist/, and generate ZIP bundle
 function copyExtensionAssets() {
   return {
     name: 'copy-extension-assets',
-    closeBundle() {
+    async closeBundle() {
       const distDir = path.resolve(__dirname, 'dist');
       
       // Ensure dist exists
@@ -45,6 +65,10 @@ function copyExtensionAssets() {
       if (fs.existsSync(iconsSrc)) {
         fs.cpSync(iconsSrc, iconsDist, { recursive: true });
       }
+
+      // Generate perspective-prism-extension.zip bundle from dist/
+      const zipPath = path.resolve(__dirname, 'perspective-prism-extension.zip');
+      await createZipArchive(distDir, zipPath);
     }
   };
 }
