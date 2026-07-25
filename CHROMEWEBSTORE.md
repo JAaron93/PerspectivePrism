@@ -25,7 +25,7 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 - **Native Chrome Side Panel Integration (`chrome.sidePanel`)**: All claim timelines, perspective stance chips, and deception scores display in Chrome's native side panel without cluttering or overlaying the YouTube player DOM.
 - **Optimistic UI & Zero-Latency Feedback**: Instant animated CSS shimmer loader cards render immediately upon analysis initiation (<50ms).
 - **Progressive Stream Rendering**: Claims and stance indicators (Scientific Consensus, Journalistic Consensus, Partisan Left, Partisan Right) populate progressively as each perspective completes.
-- **Content-Hashed Local Storage Cache (`chrome.storage.local`)**: Analysis results are content-hashed and cached locally for 7 days with automatic 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond loads on re-analyzed videos without redundant API calls.
+- **Local Storage Cache (`chrome.storage.local`)**: Analysis results are cached locally (`cache_${videoId}`) for 24 hours with automatic 10MB LRU storage pruning, enabling instant (<20ms) sub-millisecond loads on re-analyzed videos without redundant API calls.
 - **YouTube SPA Navigation Sync**: Detects single-page application (`yt-navigate-finish`) video switches to reset state, check local cache, and sync claim timeline seamlessly.
 - **Accessibility & Keyboard Navigation**: Full WCAG AA compliance with keyboard navigation, screen reader live announcements, and tap target optimization.
 
@@ -48,7 +48,7 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 ### Security Compliance (NFR-4 / MV3 Policy)
 - **Strict Content Security Policy (CSP)**: `script-src 'self'; object-src 'self'`.
 - **No Remote Code Execution**: Disallows `eval()`, `new Function()`, or dynamic external script loading. All scripts, HTML templates, and stylesheets are bundled locally.
-- **Encrypted Transmission**: Transmits video URLs strictly over HTTPS to the configured backend API endpoint.
+- **Encrypted Transmission**: Transmits video URLs over HTTPS to remote production backend API endpoints (HTTP supported for local development testing on `localhost` / `127.0.0.1`).
 
 ---
 
@@ -58,7 +58,7 @@ The Chrome Web Store requires detailed justifications for each permission declar
 
 | Permission | Purpose & Technical Justification |
 | :--- | :--- |
-| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store content-hashed analysis results (`cache_${videoId}_${contentHash}`) in `chrome.storage.local` to enable instant cache-hit loads and eliminate redundant LLM API backend calls. Enforces 7-day TTL and 10MB LRU storage bounds. Also persists user options in `chrome.storage.sync`. |
+| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store analysis results (`cache_${videoId}`) in `chrome.storage.local` to enable instant cache-hit loads and eliminate redundant LLM API backend calls. Enforces 24-hour TTL and 10MB LRU storage bounds. Also persists user options in `chrome.storage.sync`. |
 | **`sidePanel`** | **Required for Exclusive UI Surface (`chrome.sidePanel`).** Hosts `sidepanel.html` as the primary user interface. Renders progressive claim streams, optimistic shimmer loaders, stance chips, and deception ratings side-by-side with YouTube watch pages without inserting floating DOM overlays. |
 | **`alarms`** | **Required for Background Task Scheduling & Resilience.** Schedules service worker wakeups for cache TTL cleanup, LRU eviction cycles, and automatic backend job polling retry routines across Service Worker idle/terminate cycles. |
 | **`notifications`** | **Required for User Alerts & Background Error Handling.** Displays status notifications and actionable system alerts when an offline backend connection error occurs or when an analysis job completes while the side panel is closed. |
