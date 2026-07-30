@@ -109,6 +109,7 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   **Pydantic ClassVar & Defensive Guards**: Constant lookup dictionaries on `BaseSettings` classes MUST be annotated with `typing.ClassVar` (e.g. `TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]]`) to prevent `pydantic-settings` from treating them as configurable environment fields. Runtime properties deriving concurrency counts MUST defensively cast and clamp values (`max(1, int(val))`).
 *   **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`) to prevent parent environment leaks.
 *   **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
+*   **Dynamic Script Settings Instantiation**: Executable scripts and CLI tools (`burst_test.py`, `verify_environment.py`) MUST instantiate `Settings(_env_file=None)` dynamically inside function entrypoints rather than reading top-level cached module imports, allowing `os.environ` test patches and command-line overrides to take immediate effect without stale state collisions.
 
 # Frontend Development
 
