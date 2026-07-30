@@ -6,6 +6,7 @@ Audits environment configuration, Application Default Credentials (ADC),
 GCP billing project linkage, and Gemini model connectivity in 100% GCP Vertex AI mode.
 """
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -33,7 +34,7 @@ def _load_env_file() -> None:
             break
 
 
-def verify_environment() -> bool:
+async def verify_environment() -> bool:
     print("🔍 Auditing Perspective Prism Environment Configuration...\n")
     
     _load_env_file()
@@ -64,13 +65,13 @@ def verify_environment() -> bool:
         print(f"❌ FAILED: Unable to import 'google-genai' SDK: {e}")
         return False
 
-    # 3. Client Instantiation & Connectivity Audit
+    # 3. Client Instantiation & Connectivity Audit (Async I/O via client.aio)
     print("\n📡 Testing Provider Connectivity & Model Inference...")
     try:
         client = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
 
         model_name = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model=model_name,
             contents="Respond with 'VERIFIED_OK' if connectivity is operational.",
             config=types.GenerateContentConfig(max_output_tokens=10),
@@ -92,5 +93,5 @@ def verify_environment() -> bool:
         return False
 
 if __name__ == "__main__":
-    success = verify_environment()
+    success = asyncio.run(verify_environment())
     sys.exit(0 if success else 1)

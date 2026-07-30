@@ -4,7 +4,7 @@ Unit tests for environment verifier (verify_environment.py) and burst test scrip
 
 from pathlib import Path
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Ensure root directory is on sys.path for importing root verify_environment module
@@ -19,7 +19,8 @@ from scripts.burst_test import run_burst_test
 class TestVerifyEnvironment:
     """Tests for the root verify_environment.py diagnostic tool in 100% GCP Vertex AI Mode."""
 
-    def test_verify_environment_vertex_mode_success(self):
+    @pytest.mark.asyncio
+    async def test_verify_environment_vertex_mode_success(self):
         """Should succeed in Vertex AI mode with mock Client."""
         env_vars = {
             "GCP_PROJECT": "test-gcp-project",
@@ -28,12 +29,14 @@ class TestVerifyEnvironment:
         }
         with patch.dict("os.environ", env_vars, clear=True):
             mock_client = MagicMock()
-            mock_client.models.generate_content.return_value.text = "VERIFIED_OK"
+            mock_client.aio.models.generate_content = AsyncMock()
+            mock_client.aio.models.generate_content.return_value.text = "VERIFIED_OK"
             with patch("google.genai.Client", return_value=mock_client):
-                result = verify_environment()
+                result = await verify_environment()
                 assert result is True
 
-    def test_verify_environment_gcp_project_precedence(self):
+    @pytest.mark.asyncio
+    async def test_verify_environment_gcp_project_precedence(self):
         """Should prefer GCP_PROJECT over GOOGLE_CLOUD_PROJECT when both are set."""
         env_vars = {
             "GCP_PROJECT": "primary-gcp-project",
@@ -44,10 +47,11 @@ class TestVerifyEnvironment:
         with patch.dict("os.environ", env_vars, clear=True):
             mock_client_cls = MagicMock()
             mock_client = MagicMock()
-            mock_client.models.generate_content.return_value.text = "VERIFIED_OK"
+            mock_client.aio.models.generate_content = AsyncMock()
+            mock_client.aio.models.generate_content.return_value.text = "VERIFIED_OK"
             mock_client_cls.return_value = mock_client
             with patch("google.genai.Client", mock_client_cls):
-                result = verify_environment()
+                result = await verify_environment()
                 assert result is True
                 mock_client_cls.assert_called_once_with(
                     vertexai=True,
@@ -55,10 +59,11 @@ class TestVerifyEnvironment:
                     location="us-central1",
                 )
 
-    def test_verify_environment_missing_gcp_project_fails(self):
+    @pytest.mark.asyncio
+    async def test_verify_environment_missing_gcp_project_fails(self):
         """Should return False when GCP_PROJECT is missing."""
         with patch.dict("os.environ", {}, clear=True):
-            result = verify_environment()
+            result = await verify_environment()
             assert result is False
 
     @pytest.mark.asyncio
