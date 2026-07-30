@@ -67,6 +67,16 @@ class TestVerifyEnvironment:
             assert result is False
 
     @pytest.mark.asyncio
+    async def test_verify_environment_handles_env_read_error(self, capsys):
+        """Should log warning to sys.stderr on env file read error and continue."""
+        from verify_environment import _read_env_file_sync
+        with patch("pathlib.Path.is_file", return_value=True), patch("builtins.open", side_effect=PermissionError("Permission denied")):
+            _read_env_file_sync()
+            captured = capsys.readouterr()
+            assert "Unable to read environment file" in captured.err
+            assert "Permission denied" in captured.err
+
+    @pytest.mark.asyncio
     async def test_burst_test_mock_execution(self):
         """Should execute mocked parallel burst test cleanly."""
         env_vars = {

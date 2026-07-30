@@ -28,9 +28,9 @@ def _read_env_file_sync() -> None:
                         v = v.strip().strip("'\"")
                         if k and k not in os.environ:
                             os.environ[k] = v
-            except Exception:
-                pass
-            break
+                break
+            except (OSError, UnicodeDecodeError, ValueError) as e:
+                print(f"⚠️ Warning: Unable to read environment file '{env_path}': {e}", file=sys.stderr)
 
 
 async def _load_env_file() -> None:
