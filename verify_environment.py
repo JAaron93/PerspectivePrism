@@ -8,19 +8,45 @@ GCP billing project linkage, and Gemini model connectivity in 100% GCP Vertex AI
 
 import os
 import sys
+from pathlib import Path
+
+
+def _load_env_file() -> None:
+    """Loads backend/.env or .env file into os.environ if keys are not already set."""
+    root_dir = Path(__file__).resolve().parent
+    env_paths = [root_dir / "backend" / ".env", root_dir / ".env"]
+    for env_path in env_paths:
+        if env_path.is_file():
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+            except Exception:
+                pass
+            break
+
 
 def verify_environment() -> bool:
     print("🔍 Auditing Perspective Prism Environment Configuration...\n")
     
-    # 1. Environment Variable Precedence Check
-    gcp_project = (os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT", "")).strip()
-    gcp_location = (os.getenv("GOOGLE_CLOUD_REGION") or os.getenv("GCP_LOCATION", "global")).strip() or "global"
+    _load_env_file()
+
+    # 1. Environment Variable Precedence Check (GCP_PROJECT takes precedence over GOOGLE_CLOUD_PROJECT)
+    gcp_project = (os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "").strip()
+    gcp_location = (os.getenv("GCP_LOCATION") or os.getenv("GOOGLE_CLOUD_REGION") or "global").strip() or "global"
     gemini_tier = os.getenv("GEMINI_TIER", "paid").strip()
 
     if not gcp_project:
         print("❌ FAILED: Missing GCP_PROJECT or GOOGLE_CLOUD_PROJECT environment variable.")
         print("   Google AI Studio Key Mode has been permanently removed; this project exclusively uses GCP Vertex AI Mode (Paid Tier).")
-        print("   Please configure GCP_PROJECT in your .env file.")
+        print("   Please configure GCP_PROJECT in backend/.env or export GCP_PROJECT in your environment.")
         print("   Example: GCP_PROJECT=my-gcp-project-id GCP_LOCATION=global GEMINI_TIER=paid")
         return False
 

@@ -33,6 +33,28 @@ class TestVerifyEnvironment:
                 result = verify_environment()
                 assert result is True
 
+    def test_verify_environment_gcp_project_precedence(self):
+        """Should prefer GCP_PROJECT over GOOGLE_CLOUD_PROJECT when both are set."""
+        env_vars = {
+            "GCP_PROJECT": "primary-gcp-project",
+            "GOOGLE_CLOUD_PROJECT": "secondary-gcp-project",
+            "GCP_LOCATION": "us-central1",
+            "GEMINI_TIER": "paid",
+        }
+        with patch.dict("os.environ", env_vars, clear=True):
+            mock_client_cls = MagicMock()
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value.text = "VERIFIED_OK"
+            mock_client_cls.return_value = mock_client
+            with patch("google.genai.Client", mock_client_cls):
+                result = verify_environment()
+                assert result is True
+                mock_client_cls.assert_called_once_with(
+                    vertexai=True,
+                    project="primary-gcp-project",
+                    location="us-central1",
+                )
+
     def test_verify_environment_missing_gcp_project_fails(self):
         """Should return False when GCP_PROJECT is missing."""
         with patch.dict("os.environ", {}, clear=True):
