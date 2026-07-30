@@ -34,6 +34,8 @@ class ClaimExtractor:
             self.gcp_project = ""
             self.gcp_location = ""
 
+        self.gemini_tier = provider_info["tier"]
+
         self.agent = ExtractorAgent(
             name="extractor_agent",
             model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),

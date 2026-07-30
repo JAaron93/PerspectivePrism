@@ -57,6 +57,14 @@ class AnalysisService:
             self.gcp_project = ""
             self.gcp_location = ""
 
+        self.gemini_tier = provider_info["tier"]
+
+        # Tier-aware concurrency throttle: limits concurrent LLM API calls
+        # to prevent 429 rate-limit errors on lower tiers.
+        max_concurrent = getattr(self.settings, "tier_max_concurrency", 4)
+        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
+        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, max_concurrent)
+
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
         primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
 
@@ -139,6 +147,10 @@ class AnalysisService:
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
+        async with self._llm_semaphore:
+            return await self._run_agent_direct_inner(agent, user_prompt, output_key, is_backup)
+
+    async def _run_agent_direct_inner(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
         session_service = InMemorySessionService()
         attempts = 2
         current_prompt = user_prompt

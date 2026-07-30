@@ -24,6 +24,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
 
             service = AnalysisService(settings=mock_settings)
 
@@ -43,6 +44,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
 
             service = AnalysisService(settings=mock_settings)
 
@@ -87,6 +89,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
 
             service = AnalysisService(settings=mock_settings)
 
@@ -103,6 +106,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
 
             service = AnalysisService(model_name="gemini-3.1-flash-lite", settings=mock_settings)
 
@@ -139,10 +143,50 @@ class TestAnalysisServiceInitialization:
             mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
 
             AnalysisService(settings=mock_settings)
 
             assert "GOOGLE_CLOUD_PROJECT" not in os.environ
             assert "GCP_PROJECT" not in os.environ
             assert "GOOGLE_GENAI_USE_VERTEXAI" not in os.environ
+
+    def test_gemini_tier_stored_and_semaphore_created(self):
+        """Should store gemini_tier and create a tier-aware concurrency semaphore."""
+        import asyncio
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = 10
+
+            service = AnalysisService(settings=mock_settings)
+
+            assert service.gemini_tier == "paid"
+            assert isinstance(service._llm_semaphore, asyncio.Semaphore)
+            assert service._llm_semaphore._value == 10
+
+    def test_free_tier_creates_throttled_semaphore(self):
+        """Free tier should create a semaphore with value 2 to throttle API calls."""
+        import asyncio
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "free"
+            mock_settings.tier_max_concurrency = 2
+
+            service = AnalysisService(settings=mock_settings)
+
+            assert service.gemini_tier == "free"
+            assert service._llm_semaphore._value == 2
 

@@ -27,9 +27,23 @@ class Settings(BaseSettings):
     GCP_LOCATION: str = "global"
     GEMINI_TIER: str = "paid"
 
+    # Tier-based concurrency limits for LLM API calls.
+    # 'paid' tier (GCP billing credits) allows higher throughput (300+ RPM),
+    # 'standard' is moderate, 'free' is throttled to avoid 429 rate-limit errors.
+    TIER_CONCURRENCY_LIMITS: dict = {
+        "paid": 10,
+        "standard": 4,
+        "free": 2,
+    }
+
     @property
     def effective_gcp_project(self) -> str:
         return (self.GCP_PROJECT or self.GOOGLE_CLOUD_PROJECT or "").strip()
+
+    @property
+    def tier_max_concurrency(self) -> int:
+        """Returns the maximum concurrent LLM API calls allowed for the configured GEMINI_TIER."""
+        return self.TIER_CONCURRENCY_LIMITS.get(self.GEMINI_TIER, 4)
 
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
