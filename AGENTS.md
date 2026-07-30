@@ -18,7 +18,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
 > - **Framework & SDK**: This project exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
-> - **Provider & Authentication Modes**: Supports **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits) and **AI Studio Key Mode** (via `GEMINI_API_KEY` / `LLM_API_KEY`). Both modes are valid and supported across services (`ClaimExtractor`, `AnalysisService`).
+> - **Provider & Authentication Modes**: Exclusively uses **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits with 300+ RPM high-throughput quota). AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
 > - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.
@@ -69,6 +69,8 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 *   **Run Server**: `uvicorn app.main:app --reload` (starts on port 8000)
 *   **Run Tests**: `pytest`
 *   **Run Specific Test**: `pytest tests/test_input_sanitizer.py`
+*   **Verify Environment**: `python3 verify_environment.py` (audits ADC setup, project linkage & Gemini connectivity)
+*   **Run Burst Test**: `PYTHONPATH=backend python3 backend/scripts/burst_test.py 20` (runs mocked 20-request burst test)
 
 ## Architecture & Key Files
 

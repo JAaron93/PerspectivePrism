@@ -164,9 +164,8 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, configure your Gemini credentials in `.env` using either **GCP Vertex AI Mode** (recommended for paid high-throughput quota via GCP billing credits) or **Google AI Studio Key Mode**:
+To run the full analysis, configure your GCP Vertex AI credentials in `.env` (utilizing GCP billing credits for 300+ RPM high-throughput quota):
 
-#### Option A: GCP Vertex AI Mode (Paid Tier Quota)
 ```env
 GCP_PROJECT=your_gcp_project_id_here
 GCP_LOCATION=global
@@ -175,17 +174,21 @@ LLM_MODEL=gemini-3.5-flash-lite
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
 
-#### Option B: Google AI Studio Key Mode
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-LLM_MODEL=gemini-3.5-flash-lite
-BACKUP_LLM_MODEL=gemini-3.1-flash-lite
-```
-
 Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
+
+#### Environment & Quota Verification
+Audit your local environment setup and high-throughput quota using the diagnostic scripts:
+
+```bash
+# Verify ADC setup, project linkage, and Gemini 3.5 connectivity
+python3 verify_environment.py
+
+# Run mocked parallel burst test (20 concurrent requests) to verify tier limits
+PYTHONPATH=backend python3 backend/scripts/burst_test.py 20
+```
 
 5. Run the server:
    ```bash

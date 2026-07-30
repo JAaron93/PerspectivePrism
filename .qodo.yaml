@@ -17,7 +17,7 @@ pr_reviewer:
   extra_instructions: |
     # 1. Global Project Boundaries & Architecture Restrictions
     - Framework & SDK: This project exclusively uses Google ADK 2.0 (google-adk>=2.4.0) and Google GenAI SDK (google-genai>=2.9.0). Do NOT flag missing OpenAI or legacy google.generativeai SDKs.
-    - Provider & Authentication Modes: The backend supports both GCP Vertex AI Mode (via GCP_PROJECT / GOOGLE_CLOUD_PROJECT with paid-tier GCP credits) and AI Studio Key Mode (via GEMINI_API_KEY / LLM_API_KEY). Do NOT flag code as missing credentials if either GCP_PROJECT or GEMINI_API_KEY is configured.
+    - Provider & Authentication Modes: The backend exclusively uses 100% GCP Vertex AI Mode (via GCP_PROJECT / GOOGLE_CLOUD_PROJECT utilizing paid-tier GCP billing credits with 300+ RPM). Google AI Studio API key mode (GEMINI_API_KEY, LLM_API_KEY) and free-tier rate-limit throttling are permanently removed. Flag any PR introducing AI Studio keys or free-tier rate limits.
     - Primary & Backup Models: Primary model is gemini-3.5-flash-lite; backup model is gemini-3.1-flash-lite. Gemini 2.x and non-Google models are prohibited.
     - Do NOT suggest enterprise architecture patterns, including microservices, message queues (Celery/RabbitMQ), ORMs/database migrations, role-based access control (RBAC), multi-tenancy, external logging/telemetry (Datadog, Sentry, ELK), container orchestration (Docker/K8s), or CI/CD deployment pipelines.
     - DO focus on code correctness, logic bugs, solo-developer maintainability, LLM integration security, user-facing performance, and missing exception handling on critical execution paths.
@@ -36,8 +36,8 @@ pr_reviewer:
     - Verify correct `async`/`await` usage and concurrent task management.
     - Ensure evidence retrieval queries cover all four perspectives consistently.
 
-    # 4. Chrome Extension Standards (MV3 Vanilla JS)
-    - Do NOT suggest adding JS bundlers (Vite, webpack, Rollup), transpilers, or UI frameworks (React, Vue) to the Chrome extension directory.
+    # 4. Chrome Extension Standards (MV3 + Vite 6)
+    - Chrome extension uses Vite 6 (`vite.config.js`) for bundling entry points, Terser minification, and packaging into `dist/`.
     - Verify that shared utility modules (`config.js`, `logging-utils.js`) maintain their respective standalone script variants (`config-script.js`, `logging-utils-script.js`) for direct manifest script injection.
     - Preserve content script injection load order: `logging-utils-script.js` -> `config-script.js` -> `consent.js` -> `claim-navigator.js` -> `content.js`.
     - Ensure `background.js` strictly adheres to Manifest V3 event-driven Service Worker lifecycles without assuming persistent background page state.

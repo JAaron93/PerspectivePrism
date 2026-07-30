@@ -21,15 +21,8 @@ class ClaimExtractor:
         self.settings = settings or globals().get("settings")
         provider_info = configure_provider_env(self.settings)
 
-        if provider_info["mode"] == "vertex":
-            self.gcp_project = provider_info["project"]
-            self.gcp_location = provider_info["location"]
-            self.api_key = ""
-        else:
-            self.api_key = provider_info["api_key"]
-            self.gcp_project = ""
-            self.gcp_location = ""
-
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
 
         self.agent = Agent(

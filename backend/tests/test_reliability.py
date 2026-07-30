@@ -10,11 +10,9 @@ from httpx import AsyncClient, ASGITransport
 @pytest.fixture
 def analysis_service_mock():
     with patch("app.services.analysis_service.settings") as mock_settings:
-        mock_settings.effective_gcp_project = ""
-        mock_settings.GCP_PROJECT = ""
-        mock_settings.GOOGLE_CLOUD_PROJECT = ""
-        mock_settings.GEMINI_API_KEY = "sk-primary"
-        mock_settings.LLM_API_KEY = ""
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_PROJECT = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
         mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
         mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
         mock_settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
