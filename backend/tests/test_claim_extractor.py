@@ -166,3 +166,33 @@ async def test_claim_extraction_multiple_claims():
             for i, claim in enumerate(claims):
                 assert claim.id == f"claim_{i}"
                 assert claim.text == f"Claim {i}"
+
+
+@pytest.mark.asyncio
+async def test_get_transcript_execution():
+    """Verify get_transcript executes asynchronously with mock YouTubeTranscriptApi."""
+    with patch("app.services.claim_extractor.settings") as mock_settings:
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
+        mock_settings.GEMINI_TIER = "paid"
+        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_snippet = MagicMock()
+        mock_snippet.text = "Hello world"
+        mock_snippet.start = 0.0
+        mock_snippet.duration = 5.0
+
+        with patch("app.services.claim_extractor.YouTubeTranscriptApi") as mock_api_cls:
+            mock_api = MagicMock()
+            mock_api.fetch.return_value = [mock_snippet]
+            mock_api_cls.return_value = mock_api
+
+            transcript = await extractor.get_transcript("test_vid_123")
+
+            assert transcript.video_id == "test_vid_123"
+            assert len(transcript.segments) == 1
+            assert transcript.segments[0].text == "Hello world"
+            assert transcript.full_text == "Hello world"
+
