@@ -23,6 +23,12 @@ const createChromeMock = () => {
         remove: vi.fn(),
         clear: vi.fn(),
       },
+      session: {
+        get: vi.fn(),
+        set: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn(),
+      },
     },
     runtime: {
       sendMessage: vi.fn(),
@@ -30,6 +36,16 @@ const createChromeMock = () => {
         addListener: vi.fn(),
         removeListener: vi.fn(),
       },
+      onInstalled: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      onStartup: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      getURL: vi.fn((path) => `chrome-extension://mock-id/${path}`),
+      getManifest: vi.fn(() => ({ version: "0.2.0" })),
       lastError: null,
     },
     tabs: {
@@ -135,6 +151,35 @@ beforeEach(() => {
     return Promise.resolve();
   });
 
+  // Re-apply mock implementations for chrome.storage.session
+  chrome.storage.session.get.mockImplementation((keys, callback) => {
+    if (callback) {
+      callback({});
+    }
+    return Promise.resolve({});
+  });
+
+  chrome.storage.session.set.mockImplementation((items, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
+  chrome.storage.session.remove.mockImplementation((keys, callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
+  chrome.storage.session.clear.mockImplementation((callback) => {
+    if (callback) {
+      callback();
+    }
+    return Promise.resolve();
+  });
+
   // Re-apply mock implementations for chrome.runtime
   chrome.runtime.sendMessage.mockImplementation((message, callback) => {
     const response = { success: true };
@@ -145,6 +190,8 @@ beforeEach(() => {
   });
 
   chrome.runtime.onMessage.addListener.mockImplementation(() => {});
+  if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener.mockImplementation(() => {});
+  if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener.mockImplementation(() => {});
 
   // Re-apply mock implementations for chrome.tabs
   chrome.tabs.create.mockImplementation((createProperties, callback) => {
@@ -197,6 +244,13 @@ beforeEach(() => {
   );
 
   // Re-apply mock implementations for chrome.sidePanel
+  if (!chrome.sidePanel) {
+    chrome.sidePanel = {
+      open: vi.fn(),
+      setPanelBehavior: vi.fn(),
+    };
+  }
+
   chrome.sidePanel.open.mockImplementation((options, callback) => {
     if (callback) {
       callback();

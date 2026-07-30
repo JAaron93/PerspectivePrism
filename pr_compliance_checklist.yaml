@@ -1,0 +1,45 @@
+# Qodo PR Compliance Checklist
+# Repository hard compliance rules extracted from legacy .macroscope directives
+
+requirement_checks:
+  - id: llm-input-sanitization-boundary
+    name: "LLM Input Sanitization Guardrail"
+    description: "All user-supplied content transmitted to LLM providers must pass through app/utils/input_sanitizer.py."
+    condition: "files.contains('backend/app/')"
+    pass_condition: "No LLM execution paths bypass input_sanitizer.py sanitization rules."
+    severity: "CRITICAL"
+
+  - id: chrome-extension-mv3-service-worker
+    name: "Manifest V3 Service Worker Architecture"
+    description: "Chrome extension background processing must strictly adhere to event-driven Service Worker specifications."
+    condition: "files.contains('chrome-extension/')"
+    pass_condition: "No persistent background page state or legacy MV2 API patterns exist in background.js."
+    severity: "HIGH"
+
+  - id: mv3-dual-utility-script-preservation
+    name: "Dual Utility Script Invariant"
+    description: "Shared extension utilities must maintain both module (.js) and manifest script (-script.js) variants."
+    condition: "files.contains('chrome-extension/config') || files.contains('chrome-extension/logging-utils')"
+    pass_condition: "Script variants (config-script.js, logging-utils-script.js) are preserved for manifest script injection."
+    severity: "HIGH"
+
+  - id: personal-project-scope-boundary
+    name: "Personal Portfolio Architecture Boundary"
+    description: "Prevent over-engineering (ORMs, Celery, Redis, Docker, Datadog/Sentry, microservices, RBAC)."
+    condition: "files.contains('backend/') || files.contains('frontend/') || files.contains('chrome-extension/')"
+    pass_condition: "PR contains no enterprise infrastructure or complex persistence abstraction additions."
+    severity: "HIGH"
+
+  - id: four-perspective-alignment
+    name: "Four-Perspective Consistency Check"
+    description: "Perspective claims must strictly align with Scientific, Journalistic, Partisan (Left), and Partisan (Right) categories."
+    condition: "files.contains('backend/app/services/')"
+    pass_condition: "No perspective category string literals deviate from the canonical enum values (Scientific, Journalistic, Partisan (Left), Partisan (Right))."
+    severity: "MEDIUM"
+
+  - id: wcag-a11y-keyboard-accessibility
+    name: "WCAG 2.1 AA Keyboard Navigation Standards"
+    description: "Injected Chrome extension UI must maintain focus management, ARIA live regions, and avoid keyboard traps."
+    condition: "files.contains('chrome-extension/claim-navigator.js')"
+    pass_condition: "No keyboard focus traps; valid ARIA attributes and focus management logic preserved."
+    severity: "MEDIUM"

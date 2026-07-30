@@ -1,9 +1,9 @@
 # AGENTS.md
 
-This file provides guidance to Software Engineering Agents (SEAs) and Macroscope Review Agents when working with code in this repository.
+This file provides guidance to Software Engineering Agents (SEAs) and Qodo AI Review Agents when working with code in this repository.
 
 > [!IMPORTANT]
-> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Macroscope review rules, refer to **[run-agents.md](.macroscope/run-agents.md)** and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
+> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Qodo review rules, refer to **[.qodo.yaml](.qodo.yaml)**, **[pr_compliance_checklist.yaml](pr_compliance_checklist.yaml)**, and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
 
 # Project Overview
 
@@ -129,20 +129,23 @@ The frontend is located in the `frontend/` directory. It uses React 19, TypeScri
 
 # Chrome Extension
 
-The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules), HTML, and CSS — no build step.
+The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules for pages/background, classic scripts for content scripts), HTML, and CSS, bundled with **Vite 6** (`vite.config.js`).
 
 ## Setup
 1.  Navigate to `chrome-extension/`.
 2.  Install dev dependencies: `npm install`.
+3.  Build production bundle: `npm run build`.
 
-**To load in Chrome**: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `chrome-extension/` directory.
+**To load in Chrome**: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select `chrome-extension/dist` (for production build) or `chrome-extension/` (for dev).
 
 ## Common Commands
 
+*   **Build Production Bundle**: `npm run build` (Vite 6 multi-entry bundling into `dist/`)
+*   **Validate Manifest**: `node scripts/check-manifest.js` (validates root and `dist/` manifests)
 *   **Run Unit Tests**: `npm test` (Vitest, single run)
 *   **Run Unit Tests (watch)**: `npm run test:watch`
 *   **Run Coverage**: `npm run test:coverage`
-*   **Run Integration Tests**: `npm run test:integration` (Playwright)
+*   **Run Integration Tests**: `npm run test:integration` (Playwright with `xvfb-run`)
 
 ## Testing & Debugging Tool Routing Discipline
 
@@ -164,13 +167,24 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
   - **`axe-core-mcp`**: Primary tool for component-level DOM scanning (`analyze` on specific selectors) and direct code-level remediation (`remediate`).
   - **`a11y-debugging` skill**: Used for full-page Lighthouse accessibility scores, visual tap-target size validation (48x48px), and testing interactive keyboard focus traps (`Tab`/`Shift+Tab` cycling).
 
+## Git Merge & Documentation Invariants
+
+* **Git Merge Resolution & Parent Verification**:
+  - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit`.
+  - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
+* **Documentation Hygiene & Test Suite Claims**:
+  - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
+  - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).
+
 ## Key Files
 
+*   `vite.config.js`: Vite 6 multi-entry build configuration with `copyExtensionAssets` plugin and Terser minification.
 *   `manifest.json`: Extension configuration (Manifest V3).
 *   `content.js`: Content script — UI injection and DOM manipulation on YouTube pages.
 *   `claim-navigator.js`: Keyboard navigation and accessibility (`ClaimNavigator` class).
 *   `background.js`: Service worker for API coordination.
 *   `client.js`: Backend API client used by content and popup scripts.
+*   `sidepanel.html` / `sidepanel.css` / `sidepanel.js`: Native Chrome Side Panel UI, Optimistic UI shimmer skeletons, and progressive streaming.
 *   `config.js` / `config-script.js`: Extension configuration (module and script variants).
 *   `logging-utils.js` / `logging-utils-script.js`: Logging utilities (module and script variants).
 *   `popup.html` / `popup.js`: Browser action popup.
@@ -185,18 +199,31 @@ Scripts are injected into YouTube pages in this order:
 ## Coding Conventions
 
 *   Vanilla JS with ES module syntax — no framework, no build step.
-*   Shared utilities have two variants: a module version (e.g. `config.js`) for import in other modules, and a script version (e.g. `config-script.js`) for direct injection by the manifest.
-*   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`) and attached to `window` must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when those functions are consumed by other scripts.
+*   Shared utilities MUST maintain two variants when exposed to content scripts: a module version (e.g. `config.js`) with `export` statements for modern module imports (`background.js`, `options.js`), and a classic script version (e.g. `config-script.js`) without `export` statements for direct `manifest.json` content script injection and synchronous HTML test fixture loading.
+*   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`), shared module classes (e.g. `CacheManager`), and standard Web APIs (`crypto`, `TextEncoder`) must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when consumed by other scripts.
 *   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
 
 ## Architectural Guidelines
 
 *   **SPA Navigation & Stale Responses**: YouTube is a Single Page Application (SPA). `yt-navigate-start` events reset the active video context. When guarding against delayed API responses, **never bypass the stale-response guard if `currentVideoId` is `null`**. A `null` ID indicates the user has navigated away from a video page; allowing a delayed response through will incorrectly render UI on a non-video page. Always strictly compare `analysisVideoId !== currentVideoId`.
+*   **Storage Eviction & Reserved Key Protection**: When enumerating `chrome.storage.local` keys starting with `cache_` for TTL eviction, LRU pruning, or cache clearing, all operations MUST filter targets using an `isCacheEntry(key, entry)` validator to exclude reserved non-analysis metadata keys (`cache_metrics`, `cache_metadata`, `cache_stats`, `cache_settings`). Failing to exclude reserved keys causes metrics and settings to be permanently wiped during eviction.
+*   **Content-Hashed Storage Keys**: Analysis cache entries must use key format `cache_${videoId}_${contentHash}`. If a backend response does not supply a `content_hash`, compute a deterministic SHA-256 digest of the serialized payload locally (`computeContentHash(data)`) to prevent overwriting existing entries for the same video.
+*   **Storage Key Video ID Parsing**: When extracting video IDs from content-hashed storage keys in tests or metrics utilities, use `key.replace("cache_", "").split("_")[0]` to correctly extract the 11-character video ID candidate regardless of key format (`cache_${videoId}_${contentHash}` or legacy `cache_${videoId}`).
+*   **Configurable TTL Propagation**: All cache expiration routines (`checkCache`, `isExpired`, `cleanupExpiredCache`, `evictExpiredAndLRU`) MUST load the user-configured `cacheDuration` setting from storage and pass the calculated `ttlMs` to all expiration checks—including secondary and in-memory (`inMemoryCache`) fallback lookups—preventing stale data returns.
+*   **Non-Cryptographic Fallback Hashing**: Fallback hashing implementations used when `crypto.subtle` is unavailable MUST employ a 64-bit dual-pass algorithm combining DJB2 (`Math.imul(h1, 33) ^ char`) and SDBM (`char + (h2 << 6) + (h2 << 16) - h2`) formatted as a 16-character hex string `(h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0")` to prevent 32-bit hash collisions on large JSON payloads.
 *   **Integration Testing (Playwright)**: 
     *   **No Arbitrary Timeouts**: When testing delayed API responses (e.g., simulating a long analysis to test cancellation or navigation), do not use arbitrary timeouts (e.g., `setTimeout`). Instead, expose a Promise signal from the route handler and `await` that signal in the test *before* triggering the cancellation or SPA navigation. This ensures the request is actually in-flight.
     *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
-    *   **CI/CD Configuration (Headless Linux)**: Chrome Extensions cannot be tested in true headless mode. In GitHub Actions (Linux), you must install system dependencies using `npx playwright install --with-deps` and wrap the test command in a virtual display server using `xvfb-run` (e.g., `xvfb-run npm run test:integration`).
+    *   **CI/CD Virtual Display Invariant (`xvfb-run`)**: Chrome Extensions CANNOT initialize background Service Workers or Side Panel APIs in pure headless mode on Linux. In GitHub Actions (Linux), you MUST install dependencies via `npx playwright install --with-deps`, launch Playwright persistent context with `headless: false`, and execute tests wrapped in `xvfb-run npm run test:integration`. Omitting `xvfb-run` causes execution to hang indefinitely.
 *   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
+
+### Native Side Panel UI & Progressive Streaming Rules
+
+*   **Zero-Latency Optimistic UI**: On video analysis start or cache miss, `sidepanel.js` must immediately render 4 animated CSS shimmer cards (<50ms execution latency) corresponding to Scientific, Journalistic, Partisan Left, and Partisan Right perspectives.
+*   **Progressive Stream Chunk Morphing**: As backend progress broadcasts (`JOB_PROGRESS` / `ANALYSIS_PROGRESS`) arrive, skeleton cards morph smoothly into populated claim stance cards with confidence fill meters and stance chips.
+*   **Idempotent Skeleton Rendering & DOM Preservation**: Skeleton loaders and placeholder card generators (`renderOptimisticSkeletons`) MUST check if the container already has populated or morphed child nodes before clearing container contents (`container.innerHTML = ""`). Container clearing MUST be explicitly restricted to context switches (e.g. `videoId` or `tabId` changes) or state resets (`idle`/`error`), preserving in-flight progressive stream cards during routine state refreshes or side panel re-activations.
+*   **SPA State Sync (`VIDEO_NAVIGATED` & `YOUTUBE_NAVIGATED`)**: Content script broadcasts `VIDEO_NAVIGATED` and `YOUTUBE_NAVIGATED` upon `yt-navigate-finish`. The Side Panel handles these messages to reset generation state, check `chrome.storage.local` cache (<20ms hit response), or render optimistic skeletons (<50ms miss response).
+*   **Vitest Async Init Guard**: Any Vitest test suite executing a module with top-level or DOMContentLoaded asynchronous initialization (such as `sidepanel.js` calling `checkCurrentTabState()`) MUST wait for the initial outbound `chrome.runtime.sendMessage` payload (e.g. `type: "GET_ANALYSIS_STATE"`) inside a `vi.waitFor` block prior to dispatching synthetic listener messages. Rationale: Synchronous `onMessage` listener registration happens before `checkCurrentTabState()` resolves; dispatching messages without waiting will evaluate state guards against uninitialized `null` variables (e.g. `message.videoId === currentVideoId`), silently dropping test events.
 
 ### State Management & Rebinding Rules
 
@@ -204,6 +231,16 @@ Scripts are injected into YouTube pages in this order:
 *   **Node-Level Element Comparison**: When checking if the active media element is current, compare node instances directly (`video !== activeVideoElement`) rather than checking for nullity (`!activeVideoElement`), to capture same-URL node substitutions.
 *   **Tab & Context Isolation**: In global views or side panels, always reset generation IDs and sequence state (e.g., `currentGenerationId = null` and `lastSequence = -1`) when switching active tabs or video contexts, to prevent state leak.
 *   **Vitest Chrome Mocking**: Ensure unit tests mocking Chrome tabs also mock `chrome.tabs.onActivated` and `chrome.tabs.onUpdated` to support simulated tab context switching and verify state reset flows.
+
+### UI Overlay Excise & Privacy Modal Invariants
+
+*   **Component & Modal Scope Isolation**: When excising or refactoring DOM overlays (e.g., `#pp-analysis-panel`), do NOT alter or bypass independent user dialogs (e.g., Privacy & Data Collection Consent modals `#pp-consent-dialog-host` managed by `ConsentManager`).
+*   **Integration Test Intent Alignment**: When updating integration test assertions (Playwright), ensure tests asserting user choice/consent (such as `consent-flow.spec.js`) verify the active attachment and user action flow for modal dialogs rather than checking for element absence when test setup explicitly clears consent storage.
+
+### Service Worker Resilience & Vitest Mocking Rules
+
+*   **Storage Session Mocking**: Any Vitest test suite executing background code that interacts with `chrome.storage.session` or `chrome.runtime.onInstalled`/`onStartup` must verify those properties are defined in `chrome-extension/tests/setup.js`.
+*   **Idempotent Promise Getters**: In Service Worker modules, lazy initialization getters (`getClient()`) should return the cached Promise reference (`clientPromise`) directly rather than decorating the getter function with `async`, ensuring strict promise reference identity across concurrent callers during Service Worker wake-up.
 # System Architecture
 
 The system follows a pipeline approach:

@@ -259,15 +259,11 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 # Analyze
                 p_analysis = await analysis_service.analyze_perspective(claim, p_type, p_evidence)
                 
-                # Transform to dictionary format expected by UI
-                p_dict = p_analysis.model_dump()
-                p_dict['assessment'] = p_analysis.stance  # UI expects 'assessment'
-                
                 async with jobs_lock:
                     # Update local state inside the lock to prevent race conditions
                     # We know 'claims_to_return' is a list of ClientClaimAnalysis objects
                     # And 'truth_profile.perspectives' is a dict we can mutate
-                    claims_to_return[i].truth_profile.perspectives[p_type.value] = p_dict
+                    claims_to_return[i].truth_profile.perspectives[p_type.value] = p_analysis
                     
                     # Create snapshot INSIDE lock to ensure we capture the latest state 
                     # and don't overwrite a newer state with an older snapshot
@@ -275,6 +271,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                         jobs[job_id]["result"] = create_analysis_response(video_id, claims_to_return)
                         
                 return p_analysis
+
 
             analysis_tasks = []
             for perspective in perspectives:
