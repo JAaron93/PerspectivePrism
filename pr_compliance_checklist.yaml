@@ -64,3 +64,10 @@ requirement_checks:
     condition: "files.contains('backend/.env.example')"
     pass_condition: "GCP_PROJECT= is included with clear GCP billing usage comments, and no GEMINI_API_KEY references exist."
     severity: "HIGH"
+
+  - id: strict-async-non-blocking-io
+    name: "Strict Async I/O & Non-Blocking Event Loop"
+    description: "All network operations (LLM model calls, web search, transcript retrieval) must use non-blocking async/await."
+    condition: "files.contains('backend/app/')"
+    pass_condition: "No synchronous blocking network calls exist in backend services; LLM calls use client.aio and I/O tasks use async def or asyncio.to_thread."
+    severity: "HIGH"

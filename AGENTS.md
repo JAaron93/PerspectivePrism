@@ -21,6 +21,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 > - **Provider & Authentication Modes**: Exclusively uses **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits with 300+ RPM high-throughput quota). AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
+> - **Strict Async I/O & Non-Blocking Event Loop**: All network I/O operations (LLM model calls, web search, transcript retrieval) MUST use non-blocking `async`/`await` patterns (e.g. `client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`) to maximize high-throughput paid-tier parallel execution (300+ RPM). Synchronous blocking network calls inside event loop contexts are strictly prohibited.
 > - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.
 
 # Repository Layout

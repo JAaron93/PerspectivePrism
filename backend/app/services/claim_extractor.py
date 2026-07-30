@@ -50,14 +50,14 @@ class ClaimExtractor:
         """
         return extract_video_id(url)
 
-    def get_transcript(self, video_id: str) -> Transcript:
+    async def get_transcript(self, video_id: str) -> Transcript:
         """
-        Fetches the transcript for a given video ID.
+        Fetches the transcript for a given video ID asynchronously without blocking the event loop.
         """
         try:
             api = YouTubeTranscriptApi()
-            # Get the transcript
-            fetched_transcript = api.fetch(video_id)
+            # Fetch transcript offloaded to worker thread
+            fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
 
             # Convert to our schema
             segments = []
