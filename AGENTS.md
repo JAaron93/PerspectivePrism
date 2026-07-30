@@ -18,6 +18,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
 > - **Framework & SDK**: This project exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
+> - **Provider & Authentication Modes**: Supports **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits) and **AI Studio Key Mode** (via `GEMINI_API_KEY` / `LLM_API_KEY`). Both modes are valid and supported across services (`ClaimExtractor`, `AnalysisService`).
 > - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
 > - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.

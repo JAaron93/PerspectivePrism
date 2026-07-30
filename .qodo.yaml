@@ -1,0 +1,9 @@
+# Qodo Configuration & PR Compliance Rules for Perspective Prism
+
+version: "1.0"
+
+pr_reviewer:
+  extra_instructions: |
+    - Model Provider Architecture: This project exclusively uses Google ADK 2.0 (google-adk>=2.4.0) and Google GenAI SDK (google-genai>=2.9.0). Do NOT flag missing OpenAI or legacy google.generativeai SDKs.
+    - Authentication Modes: The backend supports both GCP Vertex AI Mode (via GCP_PROJECT / GOOGLE_CLOUD_PROJECT with paid-tier GCP billing credits) and AI Studio Key Mode (via GEMINI_API_KEY / LLM_API_KEY). Do NOT flag code as missing credentials if either GCP_PROJECT or GEMINI_API_KEY is configured.
+    - Model Selection: Primary model is gemini-3.5-flash-lite; backup model is gemini-3.1-flash-lite. Gemini 2.x and non-Google models are prohibited.
