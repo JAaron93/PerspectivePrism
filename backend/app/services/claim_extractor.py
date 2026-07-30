@@ -1,5 +1,6 @@
-import os
+import asyncio
 import logging
+import os
 from typing import Any, List, Optional
 
 from app.core.config import configure_provider_env, settings
@@ -21,15 +22,8 @@ class ClaimExtractor:
         self.settings = settings or globals().get("settings")
         provider_info = configure_provider_env(self.settings)
 
-        if provider_info["mode"] == "vertex":
-            self.gcp_project = provider_info["project"]
-            self.gcp_location = provider_info["location"]
-            self.api_key = ""
-        else:
-            self.api_key = provider_info["api_key"]
-            self.gcp_project = ""
-            self.gcp_location = ""
-
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
 
         self.agent = Agent(
@@ -57,14 +51,14 @@ class ClaimExtractor:
         """
         return extract_video_id(url)
 
-    def get_transcript(self, video_id: str) -> Transcript:
+    async def get_transcript(self, video_id: str) -> Transcript:
         """
-        Fetches the transcript for a given video ID.
+        Fetches the transcript for a given video ID asynchronously without blocking the event loop.
         """
         try:
             api = YouTubeTranscriptApi()
-            # Get the transcript
-            fetched_transcript = api.fetch(video_id)
+            # Fetch transcript offloaded to worker thread
+            fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
 
             # Convert to our schema
             segments = []

@@ -196,7 +196,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
         video_id = extract_video_id(str(request.url))
         # Validation is now done in create_analysis_job
         
-        transcript = claim_extractor.get_transcript(video_id)
+        transcript = await claim_extractor.get_transcript(video_id)
         
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)

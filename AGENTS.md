@@ -18,9 +18,10 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
 > - **Framework & SDK**: This project exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
-> - **Provider & Authentication Modes**: Supports **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits) and **AI Studio Key Mode** (via `GEMINI_API_KEY` / `LLM_API_KEY`). Both modes are valid and supported across services (`ClaimExtractor`, `AnalysisService`).
+> - **Provider & Authentication Modes**: Exclusively uses **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits with 300+ RPM high-throughput quota). AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
+> - **Strict Async I/O & Non-Blocking Event Loop**: All network I/O operations (LLM model calls, web search, transcript retrieval) MUST use non-blocking `async`/`await` patterns (e.g. `client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`) to maximize high-throughput paid-tier parallel execution (300+ RPM). Synchronous blocking network calls inside event loop contexts are strictly prohibited.
 > - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.
 
 # Repository Layout
@@ -69,6 +70,8 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 *   **Run Server**: `uvicorn app.main:app --reload` (starts on port 8000)
 *   **Run Tests**: `pytest`
 *   **Run Specific Test**: `pytest tests/test_input_sanitizer.py`
+*   **Verify Environment**: `python3 verify_environment.py` (audits ADC setup, project linkage & Gemini connectivity)
+*   **Run Burst Test**: `PYTHONPATH=backend python3 backend/scripts/burst_test.py 20` (runs mocked 20-request burst test)
 
 ## Architecture & Key Files
 
@@ -106,6 +109,7 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   **Pydantic ClassVar & Defensive Guards**: Constant lookup dictionaries on `BaseSettings` classes MUST be annotated with `typing.ClassVar` (e.g. `TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]]`) to prevent `pydantic-settings` from treating them as configurable environment fields. Runtime properties deriving concurrency counts MUST defensively cast and clamp values (`max(1, int(val))`).
 *   **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`) to prevent parent environment leaks.
 *   **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
+*   **Dynamic Script Settings Instantiation**: Executable scripts and CLI tools (`burst_test.py`, `verify_environment.py`) MUST instantiate `Settings(_env_file=None)` dynamically inside function entrypoints rather than reading top-level cached module imports, allowing `os.environ` test patches and command-line overrides to take immediate effect without stale state collisions.
 
 # Frontend Development
 

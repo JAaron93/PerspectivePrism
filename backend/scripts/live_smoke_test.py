@@ -7,17 +7,14 @@ from google import genai
 
 async def run_smoke_test(video_url: str):
     print(f"Starting live smoke test for {video_url}...")
-    gcp_project = os.getenv("GCP_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT"))
-    gcp_location = os.getenv("GCP_LOCATION", "global")
-    api_key = os.getenv("LLM_API_KEY", os.getenv("GEMINI_API_KEY"))
+    gcp_project = (os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "").strip()
+    gcp_location = (os.getenv("GCP_LOCATION") or "global").strip() or "global"
 
-    if gcp_project:
-        client = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
-    elif api_key:
-        client = genai.Client(api_key=api_key)
-    else:
-        print("Error: Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY environment variable is configured.")
+    if not gcp_project:
+        print("Error: Missing GCP_PROJECT or GOOGLE_CLOUD_PROJECT environment variable for Vertex AI Mode.")
         return
+
+    client = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
     
     # We will simulate the transcript length check by fetching it from the backend 
     # and then checking its length. But wait, the backend abstracts this. 
@@ -73,7 +70,7 @@ async def run_smoke_test(video_url: str):
         print(f"Sanitization Error: {e}")
         return
         
-    model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    model_name = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
     print(f"Counting tokens for model {model_name}...")
     # Use SDK's asynchronous client.aio surface to avoid blocking
     response = await client.aio.models.count_tokens(

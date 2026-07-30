@@ -43,3 +43,31 @@ requirement_checks:
     condition: "files.contains('chrome-extension/claim-navigator.js')"
     pass_condition: "No keyboard focus traps; valid ARIA attributes and focus management logic preserved."
     severity: "MEDIUM"
+
+  - id: vertex-ai-mode-mandatory-paid-tier
+    name: "Mandatory 100% GCP Vertex AI Mode (Paid Tier)"
+    description: "Backend LLM initialization must exclusively use GCP Vertex AI Mode (via GCP_PROJECT). AI Studio API keys (GEMINI_API_KEY) are prohibited."
+    condition: "files.contains('backend/app/')"
+    pass_condition: "ClaimExtractor and AnalysisService initialize strictly via configure_provider_env requiring GCP_PROJECT without GEMINI_API_KEY fallbacks."
+    severity: "CRITICAL"
+
+  - id: gemini-3-model-invariants
+    name: "Gemini 3.x Model Invariants"
+    description: "LLM model calls must exclusively use Gemini 3.x series models (gemini-3.5-flash-lite primary, gemini-3.1-flash-lite backup)."
+    condition: "files.contains('backend/')"
+    pass_condition: "No legacy Gemini 2.x models or non-Google models are referenced in configuration or service code."
+    severity: "HIGH"
+
+  - id: env-example-credential-hygiene
+    name: "Environment Template Credential Hygiene"
+    description: "Ensure .env.example contains GCP_PROJECT= and no committed AI Studio keys or secrets."
+    condition: "files.contains('backend/.env.example')"
+    pass_condition: "GCP_PROJECT= is included with clear GCP billing usage comments, and no GEMINI_API_KEY references exist."
+    severity: "HIGH"
+
+  - id: strict-async-non-blocking-io
+    name: "Strict Async I/O & Non-Blocking Event Loop"
+    description: "All network operations (LLM model calls, web search, transcript retrieval) must use non-blocking async/await."
+    condition: "files.contains('backend/app/')"
+    pass_condition: "No synchronous blocking network calls exist in backend services; LLM calls use client.aio and I/O tasks use async def or asyncio.to_thread."
+    severity: "HIGH"
