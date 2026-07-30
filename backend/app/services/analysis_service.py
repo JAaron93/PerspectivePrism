@@ -66,8 +66,9 @@ class AnalysisService:
             max_concurrent = max(1, int(max_concurrent_raw))
         except (ValueError, TypeError):
             max_concurrent = 4
+        self.max_concurrency = max_concurrent
         self._llm_semaphore = asyncio.Semaphore(max_concurrent)
-        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, max_concurrent)
+        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, self.max_concurrency)
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
         primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")

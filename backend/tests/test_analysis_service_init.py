@@ -154,7 +154,7 @@ class TestAnalysisServiceInitialization:
             assert "GOOGLE_GENAI_USE_VERTEXAI" not in os.environ
 
     def test_gemini_tier_stored_and_semaphore_created(self):
-        """Should store gemini_tier and create a tier-aware concurrency semaphore."""
+        """Should store gemini_tier and max_concurrency on service instance."""
         import asyncio
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = ""
@@ -170,11 +170,11 @@ class TestAnalysisServiceInitialization:
             service = AnalysisService(settings=mock_settings)
 
             assert service.gemini_tier == "paid"
+            assert service.max_concurrency == 10
             assert isinstance(service._llm_semaphore, asyncio.Semaphore)
-            assert service._llm_semaphore._value == 10
 
     def test_free_tier_creates_throttled_semaphore(self):
-        """Free tier should create a semaphore with value 2 to throttle API calls."""
+        """Free tier should set max_concurrency to 2 to throttle API calls."""
         import asyncio
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = ""
@@ -190,7 +190,7 @@ class TestAnalysisServiceInitialization:
             service = AnalysisService(settings=mock_settings)
 
             assert service.gemini_tier == "free"
-            assert service._llm_semaphore._value == 2
+            assert service.max_concurrency == 2
 
     def test_invalid_tier_concurrency_defaults_safely(self):
         """Invalid or non-positive tier_max_concurrency should safely default or clamp to >= 1."""
@@ -207,7 +207,32 @@ class TestAnalysisServiceInitialization:
 
             service = AnalysisService(settings=mock_settings)
 
-            assert service._llm_semaphore._value == 4
+            assert service.max_concurrency == 4
+
+    @pytest.mark.asyncio
+    async def test_semaphore_concurrency_behavior(self):
+        """Should block (timeout) when attempting to acquire beyond max_concurrency."""
+        import asyncio
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "free"
+            mock_settings.tier_max_concurrency = 2
+
+            service = AnalysisService(settings=mock_settings)
+
+            # Acquire max_concurrency times (2 times)
+            await service._llm_semaphore.acquire()
+            await service._llm_semaphore.acquire()
+
+            # Attempt 3rd acquire should block and time out
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(service._llm_semaphore.acquire(), timeout=0.05)
 
     def test_settings_tier_max_concurrency_property(self):
         """Settings.tier_max_concurrency should return correct limit per tier."""
