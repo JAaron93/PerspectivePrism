@@ -84,13 +84,29 @@ class TestAnalysisServiceInitialization:
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
             mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
 
             service = AnalysisService(settings=mock_settings)
 
-            assert service.perspective_agent_primary.model == "gemini-3.5-flash-lite"
+            assert service.perspective_agent_primary.model == "gemini-3.1-flash-lite"
+
+    def test_custom_model_name_override_parameter(self):
+        """Should override settings when model_name parameter is passed directly to constructor."""
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
+
+            service = AnalysisService(model_name="gemini-3.1-flash-lite", settings=mock_settings)
+
+            assert service.perspective_agent_primary.model == "gemini-3.1-flash-lite"
 
     def test_error_message_includes_example(self):
         """Error message should include helpful example."""
