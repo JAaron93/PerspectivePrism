@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_THRESHOLD: int = 3
     CIRCUIT_BREAKER_RESET_TIMEOUT: int = 60  # seconds
 
+    # GCP Vertex AI Configuration (Uses GCP billing credits directly)
+    GCP_PROJECT: str = ""
+    GOOGLE_CLOUD_PROJECT: str = ""
+    GCP_LOCATION: str = "global"
+    GEMINI_TIER: str = "paid"
+
+    @property
+    def effective_gcp_project(self) -> str:
+        return (self.GCP_PROJECT or self.GOOGLE_CLOUD_PROJECT or "").strip()
+
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""
     GOOGLE_SEARCH_TIMEOUT: float = (

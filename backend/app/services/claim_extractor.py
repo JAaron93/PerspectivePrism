@@ -22,13 +22,32 @@ class ExtractorAgent(Agent):
 
 class ClaimExtractor:
     def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
+        raw_gcp = getattr(settings, "effective_gcp_project", "")
+        gcp_project = raw_gcp.strip() if isinstance(raw_gcp, str) and raw_gcp.strip() else ""
+
+        if not gcp_project:
+            env_gcp = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT")
+            if isinstance(env_gcp, str) and env_gcp.strip():
+                gcp_project = env_gcp.strip()
+
+        raw_api_key = (getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "LLM_API_KEY", ""))
+        self.api_key = raw_api_key.strip() if isinstance(raw_api_key, str) else ""
+
+        if gcp_project:
+            self.gcp_project = gcp_project
+            raw_loc = getattr(settings, "GCP_LOCATION", "global")
+            self.gcp_location = raw_loc.strip() if isinstance(raw_loc, str) and raw_loc.strip() else "global"
+            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+            os.environ["GCP_PROJECT"] = self.gcp_project
+            os.environ["GCP_LOCATION"] = self.gcp_location
+        elif self.api_key:
+            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
             os.environ["GEMINI_API_KEY"] = self.api_key
         else:
+            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
             raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
+                "Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY is configured. "
+                "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file."
             )
 
         self.agent = ExtractorAgent(

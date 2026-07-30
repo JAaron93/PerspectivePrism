@@ -7,12 +7,17 @@ from google import genai
 
 async def run_smoke_test(video_url: str):
     print(f"Starting live smoke test for {video_url}...")
+    gcp_project = os.getenv("GCP_PROJECT", os.getenv("GOOGLE_CLOUD_PROJECT"))
+    gcp_location = os.getenv("GCP_LOCATION", "global")
     api_key = os.getenv("LLM_API_KEY", os.getenv("GEMINI_API_KEY"))
-    if not api_key:
-        print("Error: LLM_API_KEY or GEMINI_API_KEY environment variable is required.")
+
+    if gcp_project:
+        client = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
+    elif api_key:
+        client = genai.Client(api_key=api_key)
+    else:
+        print("Error: Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY environment variable is configured.")
         return
-        
-    client = genai.Client(api_key=api_key)
     
     # We will simulate the transcript length check by fetching it from the backend 
     # and then checking its length. But wait, the backend abstracts this. 
