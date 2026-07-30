@@ -16,10 +16,6 @@ from google.genai.errors import APIError, ClientError
 logger = logging.getLogger(__name__)
 
 
-class ExtractorAgent(Agent):
-    pass
-
-
 class ClaimExtractor:
     def __init__(self, model_name: str | None = None, settings: Any = None):
         self.settings = settings or globals().get("settings")
@@ -36,7 +32,7 @@ class ClaimExtractor:
 
         self.gemini_tier = provider_info["tier"]
 
-        self.agent = ExtractorAgent(
+        self.agent = Agent(
             name="extractor_agent",
             model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
             instruction=(

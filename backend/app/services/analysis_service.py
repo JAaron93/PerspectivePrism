@@ -35,14 +35,6 @@ class AnalysisServiceError(Exception):
     pass
 
 
-class PerspectiveAnalysisAgent(Agent):
-    pass
-
-
-class BiasAnalysisAgent(Agent):
-    pass
-
-
 class AnalysisService:
     def __init__(self, model_name: str | None = None, settings: Any = None):
         self.settings = settings or globals().get("settings")
@@ -76,7 +68,7 @@ class AnalysisService:
         # Expose backup_client for health check compatibility
         self.backup_client = True if backup_model else None
 
-        self.perspective_agent_primary = PerspectiveAnalysisAgent(
+        self.perspective_agent_primary = Agent(
             name="perspective_agent_primary",
             model=primary_model,
             instruction=(
@@ -91,7 +83,7 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.perspective_agent_backup = PerspectiveAnalysisAgent(
+        self.perspective_agent_backup = Agent(
             name="perspective_agent_backup",
             model=backup_model,
             instruction=(
@@ -106,7 +98,7 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.bias_agent_primary = BiasAnalysisAgent(
+        self.bias_agent_primary = Agent(
             name="bias_agent_primary",
             model=primary_model,
             instruction=(
@@ -125,7 +117,7 @@ class AnalysisService:
             output_key="bias_result",
         )
 
-        self.bias_agent_backup = BiasAnalysisAgent(
+        self.bias_agent_backup = Agent(
             name="bias_agent_backup",
             model=backup_model,
             instruction=(
