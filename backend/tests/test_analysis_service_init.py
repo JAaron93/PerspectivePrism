@@ -237,12 +237,13 @@ class TestAnalysisServiceInitialization:
     def test_settings_tier_max_concurrency_property(self):
         """Settings.tier_max_concurrency should return correct limit per tier."""
         from app.core.config import Settings
-        cfg_paid = Settings(GEMINI_TIER="paid")
-        assert cfg_paid.tier_max_concurrency == 10
+        with patch.dict("os.environ", {}, clear=True):
+            cfg_paid = Settings(_env_file=None, GEMINI_TIER="paid")
+            assert cfg_paid.tier_max_concurrency == 10
 
-        cfg_standard = Settings(GEMINI_TIER="standard")
-        assert cfg_standard.tier_max_concurrency == 4
+            cfg_standard = Settings(_env_file=None, GEMINI_TIER="standard")
+            assert cfg_standard.tier_max_concurrency == 4
 
-        cfg_free = Settings(GEMINI_TIER="free")
-        assert cfg_free.tier_max_concurrency == 2
+            cfg_free = Settings(_env_file=None, GEMINI_TIER="free")
+            assert cfg_free.tier_max_concurrency == 2
 
