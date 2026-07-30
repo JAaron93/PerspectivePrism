@@ -84,14 +84,18 @@ class TestVerifyEnvironment:
         backend_content = "PROJECT_NAME=Perspective Prism MVP\nGCP_PROJECT=\n"
         root_content = "GCP_PROJECT=root-gcp-project\n"
 
+        repo_root = Path(__file__).resolve().parents[2]
+        backend_env_path = (repo_root / "backend" / ".env").resolve()
+        root_env_path = (repo_root / ".env").resolve()
+
         def mock_open_file(filepath, *args, **kwargs):
-            path_str = str(filepath)
-            if "backend" in path_str:
-                from io import StringIO
+            from io import StringIO
+            resolved = Path(filepath).resolve()
+            if resolved == backend_env_path:
                 return StringIO(backend_content)
-            else:
-                from io import StringIO
+            elif resolved == root_env_path:
                 return StringIO(root_content)
+            raise FileNotFoundError(f"No mock for {filepath}")
 
         with patch.dict("os.environ", {}, clear=True), \
              patch("pathlib.Path.is_file", return_value=True), \
