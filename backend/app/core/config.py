@@ -116,6 +116,14 @@ class Settings(BaseSettings):
             raise ValueError(f"MAX_CLAIMS_PER_ANALYSIS must be at least 1, got {v}")
         return v
 
+    @field_validator("GEMINI_TIER", mode="after")
+    @classmethod
+    def validate_gemini_tier(cls, v: str) -> str:
+        tier = (v or "").strip().lower()
+        if tier not in ("paid", "free", "standard"):
+            raise ValueError(f"GEMINI_TIER must be 'paid', 'free', or 'standard', got '{v}'")
+        return tier
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
@@ -153,3 +161,60 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def configure_provider_env(active_settings=None) -> dict[str, str]:
+    """Synchronizes LLM provider environment variables based on injected settings.
+
+    Cleans up stale environment keys to prevent auth collisions between Vertex AI mode and AI Studio key mode.
+    """
+    import os
+
+    cfg = active_settings if active_settings is not None else settings
+
+    raw_gcp = getattr(cfg, "effective_gcp_project", "")
+    gcp_project = raw_gcp.strip() if isinstance(raw_gcp, str) and raw_gcp.strip() else ""
+
+    raw_api_key = (getattr(cfg, "GEMINI_API_KEY", "") or getattr(cfg, "LLM_API_KEY", ""))
+    api_key = raw_api_key.strip() if isinstance(raw_api_key, str) else ""
+
+    raw_tier = getattr(cfg, "GEMINI_TIER", "paid")
+    gemini_tier = raw_tier.strip() if isinstance(raw_tier, str) and raw_tier.strip() else "paid"
+
+    if gcp_project:
+        raw_loc = getattr(cfg, "GCP_LOCATION", "global")
+        gcp_location = raw_loc.strip() if isinstance(raw_loc, str) and raw_loc.strip() else "global"
+
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+        os.environ["GCP_PROJECT"] = gcp_project
+        os.environ["GCP_LOCATION"] = gcp_location
+        os.environ["GEMINI_TIER"] = gemini_tier
+        os.environ.pop("GEMINI_API_KEY", None)
+        os.environ.pop("LLM_API_KEY", None)
+        return {
+            "mode": "vertex",
+            "project": gcp_project,
+            "location": gcp_location,
+            "tier": gemini_tier,
+        }
+    elif api_key:
+        os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
+        os.environ.pop("GCP_PROJECT", None)
+        os.environ.pop("GCP_LOCATION", None)
+        os.environ["GEMINI_TIER"] = gemini_tier
+        os.environ["GEMINI_API_KEY"] = api_key
+        return {
+            "mode": "api_key",
+            "api_key": api_key,
+            "tier": gemini_tier,
+        }
+    else:
+        os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
+        os.environ.pop("GCP_PROJECT", None)
+        os.environ.pop("GCP_LOCATION", None)
+        os.environ.pop("GEMINI_API_KEY", None)
+        os.environ.pop("LLM_API_KEY", None)
+        raise ValueError(
+            "Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY is configured. "
+            "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file."
+        )

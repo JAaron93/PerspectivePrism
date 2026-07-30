@@ -1,8 +1,8 @@
 import os
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
@@ -21,38 +21,22 @@ class ExtractorAgent(Agent):
 
 
 class ClaimExtractor:
-    def __init__(self, model_name: str | None = None):
-        raw_gcp = getattr(settings, "effective_gcp_project", "")
-        gcp_project = raw_gcp.strip() if isinstance(raw_gcp, str) and raw_gcp.strip() else ""
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
 
-        if not gcp_project:
-            env_gcp = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT")
-            if isinstance(env_gcp, str) and env_gcp.strip():
-                gcp_project = env_gcp.strip()
-
-        raw_api_key = (getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "LLM_API_KEY", ""))
-        self.api_key = raw_api_key.strip() if isinstance(raw_api_key, str) else ""
-
-        if gcp_project:
-            self.gcp_project = gcp_project
-            raw_loc = getattr(settings, "GCP_LOCATION", "global")
-            self.gcp_location = raw_loc.strip() if isinstance(raw_loc, str) and raw_loc.strip() else "global"
-            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
-            os.environ["GCP_PROJECT"] = self.gcp_project
-            os.environ["GCP_LOCATION"] = self.gcp_location
-        elif self.api_key:
-            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
-            os.environ["GEMINI_API_KEY"] = self.api_key
+        if provider_info["mode"] == "vertex":
+            self.gcp_project = provider_info["project"]
+            self.gcp_location = provider_info["location"]
+            self.api_key = ""
         else:
-            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
-            raise ValueError(
-                "Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY is configured. "
-                "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file."
-            )
+            self.api_key = provider_info["api_key"]
+            self.gcp_project = ""
+            self.gcp_location = ""
 
         self.agent = ExtractorAgent(
             name="extractor_agent",
-            model=model_name or settings.LLM_MODEL,
+            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"

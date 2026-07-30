@@ -4,7 +4,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Any
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
     BiasAnalysis,
     Claim,
@@ -44,41 +44,28 @@ class BiasAnalysisAgent(Agent):
 
 
 class AnalysisService:
-    def __init__(self, model_name: str | None = None):
-        raw_gcp = getattr(settings, "effective_gcp_project", "")
-        gcp_project = raw_gcp.strip() if isinstance(raw_gcp, str) and raw_gcp.strip() else ""
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
 
-        if not gcp_project:
-            env_gcp = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT")
-            if isinstance(env_gcp, str) and env_gcp.strip():
-                gcp_project = env_gcp.strip()
-
-        raw_api_key = (getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "LLM_API_KEY", ""))
-        self.api_key = raw_api_key.strip() if isinstance(raw_api_key, str) else ""
-
-        if gcp_project:
-            self.gcp_project = gcp_project
-            raw_loc = getattr(settings, "GCP_LOCATION", "global")
-            self.gcp_location = raw_loc.strip() if isinstance(raw_loc, str) and raw_loc.strip() else "global"
-            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
-            os.environ["GCP_PROJECT"] = self.gcp_project
-            os.environ["GCP_LOCATION"] = self.gcp_location
-        elif self.api_key:
-            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
-            os.environ["GEMINI_API_KEY"] = self.api_key
+        if provider_info["mode"] == "vertex":
+            self.gcp_project = provider_info["project"]
+            self.gcp_location = provider_info["location"]
+            self.api_key = ""
         else:
-            os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
-            raise ValueError(
-                "Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY is configured. "
-                "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file."
-            )
+            self.api_key = provider_info["api_key"]
+            self.gcp_project = ""
+            self.gcp_location = ""
+
+        backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
 
         # Expose backup_client for health check compatibility
-        self.backup_client = True if settings.BACKUP_LLM_MODEL else None
+        self.backup_client = True if backup_model else None
 
         self.perspective_agent_primary = PerspectiveAnalysisAgent(
             name="perspective_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -93,7 +80,7 @@ class AnalysisService:
 
         self.perspective_agent_backup = PerspectiveAnalysisAgent(
             name="perspective_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -108,7 +95,7 @@ class AnalysisService:
 
         self.bias_agent_primary = BiasAnalysisAgent(
             name="bias_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"
@@ -127,7 +114,7 @@ class AnalysisService:
 
         self.bias_agent_backup = BiasAnalysisAgent(
             name="bias_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"

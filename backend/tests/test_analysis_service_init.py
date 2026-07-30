@@ -16,35 +16,38 @@ class TestAnalysisServiceInitialization:
 
     def test_initialization_with_gcp_project_vertex_ai(self):
         """Should initialize successfully with GCP_PROJECT in Vertex AI mode."""
-        with patch("app.services.analysis_service.settings") as mock_settings:
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "us-central1"
             mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
 
-            service = AnalysisService()
+            service = AnalysisService(settings=mock_settings)
 
             assert service.perspective_agent_primary is not None
             assert service.gcp_project == "my-gcp-project"
             assert service.gcp_location == "us-central1"
+            assert service.perspective_agent_primary.model == "gemini-3.5-flash-lite"
 
     def test_initialization_with_valid_api_key(self):
         """Should initialize successfully with valid API key."""
-        with patch("app.services.analysis_service.settings") as mock_settings:
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = ""
             mock_settings.GCP_PROJECT = ""
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
             mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
 
-            service = AnalysisService()
+            service = AnalysisService(settings=mock_settings)
 
             assert service.perspective_agent_primary is not None
-            assert service.perspective_agent_primary.model == "gemini-3.5-flash"
+            assert service.perspective_agent_primary.model == "gemini-3.5-flash-lite"
 
     @pytest.mark.parametrize(
         "api_key,expected_substrings",
@@ -62,11 +65,12 @@ class TestAnalysisServiceInitialization:
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
             mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = api_key
-            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
 
             with pytest.raises(ValueError) as exc_info:
-                AnalysisService()
+                AnalysisService(settings=mock_settings)
 
             error_message = str(exc_info.value)
             for expected_substring in expected_substrings:
@@ -74,18 +78,19 @@ class TestAnalysisServiceInitialization:
 
     def test_uses_custom_model_from_settings(self):
         """Should use custom model from settings when configured."""
-        with patch("app.services.analysis_service.settings") as mock_settings:
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = ""
             mock_settings.GCP_PROJECT = ""
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
             mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gemini-test-model"
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
 
-            service = AnalysisService()
+            service = AnalysisService(settings=mock_settings)
 
-            assert service.perspective_agent_primary.model == "gemini-test-model"
+            assert service.perspective_agent_primary.model == "gemini-3.5-flash-lite"
 
     def test_error_message_includes_example(self):
         """Error message should include helpful example."""
@@ -95,11 +100,12 @@ class TestAnalysisServiceInitialization:
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
             mock_settings.GEMINI_API_KEY = ""
             mock_settings.LLM_API_KEY = ""
-            mock_settings.LLM_MODEL = "gemini-3.5-flash"
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
 
             with pytest.raises(ValueError) as exc_info:
-                AnalysisService()
+                AnalysisService(settings=mock_settings)
 
             error_message = str(exc_info.value)
             assert "GCP_PROJECT" in error_message or "GEMINI_API_KEY" in error_message
