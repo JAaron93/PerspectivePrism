@@ -18,6 +18,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
 > - **Framework & SDK**: This project exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
+> - **Provider & Authentication Modes**: Supports **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits) and **AI Studio Key Mode** (via `GEMINI_API_KEY` / `LLM_API_KEY`). Both modes are valid and supported across services (`ClaimExtractor`, `AnalysisService`).
 > - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
 > - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.
@@ -102,6 +103,9 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
 *   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
 *   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `google.genai.Client`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
+*   **Pydantic ClassVar & Defensive Guards**: Constant lookup dictionaries on `BaseSettings` classes MUST be annotated with `typing.ClassVar` (e.g. `TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]]`) to prevent `pydantic-settings` from treating them as configurable environment fields. Runtime properties deriving concurrency counts MUST defensively cast and clamp values (`max(1, int(val))`).
+*   **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`) to prevent parent environment leaks.
+*   **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
 
 # Frontend Development
 

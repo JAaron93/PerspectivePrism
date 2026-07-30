@@ -164,11 +164,20 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, you need to configure your Gemini API credentials in `.env`:
+To run the full analysis, configure your Gemini credentials in `.env` using either **GCP Vertex AI Mode** (recommended for paid high-throughput quota via GCP billing credits) or **Google AI Studio Key Mode**:
 
+#### Option A: GCP Vertex AI Mode (Paid Tier Quota)
+```env
+GCP_PROJECT=your_gcp_project_id_here
+GCP_LOCATION=global
+GEMINI_TIER=paid
+LLM_MODEL=gemini-3.5-flash-lite
+BACKUP_LLM_MODEL=gemini-3.1-flash-lite
+```
+
+#### Option B: Google AI Studio Key Mode
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
-LLM_PROVIDER=google
 LLM_MODEL=gemini-3.5-flash-lite
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```

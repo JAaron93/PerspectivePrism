@@ -81,6 +81,8 @@ async def health_check_llm():
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
         "primary_model": settings.LLM_MODEL,
+        "gemini_tier": getattr(analysis_service, "gemini_tier", "unknown"),
+        "max_concurrency": settings.tier_max_concurrency,
         "circuit_breaker_open": analysis_service.cb_open,
         "features": {
             "backup_configured": analysis_service.backup_client is not None,

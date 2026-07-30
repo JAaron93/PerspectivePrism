@@ -16,6 +16,9 @@ pr_reviewer:
   # Comprehensive imperatively-styled rules translated from .macroscope/*.md
   extra_instructions: |
     # 1. Global Project Boundaries & Architecture Restrictions
+    - Framework & SDK: This project exclusively uses Google ADK 2.0 (google-adk>=2.4.0) and Google GenAI SDK (google-genai>=2.9.0). Do NOT flag missing OpenAI or legacy google.generativeai SDKs.
+    - Provider & Authentication Modes: The backend supports both GCP Vertex AI Mode (via GCP_PROJECT / GOOGLE_CLOUD_PROJECT with paid-tier GCP credits) and AI Studio Key Mode (via GEMINI_API_KEY / LLM_API_KEY). Do NOT flag code as missing credentials if either GCP_PROJECT or GEMINI_API_KEY is configured.
+    - Primary & Backup Models: Primary model is gemini-3.5-flash-lite; backup model is gemini-3.1-flash-lite. Gemini 2.x and non-Google models are prohibited.
     - Do NOT suggest enterprise architecture patterns, including microservices, message queues (Celery/RabbitMQ), ORMs/database migrations, role-based access control (RBAC), multi-tenancy, external logging/telemetry (Datadog, Sentry, ELK), container orchestration (Docker/K8s), or CI/CD deployment pipelines.
     - DO focus on code correctness, logic bugs, solo-developer maintainability, LLM integration security, user-facing performance, and missing exception handling on critical execution paths.
 
@@ -78,4 +81,3 @@ github_app:
 
   # Disable automatic runs on Draft PRs to avoid noise while work is in progress
   feedback_on_draft_pr: false
-
