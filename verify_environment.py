@@ -12,8 +12,7 @@ import sys
 from pathlib import Path
 
 
-def _load_env_file() -> None:
-    """Loads backend/.env or .env file into os.environ if keys are not already set."""
+def _read_env_file_sync() -> None:
     root_dir = Path(__file__).resolve().parent
     env_paths = [root_dir / "backend" / ".env", root_dir / ".env"]
     for env_path in env_paths:
@@ -34,10 +33,15 @@ def _load_env_file() -> None:
             break
 
 
+async def _load_env_file() -> None:
+    """Loads backend/.env or .env file into os.environ asynchronously without blocking the event loop."""
+    await asyncio.to_thread(_read_env_file_sync)
+
+
 async def verify_environment() -> bool:
     print("🔍 Auditing Perspective Prism Environment Configuration...\n")
     
-    _load_env_file()
+    await _load_env_file()
 
     # 1. Environment Variable Precedence Check (GCP_PROJECT takes precedence over GOOGLE_CLOUD_PROJECT)
     gcp_project = (os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "").strip()
