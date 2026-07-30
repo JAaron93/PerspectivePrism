@@ -7,22 +7,23 @@ and error-free burst dispatch using mocked LLM agent calls.
 """
 
 import asyncio
-import os
 import sys
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from app.core.config import settings
+from app.core.config import Settings
 from app.models.schemas import BiasAnalysis, Claim
 from app.services.analysis_service import AnalysisService
 
 
-async def run_burst_test(concurrency_count: int = 20, mock_delay: float = 0.05):
+async def run_burst_test(concurrency_count: int = 20, mock_delay: float = 0.05, active_settings=None):
+    cfg = active_settings if active_settings is not None else Settings(_env_file=None)
+
     print("🚀 Starting High-Throughput Burst Test (Mocked)...")
     print(f"   • Target Concurrency Count: {concurrency_count} parallel requests")
-    print(f"   • Configured GEMINI_TIER: {settings.GEMINI_TIER}")
-    print(f"   • Concurrency Semaphore Limit: {settings.tier_max_concurrency}")
-    print(f"   • Primary Model: {settings.LLM_MODEL}\n")
+    print(f"   • Configured GEMINI_TIER: {cfg.GEMINI_TIER}")
+    print(f"   • Concurrency Semaphore Limit: {cfg.tier_max_concurrency}")
+    print(f"   • Primary Model: {cfg.LLM_MODEL}\n")
 
     # Mock response payload matching BiasAnalysis schema
     mock_bias_output = BiasAnalysis(
@@ -49,7 +50,7 @@ async def run_burst_test(concurrency_count: int = 20, mock_delay: float = 0.05):
 
     # Patch the underlying agent execution method to use our fast mock
     with patch.object(AnalysisService, "_run_agent_direct_inner", side_effect=mock_agent_call):
-        service = AnalysisService()
+        service = AnalysisService(settings=cfg)
 
         async def single_request(request_id: int):
             start_time = time.time()
