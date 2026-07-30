@@ -110,3 +110,22 @@ class TestAnalysisServiceInitialization:
             error_message = str(exc_info.value)
             assert "GCP_PROJECT" in error_message or "GEMINI_API_KEY" in error_message
 
+    def test_clears_stale_google_cloud_project_in_api_key_mode(self):
+        """Should pop GOOGLE_CLOUD_PROJECT from os.environ when in API key mode."""
+        import os
+        with patch.dict("os.environ", {"GOOGLE_CLOUD_PROJECT": "stale-project-123", "GCP_PROJECT": "stale-gcp-456"}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
+
+            AnalysisService(settings=mock_settings)
+
+            assert "GOOGLE_CLOUD_PROJECT" not in os.environ
+            assert "GCP_PROJECT" not in os.environ
+            assert "GOOGLE_GENAI_USE_VERTEXAI" not in os.environ
+

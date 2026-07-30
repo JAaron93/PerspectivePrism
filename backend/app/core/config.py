@@ -200,6 +200,7 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
     elif api_key:
         os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
         os.environ.pop("GCP_PROJECT", None)
+        os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
         os.environ.pop("GCP_LOCATION", None)
         os.environ["GEMINI_TIER"] = gemini_tier
         os.environ["GEMINI_API_KEY"] = api_key
@@ -211,6 +212,7 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
     else:
         os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
         os.environ.pop("GCP_PROJECT", None)
+        os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
         os.environ.pop("GCP_LOCATION", None)
         os.environ.pop("GEMINI_API_KEY", None)
         os.environ.pop("LLM_API_KEY", None)
