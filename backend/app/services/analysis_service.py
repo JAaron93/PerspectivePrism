@@ -61,7 +61,11 @@ class AnalysisService:
 
         # Tier-aware concurrency throttle: limits concurrent LLM API calls
         # to prevent 429 rate-limit errors on lower tiers.
-        max_concurrent = getattr(self.settings, "tier_max_concurrency", 4)
+        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
+        try:
+            max_concurrent = max(1, int(max_concurrent_raw))
+        except (ValueError, TypeError):
+            max_concurrent = 4
         self._llm_semaphore = asyncio.Semaphore(max_concurrent)
         logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, max_concurrent)
 

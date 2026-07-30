@@ -1,5 +1,5 @@
 import json
-from typing import Self
+from typing import ClassVar, Self
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Tier-based concurrency limits for LLM API calls.
     # 'paid' tier (GCP billing credits) allows higher throughput (300+ RPM),
     # 'standard' is moderate, 'free' is throttled to avoid 429 rate-limit errors.
-    TIER_CONCURRENCY_LIMITS: dict = {
+    TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]] = {
         "paid": 10,
         "standard": 4,
         "free": 2,
@@ -42,8 +42,16 @@ class Settings(BaseSettings):
 
     @property
     def tier_max_concurrency(self) -> int:
-        """Returns the maximum concurrent LLM API calls allowed for the configured GEMINI_TIER."""
-        return self.TIER_CONCURRENCY_LIMITS.get(self.GEMINI_TIER, 4)
+        """Returns the maximum concurrent LLM API calls allowed for the configured GEMINI_TIER.
+        
+        Guarantees a positive integer >= 1.
+        """
+        val = self.TIER_CONCURRENCY_LIMITS.get(self.GEMINI_TIER, 4)
+        try:
+            val_int = int(val)
+            return max(1, val_int)
+        except (ValueError, TypeError):
+            return 4
 
     GOOGLE_API_KEY: str = ""
     GOOGLE_CSE_ID: str = ""

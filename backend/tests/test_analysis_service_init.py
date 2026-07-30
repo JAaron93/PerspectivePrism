@@ -190,3 +190,32 @@ class TestAnalysisServiceInitialization:
             assert service.gemini_tier == "free"
             assert service._llm_semaphore._value == 2
 
+    def test_invalid_tier_concurrency_defaults_safely(self):
+        """Invalid or non-positive tier_max_concurrency should safely default or clamp to >= 1."""
+        with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
+            mock_settings.effective_gcp_project = ""
+            mock_settings.GCP_PROJECT = ""
+            mock_settings.GOOGLE_CLOUD_PROJECT = ""
+            mock_settings.GEMINI_API_KEY = "sk-test-valid-key-123"
+            mock_settings.LLM_API_KEY = ""
+            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
+            mock_settings.GEMINI_TIER = "paid"
+            mock_settings.tier_max_concurrency = "invalid-non-numeric"
+
+            service = AnalysisService(settings=mock_settings)
+
+            assert service._llm_semaphore._value == 4
+
+    def test_settings_tier_max_concurrency_property(self):
+        """Settings.tier_max_concurrency should return correct limit per tier."""
+        from app.core.config import Settings
+        cfg_paid = Settings(GEMINI_TIER="paid")
+        assert cfg_paid.tier_max_concurrency == 10
+
+        cfg_standard = Settings(GEMINI_TIER="standard")
+        assert cfg_standard.tier_max_concurrency == 4
+
+        cfg_free = Settings(GEMINI_TIER="free")
+        assert cfg_free.tier_max_concurrency == 2
+
