@@ -2,6 +2,7 @@
 Unit tests for environment verifier (verify_environment.py) and burst test script.
 """
 
+import os
 from pathlib import Path
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -75,6 +76,28 @@ class TestVerifyEnvironment:
             captured = capsys.readouterr()
             assert "Unable to read environment file" in captured.err
             assert "Permission denied" in captured.err
+
+    def test_verify_environment_fallback_to_root_env_when_backend_env_blank(self):
+        """Should fall back to root .env if backend/.env exists but has a blank GCP_PROJECT."""
+        from verify_environment import _read_env_file_sync, Path
+        
+        backend_content = "PROJECT_NAME=Perspective Prism MVP\nGCP_PROJECT=\n"
+        root_content = "GCP_PROJECT=root-gcp-project\n"
+
+        def mock_open_file(filepath, *args, **kwargs):
+            path_str = str(filepath)
+            if "backend" in path_str:
+                from io import StringIO
+                return StringIO(backend_content)
+            else:
+                from io import StringIO
+                return StringIO(root_content)
+
+        with patch.dict("os.environ", {}, clear=True), \
+             patch("pathlib.Path.is_file", return_value=True), \
+             patch("builtins.open", side_effect=mock_open_file):
+            _read_env_file_sync()
+            assert os.environ.get("GCP_PROJECT") == "root-gcp-project"
 
     @pytest.mark.asyncio
     async def test_burst_test_mock_execution(self):
