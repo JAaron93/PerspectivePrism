@@ -218,5 +218,6 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
         os.environ.pop("LLM_API_KEY", None)
         raise ValueError(
             "Neither GCP_PROJECT (Vertex AI mode) nor GEMINI_API_KEY / LLM_API_KEY is configured. "
-            "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file."
+            "Please set GCP_PROJECT or GEMINI_API_KEY in your .env file. "
+            "Example: GCP_PROJECT=my-gcp-project-id or GEMINI_API_KEY=AIzaSy..."
         )

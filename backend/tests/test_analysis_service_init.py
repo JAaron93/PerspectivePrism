@@ -124,7 +124,8 @@ class TestAnalysisServiceInitialization:
                 AnalysisService(settings=mock_settings)
 
             error_message = str(exc_info.value)
-            assert "GCP_PROJECT" in error_message or "GEMINI_API_KEY" in error_message
+            assert "Example:" in error_message
+            assert "GCP_PROJECT=my-gcp-project-id" in error_message or "GEMINI_API_KEY=AIzaSy..." in error_message
 
     def test_clears_stale_google_cloud_project_in_api_key_mode(self):
         """Should pop GOOGLE_CLOUD_PROJECT from os.environ when in API key mode."""
