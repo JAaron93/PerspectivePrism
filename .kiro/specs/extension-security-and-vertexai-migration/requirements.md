@@ -33,7 +33,7 @@
 
 ### FR-5: Backend GCP Vertex AI Provider Migration
 - **FR-5.1**: The FastAPI backend MUST check for `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` environment variables on startup.
-- **FR-5.2**: When `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` is set, backend services (`ClaimExtractor`, `AnalysisService`) MUST configure Vertex AI mode via `configure_provider_env(settings)` to set environment flags (`GOOGLE_GENAI_USE_VERTEXAI=true`) for Google ADK `Agent` instances, while standalone scripts initialize `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)` using `from google import genai`.
+- **FR-5.2**: When `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` is set, backend services (`ClaimExtractor`, `AnalysisService`) MUST configure Vertex AI mode via `configure_provider_env(settings)` to set environment flags (`GOOGLE_GENAI_USE_VERTEXAI=true`, `GEMINI_TIER=paid`) and purge legacy AI Studio key variables (`GEMINI_API_KEY`, `LLM_API_KEY`) from process memory, while standalone scripts initialize `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)` using `from google import genai`.
 - **FR-5.3**: If neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set, the backend MUST raise a configuration `ValueError` detailing missing GCP Vertex AI setup.
 - **FR-5.4**: Structured output schemas MUST be enforced for all model calls returning application business data (e.g. claim extraction using ADK Agent `output_schema`, perspective and bias analyses using `response_schema`). Non-structured utility operations such as `count_tokens`, health checks, and basic connectivity probes are explicitly exempt.
 

@@ -67,7 +67,7 @@
   - `backend/app/utils/input_sanitizer.py`
 - **Dependencies**: None
 - **Acceptance Criteria**:
-  - Verify `configure_provider_env(settings)` resolves `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` and sets `os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"`.
+  - Verify `configure_provider_env(settings)` resolves `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT`, sets `os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"`, sets `GEMINI_TIER = "paid"`, and purges legacy `GEMINI_API_KEY`/`LLM_API_KEY` from `os.environ`.
   - Ensure backend services (`ClaimExtractor`, `AnalysisService`) initialize Google ADK `Agent` instances with `configure_provider_env(settings)` and raise a `ValueError` only if neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set.
   - Standardize standalone client scripts (`verify_environment.py`, `live_smoke_test.py`) on `from google import genai; genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
   - Enforce `===USER DATA START===` and `===USER DATA END===` section delimiters via `input_sanitizer.wrap_user_data()`.
