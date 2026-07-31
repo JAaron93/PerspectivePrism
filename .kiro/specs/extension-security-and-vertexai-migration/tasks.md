@@ -11,7 +11,7 @@
 
 ## Track A: Chrome Extension Security Hardening & MV3 Compliance
 
-### Task 1: Migrate Key Storage from Sync to Local Storage
+### Task 1: Migrate Key Storage from Sync to Local Storage [COMPLETED]
 - **Requirement Traceability**: FR-1.1, FR-1.2, FR-1.3, US-1, BDD-1
 - **Target Files**:
   - `chrome-extension/config.js`
@@ -24,7 +24,7 @@
   - Content scripts strictly do NOT access or hold API keys in memory.
   - Unit tests in `chrome-extension/tests/` pass verifying `chrome.storage.local` usage.
 
-### Task 2: Service Worker IPC Sender Origin Validation
+### Task 2: Service Worker IPC Sender Origin Validation [COMPLETED]
 - **Requirement Traceability**: FR-2.1, FR-2.2, BDD-2
 - **Target Files**:
   - `chrome-extension/background.js`
@@ -33,7 +33,7 @@
   - Add origin verification `if (!sender.id || sender.id !== chrome.runtime.id)` in `chrome.runtime.onMessage.addListener`.
   - Reject untrusted messages with `{ success: false, error: "Unauthorized sender origin", code: "UNAUTHORIZED" }`.
 
-### Task 3: Production Manifest Cleanup & CSP Enforcement
+### Task 3: Production Manifest Cleanup & CSP Enforcement [COMPLETED]
 - **Requirement Traceability**: FR-3.1, FR-3.2, FR-3.3
 - **Target Files**:
   - `chrome-extension/manifest.json`
@@ -43,7 +43,7 @@
   - Add `content_security_policy`: `{ "extension_pages": "script-src 'self'; object-src 'none';" }`.
   - Replace `"tabs"` permission with `"activeTab"` if tab URL access is gesture-based.
 
-### Task 4: DOMPurify Sanitization in Sidepanel UI
+### Task 4: DOMPurify Sanitization in Sidepanel UI [COMPLETED]
 - **Requirement Traceability**: FR-4.1, FR-4.2, US-2
 - **Target Files**:
   - `chrome-extension/sidepanel.js`
