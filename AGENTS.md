@@ -11,6 +11,7 @@ This file provides guidance to Software Engineering Agents (SEAs) and Qodo AI Re
 - **BYOK Storage Isolation**: User credentials and sensitive settings MUST be stored exclusively in `chrome.storage.local` across both module (`config.js`) and script (`config-script.js`) variants. `chrome.storage.sync` is prohibited for secrets.
 - **IPC Origin Verification**: Service worker `background.js` MUST validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` listeners, returning structured error objects `{ success: false, error: "...", code: "UNAUTHORIZED" }`.
 - **Structured Output Scope**: Pydantic `output_schema` or `response_schema` enforcement applies to model calls returning application business data (claim extraction, perspective & bias analyses). Utility operations (`count_tokens`, health probes) are exempt.
+- **Spec Task & Track Completion Tagging**: When completing tasks in `.kiro/specs/` files, update both the parent Track header (`## Track B: ... [COMPLETED]`) and each individual task header (`### Task X: ... [COMPLETED]`) to maintain strict status parity across spec suites.
 
 # Project Overview
 
@@ -79,6 +80,7 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 *   **Run Specific Test**: `pytest tests/test_input_sanitizer.py`
 *   **Verify Environment**: `python3 verify_environment.py` (audits ADC setup, project linkage & Gemini connectivity)
 *   **Run Burst Test**: `PYTHONPATH=backend python3 backend/scripts/burst_test.py 20` (runs mocked 20-request burst test)
+*   **Virtual Environment Invocation Path**: When running commands or test suites from the root directory targeting the backend environment, always explicitly qualify the path to the virtual environment binary (`backend/venv/bin/python` or `backend/venv/bin/pytest`), rather than using relative `./venv/bin/` paths.
 
 ## Architecture & Key Files
 
