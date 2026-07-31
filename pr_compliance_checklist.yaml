@@ -75,7 +75,7 @@ requirement_checks:
   - id: byok-storage-credential-isolation
     name: "BYOK Storage Credential Isolation"
     description: "User API keys and sensitive credentials must be saved strictly in chrome.storage.local instead of chrome.storage.sync."
-    condition: "files.contains('chrome-extension/config.js') || files.contains('chrome-extension/options.js')"
+    condition: "files.contains('chrome-extension/config') || files.contains('chrome-extension/options')"
     pass_condition: "No API keys or secrets are stored in chrome.storage.sync."
     severity: "CRITICAL"
 
