@@ -172,7 +172,7 @@ async function checkCurrentStatus() {
     currentVideoId = videoId;
 
     // Check if backend is configured
-    const config = await chrome.storage.sync.get("config");
+    const config = await chrome.storage.local.get("config");
 
     if (!config.config || !config.config.backendUrl) {
       showNotConfiguredState();

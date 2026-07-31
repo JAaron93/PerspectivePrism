@@ -25,6 +25,7 @@ const createChromeMock = () => {
       },
     },
     runtime: {
+      id: "test-extension-id",
       sendMessage: vi.fn(),
       onMessage: {
         addListener: vi.fn(),

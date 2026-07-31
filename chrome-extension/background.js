@@ -190,6 +190,17 @@ async function checkPrivacyPolicyVersion() {
 
 // Message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Validate sender origin
+  if (!sender.id || sender.id !== chrome.runtime.id) {
+    logger.warn("Rejected message from unauthorized sender origin:", sender);
+    sendResponse({
+      success: false,
+      error: "Unauthorized sender origin",
+      code: "UNAUTHORIZED",
+    });
+    return false;
+  }
+
   // Common handler wrapper for async response
   const handleAsync = (handlerPromise) => {
     handlerPromise

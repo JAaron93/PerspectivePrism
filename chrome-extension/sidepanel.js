@@ -2,6 +2,38 @@
 import { logger } from "./logging-utils.js";
 import { extractVideoIdFromUrl } from "./video-utils.js";
 import { parseTimestampToSeconds } from "./timeline-utils.js";
+import DOMPurify from "./vendor/dompurify.js";
+
+/**
+ * Sanitize text / HTML content using DOMPurify
+ * @param {string} input - Input text to sanitize
+ * @returns {string} Sanitized string
+ */
+function sanitizeText(input) {
+  if (typeof input !== "string") return input;
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
+    ALLOWED_ATTR: ["class", "title", "data-*"],
+  });
+}
+
+/**
+ * Sanitize URLs to prevent javascript: and data: URI attacks
+ * @param {string} url - Target URL
+ * @returns {string} Sanitized URL or '#' if dangerous protocol
+ */
+function sanitizeUrl(url) {
+  if (typeof url !== "string") return "#";
+  const trimmed = url.trim();
+  if (/^(?:javascript|data|vbscript):/i.test(trimmed)) {
+    logger.warn("Blocked unsafe URI protocol:", trimmed);
+    return "#";
+  }
+  return DOMPurify.sanitize(trimmed, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  });
+}
 
 let currentVideoId = null;
 let currentTabId = null;
@@ -30,10 +62,10 @@ const optionsBtn = document.getElementById("pp-options-btn");
 
 // Show specific state in UI
 function showState(stateName) {
-  stateIdle.style.display = stateName === "idle" ? "flex" : "none";
-  stateLoading.style.display = stateName === "loading" ? "flex" : "none";
-  stateError.style.display = stateName === "error" ? "flex" : "none";
-  stateResults.style.display = stateName === "results" ? "flex" : "none";
+  if (stateIdle) stateIdle.style.display = stateName === "idle" ? "flex" : "none";
+  if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
+  if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
+  if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
 }
 
 if (typeof window !== "undefined") {
@@ -45,7 +77,7 @@ function renderResults(data) {
   if (!data) return;
 
   // Render overall assessment
-  const assessment = data.overall_assessment || "Unverified";
+  const assessment = sanitizeText(data.overall_assessment || "Unverified");
   overallAssessmentBadge.textContent = assessment;
   overallAssessmentBadge.className = "badge"; // Reset classes
   
@@ -64,7 +96,7 @@ function renderResults(data) {
   // Render metadata
   if (data.metadata && data.metadata.analyzed_at) {
     const dateStr = new Date(data.metadata.analyzed_at).toLocaleString();
-    analysisMetadata.textContent = `Analyzed on: ${dateStr}`;
+    analysisMetadata.textContent = sanitizeText(`Analyzed on: ${dateStr}`);
   } else {
     analysisMetadata.textContent = "";
   }
@@ -85,14 +117,14 @@ function renderResults(data) {
       
       const title = document.createElement("span");
       title.className = "claim-card-title";
-      title.textContent = claim.claim_text;
+      title.textContent = sanitizeText(claim.claim_text);
       
       header.appendChild(title);
       
       if (claim.timestamp) {
         const timestamp = document.createElement("span");
         timestamp.className = "claim-timestamp";
-        timestamp.textContent = claim.timestamp;
+        timestamp.textContent = sanitizeText(claim.timestamp);
         timestamp.addEventListener("click", (e) => {
           e.stopPropagation();
           seekToTimestamp(claim.timestamp);
@@ -108,7 +140,8 @@ function renderResults(data) {
       body.style.display = "none"; // Collapsed by default
 
       // 1. Overall Assessment Badge
-      const assessmentVal = claim.truth_profile?.overall_assessment || "Unverified";
+      const rawAssess = claim.truth_profile?.overall_assessment || "Unverified";
+      const assessmentVal = sanitizeText(rawAssess);
       const badge = document.createElement("span");
       let badgeClass = "badge-unverified";
       const lowerAssess = assessmentVal.toLowerCase();
@@ -142,7 +175,7 @@ function renderResults(data) {
           pInfo.className = "perspective-info";
           
           const pLabel = document.createElement("span");
-          pLabel.textContent = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          pLabel.textContent = sanitizeText(key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
           
           const pVal = document.createElement("span");
           const confidencePercent = typeof val.confidence === "number" 
@@ -153,6 +186,32 @@ function renderResults(data) {
           pInfo.appendChild(pLabel);
           pInfo.appendChild(pVal);
           pItem.appendChild(pInfo);
+
+          // Render research / evidence sources safely
+          const sources = val.sources || val.evidence;
+          if (Array.isArray(sources) && sources.length > 0) {
+            const sourcesList = document.createElement("div");
+            sourcesList.className = "perspective-sources";
+            sourcesList.style.fontSize = "11px";
+            sourcesList.style.marginTop = "4px";
+
+            sources.forEach((src) => {
+              if (!src) return;
+              const linkEl = document.createElement("a");
+              const url = typeof src === "string" ? src : (src.url || src.link || "");
+              const titleText = typeof src === "string" ? src : (src.title || src.name || url);
+              const safeUrl = sanitizeUrl(url);
+              linkEl.href = safeUrl;
+              linkEl.target = "_blank";
+              linkEl.rel = "noopener noreferrer";
+              linkEl.textContent = sanitizeText(titleText);
+              if (safeUrl === "#") {
+                linkEl.style.pointerEvents = "none";
+              }
+              sourcesList.appendChild(linkEl);
+            });
+            pItem.appendChild(sourcesList);
+          }
           
           if (confidencePercent !== null) {
             const pFillContainer = document.createElement("div");
@@ -185,7 +244,7 @@ function renderResults(data) {
         tags.forEach((tagText) => {
           const tag = document.createElement("span");
           tag.className = "bias-tag";
-          tag.textContent = tagText;
+          tag.textContent = sanitizeText(tagText);
           biasContainer.appendChild(tag);
         });
         body.appendChild(biasContainer);
@@ -206,7 +265,7 @@ function renderResults(data) {
         
         const scoreValue = document.createElement("span");
         const displayScore = deceptionScore > 10 ? `${deceptionScore}%` : `${deceptionScore}/10`;
-        scoreValue.textContent = displayScore;
+        scoreValue.textContent = sanitizeText(displayScore);
         
         scoreRow.appendChild(scoreLabel);
         scoreRow.appendChild(scoreValue);
@@ -514,3 +573,5 @@ if (typeof document !== "undefined") {
     checkCurrentTabState();
   }
 }
+
+export { sanitizeText, sanitizeUrl, renderResults };

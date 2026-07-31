@@ -1166,7 +1166,7 @@ function getFocusableElements(shadow) {
  */
 async function checkBackendConfiguration() {
   try {
-    const result = await chrome.storage.sync.get('config');
+    const result = await chrome.storage.local.get('config');
     const config = result.config;
     
     // Check if config exists and has a valid backend URL

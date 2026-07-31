@@ -139,7 +139,7 @@ class ConfigManager {
   // Load configuration with validation and fallbacks
   async load() {
     try {
-      const stored = await chrome.storage.sync.get("config");
+      const stored = await chrome.storage.local.get("config");
 
       if (!stored.config) {
         // No config found, use defaults
@@ -166,9 +166,8 @@ class ConfigManager {
       this.config = { ...DEFAULT_CONFIG, ...stored.config };
       return this.config;
     } catch (error) {
-      console.error("Failed to load config from chrome.storage.sync:", error);
-      // Fall back to chrome.storage.local if sync is unavailable
-      return this.loadFromLocal();
+      console.error("Failed to load config from chrome.storage.local:", error);
+      return { ...DEFAULT_CONFIG };
     }
   }
 
@@ -181,31 +180,16 @@ class ConfigManager {
     }
 
     try {
-      await chrome.storage.sync.set({ config });
-      this.config = config;
-    } catch (error) {
-      console.error("Failed to save config to chrome.storage.sync:", error);
-      // Fall back to local storage
       await chrome.storage.local.set({ config });
       this.config = config;
+    } catch (error) {
+      console.error("Failed to save config to chrome.storage.local:", error);
+      throw error;
     }
   }
 
   async loadFromLocal() {
-    try {
-      const stored = await chrome.storage.local.get("config");
-      if (!stored.config) {
-        return { ...DEFAULT_CONFIG };
-      }
-      const validation = ConfigValidator.validate(stored.config);
-      if (!validation.valid) {
-        console.warn("Invalid local config, using defaults:", validation.errors);
-        return { ...DEFAULT_CONFIG };
-      }
-      return { ...DEFAULT_CONFIG, ...stored.config };
-    } catch {
-      return DEFAULT_CONFIG;
-    }
+    return this.load();
   }
 
   async notifyInvalidConfig(errors) {
