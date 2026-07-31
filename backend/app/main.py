@@ -81,6 +81,8 @@ async def health_check_llm():
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
         "primary_model": settings.LLM_MODEL,
+        "gemini_tier": getattr(analysis_service, "gemini_tier", "unknown"),
+        "max_concurrency": settings.tier_max_concurrency,
         "circuit_breaker_open": analysis_service.cb_open,
         "features": {
             "backup_configured": analysis_service.backup_client is not None,
@@ -194,7 +196,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
         video_id = extract_video_id(str(request.url))
         # Validation is now done in create_analysis_job
         
-        transcript = claim_extractor.get_transcript(video_id)
+        transcript = await claim_extractor.get_transcript(video_id)
         
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)
@@ -259,15 +261,11 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 # Analyze
                 p_analysis = await analysis_service.analyze_perspective(claim, p_type, p_evidence)
                 
-                # Transform to dictionary format expected by UI
-                p_dict = p_analysis.model_dump()
-                p_dict['assessment'] = p_analysis.stance  # UI expects 'assessment'
-                
                 async with jobs_lock:
                     # Update local state inside the lock to prevent race conditions
                     # We know 'claims_to_return' is a list of ClientClaimAnalysis objects
                     # And 'truth_profile.perspectives' is a dict we can mutate
-                    claims_to_return[i].truth_profile.perspectives[p_type.value] = p_dict
+                    claims_to_return[i].truth_profile.perspectives[p_type.value] = p_analysis
                     
                     # Create snapshot INSIDE lock to ensure we capture the latest state 
                     # and don't overwrite a newer state with an older snapshot
@@ -275,6 +273,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
                         jobs[job_id]["result"] = create_analysis_response(video_id, claims_to_return)
                         
                 return p_analysis
+
 
             analysis_tasks = []
             for perspective in perspectives:
