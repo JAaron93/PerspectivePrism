@@ -33,7 +33,7 @@
 
 ### FR-5: Backend GCP Vertex AI Provider Migration
 - **FR-5.1**: The FastAPI backend MUST check for `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` environment variables on startup.
-- **FR-5.2**: When `GCP_PROJECT` is set, the backend MUST initialize `google.genai.Client` with `vertexai=True`, `project=gcp_project`, and `location=gcp_location`.
+- **FR-5.2**: When `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` is set, the backend MUST initialize `google.genai.Client` with `vertexai=True`, `project=gcp_project`, and `location=gcp_location`.
 - **FR-5.3**: If neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set, the backend MUST raise a configuration `ValueError` detailing missing GCP Vertex AI setup.
 - **FR-5.4**: Structured output enforcement via `response_schema` MUST be active across all Vertex AI model execution calls.
 
