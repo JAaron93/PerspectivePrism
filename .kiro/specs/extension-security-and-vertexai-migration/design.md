@@ -65,13 +65,14 @@ graph TD
 ## 3. Backend Provider Architecture: 100% GCP Vertex AI Mode
 
 ### 3.1 GCP Vertex AI Provider Authentication Flow
-The backend exclusively operates in **GCP Vertex AI Mode** (`google-genai` SDK in `vertexai=True` mode):
+The backend exclusively operates in **GCP Vertex AI Mode** (`google-genai` SDK in `vertexai=True` mode and Google ADK 2.0 agents):
 
-1. **GCP Project & Location Resolution**:
-   - Resolved via `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`) and `GCP_LOCATION` environment settings.
-   - Initialized via `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
-   - Utilizes Application Default Credentials (ADC) / GCP Service Account with paid-tier high-throughput quota (300+ RPM).
-2. **AI Studio Key Prohibition**:
+1. **GCP Project & Location Resolution via `configure_provider_env()`**:
+   - Backend services (`ClaimExtractor`, `AnalysisService`) invoke `configure_provider_env(settings)` to resolve `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`) and `GCP_LOCATION`.
+   - Sets `os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"`, `GCP_PROJECT`, and `GCP_LOCATION` to configure Google ADK `Agent` instances for Vertex AI execution.
+2. **Standalone Client Initialization**:
+   - Verification scripts and direct utilities instantiate `from google import genai` via `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
+3. **AI Studio Key Prohibition**:
    - Legacy AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free-tier rate-limit throttles are permanently removed. All backend calls route through GCP Vertex AI billing credits.
 
 ### 3.2 Dynamic CORS Whitelisting
