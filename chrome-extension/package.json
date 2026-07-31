@@ -26,5 +26,8 @@
   },
   "dependencies": {
     "dompurify": "^3.4.12"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   }
 }
