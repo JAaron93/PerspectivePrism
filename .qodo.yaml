@@ -1,0 +1,20 @@
+# Qodo Merge PR Review Configuration
+# Governs Qodo automated PR reviews, compliance checks, and security guardrails
+
+version: '1.0'
+
+qodo_merge:
+  custom_instructions: |
+    - **Google Cloud Platform (GCP) Vertex AI Mode**:
+      Ensure the backend exclusively uses the `google-genai` SDK in `vertexai=True` mode when `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` is set.
+      Prohibit `openai`, `AsyncOpenAI`, and legacy `google.generativeai` SDKs.
+
+    - **Chrome Extension Security Invariants**:
+      1. **Storage Isolation**: User API keys and sensitive tokens must be stored strictly in `chrome.storage.local` (NEVER `chrome.storage.sync`).
+      2. **IPC Sender Origin Check**: `background.js` must validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` handlers.
+      3. **Production Manifest Hygiene**: Production `manifest.json` must be free of `http://localhost` or `http://127.0.0.1` host permissions.
+      4. **DOM Purify Sanitization**: Dynamic LLM outputs rendered in `sidepanel.js` or popups must be sanitized via `textContent` or DOMPurify before DOM insertion.
+      5. **Gemini Structured Outputs**: Prompt execution must enforce Pydantic `response_schema` to mitigate Indirect Prompt Injection (IPI).
+
+  pr_compliance_checklist:
+    file: "pr_compliance_checklist.yaml"

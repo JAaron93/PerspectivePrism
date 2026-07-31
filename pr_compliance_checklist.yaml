@@ -1,0 +1,38 @@
+# Qodo PR Compliance Checklist
+# Automated compliance checks evaluated by Qodo review agent on every Pull Request
+
+checklist:
+  - id: "COMPLIANCE-01"
+    title: "Local Unit & Integration Test Suite"
+    requirement: "Does the PR pass all local test suites (`pytest` for backend and `npm test` for extension)?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-02"
+    title: "GCP Vertex AI Provider Alignment"
+    requirement: "Does the backend initialize google.genai.Client in vertexai=True mode when GCP_PROJECT is set?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-03"
+    title: "BYOK Storage Credential Isolation"
+    requirement: "Are user API keys and sensitive settings stored strictly in chrome.storage.local instead of chrome.storage.sync?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-04"
+    title: "IPC Message Sender Origin Verification"
+    requirement: "Does background.js validate sender.id === chrome.runtime.id for all chrome.runtime.onMessage handlers?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-05"
+    title: "Chrome Web Store Manifest Security"
+    requirement: "Is production manifest.json clean of http://localhost host permissions and configured with explicit MV3 CSP?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-06"
+    title: "AI Output DOMPurify Sanitization"
+    requirement: "Are all dynamic LLM outputs sanitized via textContent or DOMPurify prior to DOM insertion in sidepanel.js?"
+    criticality: "BLOCKING"
+
+  - id: "COMPLIANCE-07"
+    title: "Pre-Commit Secret & WAL Hygiene"
+    requirement: "Are .env files, API secrets, or .sqlite WAL files excluded from the commit payload?"
+    criticality: "BLOCKING"

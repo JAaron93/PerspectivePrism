@@ -7,9 +7,9 @@ This file provides context, architectural constraints, and review criteria for M
 ## 1. Project Overview & Active Branch Context
 
 - **Repository**: PerspectivePrism (YouTube claim, bias & deception analyzer)
-- **Active Branch**: `audit-browser-extension-standards`
-- **Active Specification**: `optimization-architecture`
-- **Spec Root Directory**: [.kiro/specs/optimization-architecture/](.kiro/specs/optimization-architecture/)
+- **Active Branch**: `audit_extension_security_gaps`
+- **Active Specification**: `extension-security-and-vertexai-migration`
+- **Spec Root Directory**: [.kiro/specs/extension-security-and-vertexai-migration/](.kiro/specs/extension-security-and-vertexai-migration/)
 
 ---
 
@@ -17,9 +17,9 @@ This file provides context, architectural constraints, and review criteria for M
 
 Review agents MUST validate all pull requests, code modifications, and commits against the authoritative specification files:
 
-1. **[design.md](.kiro/specs/optimization-architecture/design.md)**: Architectural design detailing `chrome.sidePanel` migration, legacy overlay removal, Optimistic UI skeletons, Content-Hashed `chrome.storage.local` caching, Vite bundling, and Service Worker lazy initialization.
-2. **[requirements.md](.kiro/specs/optimization-architecture/requirements.md)**: Functional/Non-Functional requirements (FR-1 to FR-7, NFR-1 to NFR-4) and BDD Gherkin acceptance criteria.
-3. **[tasks.md](.kiro/specs/optimization-architecture/tasks.md)**: 6-Track task breakdown with explicit dependencies and parallelism.
+1. **[design.md](.kiro/specs/extension-security-and-vertexai-migration/design.md)**: Architectural design detailing GCP Vertex AI mode migration (`vertexai=True`), BYOK storage isolation (`chrome.storage.local`), Indirect Prompt Injection XML framing, DOMPurify XSS mitigation in Sidepanel UI, and IPC sender origin verification.
+2. **[requirements.md](.kiro/specs/extension-security-and-vertexai-migration/requirements.md)**: Functional/Non-Functional requirements (FR-1 to FR-6, NFR-1 & NFR-2) and BDD Gherkin acceptance criteria.
+3. **[tasks.md](.kiro/specs/extension-security-and-vertexai-migration/tasks.md)**: Parallel execution track breakdown with explicit task dependencies.
 
 ---
 
