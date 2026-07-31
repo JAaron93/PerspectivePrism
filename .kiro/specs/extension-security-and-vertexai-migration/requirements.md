@@ -20,7 +20,7 @@
 
 ### FR-2: Extension IPC Sender Verification
 - **FR-2.1**: The Background Service Worker (`background.js`) MUST verify that `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` listeners.
-- **FR-2.2**: Messages from unauthorized extension IDs or unverified web origins MUST be rejected with a `403 Unauthorized` status response.
+- **FR-2.2**: Messages from unauthorized extension IDs or unverified web origins MUST be rejected with a structured error object response `{ success: false, error: "Unauthorized sender origin", code: "UNAUTHORIZED" }`.
 
 ### FR-3: Chrome Web Store Manifest Compliance
 - **FR-3.1**: Production `manifest.json` MUST NOT include HTTP endpoints (e.g. `http://localhost:8000/*`) in `host_permissions`.
@@ -34,8 +34,8 @@
 ### FR-5: Backend GCP Vertex AI Provider Migration
 - **FR-5.1**: The FastAPI backend MUST check for `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` environment variables on startup.
 - **FR-5.2**: When `GCP_PROJECT` is set, the backend MUST initialize `google.genai.Client` with `vertexai=True`, `project=gcp_project`, and `location=gcp_location`.
-- **FR-5.3**: When `GCP_PROJECT` is not set, the backend MUST fall back cleanly to `GEMINI_API_KEY` / `LLM_API_KEY` mode.
-- **FR-5.4**: Structured output enforcement via `response_schema` MUST be active across both Vertex AI and AI Studio modes.
+- **FR-5.3**: If neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set, the backend MUST raise a configuration `ValueError` detailing missing GCP Vertex AI setup.
+- **FR-5.4**: Structured output enforcement via `response_schema` MUST be active across all Vertex AI model execution calls.
 
 ### FR-6: Dynamic Backend CORS Whitelisting
 - **FR-6.1**: The FastAPI backend CORS middleware MUST validate Chrome Extension origin headers against the allowlist defined in `CHROME_EXTENSION_IDS`.
@@ -49,8 +49,8 @@
 - **NFR-1.2**: Extension sidepanel rendering latency after job completion MUST NOT exceed 100ms.
 
 ### NFR-2: Security & Privacy
-- **NFR-2.1**: API keys MUST NOT be printed to browser devtools logs or backend application logs.
-- **NFR-2.2**: All external communication between the extension and the backend in production MUST use TLS 1.3 (HTTPS).
+- **NFR-2.1**: API keys and secrets MUST NOT be printed to browser devtools logs or backend application logs.
+- **NFR-2.2**: All production communication between the extension and backend MUST use HTTPS. Protocol enforcement (disabling TLS < 1.3) is managed at the production reverse proxy / ingress TLS terminator level.
 
 ---
 

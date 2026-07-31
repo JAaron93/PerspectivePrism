@@ -30,7 +30,7 @@ graph TD
 
     CS -->|Validated IPC| SW
     SP -->|Validated IPC| SW
-    SW <-->|Encrypted State/Keys| LS
+    SW <-->|Local Unsynced State/Keys| LS
     SW -->|HTTPS / Cors Authenticated| API
     API --> Sanitizer
     Sanitizer --> CE
@@ -49,7 +49,7 @@ graph TD
 * **Invariant 2: Background Gateway Isolation**: Content scripts injected into YouTube pages must never hold, read, or process API keys. Only the Background Service Worker and Backend Gateway may handle credentials.
 
 ### 2.2 Indirect Prompt Injection (IPI) Invariants
-* **Invariant 3: XML Transcript Delimiters**: All untrusted external inputs (transcripts, video titles, evidence snippets) must be wrapped inside strict XML tags (`<untrusted_data>`) and placed at the absolute start of LLM prompts.
+* **Invariant 3: Delimited User Data Sections**: All untrusted external inputs (transcripts, video titles, evidence snippets) must be wrapped inside `===USER DATA START===` and `===USER DATA END===` section delimiters using `input_sanitizer.wrap_user_data()` before prompt interpolation.
 * **Invariant 4: Gemini Structured Outputs**: All LLM interactions must strictly enforce Pydantic response schemas via `google-genai` `response_schema` to guarantee that injections cannot alter output structure or execute code.
 
 ### 2.3 UI & Extension DOM XSS Invariants
@@ -62,18 +62,17 @@ graph TD
 
 ---
 
-## 3. Backend Provider Architecture: GCP Vertex AI Mode
+## 3. Backend Provider Architecture: 100% GCP Vertex AI Mode
 
-### 3.1 Dual-Mode Authentication Flow
-The backend support dual provider modes with automatic precedence:
+### 3.1 GCP Vertex AI Provider Authentication Flow
+The backend exclusively operates in **GCP Vertex AI Mode** (`google-genai` SDK in `vertexai=True` mode):
 
-1. **Vertex AI Mode (Primary Production)**:
-   - Triggered when `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`) is defined.
+1. **GCP Project & Location Resolution**:
+   - Resolved via `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`) and `GCP_LOCATION` environment settings.
    - Initialized via `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
-   - Uses Application Default Credentials (ADC) / GCP Service Account with paid-tier high-throughput quota (300+ RPM).
-2. **AI Studio / BYOK Fallback (Local Dev / Fallback)**:
-   - Triggered when `GCP_PROJECT` is absent and `GEMINI_API_KEY` or `LLM_API_KEY` is present.
-   - Initialized via `genai.Client(api_key=api_key)`.
+   - Utilizes Application Default Credentials (ADC) / GCP Service Account with paid-tier high-throughput quota (300+ RPM).
+2. **AI Studio Key Prohibition**:
+   - Legacy AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free-tier rate-limit throttles are permanently removed. All backend calls route through GCP Vertex AI billing credits.
 
 ### 3.2 Dynamic CORS Whitelisting
 The backend CORS policy dynamically allows the production Chrome Web Store Extension ID via `CHROME_EXTENSION_IDS` environment setting:

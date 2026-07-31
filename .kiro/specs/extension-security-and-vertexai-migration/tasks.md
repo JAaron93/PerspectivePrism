@@ -64,7 +64,7 @@
 - **Dependencies**: None
 - **Acceptance Criteria**:
   - Verify initialization logic detects `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT`.
-  - Ensure `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)` is invoked cleanly without breaking `GEMINI_API_KEY` fallback.
+  - Ensure `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)` is invoked cleanly and raises a `ValueError` if `GCP_PROJECT` is omitted.
   - Run pytest suite `pytest backend/tests/test_analysis_service_init.py` cleanly.
 
 ### Task 6: Environment Template & Verifier Documentation Audit
