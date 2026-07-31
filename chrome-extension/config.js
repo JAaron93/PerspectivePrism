@@ -139,10 +139,30 @@ class ConfigManager {
   // Load configuration with validation and fallbacks
   async load() {
     try {
-      const stored = await chrome.storage.local.get("config");
+      let stored = await chrome.storage.local.get("config");
 
-      if (!stored.config) {
-        // No config found, use defaults
+      if (!stored || !stored.config) {
+        // One-time migration: check legacy chrome.storage.sync for user config
+        if (chrome.storage && chrome.storage.sync) {
+          try {
+            const syncStored = await chrome.storage.sync.get("config");
+            if (syncStored && syncStored.config) {
+              const syncValidation = ConfigValidator.validate(syncStored.config);
+              if (syncValidation.valid) {
+                console.log(
+                  "[ConfigManager] Migrating legacy config from chrome.storage.sync to chrome.storage.local",
+                );
+                await this.save(syncStored.config);
+                chrome.storage.sync.remove("config").catch(() => {});
+                return this.config;
+              }
+            }
+          } catch (syncError) {
+            console.warn("Failed to check legacy sync storage for config:", syncError);
+          }
+        }
+
+        // No config found in local or sync, use defaults
         await this.save(DEFAULT_CONFIG);
         return { ...DEFAULT_CONFIG };
       }

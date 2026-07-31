@@ -61,6 +61,8 @@ describe("DOMPurify Sanitization in Sidepanel UI (FR-4)", () => {
     it("should handle non-string or empty input gracefully", () => {
       expect(sanitizeUrl(undefined)).toBe("#");
       expect(sanitizeUrl(null)).toBe("#");
+      expect(sanitizeUrl("")).toBe("#");
+      expect(sanitizeUrl("   ")).toBe("#");
     });
   });
 });

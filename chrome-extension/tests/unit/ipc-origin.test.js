@@ -1,58 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("IPC Sender Origin Validation (FR-2)", () => {
-  let originalChrome;
   let messageListener;
 
   beforeEach(() => {
-    originalChrome = global.chrome;
-    
-    global.chrome = {
-      ...originalChrome,
-      runtime: {
-        id: "mock-extension-id-12345",
-        sendMessage: vi.fn(),
-        onMessage: {
-          addListener: vi.fn((listener) => {
-            messageListener = listener;
-          }),
-        },
-        onInstalled: { addListener: vi.fn() },
-        onStartup: { addListener: vi.fn() },
-        getManifest: vi.fn().mockReturnValue({ version: "0.2.0" }),
-        getURL: vi.fn((path) => `chrome-extension://mock-extension-id-12345/${path}`),
-      },
-      storage: {
-        sync: {
-          get: vi.fn().mockImplementation((keys, callback) => {
-            const data = { consent: { given: true, policyVersion: "1.0.0" } };
-            if (callback) callback(data);
-            return Promise.resolve(data);
-          }),
-          set: vi.fn().mockResolvedValue({}),
-        },
-        local: {
-          get: vi.fn().mockResolvedValue({}),
-          set: vi.fn().mockResolvedValue({}),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-        session: {
-          get: vi.fn().mockResolvedValue({}),
-          set: vi.fn().mockResolvedValue({}),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      },
-      tabs: {
-        create: vi.fn(),
-        query: vi.fn().mockResolvedValue([]),
-        sendMessage: vi.fn(),
-      },
-    };
+    vi.clearAllMocks();
+    chrome.runtime.id = "mock-extension-id-12345";
+    chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+      messageListener = listener;
+    });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    global.chrome = originalChrome;
     vi.resetModules();
   });
 

@@ -25,8 +25,10 @@ function sanitizeText(input) {
 function sanitizeUrl(url) {
   if (typeof url !== "string") return "#";
   const trimmed = url.trim();
-  if (/^(?:javascript|data|vbscript):/i.test(trimmed)) {
-    logger.warn("Blocked unsafe URI protocol:", trimmed);
+  if (!trimmed || /^(?:javascript|data|vbscript):/i.test(trimmed)) {
+    if (trimmed && /^(?:javascript|data|vbscript):/i.test(trimmed)) {
+      logger.warn("Blocked unsafe URI protocol:", trimmed);
+    }
     return "#";
   }
   return DOMPurify.sanitize(trimmed, {
@@ -265,18 +267,23 @@ function renderResults(data) {
 
             sources.forEach((src) => {
               if (!src) return;
-              const linkEl = document.createElement("a");
               const url = typeof src === "string" ? src : (src.url || src.link || "");
               const titleText = typeof src === "string" ? src : (src.title || src.name || url);
               const safeUrl = sanitizeUrl(url);
-              linkEl.href = safeUrl;
-              linkEl.target = "_blank";
-              linkEl.rel = "noopener noreferrer";
-              linkEl.textContent = sanitizeText(titleText);
-              if (safeUrl === "#") {
-                linkEl.style.pointerEvents = "none";
+
+              if (!safeUrl || safeUrl === "#" || safeUrl === "") {
+                const textEl = document.createElement("span");
+                textEl.className = "perspective-source-text";
+                textEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(textEl);
+              } else {
+                const linkEl = document.createElement("a");
+                linkEl.href = safeUrl;
+                linkEl.target = "_blank";
+                linkEl.rel = "noopener noreferrer";
+                linkEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(linkEl);
               }
-              sourcesList.appendChild(linkEl);
             });
             pItem.appendChild(sourcesList);
           }
