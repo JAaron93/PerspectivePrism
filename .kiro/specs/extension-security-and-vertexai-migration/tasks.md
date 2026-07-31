@@ -12,14 +12,16 @@
 ## Track A: Chrome Extension Security Hardening & MV3 Compliance
 
 ### Task 1: Migrate Key Storage from Sync to Local Storage
-- **Requirement Traceability**: FR-1.1, FR-1.2, US-1, BDD-1
+- **Requirement Traceability**: FR-1.1, FR-1.2, FR-1.3, US-1, BDD-1
 - **Target Files**:
   - `chrome-extension/config.js`
+  - `chrome-extension/config-script.js`
   - `chrome-extension/options.js`
 - **Dependencies**: None
 - **Acceptance Criteria**:
   - `ConfigManager.save()` writes config payload to `chrome.storage.local`.
-  - `chrome.storage.sync` calls are removed for sensitive config parameters.
+  - `chrome.storage.sync` calls are removed for sensitive config parameters across both `config.js` and `config-script.js`.
+  - Content scripts strictly do NOT access or hold API keys in memory.
   - Unit tests in `chrome-extension/tests/` pass verifying `chrome.storage.local` usage.
 
 ### Task 2: Service Worker IPC Sender Origin Validation
@@ -29,7 +31,7 @@
 - **Dependencies**: None
 - **Acceptance Criteria**:
   - Add origin verification `if (!sender.id || sender.id !== chrome.runtime.id)` in `chrome.runtime.onMessage.addListener`.
-  - Reject untrusted messages with `{ success: false, error: "Unauthorized sender origin" }`.
+  - Reject untrusted messages with `{ success: false, error: "Unauthorized sender origin", code: "UNAUTHORIZED" }`.
 
 ### Task 3: Production Manifest Cleanup & CSP Enforcement
 - **Requirement Traceability**: FR-3.1, FR-3.2, FR-3.3
@@ -50,6 +52,7 @@
 - **Acceptance Criteria**:
   - Import DOMPurify library into extension scope.
   - Wrap claim texts, perspective stance reasoning, and titles in DOMPurify sanitization before insertion.
+  - Sanitize all research links to block `javascript:` protocols.
 
 ---
 
@@ -61,14 +64,17 @@
   - `backend/app/services/claim_extractor.py`
   - `backend/app/services/analysis_service.py`
   - `backend/app/core/config.py`
+  - `backend/app/utils/input_sanitizer.py`
 - **Dependencies**: None
 - **Acceptance Criteria**:
   - Verify initialization logic detects `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT`.
   - Ensure `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)` is invoked cleanly and raises a `ValueError` only if neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set.
+  - Enforce `===USER DATA START===` and `===USER DATA END===` section delimiters via `input_sanitizer.wrap_user_data()`.
+  - Enforce Pydantic `response_schema` across all Gemini model calls.
   - Run pytest suite `pytest backend/tests/test_analysis_service_init.py` cleanly.
 
 ### Task 6: Environment Template & Verifier Documentation Audit
-- **Requirement Traceability**: FR-5.1, NFR-2.2
+- **Requirement Traceability**: FR-5.1, NFR-2.1, NFR-2.2
 - **Target Files**:
   - `backend/.env.example`
   - `README.md`
@@ -76,6 +82,7 @@
 - **Acceptance Criteria**:
   - Document `GCP_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` in `.env.example`.
   - Add instructions for linking GCP Billing and enabling `aiplatform.googleapis.com`.
+  - Document ingress-level HTTPS and TLS protocol configuration requirements for production deployments.
 
 ### Task 7: Dynamic Production Extension ID CORS Configuration
 - **Requirement Traceability**: FR-6.1
@@ -91,7 +98,7 @@
 ## Track C: Integration Testing & Verification
 
 ### Task 8: End-to-End Test Suite Execution
-- **Requirement Traceability**: NFR-1.1, NFR-1.2
+- **Requirement Traceability**: NFR-1.1, NFR-1.2, NFR-2.1, NFR-2.2
 - **Target Files**:
   - `chrome-extension/tests/`
   - `backend/tests/`
@@ -100,3 +107,4 @@
   - Run `pytest` in `backend/` with dummy credentials passing 100%.
   - Run `npm test` in `chrome-extension/` passing 100%.
   - Verify zero `429 RESOURCE_EXHAUSTED` errors during high-throughput execution.
+  - Verify storage isolation, IPC sender validation, and DOMPurify sanitization tests pass cleanly.
