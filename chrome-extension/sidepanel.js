@@ -2,6 +2,44 @@
 import { logger } from "./logging-utils.js";
 import { extractVideoIdFromUrl } from "./video-utils.js";
 import { parseTimestampToSeconds } from "./timeline-utils.js";
+import DOMPurify from "./vendor/dompurify.js";
+
+/**
+ * Sanitize text / HTML content using DOMPurify
+ * @param {string} input - Input text to sanitize
+ * @returns {string} Sanitized string
+ */
+function sanitizeText(input) {
+  if (typeof input !== "string") return input;
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
+    ALLOWED_ATTR: ["class", "title", "data-*"],
+  });
+}
+
+/**
+ * Sanitize URLs to prevent javascript: and data: URI attacks
+ * @param {string} url - Target URL
+ * @returns {string} Sanitized URL or '#' if dangerous protocol
+ */
+function sanitizeUrl(url) {
+  if (typeof url !== "string") return "#";
+  const trimmed = url.trim();
+  if (!trimmed) return "#";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return DOMPurify.sanitize(parsed.href, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: [],
+      });
+    }
+    logger.warn("Blocked non-http(s) URI protocol:", parsed.protocol);
+    return "#";
+  } catch (_e) {
+    return "#";
+  }
+}
 
 let currentVideoId = null;
 let currentTabId = null;
@@ -96,15 +134,16 @@ function renderOptimisticSkeletons(force = false) {
 
 // Show specific state in UI
 function showState(stateName) {
-  stateIdle.style.display = stateName === "idle" ? "flex" : "none";
-  stateLoading.style.display = stateName === "loading" ? "flex" : "none";
-  stateError.style.display = stateName === "error" ? "flex" : "none";
-  stateResults.style.display = stateName === "results" ? "flex" : "none";
+  if (stateIdle) stateIdle.style.display = stateName === "idle" ? "flex" : "none";
+  if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
+  if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
+  if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
 }
 
 if (typeof window !== "undefined") {
   window.showState = showState;
   window.renderOptimisticSkeletons = renderOptimisticSkeletons;
+  window.checkCurrentTabState = checkCurrentTabState;
 }
 
 // Render analysis results
@@ -112,7 +151,7 @@ function renderResults(data) {
   if (!data) return;
 
   // Render overall assessment
-  const assessment = data.overall_assessment || "Unverified";
+  const assessment = sanitizeText(data.overall_assessment || "Unverified");
   overallAssessmentBadge.textContent = assessment;
   overallAssessmentBadge.className = "badge"; // Reset classes
   
@@ -131,7 +170,7 @@ function renderResults(data) {
   // Render metadata
   if (data.metadata && data.metadata.analyzed_at) {
     const dateStr = new Date(data.metadata.analyzed_at).toLocaleString();
-    analysisMetadata.textContent = `Analyzed on: ${dateStr}`;
+    analysisMetadata.textContent = sanitizeText(`Analyzed on: ${dateStr}`);
   } else {
     analysisMetadata.textContent = "";
   }
@@ -152,14 +191,14 @@ function renderResults(data) {
       
       const title = document.createElement("span");
       title.className = "claim-card-title";
-      title.textContent = claim.claim_text;
+      title.textContent = sanitizeText(claim.claim_text);
       
       header.appendChild(title);
       
       if (claim.timestamp) {
         const timestamp = document.createElement("span");
         timestamp.className = "claim-timestamp";
-        timestamp.textContent = claim.timestamp;
+        timestamp.textContent = sanitizeText(claim.timestamp);
         timestamp.addEventListener("click", (e) => {
           e.stopPropagation();
           seekToTimestamp(claim.timestamp);
@@ -175,7 +214,8 @@ function renderResults(data) {
       body.style.display = "none"; // Collapsed by default
 
       // 1. Overall Assessment Badge
-      const assessmentVal = claim.truth_profile?.overall_assessment || "Unverified";
+      const rawAssess = claim.truth_profile?.overall_assessment || "Unverified";
+      const assessmentVal = sanitizeText(rawAssess);
       const badge = document.createElement("span");
       let badgeClass = "badge-unverified";
       const lowerAssess = assessmentVal.toLowerCase();
@@ -209,7 +249,7 @@ function renderResults(data) {
           pInfo.className = "perspective-info";
           
           const pLabel = document.createElement("span");
-          pLabel.textContent = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          pLabel.textContent = sanitizeText(key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
           
           const pVal = document.createElement("span");
           const confidencePercent = typeof val.confidence === "number" 
@@ -220,6 +260,37 @@ function renderResults(data) {
           pInfo.appendChild(pLabel);
           pInfo.appendChild(pVal);
           pItem.appendChild(pInfo);
+
+          // Render research / evidence sources safely
+          const sources = val.sources || val.evidence;
+          if (Array.isArray(sources) && sources.length > 0) {
+            const sourcesList = document.createElement("div");
+            sourcesList.className = "perspective-sources";
+            sourcesList.style.fontSize = "11px";
+            sourcesList.style.marginTop = "4px";
+
+            sources.forEach((src) => {
+              if (!src) return;
+              const url = typeof src === "string" ? src : (src.url || src.link || "");
+              const titleText = typeof src === "string" ? src : (src.title || src.name || url);
+              const safeUrl = sanitizeUrl(url);
+
+              if (!safeUrl || safeUrl === "#" || safeUrl === "") {
+                const textEl = document.createElement("span");
+                textEl.className = "perspective-source-text";
+                textEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(textEl);
+              } else {
+                const linkEl = document.createElement("a");
+                linkEl.href = safeUrl;
+                linkEl.target = "_blank";
+                linkEl.rel = "noopener noreferrer";
+                linkEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(linkEl);
+              }
+            });
+            pItem.appendChild(sourcesList);
+          }
           
           if (confidencePercent !== null) {
             const pFillContainer = document.createElement("div");
@@ -252,7 +323,7 @@ function renderResults(data) {
         tags.forEach((tagText) => {
           const tag = document.createElement("span");
           tag.className = "bias-tag";
-          tag.textContent = tagText;
+          tag.textContent = sanitizeText(tagText);
           biasContainer.appendChild(tag);
         });
         body.appendChild(biasContainer);
@@ -273,7 +344,7 @@ function renderResults(data) {
         
         const scoreValue = document.createElement("span");
         const displayScore = deceptionScore > 10 ? `${deceptionScore}%` : `${deceptionScore}/10`;
-        scoreValue.textContent = displayScore;
+        scoreValue.textContent = sanitizeText(displayScore);
         
         scoreRow.appendChild(scoreLabel);
         scoreRow.appendChild(scoreValue);
@@ -400,16 +471,20 @@ function highlightClaims(claimsToHighlight, timestampSeconds) {
 // Load and handle state for current video
 async function checkCurrentTabState() {
   try {
+    let tabId = null;
+    let videoId = null;
+
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs || !tabs[0]) {
-      showState("idle");
-      return;
+    if (tabs && tabs[0]) {
+      tabId = tabs[0].id;
+      videoId = extractVideoIdFromUrl(tabs[0].url || "");
     }
 
-    const tab = tabs[0];
-    const videoId = extractVideoIdFromUrl(tab.url || "");
+    if (!videoId && typeof window !== "undefined" && window.location) {
+      videoId = extractVideoIdFromUrl(window.location.href || "");
+    }
     
-    if (tab.id !== currentTabId || videoId !== currentVideoId) {
+    if (tabId !== currentTabId || videoId !== currentVideoId) {
       currentGenerationId = null;
       lastSequence = -1;
       const container = document.getElementById("skeleton-container") || skeletonContainer;
@@ -418,7 +493,7 @@ async function checkCurrentTabState() {
       }
     }
     
-    currentTabId = tab.id;
+    currentTabId = tabId;
 
     if (!videoId) {
       currentVideoId = null;
@@ -642,3 +717,5 @@ if (typeof document !== "undefined") {
     checkCurrentTabState();
   }
 }
+
+export { sanitizeText, sanitizeUrl, renderResults };

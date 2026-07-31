@@ -36,7 +36,7 @@ export const test = base.extend({
 
     await background.evaluate(async () => {
       await new Promise((resolve) => {
-        chrome.storage.sync.set({
+        chrome.storage.local.set({
           consent: { given: true, policyVersion: "1.0.0" },
           config: { backendUrl: "http://localhost:8000" }
         }, resolve);

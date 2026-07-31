@@ -150,13 +150,32 @@ async function checkPrivacyPolicyVersion() {
   const CURRENT_POLICY_VERSION = "1.0.0";
 
   try {
-    const result = await new Promise((resolve) => {
-      chrome.storage.sync.get(["consent"], (result) => {
-        resolve(result);
-      });
+    let result = await new Promise((resolve) => {
+      chrome.storage.local.get(["consent"], (res) => resolve(res || {}));
     });
 
-    const consent = result.consent;
+    let consent = result.consent;
+
+    // One-time migration: check legacy chrome.storage.sync if local consent absent
+    if (!consent && chrome.storage && chrome.storage.sync) {
+      try {
+        const syncResult = await new Promise((resolve) => {
+          chrome.storage.sync.get(["consent"], (res) => resolve(res || {}));
+        });
+        if (syncResult.consent && typeof syncResult.consent.given === "boolean") {
+          await chrome.storage.local.set({ consent: syncResult.consent });
+          consent = syncResult.consent;
+          try {
+            await chrome.storage.sync.remove("consent");
+            logger.info("[Perspective Prism] Successfully removed legacy sync consent key");
+          } catch (syncRemoveErr) {
+            logger.warn("Failed to remove legacy sync consent key:", syncRemoveErr);
+          }
+        }
+      } catch (migrationError) {
+        logger.warn("Failed to migrate consent from sync storage:", migrationError);
+      }
+    }
 
     // If no consent exists, user hasn't used the extension yet - no action needed
     if (!consent || !consent.given) {
@@ -197,6 +216,17 @@ async function checkPrivacyPolicyVersion() {
 
 // Message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Validate sender origin
+  if (!sender.id || sender.id !== chrome.runtime.id) {
+    logger.warn("Rejected message from unauthorized sender origin:", sender);
+    sendResponse({
+      success: false,
+      error: "Unauthorized sender origin",
+      code: "UNAUTHORIZED",
+    });
+    return false;
+  }
+
   // Common handler wrapper for async response
   const handleAsync = (handlerPromise) => {
     handlerPromise
@@ -519,7 +549,7 @@ async function handleRevokeConsent() {
     await chrome.alarms.clearAll();
 
     // 4. Set consentGiven to false in storage
-    await chrome.storage.sync.set({
+    await chrome.storage.local.set({
       consent: {
         given: false,
         timestamp: Date.now(),
