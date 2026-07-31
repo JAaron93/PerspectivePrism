@@ -47,7 +47,14 @@ class ConsentManager {
                     chrome.runtime.lastError,
                   );
                 } else {
-                  chrome.storage.sync.remove(this.STORAGE_KEY).catch(() => {});
+                  chrome.storage.sync.remove(this.STORAGE_KEY, () => {
+                    if (chrome.runtime.lastError) {
+                      console.warn(
+                        "[Perspective Prism] Failed to remove legacy sync consent:",
+                        chrome.runtime.lastError,
+                      );
+                    }
+                  });
                 }
               });
               this.evaluateConsent(syncConsent, resolve);

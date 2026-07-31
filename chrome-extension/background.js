@@ -165,7 +165,12 @@ async function checkPrivacyPolicyVersion() {
         if (syncResult.consent && typeof syncResult.consent.given === "boolean") {
           await chrome.storage.local.set({ consent: syncResult.consent });
           consent = syncResult.consent;
-          chrome.storage.sync.remove("consent").catch(() => {});
+          try {
+            await chrome.storage.sync.remove("consent");
+            logger.info("[Perspective Prism] Successfully removed legacy sync consent key");
+          } catch (syncRemoveErr) {
+            logger.warn("Failed to remove legacy sync consent key:", syncRemoveErr);
+          }
         }
       } catch (migrationError) {
         logger.warn("Failed to migrate consent from sync storage:", migrationError);
