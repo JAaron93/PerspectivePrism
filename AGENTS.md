@@ -5,6 +5,13 @@ This file provides guidance to Software Engineering Agents (SEAs) and Qodo AI Re
 > [!IMPORTANT]
 > **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Qodo review rules, refer to **[.qodo.yaml](.qodo.yaml)**, **[pr_compliance_checklist.yaml](pr_compliance_checklist.yaml)**, and the **[extension-security-and-vertexai-migration specification suite](.kiro/specs/extension-security-and-vertexai-migration/)**.
 
+# Review Governance & Security Invariants
+
+- **Qodo Review Agent Standard**: All PR reviews and automated quality gates are governed by `.qodo.yaml` and `pr_compliance_checklist.yaml`. Do not create or reference `.macroscope/` files.
+- **BYOK Storage Isolation**: User credentials and sensitive settings MUST be stored exclusively in `chrome.storage.local` across both module (`config.js`) and script (`config-script.js`) variants. `chrome.storage.sync` is prohibited for secrets.
+- **IPC Origin Verification**: Service worker `background.js` MUST validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` listeners, returning structured error objects `{ success: false, error: "...", code: "UNAUTHORIZED" }`.
+- **Structured Output Scope**: Pydantic `output_schema` or `response_schema` enforcement applies to model calls returning application business data (claim extraction, perspective & bias analyses). Utility operations (`count_tokens`, health probes) are exempt.
+
 # Project Overview
 
 Perspective Prism is a system designed to analyze YouTube video transcripts for claims, bias, and deception using a multi-perspective approach. It consists of three main components:
