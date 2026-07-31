@@ -174,6 +174,18 @@ cp backend/.env.example backend/.env
 
 To run the full analysis, configure your GCP Vertex AI credentials in `.env` (utilizing GCP billing credits for 300+ RPM high-throughput quota):
 
+1. **Link GCP Billing Account**: Ensure your GCP project has an active Billing Account attached in Google Cloud Console.
+2. **Enable Vertex AI API**:
+   ```bash
+   gcloud services enable aiplatform.googleapis.com
+   ```
+3. **Authenticate via ADC (Application Default Credentials)**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+Configure `.env` with your project ID:
+
 ```env
 GCP_PROJECT=your_gcp_project_id_here
 GCP_LOCATION=global
@@ -186,6 +198,11 @@ Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
+
+#### Production Ingress Security & TLS Requirements
+For production backend deployments:
+- **HTTPS Enforcement**: All external client-to-backend API communication MUST use HTTPS. Cleartext HTTP is restricted to `localhost` / `127.0.0.1` environments.
+- **TLS 1.3 Ingress Termination**: Production reverse proxies or ingress gateways (e.g., Cloud Run Ingress, Nginx, Caddy) MUST enforce TLS 1.3 encryption.
 
 #### Environment & Quota Verification
 Audit your local environment setup and high-throughput quota using the diagnostic scripts:

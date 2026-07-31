@@ -24,7 +24,7 @@ graph TD
     subgraph External APIs
         CE -->|Fetches| YT[YouTube Transcript API]
         ER -->|Queries| GCS[Google Custom Search API]
-        AS -->|Prompts| LLM[Gemini API]
+        AS -->|Prompts| Vertex[GCP Vertex AI Gemini API]
     end
     
     style User fill:#f9f,stroke:#333,stroke-width:2px
