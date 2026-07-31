@@ -69,7 +69,8 @@ The backend exclusively operates in **GCP Vertex AI Mode** (`google-genai` SDK i
 
 1. **GCP Project & Location Resolution via `configure_provider_env()`**:
    - Backend services (`ClaimExtractor`, `AnalysisService`) invoke `configure_provider_env(settings)` to resolve `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`) and `GCP_LOCATION`.
-   - Sets `os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"`, `GCP_PROJECT`, and `GCP_LOCATION` to configure Google ADK `Agent` instances for Vertex AI execution.
+   - Sets `os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"`, `GCP_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER = "paid"` to configure Google ADK `Agent` instances for paid-tier high-throughput Vertex AI execution (300+ RPM).
+   - Explicitly purges legacy AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and conflicting environment variables from process memory (`os.environ`) to prevent stale mode detection.
 2. **Standalone Client Initialization**:
    - Verification scripts and direct utilities instantiate `from google import genai` via `genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
 3. **AI Studio Key Prohibition**:
