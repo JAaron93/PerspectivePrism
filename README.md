@@ -63,16 +63,24 @@ I used Perspective Prism to analyze claims from a political commentary video, di
 
 ## 🧩 Chrome Extension & Store Publishing Readiness
 
-Perspective Prism features a Manifest V3 Chrome Extension modernized under the `optimization-architecture` specification:
+Perspective Prism features a Manifest V3 Chrome Extension modernized and hardened under the `extension-security-and-vertexai-migration` track:
 
 - **Native Chrome Side Panel Integration (`chrome.sidePanel`)**
   - Renders progressive claim streams, stance chips, and deception ratings exclusively in Chrome's native side panel without creating or mounting in-page floating DOM overlays (`#pp-analysis-panel` excised).
+- **BYOK & Sensitive Data Storage Isolation (`chrome.storage.local`)**
+  - Stores all user credentials, backend URL settings, and consent flags exclusively in `chrome.storage.local`, isolating sensitive secrets from `chrome.storage.sync` with automatic one-time upgrade migration.
+- **Service Worker IPC Origin Validation**
+  - Background service worker verifies `sender.id === chrome.runtime.id` for all message listeners, rejecting untrusted external origin calls with structured `UNAUTHORIZED` error responses.
+- **Strict Content Security Policy & Manifest MV3 Hardening**
+  - Enforces `script-src 'self'; object-src 'none';` CSP, replaces legacy `tabs` permission with `activeTab`, and removes localhost HTTP host permissions.
+- **DOMPurify HTML & Link Sanitization**
+  - Dynamically sanitizes all claim text, stance badges, tags, and evidence URLs (`sanitizeText` and `sanitizeUrl`) using vendored DOMPurify, rendering plain text `<span>` elements for empty/invalid source URLs.
 - **Optimistic UI & Zero-Latency Feedback**
   - Displays instant animated CSS shimmer loader cards (<50ms) upon analysis start before backend streaming begins.
-- **Content-Hashed Local Storage Caching (`chrome.storage.local`)**
+- **Content-Hashed Local Storage Caching**
   - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
 - **Comprehensive Quality Assurance & E2E Testing**
-  - **Vitest Unit Test Suite**: Vitest unit tests covering key extension modules (`npm test`), with optional coverage reporting (`npm run test:coverage`).
+  - **Vitest Unit Test Suite**: Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
   - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
   - **FastAPI Pytest Backend Suite**: Complete backend test suite covering API endpoints, claim extraction, and reliability circuit breakers (`pytest`).
 - **AI Code Review & Quality Gates (Qodo)**

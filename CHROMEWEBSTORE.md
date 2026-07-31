@@ -40,15 +40,17 @@ Uncover multi-perspective insights and factual claims in any YouTube video with 
 ## 3. Privacy Policy & Security Compliance
 
 ### Privacy Principles
-- **Local-First Data Architecture**: Analysis cache data remains strictly inside device-bound local browser storage (`chrome.storage.local`), while user preferences (backend URL, consent choices) sync across your signed-in Chrome browsers (`chrome.storage.sync`) with zero data sent to third-party servers.
+- **Local-First Data Architecture**: Analysis cache data, user credentials, settings, and consent choices remain strictly inside device-bound local browser storage (`chrome.storage.local`), with zero sensitive secrets sent to `chrome.storage.sync` or third-party servers.
 - **No Personal Data Collection**: Perspective Prism does NOT track personal identity, browsing history outside YouTube, Google account credentials, or user watch lists.
 - **No Third-Party Analytics**: The extension contains zero tracking scripts, cookies, or telemetry libraries.
 - **Explicit User Control**: Users can clear local cached analyses or revoke backend integration at any time through the extension Options menu.
 
 ### Security Compliance (NFR-4 / MV3 Policy)
-- **Strict Content Security Policy (CSP)**: `script-src 'self'; object-src 'self'`.
+- **Strict Content Security Policy (CSP)**: `script-src 'self'; object-src 'none';`.
 - **No Remote Code Execution**: Disallows `eval()`, `new Function()`, or dynamic external script loading. All scripts, HTML templates, and stylesheets are bundled locally.
 - **Encrypted Transmission**: Transmits video URLs over HTTPS to remote production backend API endpoints (HTTP supported for local development testing on `localhost` / `127.0.0.1`).
+- **IPC Sender Origin Validation**: Service worker `background.js` verifies `sender.id === chrome.runtime.id` for all message listeners, rejecting untrusted external origin calls with structured `UNAUTHORIZED` error responses.
+- **DOMPurify HTML & URL Sanitization**: Dynamically sanitizes all claim text, stance chips, badges, and evidence URLs (`sanitizeText` and `sanitizeUrl`) using vendored DOMPurify, blocking dangerous URI protocols (`javascript:`, `data:`, `vbscript:`).
 
 ---
 
@@ -58,13 +60,12 @@ The Chrome Web Store requires detailed justifications for each permission declar
 
 | Permission | Purpose & Technical Justification |
 | :--- | :--- |
-| **`storage`** | **Required for Local Caching & Preference Persistence.** Used to store content-hashed analysis results (`cache_${videoId}_${contentHash}`) in `chrome.storage.local` (with 10MB LRU limit) and sync user extension preferences (backend URL, consent choices) across signed-in Chrome browsers via `chrome.storage.sync`. |
+| **`storage`** | **Required for Local Caching, BYOK Isolation, & Preference Persistence.** Used exclusively to store content-hashed analysis results (`cache_${videoId}_${contentHash}`) and user extension settings/consent choices in `chrome.storage.local` with 10MB LRU limit. Sensitive secrets are isolated from `chrome.storage.sync`. |
 | **`sidePanel`** | **Required for Exclusive UI Surface (`chrome.sidePanel`).** Hosts `sidepanel.html` as the primary user interface. Renders progressive claim streams, optimistic shimmer loaders, stance chips, and deception ratings side-by-side with YouTube watch pages without inserting floating DOM overlays. |
 | **`alarms`** | **Required for Background Task Scheduling & Resilience.** Schedules service worker wakeups for cache TTL cleanup, LRU eviction cycles, and automatic backend job polling retry routines across Service Worker idle/terminate cycles. |
 | **`notifications`** | **Required for User Alerts & Background Error Handling.** Displays status notifications and actionable system alerts when an offline backend connection error occurs or when an analysis job completes while the side panel is closed. |
 | **`activeTab`** | **Required for Temporary Context Inspection.** Grants temporary permission to inspect active YouTube tab metadata (video ID, title, URL) when the user clicks the action button or side panel trigger. |
-| **`tabs`** | **Required for YouTube SPA Navigation Monitoring.** Listens to tab context changes (`chrome.tabs.onUpdated`, `chrome.tabs.onActivated`) to synchronize active video state, clear tab-scoped generation keys, and maintain context isolation. |
-| **Host Permissions (`https://*.youtube.com/*`, `https://youtu.be/*`, `https://*.youtube-nocookie.com/*`, `https://m.youtube.com/*`, `http://localhost:8000/*`, `http://127.0.0.1:8000/*`)** | **Required for YouTube DOM Binding & Backend API Communication.** Enables content script injection on standard, embedded, and mobile YouTube pages (`*.youtube.com`, `youtu.be`, `*.youtube-nocookie.com`, `m.youtube.com`) to insert the "Analyze Video" action button and listen for SPA navigation events (`yt-navigate-finish`). Also permits background service worker communications with the analysis backend endpoint (`localhost:8000`, `127.0.0.1:8000`). |
+| **Host Permissions (`https://*.youtube.com/*`, `https://youtu.be/*`, `https://*.youtube-nocookie.com/*`, `https://m.youtube.com/*`)** | **Required for YouTube DOM Binding & API Coordination.** Enables content script injection on standard, embedded, and mobile YouTube pages (`*.youtube.com`, `youtu.be`, `*.youtube-nocookie.com`, `m.youtube.com`) to insert the "Analyze Video" action button and listen for SPA navigation events (`yt-navigate-finish`). |
 
 ---
 
