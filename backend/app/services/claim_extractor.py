@@ -1,8 +1,9 @@
-import os
+import asyncio
 import logging
-from typing import List, Optional
+import os
+from typing import Any, List, Optional
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
@@ -16,24 +17,18 @@ from google.genai.errors import APIError, ClientError
 logger = logging.getLogger(__name__)
 
 
-class ExtractorAgent(Agent):
-    pass
-
-
 class ClaimExtractor:
-    def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
 
-        self.agent = ExtractorAgent(
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
+        self.gemini_tier = provider_info["tier"]
+
+        self.agent = Agent(
             name="extractor_agent",
-            model=model_name or settings.LLM_MODEL,
+            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
@@ -56,14 +51,14 @@ class ClaimExtractor:
         """
         return extract_video_id(url)
 
-    def get_transcript(self, video_id: str) -> Transcript:
+    async def get_transcript(self, video_id: str) -> Transcript:
         """
-        Fetches the transcript for a given video ID.
+        Fetches the transcript for a given video ID asynchronously without blocking the event loop.
         """
         try:
             api = YouTubeTranscriptApi()
-            # Get the transcript
-            fetched_transcript = api.fetch(video_id)
+            # Fetch transcript offloaded to worker thread
+            fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
 
             # Convert to our schema
             segments = []

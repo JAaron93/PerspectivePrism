@@ -2,7 +2,7 @@
 const DEFAULT_CONFIG = {
   backendUrl: "http://localhost:8000",
   cacheEnabled: true,
-  cacheDuration: 24,
+  cacheDuration: 168,
   allowInsecureUrls: false, // Never enable in production
   privacyPolicyUrl: undefined, // Use built-in policy by default
 };
@@ -46,9 +46,6 @@ class ConfigValidator {
       if (typeof config.allowInsecureUrls !== "boolean") {
         errors.push("allowInsecureUrls must be a boolean");
       } else if (config.allowInsecureUrls === true) {
-        // Production Safeguard: Prevent enabling in production builds
-        // Note: process.env.NODE_ENV is replaced at build time, but here we can check for localhost
-        // For now, we just warn
         console.warn(
           "SECURITY WARNING: allowInsecureUrls is enabled. This should only be used for local development.",
         );
@@ -85,11 +82,9 @@ class ConfigValidator {
           parsed.hostname === "::1";
 
         if (!isLocalhost && !allowInsecureUrls) {
-          // HTTP not allowed for non-localhost addresses unless developer flag is set
           return false;
         }
 
-        // Log warning if developer flag is used
         if (!isLocalhost && allowInsecureUrls) {
           console.warn(
             "[ConfigValidator] allowInsecureUrls is enabled. " +
@@ -155,14 +150,11 @@ class ConfigManager {
           "Invalid config found, using defaults:",
           validation.errors,
         );
-        // Notify user of invalid config
         await this.notifyInvalidConfig(validation.errors);
-        // Fall back to defaults
         await this.save(DEFAULT_CONFIG);
         return { ...DEFAULT_CONFIG };
       }
 
-      // Merge with defaults (in case new fields were added)
       this.config = { ...DEFAULT_CONFIG, ...stored.config };
       return this.config;
     } catch (error) {
@@ -192,8 +184,7 @@ class ConfigManager {
     return this.load();
   }
 
-  async notifyInvalidConfig(errors) {
-    // Show notification to user
+  async notifyInvalidConfig(_errors) {
     if (chrome.notifications) {
       await chrome.notifications.create({
         type: "basic",

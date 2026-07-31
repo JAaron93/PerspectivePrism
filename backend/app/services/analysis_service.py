@@ -4,7 +4,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Any
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
     BiasAnalysis,
     Claim,
@@ -35,31 +35,35 @@ class AnalysisServiceError(Exception):
     pass
 
 
-class PerspectiveAnalysisAgent(Agent):
-    pass
-
-
-class BiasAnalysisAgent(Agent):
-    pass
-
-
 class AnalysisService:
-    def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
+
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
+        self.gemini_tier = provider_info["tier"]
+
+        # Tier-aware concurrency throttle: limits concurrent LLM API calls
+        # to prevent 429 rate-limit errors on lower tiers.
+        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
+        try:
+            max_concurrent = max(1, int(max_concurrent_raw))
+        except (ValueError, TypeError):
+            max_concurrent = 4
+        self.max_concurrency = max_concurrent
+        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
+        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, self.max_concurrency)
+
+        backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
 
         # Expose backup_client for health check compatibility
-        self.backup_client = True if settings.BACKUP_LLM_MODEL else None
+        self.backup_client = True if backup_model else None
 
-        self.perspective_agent_primary = PerspectiveAnalysisAgent(
+        self.perspective_agent_primary = Agent(
             name="perspective_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -72,9 +76,9 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.perspective_agent_backup = PerspectiveAnalysisAgent(
+        self.perspective_agent_backup = Agent(
             name="perspective_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -87,9 +91,9 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.bias_agent_primary = BiasAnalysisAgent(
+        self.bias_agent_primary = Agent(
             name="bias_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"
@@ -106,9 +110,9 @@ class AnalysisService:
             output_key="bias_result",
         )
 
-        self.bias_agent_backup = BiasAnalysisAgent(
+        self.bias_agent_backup = Agent(
             name="bias_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"
@@ -133,6 +137,10 @@ class AnalysisService:
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
+        async with self._llm_semaphore:
+            return await self._run_agent_direct_inner(agent, user_prompt, output_key, is_backup)
+
+    async def _run_agent_direct_inner(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
         session_service = InMemorySessionService()
         attempts = 2
         current_prompt = user_prompt

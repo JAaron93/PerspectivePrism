@@ -50,6 +50,7 @@ const loadingTitle = document.getElementById("loading-title");
 const loadingSubmessage = document.getElementById("loading-submessage");
 const progressBarFill = document.getElementById("progress-bar-fill");
 const cancelBtn = document.getElementById("pp-cancel-btn");
+const skeletonContainer = document.getElementById("skeleton-container");
 
 const errorTitle = document.getElementById("error-title");
 const errorMessage = document.getElementById("error-message");
@@ -59,6 +60,71 @@ const overallAssessmentBadge = document.getElementById("overall-assessment-badge
 const analysisMetadata = document.getElementById("analysis-metadata");
 const claimsListContainer = document.getElementById("claims-list-container");
 const optionsBtn = document.getElementById("pp-options-btn");
+
+const SKELETON_PERSPECTIVES = [
+  { name: "Scientific", class: "stance-scientific" },
+  { name: "Journalistic", class: "stance-journalistic" },
+  { name: "Partisan Left", class: "stance-left" },
+  { name: "Partisan Right", class: "stance-right" }
+];
+
+/**
+ * Render optimistic UI shimmer skeletons for 4 core perspectives (FR-3.1, FR-3.2, US-3)
+ * Renders instantly (<50ms execution latency) upon analysis start on a cache miss.
+ * @param {boolean} force - Force re-rendering even if cards already exist.
+ */
+function renderOptimisticSkeletons(force = false) {
+  const container = document.getElementById("skeleton-container") || skeletonContainer;
+  if (!container) return;
+
+  // Preserve existing cards if container is already populated and force is false
+  if (!force && container.children.length > 0) {
+    container.style.display = "flex";
+    return;
+  }
+
+  container.innerHTML = "";
+  container.style.display = "flex";
+
+  SKELETON_PERSPECTIVES.forEach((persp) => {
+    const card = document.createElement("div");
+    card.className = "skeleton-card fade-in";
+    card.dataset.perspective = persp.name;
+
+    const header = document.createElement("div");
+    header.className = "skeleton-header";
+
+    const titleLine = document.createElement("div");
+    titleLine.className = "skeleton-line title skeleton-shimmer";
+
+    const timestampLine = document.createElement("div");
+    timestampLine.className = "skeleton-line timestamp skeleton-shimmer";
+
+    header.appendChild(titleLine);
+    header.appendChild(timestampLine);
+    card.appendChild(header);
+
+    const chip = document.createElement("div");
+    chip.className = `stance-chip ${persp.class}`;
+    chip.textContent = persp.name;
+    card.appendChild(chip);
+
+    const descLine = document.createElement("div");
+    descLine.className = "skeleton-line short skeleton-shimmer";
+    card.appendChild(descLine);
+
+    const grid = document.createElement("div");
+    grid.className = "skeleton-perspective-grid";
+    for (let i = 0; i < 2; i++) {
+      const box = document.createElement("div");
+      box.className = "skeleton-perspective-box skeleton-shimmer";
+      grid.appendChild(box);
+    }
+    card.appendChild(grid);
+
+    container.appendChild(card);
+  });
+}
 
 // Show specific state in UI
 function showState(stateName) {
@@ -70,6 +136,7 @@ function showState(stateName) {
 
 if (typeof window !== "undefined") {
   window.showState = showState;
+  window.renderOptimisticSkeletons = renderOptimisticSkeletons;
 }
 
 // Render analysis results
@@ -404,6 +471,10 @@ async function checkCurrentTabState() {
     if (tab.id !== currentTabId || videoId !== currentVideoId) {
       currentGenerationId = null;
       lastSequence = -1;
+      const container = document.getElementById("skeleton-container") || skeletonContainer;
+      if (container) {
+        container.innerHTML = "";
+      }
     }
     
     currentTabId = tab.id;
@@ -443,7 +514,8 @@ function handleAnalysisState(state) {
       
     case "in_progress":
       showState("loading");
-      loadingSubmessage.textContent = "Analyzing video...";
+      renderOptimisticSkeletons();
+      loadingSubmessage.textContent = state.submessage || "Analyzing video...";
       const progressVal = state.progress !== undefined && state.progress !== null ? state.progress : 0;
       progressBarFill.style.width = `${progressVal}%`;
       progressBarFill.setAttribute("aria-valuenow", progressVal);
@@ -483,21 +555,77 @@ function handleAnalysisState(state) {
   }
 }
 
+/**
+ * Handle progressive stream chunk rendering (FR-4.2, FR-4.3, US-4)
+ * Morphs skeleton cards into populated claim/stance cards as stream chunks arrive.
+ */
+function handleProgressiveStreamChunk(payload) {
+  if (!payload) return;
+  const container = document.getElementById("skeleton-container") || skeletonContainer;
+  if (!container) return;
+
+  const perspectiveName = payload.perspective || payload.perspective_name;
+  if (perspectiveName) {
+    const skeletonCard = container.querySelector(`[data-perspective="${perspectiveName}"]`);
+    if (skeletonCard) {
+      skeletonCard.classList.add("card-morph-enter");
+      setTimeout(() => {
+        skeletonCard.innerHTML = "";
+        skeletonCard.className = "skeleton-card card-morph-active";
+
+        const chipClass = perspectiveName.toLowerCase().includes("scientific") ? "stance-scientific"
+          : perspectiveName.toLowerCase().includes("journalistic") ? "stance-journalistic"
+          : perspectiveName.toLowerCase().includes("left") ? "stance-left"
+          : "stance-right";
+
+        const chip = document.createElement("div");
+        chip.className = `stance-chip ${chipClass}`;
+        chip.textContent = `${perspectiveName} - Complete`;
+        skeletonCard.appendChild(chip);
+
+        if (payload.claims && payload.claims.length > 0) {
+          payload.claims.forEach((claimText) => {
+            const claimLine = document.createElement("div");
+            claimLine.className = "state-description fade-in";
+            claimLine.style.fontWeight = "500";
+            claimLine.textContent = typeof claimText === "string" ? claimText : (claimText.claim_text || "Claim analyzed");
+            skeletonCard.appendChild(claimLine);
+          });
+        } else {
+          const detail = document.createElement("div");
+          detail.className = "state-description fade-in";
+          detail.textContent = "Perspective analysis complete";
+          skeletonCard.appendChild(detail);
+        }
+      }, 150);
+    }
+  }
+}
+
 // Listen to message broadcasts from background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "ANALYSIS_STATE_CHANGED") {
     if (message.videoId === currentVideoId) {
       handleAnalysisState(message.state);
     }
-  } else if (message.type === "ANALYSIS_PROGRESS") {
+  } else if (message.type === "ANALYSIS_PROGRESS" || message.type === "JOB_PROGRESS") {
     if (message.videoId === currentVideoId) {
-      loadingSubmessage.textContent = message.payload.message || "Analyzing...";
-      if (message.payload.progress !== undefined && message.payload.progress !== null) {
-        progressBarFill.style.width = `${message.payload.progress}%`;
-        progressBarFill.setAttribute("aria-valuenow", message.payload.progress);
+      const payload = message.payload || message.data || {};
+      loadingSubmessage.textContent = payload.message || "Analyzing...";
+      if (payload.progress !== undefined && payload.progress !== null) {
+        progressBarFill.style.width = `${payload.progress}%`;
+        progressBarFill.setAttribute("aria-valuenow", payload.progress);
+      }
+      if (payload.perspective || payload.claims || payload.chunk) {
+        handleProgressiveStreamChunk(payload);
       }
     }
-  } else if (message.type === "YOUTUBE_NAVIGATED") {
+  } else if (message.type === "VIDEO_NAVIGATED" || message.type === "YOUTUBE_NAVIGATED") {
+    if (message.videoId && message.videoId !== currentVideoId) {
+      currentVideoId = message.videoId;
+      currentGenerationId = null;
+      lastSequence = -1;
+    }
     checkCurrentTabState();
   } else if (message.type === "SYNC_PLAYBACK") {
     if (message.tabId === currentTabId && message.videoId === currentVideoId) {
