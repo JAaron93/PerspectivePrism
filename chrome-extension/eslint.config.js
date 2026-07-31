@@ -56,7 +56,8 @@ export default [
       "coverage/**/*",
       "tests/**/*",
       "build.js",
-      "scripts/**/*"
+      "scripts/**/*",
+      "vendor/**/*"
     ]
   }
 ];

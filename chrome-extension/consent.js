@@ -15,7 +15,7 @@ class ConsentManager {
    */
   async checkConsent() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get([this.STORAGE_KEY], (result) => {
+      chrome.storage.local.get([this.STORAGE_KEY], (result) => {
         if (chrome.runtime.lastError) {
           console.error(
             "[Perspective Prism] Failed to check consent:",
@@ -111,7 +111,7 @@ class ConsentManager {
         },
       };
 
-      chrome.storage.sync.set(data, async () => {
+      chrome.storage.local.set(data, async () => {
         if (chrome.runtime.lastError) {
           console.error(
             "[Perspective Prism] Failed to save consent:",

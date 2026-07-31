@@ -12,7 +12,7 @@ test.describe("Consent Flow", () => {
     await background.evaluate(async () => {
       await new Promise((resolve) => chrome.storage.sync.clear(resolve));
       await new Promise((resolve) => chrome.storage.local.clear(resolve));
-      await new Promise((resolve) => chrome.storage.sync.set({
+      await new Promise((resolve) => chrome.storage.local.set({
         config: { backendUrl: "http://localhost:8000" }
       }, resolve));
     });

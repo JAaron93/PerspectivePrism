@@ -151,7 +151,7 @@ async function checkPrivacyPolicyVersion() {
 
   try {
     const result = await new Promise((resolve) => {
-      chrome.storage.sync.get(["consent"], (result) => {
+      chrome.storage.local.get(["consent"], (result) => {
         resolve(result);
       });
     });
@@ -530,7 +530,7 @@ async function handleRevokeConsent() {
     await chrome.alarms.clearAll();
 
     // 4. Set consentGiven to false in storage
-    await chrome.storage.sync.set({
+    await chrome.storage.local.set({
       consent: {
         given: false,
         timestamp: Date.now(),

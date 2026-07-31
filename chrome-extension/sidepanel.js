@@ -137,6 +137,7 @@ function showState(stateName) {
 if (typeof window !== "undefined") {
   window.showState = showState;
   window.renderOptimisticSkeletons = renderOptimisticSkeletons;
+  window.checkCurrentTabState = checkCurrentTabState;
 }
 
 // Render analysis results
@@ -459,16 +460,20 @@ function highlightClaims(claimsToHighlight, timestampSeconds) {
 // Load and handle state for current video
 async function checkCurrentTabState() {
   try {
+    let tabId = null;
+    let videoId = null;
+
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs || !tabs[0]) {
-      showState("idle");
-      return;
+    if (tabs && tabs[0]) {
+      tabId = tabs[0].id;
+      videoId = extractVideoIdFromUrl(tabs[0].url || "");
     }
 
-    const tab = tabs[0];
-    const videoId = extractVideoIdFromUrl(tab.url || "");
+    if (!videoId && typeof window !== "undefined" && window.location) {
+      videoId = extractVideoIdFromUrl(window.location.href || "");
+    }
     
-    if (tab.id !== currentTabId || videoId !== currentVideoId) {
+    if (tabId !== currentTabId || videoId !== currentVideoId) {
       currentGenerationId = null;
       lastSequence = -1;
       const container = document.getElementById("skeleton-container") || skeletonContainer;
@@ -477,7 +482,7 @@ async function checkCurrentTabState() {
       }
     }
     
-    currentTabId = tab.id;
+    currentTabId = tabId || currentTabId;
 
     if (!videoId) {
       currentVideoId = null;
