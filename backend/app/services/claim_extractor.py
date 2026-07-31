@@ -5,7 +5,7 @@ from typing import Any, List, Optional
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
-from app.utils.input_sanitizer import sanitize_input, SanitizationError
+from app.utils.input_sanitizer import sanitize_input, SanitizationError, wrap_user_data
 from app.utils.video_utils import extract_video_id
 from youtube_transcript_api import YouTubeTranscriptApi
 from google.adk.agents import Agent
@@ -123,11 +123,9 @@ class ClaimExtractor:
                 )
             ]
 
-        # Reorder prompt so that the untrusted data is at the absolute start
+        # Reorder prompt so that the untrusted data is at the absolute start using wrap_user_data
         user_prompt = (
-            f"===USER DATA START===\n"
-            f"{sanitized_transcript}\n"
-            f"===USER DATA END===\n"
+            f"{wrap_user_data(sanitized_transcript, 'TRANSCRIPT')}\n"
             f"Please extract key claims from this transcript according to your instructions."
         )
 

@@ -308,13 +308,14 @@ class AnalysisService:
                 evidence=evidence_list,
             )
 
-        # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
+        # Build prompt with static/context data wrapped via wrap_user_data
+        user_data_content = (
             f"CLAIM: {sanitized_claim}\n"
             f"PERSPECTIVE: {sanitized_perspective}\n"
-            f"EVIDENCE:\n{sanitized_evidence}\n"
-            f"===USER DATA END===\n"
+            f"EVIDENCE:\n{sanitized_evidence}"
+        )
+        user_prompt = (
+            f"{wrap_user_data(user_data_content, 'CLAIM & EVIDENCE')}\n"
             f"Please analyze this claim from the specified perspective based on the evidence."
         )
 
@@ -364,12 +365,13 @@ class AnalysisService:
                 deception_rationale="Input validation failed.",
             )
 
-        # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
+        # Build prompt with static/context data wrapped via wrap_user_data
+        user_data_content = (
             f"CLAIM TEXT: {sanitized_claim}\n"
-            f"CONTEXT: {sanitized_context if sanitized_context else 'No context provided'}\n"
-            f"===USER DATA END===\n"
+            f"CONTEXT: {sanitized_context if sanitized_context else 'No context provided'}"
+        )
+        user_prompt = (
+            f"{wrap_user_data(user_data_content, 'CLAIM & CONTEXT')}\n"
             f"Please analyze this claim and context for bias and deception."
         )
 

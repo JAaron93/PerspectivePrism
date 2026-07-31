@@ -58,7 +58,7 @@
 
 ## Track B: Backend Vertex AI Provider Migration & Configuration
 
-### Task 5: Verify & Integrate Vertex AI Mode in Backend Services
+### Task 5: Verify & Integrate Vertex AI Mode in Backend Services [COMPLETED]
 - **Requirement Traceability**: FR-5.1, FR-5.2, FR-5.3, FR-5.4, US-3, BDD-3
 - **Target Files**:
   - `backend/app/services/claim_extractor.py`
@@ -74,7 +74,7 @@
   - Enforce Pydantic structured output schemas for model calls returning application business data (using ADK Agent `output_schema` for claim extraction and GenAI client `response_schema` for perspective/bias analyses), while exempting non-structured operations like `count_tokens` and health probes.
   - Run pytest suite `pytest backend/tests/test_analysis_service_init.py` cleanly.
 
-### Task 6: Environment Template & Verifier Documentation Audit
+### Task 6: Environment Template & Verifier Documentation Audit [COMPLETED]
 - **Requirement Traceability**: FR-5.1, NFR-2.1, NFR-2.2
 - **Target Files**:
   - `backend/.env.example`
@@ -85,7 +85,7 @@
   - Add instructions for linking GCP Billing and enabling `aiplatform.googleapis.com`.
   - Document ingress-level HTTPS and TLS protocol configuration requirements for production deployments.
 
-### Task 7: Dynamic Production Extension ID CORS Configuration
+### Task 7: Dynamic Production Extension ID CORS Configuration [COMPLETED]
 - **Requirement Traceability**: FR-6.1
 - **Target Files**:
   - `backend/app/core/config.py`
