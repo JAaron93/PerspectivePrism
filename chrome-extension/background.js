@@ -158,13 +158,17 @@ async function checkPrivacyPolicyVersion() {
 
     // One-time migration: check legacy chrome.storage.sync if local consent absent
     if (!consent && chrome.storage && chrome.storage.sync) {
-      const syncResult = await new Promise((resolve) => {
-        chrome.storage.sync.get(["consent"], (res) => resolve(res || {}));
-      });
-      if (syncResult.consent && typeof syncResult.consent.given === "boolean") {
-        consent = syncResult.consent;
-        await chrome.storage.local.set({ consent: syncResult.consent });
-        chrome.storage.sync.remove("consent").catch(() => {});
+      try {
+        const syncResult = await new Promise((resolve) => {
+          chrome.storage.sync.get(["consent"], (res) => resolve(res || {}));
+        });
+        if (syncResult.consent && typeof syncResult.consent.given === "boolean") {
+          await chrome.storage.local.set({ consent: syncResult.consent });
+          consent = syncResult.consent;
+          chrome.storage.sync.remove("consent").catch(() => {});
+        }
+      } catch (migrationError) {
+        logger.warn("Failed to migrate consent from sync storage:", migrationError);
       }
     }
 

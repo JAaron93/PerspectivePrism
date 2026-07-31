@@ -29,11 +29,26 @@ class ConsentManager {
         // One-time migration: if no local consent, check legacy chrome.storage.sync
         if (!consent && chrome.storage && chrome.storage.sync) {
           chrome.storage.sync.get([this.STORAGE_KEY], (syncResult) => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                "[Perspective Prism] Failed to check sync consent:",
+                chrome.runtime.lastError,
+              );
+              this.evaluateConsent(null, resolve);
+              return;
+            }
             const syncConsent = syncResult ? syncResult[this.STORAGE_KEY] : null;
             if (syncConsent && typeof syncConsent.given === "boolean") {
               console.log("[Perspective Prism] Migrating legacy consent from sync to local storage");
               chrome.storage.local.set({ [this.STORAGE_KEY]: syncConsent }, () => {
-                chrome.storage.sync.remove(this.STORAGE_KEY).catch(() => {});
+                if (chrome.runtime.lastError) {
+                  console.error(
+                    "[Perspective Prism] Failed to write migrated consent to local storage:",
+                    chrome.runtime.lastError,
+                  );
+                } else {
+                  chrome.storage.sync.remove(this.STORAGE_KEY).catch(() => {});
+                }
               });
               this.evaluateConsent(syncConsent, resolve);
             } else {
