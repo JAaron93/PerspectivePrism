@@ -50,7 +50,7 @@ graph TD
 
 ### 2.2 Indirect Prompt Injection (IPI) Invariants
 * **Invariant 3: Delimited User Data Sections**: All untrusted external inputs (transcripts, video titles, evidence snippets) must be wrapped inside `===USER DATA START===` and `===USER DATA END===` section delimiters using `input_sanitizer.wrap_user_data()` before prompt interpolation.
-* **Invariant 4: Gemini Structured Outputs**: All LLM interactions must strictly enforce Pydantic response schemas via `google-genai` `response_schema` to guarantee that injections cannot alter output structure or execute code.
+* **Invariant 4: Gemini Structured Outputs**: Model interactions returning application business data (claim extraction, perspective & bias analyses) must enforce Pydantic response schemas (via ADK Agent `output_schema` or GenAI client `response_schema`) to guarantee that prompt injections cannot alter output structure or execute unauthorized code. Utility operations (such as `count_tokens`, health checks, and basic connectivity probes) are explicitly exempt.
 
 ### 2.3 UI & Extension DOM XSS Invariants
 * **Invariant 5: DOMPurify Sanitization**: Any dynamic HTML rendering in Sidepanel or Popup views must be sanitized using DOMPurify with `javascript:` URI stripping enforced.

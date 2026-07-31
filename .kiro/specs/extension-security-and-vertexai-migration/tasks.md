@@ -71,7 +71,7 @@
   - Ensure backend services (`ClaimExtractor`, `AnalysisService`) initialize Google ADK `Agent` instances with `configure_provider_env(settings)` and raise a `ValueError` only if neither `GCP_PROJECT` nor `GOOGLE_CLOUD_PROJECT` is set.
   - Standardize standalone client scripts (`verify_environment.py`, `live_smoke_test.py`) on `from google import genai; genai.Client(vertexai=True, project=gcp_project, location=gcp_location)`.
   - Enforce `===USER DATA START===` and `===USER DATA END===` section delimiters via `input_sanitizer.wrap_user_data()`.
-  - Enforce Pydantic structured output schemas (`output_schema` / `response_schema`) across all Gemini model calls.
+  - Enforce Pydantic structured output schemas for model calls returning application business data (using ADK Agent `output_schema` for claim extraction and GenAI client `response_schema` for perspective/bias analyses), while exempting non-structured operations like `count_tokens` and health probes.
   - Run pytest suite `pytest backend/tests/test_analysis_service_init.py` cleanly.
 
 ### Task 6: Environment Template & Verifier Documentation Audit
