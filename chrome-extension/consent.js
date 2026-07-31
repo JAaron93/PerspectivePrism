@@ -24,25 +24,46 @@ class ConsentManager {
           resolve({ hasConsent: false, reason: "error" });
           return;
         }
-        const consent = result[this.STORAGE_KEY];
+        const consent = result ? result[this.STORAGE_KEY] : null;
 
-        if (!consent || !consent.given) {
-          resolve({ hasConsent: false, reason: "missing" });
-        } else if (consent.policyVersion !== this.POLICY_VERSION) {
-          console.log(
-            `[Perspective Prism] Privacy policy version mismatch: stored=${consent.policyVersion}, current=${this.POLICY_VERSION}`,
-          );
-          resolve({
-            hasConsent: false,
-            reason: "version_mismatch",
-            currentVersion: this.POLICY_VERSION,
-            storedVersion: consent.policyVersion,
+        // One-time migration: if no local consent, check legacy chrome.storage.sync
+        if (!consent && chrome.storage && chrome.storage.sync) {
+          chrome.storage.sync.get([this.STORAGE_KEY], (syncResult) => {
+            const syncConsent = syncResult ? syncResult[this.STORAGE_KEY] : null;
+            if (syncConsent && typeof syncConsent.given === "boolean") {
+              console.log("[Perspective Prism] Migrating legacy consent from sync to local storage");
+              chrome.storage.local.set({ [this.STORAGE_KEY]: syncConsent }, () => {
+                chrome.storage.sync.remove(this.STORAGE_KEY).catch(() => {});
+              });
+              this.evaluateConsent(syncConsent, resolve);
+            } else {
+              this.evaluateConsent(null, resolve);
+            }
           });
-        } else {
-          resolve({ hasConsent: true, reason: "valid" });
+          return;
         }
+
+        this.evaluateConsent(consent, resolve);
       });
     });
+  }
+
+  evaluateConsent(consent, resolve) {
+    if (!consent || !consent.given) {
+      resolve({ hasConsent: false, reason: "missing" });
+    } else if (consent.policyVersion !== this.POLICY_VERSION) {
+      console.log(
+        `[Perspective Prism] Privacy policy version mismatch: stored=${consent.policyVersion}, current=${this.POLICY_VERSION}`,
+      );
+      resolve({
+        hasConsent: false,
+        reason: "version_mismatch",
+        currentVersion: this.POLICY_VERSION,
+        storedVersion: consent.policyVersion,
+      });
+    } else {
+      resolve({ hasConsent: true, reason: "valid" });
+    }
   }
 
   /**

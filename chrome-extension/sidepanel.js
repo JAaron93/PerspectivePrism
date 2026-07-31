@@ -25,16 +25,20 @@ function sanitizeText(input) {
 function sanitizeUrl(url) {
   if (typeof url !== "string") return "#";
   const trimmed = url.trim();
-  if (!trimmed || /^(?:javascript|data|vbscript):/i.test(trimmed)) {
-    if (trimmed && /^(?:javascript|data|vbscript):/i.test(trimmed)) {
-      logger.warn("Blocked unsafe URI protocol:", trimmed);
+  if (!trimmed) return "#";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return DOMPurify.sanitize(parsed.href, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: [],
+      });
     }
+    logger.warn("Blocked non-http(s) URI protocol:", parsed.protocol);
+    return "#";
+  } catch (_e) {
     return "#";
   }
-  return DOMPurify.sanitize(trimmed, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-  });
 }
 
 let currentVideoId = null;
@@ -489,7 +493,7 @@ async function checkCurrentTabState() {
       }
     }
     
-    currentTabId = tabId || currentTabId;
+    currentTabId = tabId;
 
     if (!videoId) {
       currentVideoId = null;

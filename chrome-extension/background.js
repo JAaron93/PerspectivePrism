@@ -150,13 +150,23 @@ async function checkPrivacyPolicyVersion() {
   const CURRENT_POLICY_VERSION = "1.0.0";
 
   try {
-    const result = await new Promise((resolve) => {
-      chrome.storage.local.get(["consent"], (result) => {
-        resolve(result);
-      });
+    let result = await new Promise((resolve) => {
+      chrome.storage.local.get(["consent"], (res) => resolve(res || {}));
     });
 
-    const consent = result.consent;
+    let consent = result.consent;
+
+    // One-time migration: check legacy chrome.storage.sync if local consent absent
+    if (!consent && chrome.storage && chrome.storage.sync) {
+      const syncResult = await new Promise((resolve) => {
+        chrome.storage.sync.get(["consent"], (res) => resolve(res || {}));
+      });
+      if (syncResult.consent && typeof syncResult.consent.given === "boolean") {
+        consent = syncResult.consent;
+        await chrome.storage.local.set({ consent: syncResult.consent });
+        chrome.storage.sync.remove("consent").catch(() => {});
+      }
+    }
 
     // If no consent exists, user hasn't used the extension yet - no action needed
     if (!consent || !consent.given) {
