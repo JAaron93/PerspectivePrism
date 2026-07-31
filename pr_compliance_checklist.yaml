@@ -1,5 +1,5 @@
 # Qodo PR Compliance Checklist
-# Repository hard compliance rules extracted from legacy .macroscope directives
+# Repository hard compliance rules and security invariants verified by Qodo review agent on every Pull Request
 
 requirement_checks:
   - id: llm-input-sanitization-boundary
@@ -70,4 +70,32 @@ requirement_checks:
     description: "All network operations (LLM model calls, web search, transcript retrieval) must use non-blocking async/await."
     condition: "files.contains('backend/app/')"
     pass_condition: "No synchronous blocking network calls exist in backend services; LLM calls use client.aio and I/O tasks use async def or asyncio.to_thread."
+    severity: "HIGH"
+
+  - id: byok-storage-credential-isolation
+    name: "BYOK Storage Credential Isolation"
+    description: "User API keys and sensitive credentials must be saved strictly in chrome.storage.local instead of chrome.storage.sync."
+    condition: "files.contains('chrome-extension/config') || files.contains('chrome-extension/options')"
+    pass_condition: "No API keys or secrets are stored in chrome.storage.sync."
+    severity: "CRITICAL"
+
+  - id: ipc-sender-origin-verification
+    name: "IPC Message Sender Origin Verification"
+    description: "Service Worker background.js must validate sender.id === chrome.runtime.id for all chrome.runtime.onMessage handlers."
+    condition: "files.contains('chrome-extension/background.js')"
+    pass_condition: "background.js rejects messages where sender.id !== chrome.runtime.id."
+    severity: "CRITICAL"
+
+  - id: cws-production-manifest-security
+    name: "Chrome Web Store Manifest Security"
+    description: "Production manifest.json must be clean of http://localhost host permissions and configure an explicit MV3 CSP."
+    condition: "files.contains('chrome-extension/manifest.json')"
+    pass_condition: "manifest.json contains no http://localhost host permissions and declares valid extension_pages CSP."
+    severity: "HIGH"
+
+  - id: ai-output-dompurify-sanitization
+    name: "AI Output DOMPurify Sanitization"
+    description: "Dynamic LLM outputs rendered in sidepanel.js must be sanitized via textContent or DOMPurify prior to DOM insertion."
+    condition: "files.contains('chrome-extension/sidepanel.js')"
+    pass_condition: "Dynamic AI output strings pass through textContent or DOMPurify before DOM rendering."
     severity: "HIGH"
