@@ -383,7 +383,7 @@ The project is organized as follows:
   - `app/utils/`: Contains shared utility modules
     - `input_sanitizer.py`: Rust-accelerated input sanitization (prompt injection defense)
     - `llm_utils.py`: Shared ADK agent execution (`get_validated_api_key`, `execute_adk_agent`)
-    - `prompt_helpers.py`: Standardized prompt formatting with `===USER DATA===` delimiters
+    - `prompt_helpers.py`: Standardized prompt formatting with `===USER DATA START===` / `===USER DATA END===` delimiters
     - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application
