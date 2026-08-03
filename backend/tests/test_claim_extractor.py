@@ -14,9 +14,9 @@ async def test_claim_extraction_with_mocked_llm():
 
         extractor = ClaimExtractor()
 
-        # Mock the ADK Runner and InMemorySessionService
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        # Mock the ADK Runner and InMemorySessionService in llm_utils (where they are now used)
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service
@@ -76,8 +76,8 @@ async def test_claim_extraction_error_handling():
         extractor = ClaimExtractor()
 
         # Mock the ADK Runner to raise an exception
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service
@@ -133,8 +133,8 @@ async def test_claim_extraction_multiple_claims():
                 )
             )
 
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service
@@ -170,4 +170,3 @@ async def test_claim_extraction_multiple_claims():
                 assert claims[i].text == f"Claim {i}"
                 assert claims[i].timestamp_start == float(i * 10)
                 assert claims[i].timestamp_end == float(i * 10 + 5)
-

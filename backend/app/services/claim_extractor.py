@@ -6,12 +6,10 @@ from app.core.config import settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
+from app.utils.llm_utils import get_validated_api_key, execute_adk_agent
+from app.utils.prompt_helpers import build_user_data_prompt
 from youtube_transcript_api import YouTubeTranscriptApi
 from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-from google.genai.errors import APIError, ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +20,7 @@ class ExtractorAgent(Agent):
 
 class ClaimExtractor:
     def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+        self.api_key = get_validated_api_key(settings)
 
         self.agent = ExtractorAgent(
             name="extractor_agent",
@@ -128,50 +119,18 @@ class ClaimExtractor:
                 )
             ]
 
-        # Reorder prompt so that the untrusted data is at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"{sanitized_transcript}\n"
-            f"===USER DATA END===\n"
-            f"Please extract key claims from this transcript according to your instructions."
+        user_prompt = build_user_data_prompt(
+            sanitized_transcript,
+            "Please extract key claims from this transcript according to your instructions."
         )
 
-        session_service = InMemorySessionService()
-        attempts = 2
-        result = None
-        current_prompt = user_prompt
-
         try:
-            for attempt in range(attempts):
-                try:
-                    attempt_session_id = f"s1_attempt_{attempt}"
-                    await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                    runner = Runner(agent=self.agent, app_name="app", session_service=session_service)
-
-                    async for event in runner.run_async(
-                        user_id="user",
-                        session_id=attempt_session_id,
-                        new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
-                    ):
-                        if event.error_code:
-                            raise Exception(f"{event.error_code}: {event.error_message}")
-
-                    session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                    result = session.state.get("claims_result")
-                    if result:
-                        if isinstance(result, dict):
-                            result = ClaimsOutput.model_validate(result)
-                        break
-                except APIError as e:
-                    logger.warning(f"Claim extraction attempt {attempt + 1} failed: {e}")
-                    if attempt == 0:
-                        current_prompt = (
-                            f"{user_prompt}\n\n"
-                            f"WARNING: The previous attempt failed with the following error: {e}. "
-                            f"Please ensure you return a valid JSON object strictly matching the schema requirements."
-                        )
-                    else:
-                        raise e
+            result = await execute_adk_agent(
+                agent=self.agent,
+                user_prompt=user_prompt,
+                output_key="claims_result",
+                output_schema=ClaimsOutput,
+            )
 
             if result is None:
                 raise Exception("Agent execution failed to populate claims_result after both attempts.")

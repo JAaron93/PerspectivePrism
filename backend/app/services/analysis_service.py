@@ -1,4 +1,3 @@
-import os
 import logging
 import asyncio
 import time
@@ -21,10 +20,9 @@ from app.utils.input_sanitizer import (
     sanitize_perspective_value,
     wrap_user_data,
 )
+from app.utils.llm_utils import get_validated_api_key, execute_adk_agent
+from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
 from google.genai import errors
 
 logger = logging.getLogger(__name__)
@@ -45,14 +43,7 @@ class BiasAnalysisAgent(Agent):
 
 class AnalysisService:
     def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+        self.api_key = get_validated_api_key(settings)
 
         # Expose backup_client for health check compatibility
         self.backup_client = True if settings.BACKUP_LLM_MODEL else None
@@ -133,60 +124,18 @@ class AnalysisService:
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
-        session_service = InMemorySessionService()
-        attempts = 2
-        current_prompt = user_prompt
-        last_err = None
-
-        for attempt in range(attempts):
-            try:
-                attempt_session_id = f"s_attempt_{attempt}"
-                await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                runner = Runner(agent=agent, app_name="app", session_service=session_service)
-
-                async for event in runner.run_async(
-                    user_id="user",
-                    session_id=attempt_session_id,
-                    new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
-                ):
-                    if event.error_code:
-                        try:
-                            code_int = int(event.error_code)
-                            response_json = {"error": {"message": event.error_message}}
-                            if 400 <= code_int < 500:
-                                raise errors.ClientError(code=code_int, response_json=response_json)
-                            elif code_int >= 500:
-                                raise errors.ServerError(code=code_int, response_json=response_json)
-                            else:
-                                raise errors.APIError(code=code_int, response_json=response_json)
-                        except (ValueError, TypeError) as conversion_error:
-                            raise errors.APIError(
-                                code=500,
-                                response_json={"error": {"message": f"{event.error_code}: {event.error_message}"}}
-                            ) from conversion_error
-
-                session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                result = session.state.get(output_key)
-                if result:
-                    if isinstance(result, dict):
-                        if output_key == "perspective_result":
-                            result = PerspectiveAnalysisLLMOutput.model_validate(result)
-                        elif output_key == "bias_result":
-                            result = BiasAnalysis.model_validate(result)
-                    return result
-            except errors.APIError as e:
-                last_err = e
-                logger.warning(f"Agent execution attempt {attempt + 1} failed: {e}")
-                if attempt == 0 and not is_backup:
-                    current_prompt = (
-                        f"{user_prompt}\n\n"
-                        f"WARNING: The previous attempt failed with the following error: {e}. "
-                        f"Please ensure you return a valid JSON object strictly matching the schema requirements."
-                    )
-                else:
-                    raise e
-
-        raise last_err or Exception("Agent execution failed with no result")
+        """Delegates to the shared execute_adk_agent helper, resolving the output schema from output_key."""
+        schema_map = {
+            "perspective_result": PerspectiveAnalysisLLMOutput,
+            "bias_result": BiasAnalysis,
+        }
+        return await execute_adk_agent(
+            agent=agent,
+            user_prompt=user_prompt,
+            output_key=output_key,
+            output_schema=schema_map.get(output_key),
+            is_backup=is_backup,
+        )
 
     async def _run_agent_with_fallback(
         self,
@@ -301,13 +250,9 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"CLAIM: {sanitized_claim}\n"
-            f"PERSPECTIVE: {sanitized_perspective}\n"
-            f"EVIDENCE:\n{sanitized_evidence}\n"
-            f"===USER DATA END===\n"
-            f"Please analyze this claim from the specified perspective based on the evidence."
+        user_prompt = build_user_data_prompt(
+            f"CLAIM: {sanitized_claim}\nPERSPECTIVE: {sanitized_perspective}\nEVIDENCE:\n{sanitized_evidence}",
+            "Please analyze this claim from the specified perspective based on the evidence."
         )
 
         try:
@@ -357,12 +302,9 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"CLAIM TEXT: {sanitized_claim}\n"
-            f"CONTEXT: {sanitized_context if sanitized_context else 'No context provided'}\n"
-            f"===USER DATA END===\n"
-            f"Please analyze this claim and context for bias and deception."
+        user_prompt = build_user_data_prompt(
+            f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}",
+            "Please analyze this claim and context for bias and deception."
         )
 
         try:
