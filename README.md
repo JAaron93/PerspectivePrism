@@ -344,7 +344,10 @@ The project is organized as follows:
     - `evidence_retriever.py`: Queries Google Custom Search API to find external evidence for claims
     - `analysis_service.py`: Synthesizes evidence and analyzes claims from multiple perspectives
   - `app/models/`: Defines Pydantic data models for requests and responses
-  - `app/utils/`: Contains utility modules (input sanitization, configuration)
+  - `app/utils/`: Contains shared utility modules
+    - `input_sanitizer.py`: Rust-accelerated input sanitization (prompt injection defense)
+    - `llm_utils.py`: Shared ADK agent execution (`get_validated_api_key`, `execute_adk_agent`)
+    - `prompt_helpers.py`: Standardized prompt formatting with `===USER DATA===` delimiters
     - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application
