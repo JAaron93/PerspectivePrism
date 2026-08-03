@@ -15,9 +15,9 @@ async def test_claim_extraction_with_mocked_llm():
 
         extractor = ClaimExtractor(settings=mock_settings)
 
-        # Mock the ADK Runner and InMemorySessionService
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        # Mock the ADK Runner and InMemorySessionService in llm_utils (where they are now used)
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service
@@ -76,8 +76,8 @@ async def test_claim_extraction_llm_error_handling():
         extractor = ClaimExtractor(settings=mock_settings)
 
         # Mock the ADK Runner to raise an exception
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service
@@ -133,8 +133,8 @@ async def test_claim_extraction_multiple_claims():
                 )
             )
 
-        with patch("app.services.claim_extractor.Runner") as mock_runner_class, \
-             patch("app.services.claim_extractor.InMemorySessionService") as mock_session_service_class:
+        with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
+             patch("app.utils.llm_utils.InMemorySessionService") as mock_session_service_class:
 
             mock_session_service = MagicMock()
             mock_session_service_class.return_value = mock_session_service

@@ -42,7 +42,7 @@ Perspective Prism is a system designed to analyze YouTube video transcripts for 
 │   │   ├── core/        # Configuration (pydantic-settings)
 │   │   ├── models/      # Pydantic schemas and data models
 │   │   ├── services/    # Business logic (ClaimExtractor, EvidenceRetriever, AnalysisService)
-│   │   ├── utils/       # Utility functions (input_sanitizer.py)
+│   │   ├── utils/       # Utility functions (input_sanitizer.py, llm_utils.py, prompt_helpers.py, video_utils.py)
 │   │   └── main.py      # FastAPI entry point
 │   └── tests/           # pytest test suite
 ├── frontend/            # React + TypeScript + Vite SPA
@@ -89,6 +89,8 @@ The backend is located in the `backend/` directory. It uses Python 3.10+ and Fas
 *   `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
 *   `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection. Includes a circuit breaker that tracks transient `google-genai` failures and falls back to `gemini-3.1-flash-lite`.
 *   `app/utils/input_sanitizer.py`: **Critical security component.** Integrates a high-performance Rust compiled extension (`prism_sanitizer_rs` via PyO3) for regex patterns and control character sanitization. All user-supplied content must pass through this before being sent to any LLM.
+*   `app/utils/llm_utils.py`: Shared ADK agent execution utilities. Provides `get_validated_api_key()` for unified API key configuration and `execute_adk_agent()` for standardized ADK Runner/Session lifecycle with retry logic, error code translation, and optional Pydantic output validation. Used by both `ClaimExtractor` and `AnalysisService`.
+*   `app/utils/prompt_helpers.py`: Shared prompt formatting utility. Provides `build_user_data_prompt()` to assemble LLM prompts with `===USER DATA START/END===` delimiters. Used by both `ClaimExtractor` and `AnalysisService`.
 *   `app/core/config.py`: `pydantic-settings` configuration. Key settings include `MAX_CLAIMS_PER_ANALYSIS`, `DECEPTION_THRESHOLD_HIGH`, `DECEPTION_THRESHOLD_MODERATE`, and `CHROME_EXTENSION_IDS`.
 *   `pyproject.toml`: Build and test configuration.
 
@@ -115,6 +117,7 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 *   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
 *   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
 *   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `google.genai.Client`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
+*   **Shared Utility Mock Paths**: After the DRY refactor, ADK `Runner` and `InMemorySessionService` are imported exclusively in `app.utils.llm_utils`. When mocking these classes in tests for `ClaimExtractor` or `AnalysisService`, patch them at `app.utils.llm_utils.Runner` and `app.utils.llm_utils.InMemorySessionService`, not at the service module level.
 *   **Pydantic ClassVar & Defensive Guards**: Constant lookup dictionaries on `BaseSettings` classes MUST be annotated with `typing.ClassVar` (e.g. `TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]]`) to prevent `pydantic-settings` from treating them as configurable environment fields. Runtime properties deriving concurrency counts MUST defensively cast and clamp values (`max(1, int(val))`).
 *   **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`) to prevent parent environment leaks.
 *   **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
