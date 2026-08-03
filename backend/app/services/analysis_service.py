@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import time
-from typing import Dict, List, Optional, Any
+from typing import List, Any
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
@@ -18,7 +18,6 @@ from app.utils.input_sanitizer import (
     sanitize_context,
     sanitize_evidence_text,
     sanitize_perspective_value,
-    wrap_user_data,
 )
 from app.utils.llm_utils import execute_adk_agent
 from app.utils.prompt_helpers import build_user_data_prompt

@@ -1,11 +1,10 @@
 import asyncio
 import logging
-import os
-from typing import Any, List, Optional
+from typing import Any, List
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
-from app.utils.input_sanitizer import sanitize_input, SanitizationError, wrap_user_data
+from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
 from app.utils.llm_utils import execute_adk_agent
 from app.utils.prompt_helpers import build_user_data_prompt
