@@ -31,7 +31,7 @@ async def test_integration_outbound_schema_and_sanitization(monkeypatch):
             BiasAnalysis
         )
         
-        def mock_get_transcript_malicious(*args, **kwargs):
+        async def mock_get_transcript_malicious(*args, **kwargs):
             return Transcript(
                 video_id="malicious_vid",
                 segments=[TranscriptSegment(text="This has a control character \x00 in it", start=0.0, duration=10.0)],
@@ -81,7 +81,7 @@ async def test_integration_successful_schema_payload(monkeypatch):
             BiasAnalysis
         )
         
-        def mock_get_transcript_valid(*args, **kwargs):
+        async def mock_get_transcript_valid(*args, **kwargs):
             return Transcript(
                 video_id="valid_vid",
                 segments=[TranscriptSegment(text="This is a valid claim.", start=0.0, duration=10.0)],
@@ -126,3 +126,16 @@ async def test_integration_successful_schema_payload(monkeypatch):
         assert "claim_text" in claim_analysis
         assert "truth_profile" in claim_analysis
         assert claim_analysis["truth_profile"]["overall_assessment"] in ["Likely True", "Likely False", "Mixed", "Suspicious/Deceptive"]
+
+
+def test_build_chrome_extension_regex():
+    """
+    Unit test to verify build_chrome_extension_regex correctly builds
+    dynamic CORS regex for allowed extension IDs.
+    """
+    from app.main import build_chrome_extension_regex
+
+    assert build_chrome_extension_regex([]) is None
+    assert build_chrome_extension_regex(["abc"]) == r"chrome-extension://(abc)"
+    assert build_chrome_extension_regex(["abc", "def123"]) == r"chrome-extension://(abc|def123)"
+

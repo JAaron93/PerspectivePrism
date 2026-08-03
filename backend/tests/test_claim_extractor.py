@@ -6,13 +6,14 @@ from app.services.claim_extractor import ClaimExtractor
 
 @pytest.mark.asyncio
 async def test_claim_extraction_with_mocked_llm():
-    # Mock settings to avoid API key validation error during init
+    # Mock settings to avoid validation error during init
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.GEMINI_API_KEY = "sk-mock-key"
-        mock_settings.LLM_API_KEY = ""
-        mock_settings.LLM_MODEL = "gemini-3.5-flash"
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
+        mock_settings.GEMINI_TIER = "paid"
+        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
 
-        extractor = ClaimExtractor()
+        extractor = ClaimExtractor(settings=mock_settings)
 
         # Mock the ADK Runner and InMemorySessionService in llm_utils (where they are now used)
         with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
@@ -27,10 +28,10 @@ async def test_claim_extraction_with_mocked_llm():
                 "claims_result": ClaimsOutput(
                     claims=[
                         ExtractedClaim(
-                            text="Climate change is real",
-                            start_time=3.5,
-                            end_time=7.7,
-                            context="Here we discuss...",
+                            text="The Earth is an oblate spheroid.",
+                            start_time=10.5,
+                            end_time=15.0,
+                            context="Discussion about planetary geometry.",
                         )
                     ]
                 )
@@ -41,39 +42,38 @@ async def test_claim_extraction_with_mocked_llm():
             mock_runner_class.return_value = mock_runner
 
             async def mock_run_async(*args, **kwargs):
-                yield MagicMock(error_code=None)
+                event = MagicMock()
+                event.error_code = None
+                yield event
 
             mock_runner.run_async = mock_run_async
 
             # Mock transcript data
             mock_segments = [
-                TranscriptSegment(text="Intro", start=0.0, duration=3.5),
-                TranscriptSegment(text="Climate change is real", start=3.5, duration=4.2),
+                TranscriptSegment(text="Welcome to the science lecture.", start=0.0, duration=3.5),
+                TranscriptSegment(text="The Earth is an oblate spheroid.", start=10.5, duration=4.5),
             ]
-            mock_transcript = Transcript(
-                video_id="test_id",
-                segments=mock_segments,
-                full_text="Intro Climate change is real",
-            )
+            mock_transcript = Transcript(video_id="test_id", segments=mock_segments, full_text="Welcome...")
 
             # Test extraction
             claims = await extractor.extract_claims(mock_transcript)
 
             assert len(claims) == 1
-            assert claims[0].text == "Climate change is real"
-            assert claims[0].timestamp_start == 3.5
-            assert claims[0].timestamp_end == 7.7
+            assert claims[0].text == "The Earth is an oblate spheroid."
+            assert claims[0].timestamp_start == 10.5
+            assert claims[0].timestamp_end == 15.0
 
 
 @pytest.mark.asyncio
-async def test_claim_extraction_error_handling():
+async def test_claim_extraction_llm_error_handling():
     # Mock settings
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.GEMINI_API_KEY = "sk-mock-key"
-        mock_settings.LLM_API_KEY = ""
-        mock_settings.LLM_MODEL = "gemini-3.5-flash"
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
+        mock_settings.GEMINI_TIER = "paid"
+        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
 
-        extractor = ClaimExtractor()
+        extractor = ClaimExtractor(settings=mock_settings)
 
         # Mock the ADK Runner to raise an exception
         with patch("app.utils.llm_utils.Runner") as mock_runner_class, \
@@ -87,7 +87,6 @@ async def test_claim_extraction_error_handling():
             mock_runner_class.return_value = mock_runner
 
             async def mock_run_async_error(*args, **kwargs):
-                # Yielding an event with error_code
                 event = MagicMock()
                 event.error_code = "API_ERROR"
                 event.error_message = "API Error"
@@ -113,13 +112,14 @@ async def test_claim_extraction_error_handling():
 
 @pytest.mark.asyncio
 async def test_claim_extraction_multiple_claims():
-    # Mock settings to avoid API key validation error during init
+    # Mock settings to avoid validation error during init
     with patch("app.services.claim_extractor.settings") as mock_settings:
-        mock_settings.GEMINI_API_KEY = "sk-mock-key"
-        mock_settings.LLM_API_KEY = ""
-        mock_settings.LLM_MODEL = "gemini-3.5-flash"
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
+        mock_settings.GEMINI_TIER = "paid"
+        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
 
-        extractor = ClaimExtractor()
+        extractor = ClaimExtractor(settings=mock_settings)
 
         # Mock a response with 5 claims
         claims_list = []
@@ -129,7 +129,7 @@ async def test_claim_extraction_multiple_claims():
                     text=f"Claim {i}",
                     start_time=float(i * 10),
                     end_time=float(i * 10 + 5),
-                    context=f"Context for claim {i}",
+                    context=f"Context {i}"
                 )
             )
 
@@ -148,25 +148,51 @@ async def test_claim_extraction_multiple_claims():
             mock_runner_class.return_value = mock_runner
 
             async def mock_run_async(*args, **kwargs):
-                yield MagicMock(error_code=None)
+                event = MagicMock()
+                event.error_code = None
+                yield event
 
             mock_runner.run_async = mock_run_async
 
-            # Mock transcript data
-            mock_segments = [
-                TranscriptSegment(text="Test transcript", start=0.0, duration=3.5),
-            ]
             mock_transcript = Transcript(
-                video_id="test_id",
-                segments=mock_segments,
-                full_text="Test transcript",
+                video_id="multi_test",
+                segments=[TranscriptSegment(text="Long text", start=0.0, duration=50.0)],
+                full_text="Long text"
             )
 
-            # Test extraction
             claims = await extractor.extract_claims(mock_transcript)
 
             assert len(claims) == 5
-            for i in range(5):
-                assert claims[i].text == f"Claim {i}"
-                assert claims[i].timestamp_start == float(i * 10)
-                assert claims[i].timestamp_end == float(i * 10 + 5)
+            for i, claim in enumerate(claims):
+                assert claim.id == f"claim_{i}"
+                assert claim.text == f"Claim {i}"
+
+
+@pytest.mark.asyncio
+async def test_get_transcript_execution():
+    """Verify get_transcript executes asynchronously with mock YouTubeTranscriptApi."""
+    with patch("app.services.claim_extractor.settings") as mock_settings:
+        mock_settings.effective_gcp_project = "my-gcp-project"
+        mock_settings.GCP_LOCATION = "global"
+        mock_settings.GEMINI_TIER = "paid"
+        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_snippet = MagicMock()
+        mock_snippet.text = "Hello world"
+        mock_snippet.start = 0.0
+        mock_snippet.duration = 5.0
+
+        with patch("app.services.claim_extractor.YouTubeTranscriptApi") as mock_api_cls:
+            mock_api = MagicMock()
+            mock_api.fetch.return_value = [mock_snippet]
+            mock_api_cls.return_value = mock_api
+
+            transcript = await extractor.get_transcript("test_vid_123")
+
+            assert transcript.video_id == "test_vid_123"
+            assert len(transcript.segments) == 1
+            assert transcript.segments[0].text == "Hello world"
+            assert transcript.full_text == "Hello world"
+

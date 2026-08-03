@@ -3,15 +3,16 @@
   "name": "Perspective Prism - YouTube Analyzer",
   "version": "0.2.0",
   "description": "Analyze YouTube videos for claims and perspectives",
-  "permissions": ["storage", "activeTab", "alarms", "notifications", "sidePanel", "tabs"],
+  "permissions": ["storage", "activeTab", "alarms", "notifications", "sidePanel"],
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://youtu.be/*",
     "https://*.youtube-nocookie.com/*",
-    "https://m.youtube.com/*",
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "https://m.youtube.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"

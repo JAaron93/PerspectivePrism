@@ -221,7 +221,7 @@ describe("Playback Synchronization Engine", () => {
 
       const sendMessageSpy = vi.spyOn(global.chrome.runtime, "sendMessage");
       
-      const mockSender = { tab: { id: 987 } };
+      const mockSender = { id: global.chrome.runtime.id, tab: { id: 987 } };
       const mockMessage = {
         type: "SYNC_PLAYBACK",
         videoId: "abc",
