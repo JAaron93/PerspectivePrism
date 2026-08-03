@@ -20,7 +20,7 @@ from app.utils.input_sanitizer import (
     sanitize_perspective_value,
     wrap_user_data,
 )
-from app.utils.llm_utils import get_validated_api_key, execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors

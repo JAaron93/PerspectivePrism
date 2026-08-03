@@ -1,4 +1,3 @@
-import os
 import logging
 from typing import Any, Optional
 from google.adk.agents import Agent
@@ -9,45 +8,6 @@ from google.genai import errors
 
 logger = logging.getLogger(__name__)
 
-
-def get_validated_api_key(settings_obj: Any) -> str:
-    """
-    Extracts and validates the Gemini/LLM API key from configuration settings,
-    clearing stale auth env vars and setting os.environ['GEMINI_API_KEY'] for ADK
-    model clients.
-
-    Args:
-        settings_obj: Settings instance to read credentials from. Must be provided
-            explicitly — no module-level global fallback.
-
-    Returns:
-        The validated API key string.
-
-    Raises:
-        ValueError: If neither GEMINI_API_KEY nor LLM_API_KEY is configured as a
-            non-empty string.
-    """
-    # Type-check raw values before use — MagicMock attributes in tests must not
-    # reach strip() or os.environ assignment.
-    raw_gemini = getattr(settings_obj, "GEMINI_API_KEY", None)
-    raw_llm = getattr(settings_obj, "LLM_API_KEY", None)
-    gemini_key = raw_gemini.strip() if isinstance(raw_gemini, str) else ""
-    llm_key = raw_llm.strip() if isinstance(raw_llm, str) else ""
-    api_key = gemini_key or llm_key
-
-    if not api_key:
-        raise ValueError(
-            "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). "
-            "Please set one of them in your .env file. Example: GEMINI_API_KEY=AIzaSy..."
-        )
-
-    # Only mutate os.environ once we have a validated key — and only touch the two
-    # API-key-mode vars. Vertex provider vars (GCP_PROJECT, GCP_LOCATION,
-    # GOOGLE_GENAI_USE_VERTEXAI, etc.) are managed exclusively by configure_provider_env()
-    # and must never be popped here, to avoid corrupting Vertex mode state on failure.
-    os.environ.pop("LLM_API_KEY", None)
-    os.environ["GEMINI_API_KEY"] = api_key
-    return api_key
 
 
 async def execute_adk_agent(

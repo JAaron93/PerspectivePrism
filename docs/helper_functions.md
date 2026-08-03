@@ -6,25 +6,6 @@
 
 ## Backend: `app/utils/llm_utils.py`
 
-### `get_validated_api_key(settings_obj=None) -> str`
-
-**Purpose:** Extracts and validates the Gemini/LLM API key from Pydantic settings, sets `os.environ["GEMINI_API_KEY"]` for ADK model clients.
-
-**Parameters:**
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `settings_obj` | `Any \| None` | `None` | Optional custom settings instance. Defaults to `app.core.config.settings`. |
-
-**Returns:** The validated API key string.
-
-**Raises:** `ValueError` if neither `GEMINI_API_KEY` nor `LLM_API_KEY` is configured.
-
-**Used by:**
-- `app/services/claim_extractor.py` — `ClaimExtractor.__init__()`
-- `app/services/analysis_service.py` — `AnalysisService.__init__()`
-
----
-
 ### `execute_adk_agent(agent, user_prompt, output_key, output_schema=None, is_backup=False, max_attempts=2) -> Any`
 
 **Purpose:** Runs an ADK Agent via `InMemorySessionService` and `Runner` with standardized error handling, error code translation (4xx → `ClientError`, 5xx → `ServerError`), retry logic with enriched prompts on first failure, and optional Pydantic model validation of the output.

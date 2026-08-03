@@ -7,7 +7,7 @@ from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError, wrap_user_data
 from app.utils.video_utils import extract_video_id
-from app.utils.llm_utils import get_validated_api_key, execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent
 from app.utils.prompt_helpers import build_user_data_prompt
 from youtube_transcript_api import YouTubeTranscriptApi
 from google.adk.agents import Agent
