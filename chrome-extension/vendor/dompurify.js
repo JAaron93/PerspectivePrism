@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*! @license DOMPurify 3.4.12 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.12/LICENSE */
 
 function _arrayLikeToArray(r, a) {
@@ -2114,9 +2115,12 @@ function createDOMPurify() {
       }
     }
   };
-  // eslint-disable-next-line complexity
-  DOMPurify.sanitize = function (dirty) {
-    let cfg = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  /**
+   * @param {any} dirty
+   * @param {any} [cfg]
+   */
+  DOMPurify.sanitize = function (dirty, cfg = {}) {
+    cfg = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     let body = null;
     let importedNode = null;
     let currentNode = null;

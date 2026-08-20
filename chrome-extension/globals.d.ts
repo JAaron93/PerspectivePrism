@@ -28,6 +28,7 @@ interface Error {
 
 interface Window {
   Logger?: any;
+  logger?: any;
   showState?: any;
   ppPrintMetrics?: any;
   ppAnalysisData?: any;
@@ -48,6 +49,9 @@ interface Window {
   QuotaManager?: any;
   MetricsTracker?: any;
   DEFAULT_CONFIG?: any;
+  renderOptimisticSkeletons?: any;
+  checkCurrentTabState?: any;
+  DOMPurify?: any;
 }
 
 declare var QuotaManager: any;
@@ -62,6 +66,20 @@ declare var extractVideoIdFromUrl: any;
 declare var isValidVideoId: any;
 declare var extractVideoId: any;
 declare var Logger: any;
+declare var logger: any;
 declare var parseTimestampToSeconds: any;
 declare var clusterClaims: any;
 declare var renderTimelineMarkers: any;
+declare var DOMPurify: any;
+declare var renderOptimisticSkeletons: any;
+declare var checkCurrentTabState: any;
+
+declare module "./vendor/dompurify.js" {
+  const DOMPurify: any;
+  export default DOMPurify;
+}
+
+declare module "dompurify" {
+  const DOMPurify: any;
+  export default DOMPurify;
+}

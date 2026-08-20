@@ -209,9 +209,9 @@ function injectButton() {
  * Send a message to the background service worker with automatic retry.
  *
  * @param {Object} message - Message to send
- * @param {Object} options - Retry options
- * @param {number} options.timeout - Per-request timeout in ms (default: 5000)
- * @param {number} options.maxAttempts - Max retry attempts (default: 4)
+ * @param {Object} [options] - Retry options
+ * @param {number} [options.timeout] - Per-request timeout in ms (default: 5000)
+ * @param {number} [options.maxAttempts] - Max retry attempts (default: 4)
  * @returns {Promise<any>} Response from background
  */
 async function sendMessageWithRetry(message, options = {}) {

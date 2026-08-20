@@ -14,5 +14,5 @@
     "types": ["chrome"]
   },
   "include": ["**/*.js", "globals.d.ts"],
-  "exclude": ["node_modules", "dist", "coverage", "build.js", "tests", "scripts"]
+  "exclude": ["node_modules", "dist", "coverage", "build.js", "tests", "scripts", "vendor", "vite.config.js"]
 }
