@@ -33,7 +33,8 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * The Chrome Extension runtime is intentionally built with **vanilla JavaScript (ES modules for service worker/popup/options, and classic injection scripts for YouTube DOM manipulation)** with **zero build steps** during daily development.
   * Developers load the extension unpacked directly from source (`chrome://extensions`) with 0ms reload latency.
   * Do NOT suggest converting the Chrome Extension source code to TypeScript or introducing Webpack/Rollup bundlers into the development workflow.
-  * Type safety is enforced via JSDoc annotations (`/** @type {...} */`), ambient globals (`globals.d.ts`), and a non-emitting `tsconfig.json` (`"noEmit": true`, `"checkJs": true`, and `@types/chrome`).
+  * Type safety is enforced via JSDoc annotations (`/** @type {...} */`), ambient globals (`globals.d.ts`), and a non-emitting `tsconfig.json` (`"noEmit": true`, `"checkJs": true`, `"useUnknownInCatchVariables": false`, and `@types/chrome`).
+  * Third-party vendor bundles in `chrome-extension/vendor/` MUST include `// @ts-nocheck` and be excluded from `tsconfig.json`. DOM element attribute setters must cast numbers/booleans via `String(...)` to ensure strict type compliance.
 * **Security & Credential Isolation**:
   * **Storage Isolation**: User API keys and sensitive tokens must be stored strictly in `chrome.storage.local` (NEVER `chrome.storage.sync`).
   * **IPC Origin Verification**: `background.js` must validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` handlers.

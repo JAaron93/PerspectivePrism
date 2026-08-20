@@ -153,9 +153,10 @@ The frontend is located in the `frontend/` directory. It uses React 19, TypeScri
 
 The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules), HTML, and CSS — **no build step in daily development (ADR 004)**.
 
-## Architecture & Zero-Build Type Safety
+## Architecture & Zero-Build Type Safety (ADR 004)
 *   **0ms Latency Development Loop**: The extension runs directly from source. Chrome loads raw JS directly via "Load unpacked", avoiding compilation watcher latency.
-*   **Static Type Checking**: Type safety is enforced compile-free using JSDoc annotations, `chrome-extension/globals.d.ts` for ambient extension globals, and a non-emitting `chrome-extension/tsconfig.json`.
+*   **Static Type Checking (`checkJs: true`)**: Type safety is enforced compile-free using JSDoc annotations, `chrome-extension/globals.d.ts` for ambient extension globals, and a non-emitting `chrome-extension/tsconfig.json` (`checkJs: true`, `useUnknownInCatchVariables: false`).
+*   **Ambient Typing & Vendor Isolation**: Third-party vendor bundles in `chrome-extension/vendor/` are marked `// @ts-nocheck` and excluded from `tsconfig.json`. DOM element attribute setters must cast numbers/booleans via `String(...)` to ensure strict type compliance.
 
 ## Setup
 1.  Navigate to `chrome-extension/`.
