@@ -1,73 +1,66 @@
-# React + TypeScript + Vite
+# Perspective Prism — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The web application for Perspective Prism, built with **React 19**, **TypeScript 7.0**, and **Vite**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Architectural Overview (ADR 004)
 
-## React Compiler
+* **TypeScript 7.0 Go Engine**: The application is compiled using the native Go-based TypeScript 7.0 compiler (`tsc` `7.0.2`), delivering sub-second build times (`<1.0s` for production builds) and native multithreaded type checking.
+* **Side-by-Side ESLint Compatibility**: Because TypeScript 7.0 does not yet ship with a stable programmatic compiler API (targeted for TS 7.1), `package.json` installs Microsoft's `@typescript/typescript6` compatibility package to provide the AST parser for `typescript-eslint`, while `tsc` uses the native TS 7.0 binary.
+* **Custom CSS**: Maintains plain, responsive custom styling without external CSS-in-JS or utility frameworks (like Tailwind).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Development & Build Commands
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Setup
+```bash
+npm install
+cp .env.example .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Run Local Development Server
+```bash
+npm run dev
+```
+The application starts at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Production Build
+```bash
+npm run build
+```
+Executes `tsc -b && vite build`. Production bundles are emitted to `dist/`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Linting
+```bash
+npm run lint
+```
+Runs ESLint across all TypeScript and TSX source files.
+
+### Preview Production Build
+```bash
+npm run preview
+```
+
+---
+
+## 📁 Directory Structure
+
+```
+frontend/
+├── public/              # Static assets
+├── src/
+│   ├── assets/          # SVG and icon assets
+│   ├── components/      # React UI components (ThinkingComponent, etc.)
+│   ├── utils/           # Utility functions (time formatting, etc.)
+│   ├── App.tsx          # Main application component
+│   ├── App.css          # Application layout styles
+│   ├── index.css        # Global CSS variables and resets
+│   └── main.tsx         # Application entry point
+├── eslint.config.js     # Flat ESLint configuration
+├── tsconfig.json        # Solution-level TypeScript project configuration
+├── tsconfig.app.json    # Application TypeScript compiler options
+├── tsconfig.node.json   # Vite/Node TypeScript configuration
+└── package.json         # Dependencies and scripts
 ```

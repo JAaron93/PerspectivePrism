@@ -124,7 +124,8 @@ Since there are no funds allocated to scale this extension further, the extensio
     - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
+- **Chrome Extension**: Manifest V3, Vanilla JavaScript (ES modules + classic injection scripts), Zero-Build Runtime
 - **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
 ## 📋 Prerequisites
@@ -313,6 +314,9 @@ The Chrome Extension has unit tests using Vitest and integration tests using Pla
 cd chrome-extension
 # Install testing dependencies
 npm install
+
+# Run static type checking via non-emitting tsc
+npm run typecheck
 
 # Run unit tests
 npm run test
