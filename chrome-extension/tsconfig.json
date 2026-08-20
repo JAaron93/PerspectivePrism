@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "noEmit": true,
     "target": "ES2022",
     "module": "ESNext",
@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
+    "useUnknownInCatchVariables": false,
     "types": ["chrome"]
   },
   "include": ["**/*.js", "globals.d.ts"],

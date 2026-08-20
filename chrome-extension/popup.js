@@ -82,7 +82,9 @@ function updateCacheStats(stats) {
 function showProgress(progress, text) {
   progressContainer.style.display = "block";
   progressFill.style.width = `${progress}%`;
-  progressFill.parentElement.setAttribute("aria-valuenow", progress);
+  if (progressFill.parentElement) {
+    progressFill.parentElement.setAttribute("aria-valuenow", String(progress));
+  }
   progressText.textContent = text;
 }
 

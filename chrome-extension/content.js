@@ -997,11 +997,10 @@ function injectButton() {
 
 /**
  * Send a message to the background service worker with automatic retry.
- *
  * @param {Object} message - Message to send
- * @param {Object} options - Retry options
- * @param {number} options.timeout - Per-request timeout in ms (default: 5000)
- * @param {number} options.maxAttempts - Max retry attempts (default: 4)
+ * @param {Object} [options] - Retry options
+ * @param {number} [options.timeout] - Per-request timeout in ms (default: 5000)
+ * @param {number} [options.maxAttempts] - Max retry attempts (default: 4)
  * @returns {Promise<any>} Response from background
  */
 async function sendMessageWithRetry(message, options = {}) {
@@ -1765,7 +1764,7 @@ function showResults(data, isCached = false) {
               confidenceBar.setAttribute("role", "progressbar");
               confidenceBar.setAttribute(
                 "aria-valuenow",
-                Math.round(val.confidence * 100),
+                String(Math.round(val.confidence * 100)),
               );
               confidenceBar.setAttribute("aria-valuemin", "0");
               confidenceBar.setAttribute("aria-valuemax", "100");
@@ -1859,7 +1858,7 @@ function showResults(data, isCached = false) {
       // Toggle functionality
       const toggleClaim = () => {
         const isExpanded = claimHeader.getAttribute("aria-expanded") === "true";
-        claimHeader.setAttribute("aria-expanded", !isExpanded);
+        claimHeader.setAttribute("aria-expanded", String(!isExpanded));
         claimDetails.classList.toggle("collapsed");
         toggleBtn.textContent = isExpanded ? "▶" : "▼";
       };
@@ -2176,6 +2175,7 @@ function throttle(func, limit) {
   let inThrottle = false;
   return function(...args) {
     if (!inThrottle) {
+      // @ts-ignore
       func.apply(this, args);
       inThrottle = true;
       setTimeout(() => inThrottle = false, limit);
@@ -2486,7 +2486,7 @@ function init() {
   };
 
   // 2. Popstate Event (Back/Forward)
-  window.addEventListener("popstate", handleNavigation);
+  window.addEventListener("popstate", () => handleNavigation());
 
   // 3. YouTube SPA Navigation Events
   document.addEventListener("yt-navigate-start", () => {

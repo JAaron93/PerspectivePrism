@@ -8,6 +8,24 @@ interface Performance {
   };
 }
 
+interface Element {
+  currentTime?: number;
+  duration?: number;
+  dataset?: DOMStringMap;
+  disabled?: boolean;
+  focus?: (options?: FocusOptions) => void;
+  onclick?: any;
+}
+
+interface HTMLElement {
+  disabled?: boolean;
+  _keydownHandler?: any;
+}
+
+interface Error {
+  fatal?: boolean;
+}
+
 interface Window {
   Logger?: any;
   showState?: any;
@@ -44,3 +62,6 @@ declare var extractVideoIdFromUrl: any;
 declare var isValidVideoId: any;
 declare var extractVideoId: any;
 declare var Logger: any;
+declare var parseTimestampToSeconds: any;
+declare var clusterClaims: any;
+declare var renderTimelineMarkers: any;

@@ -79,7 +79,7 @@ class ConsentManager {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else {
-            resolve();
+            resolve(undefined);
           }
         });
       });
