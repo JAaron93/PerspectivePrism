@@ -1,9 +1,9 @@
 # AGENTS.md
 
-This file provides guidance to Software Engineering Agents (SEAs) and Macroscope Review Agents when working with code in this repository.
+This file provides guidance to Software Engineering Agents (SEAs) and Greptile Review Agents when working with code in this repository.
 
 > [!IMPORTANT]
-> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Macroscope review rules, refer to **[run-agents.md](.macroscope/run-agents.md)** and the **[optimization-architecture specification suite](.kiro/specs/optimization-architecture/)**.
+> **Active Specification & Review Guidelines**: PR code review rules are codified in **[`.greptile/rules.md`](.greptile/rules.md)** and configured via **[`.greptile/config.json`](.greptile/config.json)**. Architectural decisions are documented in **[`docs/adr/`](docs/adr/)**.
 
 # Project Overview
 
@@ -105,7 +105,11 @@ Results are updated incrementally as each perspective completes. Completed jobs 
 
 # Frontend Development
 
-The frontend is located in the `frontend/` directory. It uses React 19, TypeScript, and Vite.
+The frontend is located in the `frontend/` directory. It uses React 19, TypeScript 7.0 (via native Go-based `tsc`), and Vite.
+
+## Tooling & Compilation Architecture (ADR 003)
+*   **TypeScript 7.0 Native Engine**: The build system (`npm run build`) uses TypeScript 7.0 for sub-second Go-native compilation (`tsc -b && vite build`).
+*   **ESLint Bridge**: Because TypeScript 7.0 does not yet ship with a stable programmatic compiler API (targeted for TS 7.1), `typescript-eslint` is bridged using Microsoft's `@typescript/typescript6` compatibility package configured in `package.json`.
 
 ## Setup
 1.  Navigate to `frontend/`.
@@ -115,20 +119,24 @@ The frontend is located in the `frontend/` directory. It uses React 19, TypeScri
 ## Common Commands
 
 *   **Start Dev Server**: `npm run dev` (starts on port 5173)
-*   **Build for Production**: `npm run build`
+*   **Build for Production**: `npm run build` (sub-second compile via TS 7.0)
 *   **Lint Code**: `npm run lint`
 *   **Preview Production Build**: `npm run preview`
 
 ## Coding Conventions
 
 *   Functional components with hooks; no class components.
-*   TypeScript interfaces for all API response types.
+*   TypeScript interfaces for all API response types; strictly avoid `any`.
 *   Environment variables prefixed with `VITE_`.
 *   Error handling with try/catch and user-friendly error messages.
 
 # Chrome Extension
 
-The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules), HTML, and CSS — no build step.
+The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules), HTML, and CSS — **no build step in daily development (ADR 003)**.
+
+## Architecture & Zero-Build Type Safety
+*   **0ms Latency Development Loop**: The extension runs directly from source. Chrome loads raw JS directly via "Load unpacked", avoiding compilation watcher latency.
+*   **Static Type Checking**: Type safety is enforced compile-free using JSDoc annotations, `chrome-extension/globals.d.ts` for ambient extension globals, and a non-emitting `chrome-extension/tsconfig.json`.
 
 ## Setup
 1.  Navigate to `chrome-extension/`.
@@ -138,10 +146,13 @@ The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES 
 
 ## Common Commands
 
+*   **Type Check**: `npm run typecheck` (validates types via non-emitting `tsc`)
+*   **Lint Code**: `npm run lint` (ESLint)
 *   **Run Unit Tests**: `npm test` (Vitest, single run)
 *   **Run Unit Tests (watch)**: `npm run test:watch`
 *   **Run Coverage**: `npm run test:coverage`
 *   **Run Integration Tests**: `npm run test:integration` (Playwright)
+*   **Build Release Package**: `npm run build` (minifies and creates distribution ZIP)
 
 ## Testing & Debugging Tool Routing Discipline
 

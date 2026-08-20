@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "types": ["chrome"]
+  },
+  "include": ["**/*.js", "globals.d.ts"],
+  "exclude": ["node_modules", "dist", "coverage", "build.js", "tests", "scripts"]
+}

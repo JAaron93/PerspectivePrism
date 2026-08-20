@@ -1,0 +1,7 @@
+[
+  "AGENTS.md",
+  "architecture.md",
+  "docs/adr/001-non-greedy-rust-sanitizer-via-pyo3.md",
+  "docs/adr/002-rigorous-side-panel-specification.md",
+  "docs/adr/003-selective-typescript-migration-strategy.md"
+]
