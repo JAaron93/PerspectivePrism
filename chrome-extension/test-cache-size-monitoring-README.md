@@ -162,7 +162,7 @@ The page automatically initializes when loaded:
 
 ### Storage Keys
 
-- `cache_{videoId}`: Individual cache entries
+- `cache_{videoId}_{contentHash}`: Content-hashed cache entries (and legacy `cache_{videoId}`)
 - `cache_metadata`: Cache statistics
 - `cache_metrics`: Metrics tracking data
 

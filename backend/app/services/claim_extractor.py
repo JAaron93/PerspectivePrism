@@ -1,39 +1,31 @@
-import os
+import asyncio
 import logging
-from typing import List, Optional
+from typing import Any, List
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
+from app.utils.llm_utils import execute_adk_agent
+from app.utils.prompt_helpers import build_user_data_prompt
 from youtube_transcript_api import YouTubeTranscriptApi
 from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-from google.genai.errors import APIError, ClientError
 
 logger = logging.getLogger(__name__)
 
 
-class ExtractorAgent(Agent):
-    pass
-
-
 class ClaimExtractor:
-    def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
 
-        self.agent = ExtractorAgent(
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
+        self.gemini_tier = provider_info["tier"]
+
+        self.agent = Agent(
             name="extractor_agent",
-            model=model_name or settings.LLM_MODEL,
+            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
@@ -56,14 +48,14 @@ class ClaimExtractor:
         """
         return extract_video_id(url)
 
-    def get_transcript(self, video_id: str) -> Transcript:
+    async def get_transcript(self, video_id: str) -> Transcript:
         """
-        Fetches the transcript for a given video ID.
+        Fetches the transcript for a given video ID asynchronously without blocking the event loop.
         """
         try:
             api = YouTubeTranscriptApi()
-            # Get the transcript
-            fetched_transcript = api.fetch(video_id)
+            # Fetch transcript offloaded to worker thread
+            fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
 
             # Convert to our schema
             segments = []
@@ -128,50 +120,18 @@ class ClaimExtractor:
                 )
             ]
 
-        # Reorder prompt so that the untrusted data is at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"{sanitized_transcript}\n"
-            f"===USER DATA END===\n"
-            f"Please extract key claims from this transcript according to your instructions."
+        user_prompt = build_user_data_prompt(
+            sanitized_transcript,
+            "Please extract key claims from this transcript according to your instructions."
         )
 
-        session_service = InMemorySessionService()
-        attempts = 2
-        result = None
-        current_prompt = user_prompt
-
         try:
-            for attempt in range(attempts):
-                try:
-                    attempt_session_id = f"s1_attempt_{attempt}"
-                    await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                    runner = Runner(agent=self.agent, app_name="app", session_service=session_service)
-
-                    async for event in runner.run_async(
-                        user_id="user",
-                        session_id=attempt_session_id,
-                        new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
-                    ):
-                        if event.error_code:
-                            raise Exception(f"{event.error_code}: {event.error_message}")
-
-                    session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                    result = session.state.get("claims_result")
-                    if result:
-                        if isinstance(result, dict):
-                            result = ClaimsOutput.model_validate(result)
-                        break
-                except APIError as e:
-                    logger.warning(f"Claim extraction attempt {attempt + 1} failed: {e}")
-                    if attempt == 0:
-                        current_prompt = (
-                            f"{user_prompt}\n\n"
-                            f"WARNING: The previous attempt failed with the following error: {e}. "
-                            f"Please ensure you return a valid JSON object strictly matching the schema requirements."
-                        )
-                    else:
-                        raise e
+            result = await execute_adk_agent(
+                agent=self.agent,
+                user_prompt=user_prompt,
+                output_key="claims_result",
+                output_schema=ClaimsOutput,
+            )
 
             if result is None:
                 raise Exception("Agent execution failed to populate claims_result after both attempts.")

@@ -12,7 +12,7 @@ export const test = base.extend({
   context: async ({}, use) => {
     const pathToExtension = extensionPath;
     const context = await chromium.launchPersistentContext("", {
-      headless: false, // Extensions require headed mode (or headless=new which is default in recent versions but explicit is safer for extensions)
+      headless: false,
       args: [
         `--disable-extensions-except=${pathToExtension}`,
         `--load-extension=${pathToExtension}`,
@@ -36,7 +36,7 @@ export const test = base.extend({
 
     await background.evaluate(async () => {
       await new Promise((resolve) => {
-        chrome.storage.sync.set({
+        chrome.storage.local.set({
           consent: { given: true, policyVersion: "1.0.0" },
           config: { backendUrl: "http://localhost:8000" }
         }, resolve);

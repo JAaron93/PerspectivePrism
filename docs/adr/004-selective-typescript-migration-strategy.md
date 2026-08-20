@@ -1,4 +1,4 @@
-# ADR 003: Selective TypeScript 7 Migration & Extension Zero-Build Preservation
+# ADR 004: Selective TypeScript 7 Migration & Extension Zero-Build Preservation
 
 ## Status
 Accepted

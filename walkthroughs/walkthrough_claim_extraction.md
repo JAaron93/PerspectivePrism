@@ -533,8 +533,8 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
 Added testing dependencies:
 
 ```
-pytest==8.3.4
-pytest-asyncio==0.25.3
+pytest==9.1.1
+pytest-asyncio==1.4.0
 ```
 
 ---

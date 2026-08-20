@@ -2,6 +2,44 @@
 import { logger } from "./logging-utils.js";
 import { extractVideoIdFromUrl } from "./video-utils.js";
 import { parseTimestampToSeconds } from "./timeline-utils.js";
+import DOMPurify from "./vendor/dompurify.js";
+
+/**
+ * Sanitize text / HTML content using DOMPurify
+ * @param {string} input - Input text to sanitize
+ * @returns {string} Sanitized string
+ */
+function sanitizeText(input) {
+  if (typeof input !== "string") return input;
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
+    ALLOWED_ATTR: ["class", "title", "data-*"],
+  });
+}
+
+/**
+ * Sanitize URLs to prevent javascript: and data: URI attacks
+ * @param {string} url - Target URL
+ * @returns {string} Sanitized URL or '#' if dangerous protocol
+ */
+function sanitizeUrl(url) {
+  if (typeof url !== "string") return "#";
+  const trimmed = url.trim();
+  if (!trimmed) return "#";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return DOMPurify.sanitize(parsed.href, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: [],
+      });
+    }
+    logger.warn("Blocked non-http(s) URI protocol:", parsed.protocol);
+    return "#";
+  } catch (_e) {
+    return "#";
+  }
+}
 
 let currentVideoId = null;
 let currentTabId = null;
@@ -18,6 +56,7 @@ const loadingTitle = document.getElementById("loading-title");
 const loadingSubmessage = document.getElementById("loading-submessage");
 const progressBarFill = document.getElementById("progress-bar-fill");
 const cancelBtn = document.getElementById("pp-cancel-btn");
+const skeletonContainer = document.getElementById("skeleton-container");
 
 const errorTitle = document.getElementById("error-title");
 const errorMessage = document.getElementById("error-message");
@@ -28,16 +67,83 @@ const analysisMetadata = document.getElementById("analysis-metadata");
 const claimsListContainer = document.getElementById("claims-list-container");
 const optionsBtn = document.getElementById("pp-options-btn");
 
+const SKELETON_PERSPECTIVES = [
+  { name: "Scientific", class: "stance-scientific" },
+  { name: "Journalistic", class: "stance-journalistic" },
+  { name: "Partisan Left", class: "stance-left" },
+  { name: "Partisan Right", class: "stance-right" }
+];
+
+/**
+ * Render optimistic UI shimmer skeletons for 4 core perspectives (FR-3.1, FR-3.2, US-3)
+ * Renders instantly (<50ms execution latency) upon analysis start on a cache miss.
+ * @param {boolean} force - Force re-rendering even if cards already exist.
+ */
+function renderOptimisticSkeletons(force = false) {
+  const container = document.getElementById("skeleton-container") || skeletonContainer;
+  if (!container) return;
+
+  // Preserve existing cards if container is already populated and force is false
+  if (!force && container.children.length > 0) {
+    container.style.display = "flex";
+    return;
+  }
+
+  container.innerHTML = "";
+  container.style.display = "flex";
+
+  SKELETON_PERSPECTIVES.forEach((persp) => {
+    const card = document.createElement("div");
+    card.className = "skeleton-card fade-in";
+    card.dataset.perspective = persp.name;
+
+    const header = document.createElement("div");
+    header.className = "skeleton-header";
+
+    const titleLine = document.createElement("div");
+    titleLine.className = "skeleton-line title skeleton-shimmer";
+
+    const timestampLine = document.createElement("div");
+    timestampLine.className = "skeleton-line timestamp skeleton-shimmer";
+
+    header.appendChild(titleLine);
+    header.appendChild(timestampLine);
+    card.appendChild(header);
+
+    const chip = document.createElement("div");
+    chip.className = `stance-chip ${persp.class}`;
+    chip.textContent = persp.name;
+    card.appendChild(chip);
+
+    const descLine = document.createElement("div");
+    descLine.className = "skeleton-line short skeleton-shimmer";
+    card.appendChild(descLine);
+
+    const grid = document.createElement("div");
+    grid.className = "skeleton-perspective-grid";
+    for (let i = 0; i < 2; i++) {
+      const box = document.createElement("div");
+      box.className = "skeleton-perspective-box skeleton-shimmer";
+      grid.appendChild(box);
+    }
+    card.appendChild(grid);
+
+    container.appendChild(card);
+  });
+}
+
 // Show specific state in UI
 function showState(stateName) {
-  stateIdle.style.display = stateName === "idle" ? "flex" : "none";
-  stateLoading.style.display = stateName === "loading" ? "flex" : "none";
-  stateError.style.display = stateName === "error" ? "flex" : "none";
-  stateResults.style.display = stateName === "results" ? "flex" : "none";
+  if (stateIdle) stateIdle.style.display = stateName === "idle" ? "flex" : "none";
+  if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
+  if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
+  if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
 }
 
 if (typeof window !== "undefined") {
   window.showState = showState;
+  window.renderOptimisticSkeletons = renderOptimisticSkeletons;
+  window.checkCurrentTabState = checkCurrentTabState;
 }
 
 // Render analysis results
@@ -45,7 +151,7 @@ function renderResults(data) {
   if (!data) return;
 
   // Render overall assessment
-  const assessment = data.overall_assessment || "Unverified";
+  const assessment = sanitizeText(data.overall_assessment || "Unverified");
   overallAssessmentBadge.textContent = assessment;
   overallAssessmentBadge.className = "badge"; // Reset classes
   
@@ -64,7 +170,7 @@ function renderResults(data) {
   // Render metadata
   if (data.metadata && data.metadata.analyzed_at) {
     const dateStr = new Date(data.metadata.analyzed_at).toLocaleString();
-    analysisMetadata.textContent = `Analyzed on: ${dateStr}`;
+    analysisMetadata.textContent = sanitizeText(`Analyzed on: ${dateStr}`);
   } else {
     analysisMetadata.textContent = "";
   }
@@ -85,14 +191,14 @@ function renderResults(data) {
       
       const title = document.createElement("span");
       title.className = "claim-card-title";
-      title.textContent = claim.claim_text;
+      title.textContent = sanitizeText(claim.claim_text);
       
       header.appendChild(title);
       
       if (claim.timestamp) {
         const timestamp = document.createElement("span");
         timestamp.className = "claim-timestamp";
-        timestamp.textContent = claim.timestamp;
+        timestamp.textContent = sanitizeText(claim.timestamp);
         timestamp.addEventListener("click", (e) => {
           e.stopPropagation();
           seekToTimestamp(claim.timestamp);
@@ -108,7 +214,8 @@ function renderResults(data) {
       body.style.display = "none"; // Collapsed by default
 
       // 1. Overall Assessment Badge
-      const assessmentVal = claim.truth_profile?.overall_assessment || "Unverified";
+      const rawAssess = claim.truth_profile?.overall_assessment || "Unverified";
+      const assessmentVal = sanitizeText(rawAssess);
       const badge = document.createElement("span");
       let badgeClass = "badge-unverified";
       const lowerAssess = assessmentVal.toLowerCase();
@@ -142,7 +249,7 @@ function renderResults(data) {
           pInfo.className = "perspective-info";
           
           const pLabel = document.createElement("span");
-          pLabel.textContent = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          pLabel.textContent = sanitizeText(key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
           
           const pVal = document.createElement("span");
           const confidencePercent = typeof val.confidence === "number" 
@@ -153,6 +260,37 @@ function renderResults(data) {
           pInfo.appendChild(pLabel);
           pInfo.appendChild(pVal);
           pItem.appendChild(pInfo);
+
+          // Render research / evidence sources safely
+          const sources = val.sources || val.evidence;
+          if (Array.isArray(sources) && sources.length > 0) {
+            const sourcesList = document.createElement("div");
+            sourcesList.className = "perspective-sources";
+            sourcesList.style.fontSize = "11px";
+            sourcesList.style.marginTop = "4px";
+
+            sources.forEach((src) => {
+              if (!src) return;
+              const url = typeof src === "string" ? src : (src.url || src.link || "");
+              const titleText = typeof src === "string" ? src : (src.title || src.name || url);
+              const safeUrl = sanitizeUrl(url);
+
+              if (!safeUrl || safeUrl === "#" || safeUrl === "") {
+                const textEl = document.createElement("span");
+                textEl.className = "perspective-source-text";
+                textEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(textEl);
+              } else {
+                const linkEl = document.createElement("a");
+                linkEl.href = safeUrl;
+                linkEl.target = "_blank";
+                linkEl.rel = "noopener noreferrer";
+                linkEl.textContent = sanitizeText(titleText);
+                sourcesList.appendChild(linkEl);
+              }
+            });
+            pItem.appendChild(sourcesList);
+          }
           
           if (confidencePercent !== null) {
             const pFillContainer = document.createElement("div");
@@ -185,7 +323,7 @@ function renderResults(data) {
         tags.forEach((tagText) => {
           const tag = document.createElement("span");
           tag.className = "bias-tag";
-          tag.textContent = tagText;
+          tag.textContent = sanitizeText(tagText);
           biasContainer.appendChild(tag);
         });
         body.appendChild(biasContainer);
@@ -206,7 +344,7 @@ function renderResults(data) {
         
         const scoreValue = document.createElement("span");
         const displayScore = deceptionScore > 10 ? `${deceptionScore}%` : `${deceptionScore}/10`;
-        scoreValue.textContent = displayScore;
+        scoreValue.textContent = sanitizeText(displayScore);
         
         scoreRow.appendChild(scoreLabel);
         scoreRow.appendChild(scoreValue);
@@ -333,21 +471,29 @@ function highlightClaims(claimsToHighlight, timestampSeconds) {
 // Load and handle state for current video
 async function checkCurrentTabState() {
   try {
+    let tabId = null;
+    let videoId = null;
+
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs || !tabs[0]) {
-      showState("idle");
-      return;
+    if (tabs && tabs[0]) {
+      tabId = tabs[0].id;
+      videoId = extractVideoIdFromUrl(tabs[0].url || "");
     }
 
-    const tab = tabs[0];
-    const videoId = extractVideoIdFromUrl(tab.url || "");
-    
-    if (tab.id !== currentTabId || videoId !== currentVideoId) {
-      currentGenerationId = null;
-      lastSequence = -1;
+    if (!videoId && typeof window !== "undefined" && window.location) {
+      videoId = extractVideoIdFromUrl(window.location.href || "");
     }
     
-    currentTabId = tab.id;
+    if (tabId !== currentTabId || videoId !== currentVideoId) {
+      currentGenerationId = null;
+      lastSequence = -1;
+      const container = document.getElementById("skeleton-container") || skeletonContainer;
+      if (container) {
+        container.innerHTML = "";
+      }
+    }
+    
+    currentTabId = tabId;
 
     if (!videoId) {
       currentVideoId = null;
@@ -384,7 +530,8 @@ function handleAnalysisState(state) {
       
     case "in_progress":
       showState("loading");
-      loadingSubmessage.textContent = "Analyzing video...";
+      renderOptimisticSkeletons();
+      loadingSubmessage.textContent = state.submessage || "Analyzing video...";
       const progressVal = state.progress !== undefined && state.progress !== null ? state.progress : 0;
       progressBarFill.style.width = `${progressVal}%`;
       progressBarFill.setAttribute("aria-valuenow", progressVal);
@@ -424,21 +571,77 @@ function handleAnalysisState(state) {
   }
 }
 
+/**
+ * Handle progressive stream chunk rendering (FR-4.2, FR-4.3, US-4)
+ * Morphs skeleton cards into populated claim/stance cards as stream chunks arrive.
+ */
+function handleProgressiveStreamChunk(payload) {
+  if (!payload) return;
+  const container = document.getElementById("skeleton-container") || skeletonContainer;
+  if (!container) return;
+
+  const perspectiveName = payload.perspective || payload.perspective_name;
+  if (perspectiveName) {
+    const skeletonCard = container.querySelector(`[data-perspective="${perspectiveName}"]`);
+    if (skeletonCard) {
+      skeletonCard.classList.add("card-morph-enter");
+      setTimeout(() => {
+        skeletonCard.innerHTML = "";
+        skeletonCard.className = "skeleton-card card-morph-active";
+
+        const chipClass = perspectiveName.toLowerCase().includes("scientific") ? "stance-scientific"
+          : perspectiveName.toLowerCase().includes("journalistic") ? "stance-journalistic"
+          : perspectiveName.toLowerCase().includes("left") ? "stance-left"
+          : "stance-right";
+
+        const chip = document.createElement("div");
+        chip.className = `stance-chip ${chipClass}`;
+        chip.textContent = `${perspectiveName} - Complete`;
+        skeletonCard.appendChild(chip);
+
+        if (payload.claims && payload.claims.length > 0) {
+          payload.claims.forEach((claimText) => {
+            const claimLine = document.createElement("div");
+            claimLine.className = "state-description fade-in";
+            claimLine.style.fontWeight = "500";
+            claimLine.textContent = typeof claimText === "string" ? claimText : (claimText.claim_text || "Claim analyzed");
+            skeletonCard.appendChild(claimLine);
+          });
+        } else {
+          const detail = document.createElement("div");
+          detail.className = "state-description fade-in";
+          detail.textContent = "Perspective analysis complete";
+          skeletonCard.appendChild(detail);
+        }
+      }, 150);
+    }
+  }
+}
+
 // Listen to message broadcasts from background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "ANALYSIS_STATE_CHANGED") {
     if (message.videoId === currentVideoId) {
       handleAnalysisState(message.state);
     }
-  } else if (message.type === "ANALYSIS_PROGRESS") {
+  } else if (message.type === "ANALYSIS_PROGRESS" || message.type === "JOB_PROGRESS") {
     if (message.videoId === currentVideoId) {
-      loadingSubmessage.textContent = message.payload.message || "Analyzing...";
-      if (message.payload.progress !== undefined && message.payload.progress !== null) {
-        progressBarFill.style.width = `${message.payload.progress}%`;
-        progressBarFill.setAttribute("aria-valuenow", message.payload.progress);
+      const payload = message.payload || message.data || {};
+      loadingSubmessage.textContent = payload.message || "Analyzing...";
+      if (payload.progress !== undefined && payload.progress !== null) {
+        progressBarFill.style.width = `${payload.progress}%`;
+        progressBarFill.setAttribute("aria-valuenow", payload.progress);
+      }
+      if (payload.perspective || payload.claims || payload.chunk) {
+        handleProgressiveStreamChunk(payload);
       }
     }
-  } else if (message.type === "YOUTUBE_NAVIGATED") {
+  } else if (message.type === "VIDEO_NAVIGATED" || message.type === "YOUTUBE_NAVIGATED") {
+    if (message.videoId && message.videoId !== currentVideoId) {
+      currentVideoId = message.videoId;
+      currentGenerationId = null;
+      lastSequence = -1;
+    }
     checkCurrentTabState();
   } else if (message.type === "SYNC_PLAYBACK") {
     if (message.tabId === currentTabId && message.videoId === currentVideoId) {
@@ -514,3 +717,5 @@ if (typeof document !== "undefined") {
     checkCurrentTabState();
   }
 }
+
+export { sanitizeText, sanitizeUrl, renderResults };

@@ -1,45 +1,108 @@
-# Reusable Helper Functions Reference
+# Helper Functions Reference
 
-This document catalogs the utility modules and reusable helper functions extracted to keep the codebase DRY (Don't Repeat Yourself). All developers should check this guide first before implementing custom parsing, formatting, or service clients.
-
----
-
-## 1. Backend Utilities (`backend/app/utils`)
-
-### [Video Utilities](backend/app/utils/video_utils.py)
-YouTube video URL extraction helper.
-
-*   **Location**: `app.utils.video_utils`
-*   **Purpose**: Extract YouTube Video IDs from various URL patterns (standard watch pages, embed links, youtu.be short URLs).
-*   **Key Functions**:
-    *   `extract_video_id(url: str) -> str`: Extracts the 11-character video ID from a YouTube link, throwing `ValueError` for invalid formats.
-*   **Usage**: Used in API routers and during claim processing in `main.py`.
+> Centralized documentation of all reusable helper functions across Perspective Prism.
 
 ---
 
-## 2. Frontend Utilities (`frontend/src/utils`)
+## Backend: `app/utils/llm_utils.py`
 
-### [Time Utilities](frontend/src/utils/time.ts)
-Time formatting utilities.
+### `execute_adk_agent(agent, user_prompt, output_key, output_schema=None, is_backup=False, max_attempts=2) -> Any`
 
-*   **Location**: `src/utils/time.ts`
-*   **Purpose**: Consistent visual formatting of video timestamps.
-*   **Key Functions**:
-    *   `formatTimestamp(start: number | null, end: number | null): string`: Converts seconds to a user-friendly `MM:SS` (or `MM:SS - MM:SS` for ranges) format.
-*   **Usage**: Used in `App.tsx` claim list views.
+**Purpose:** Runs an ADK Agent via `InMemorySessionService` and `Runner` with standardized error handling, error code translation (4xx → `ClientError`, 5xx → `ServerError`), retry logic with enriched prompts on first failure, and optional Pydantic model validation of the output.
+
+**Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `agent` | `Agent` | — | The ADK Agent instance to run. |
+| `user_prompt` | `str` | — | The prompt text to pass to the agent. |
+| `output_key` | `str` | — | The session state key containing the output result. |
+| `output_schema` | `Any \| None` | `None` | Optional Pydantic model class for output validation. |
+| `is_backup` | `bool` | `False` | Whether this is a backup agent run (suppresses retry enrichment). |
+| `max_attempts` | `int` | `2` | Maximum execution attempts. |
+
+**Returns:** The result object from session state.
+
+**Used by:**
+- `app/services/claim_extractor.py` — `ClaimExtractor.extract_claims()`
+- `app/services/analysis_service.py` — `AnalysisService._run_agent_direct()`
 
 ---
 
-## 3. Chrome Extension Utilities (`chrome-extension`)
+## Backend: `app/utils/prompt_helpers.py`
 
-### [Video Utilities (Module / Script)](chrome-extension/video-utils.js)
-Unified video URL parsing and validation library for content scripts and popups.
+### `build_user_data_prompt(data, instruction) -> str`
 
-*   **Location**:
-    *   ES Module: `video-utils.js` (for sidepanel module imports)
-    *   Vanilla Script: `video-utils-script.js` (for direct manifest content script injection)
-*   **Purpose**: Validates video ID formats and extracts IDs from standard URLs, shorts, legacy `/v/` paths, and hash fragment variables.
-*   **Key Functions**:
-    *   `isValidVideoId(id: string): boolean`: Validates YouTube 11-char ID character constraints.
-    *   `extractVideoIdFromUrl(url: string): string | null`: Extracts ID or returns null if invalid.
-*   **Usage**: Registered in `manifest.json` before `content.js` and loaded dynamically by `popup.html`.
+**Purpose:** Builds a prompt string with user data wrapped at the beginning inside `===USER DATA START===` / `===USER DATA END===` delimiters, followed by the task instruction. Supports both raw string and dictionary formats.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| `data` | `str \| dict[str, str]` | User data as a pre-formatted string or a dictionary of labeled fields. |
+| `instruction` | `str` | Directive instruction for the LLM. |
+
+**Returns:** Formatted prompt string.
+
+**Used by:**
+- `app/services/claim_extractor.py` — `ClaimExtractor.extract_claims()`
+- `app/services/analysis_service.py` — `AnalysisService.analyze_perspective()`, `AnalysisService.analyze_bias_and_deception()`
+
+---
+
+## Backend: `app/utils/input_sanitizer.py`
+
+### `sanitize_input(text, max_length, field_name, allow_suspicious_patterns, allow_control_chars) -> str`
+Core sanitization function. Validates, escapes, and truncates user text before LLM prompt interpolation.
+
+### `sanitize_claim_text(claim_text) -> str`
+Convenience wrapper for claim text sanitization (max 5000 chars).
+
+### `sanitize_perspective_value(perspective_value) -> str`
+Convenience wrapper for perspective value sanitization (max 50 chars).
+
+### `sanitize_evidence_text(evidence_text) -> str`
+Convenience wrapper for evidence text sanitization (max 10000 chars).
+
+### `sanitize_context(context) -> str`
+Convenience wrapper for context text sanitization (max 2000 chars). Returns `""` for empty/None input.
+
+### `wrap_user_data(data, label) -> str`
+Wraps user data in `===USER DATA START===` / `===USER DATA END===` delimiters.
+
+---
+
+## Backend: `app/utils/video_utils.py`
+
+### `extract_video_id(url) -> str`
+Extracts a YouTube video ID from standard, embed, short URL, and `/v/` formats. Raises `ValueError` for invalid URLs.
+
+**Used by:**
+- `app/services/claim_extractor.py` — `ClaimExtractor.extract_video_id()`
+- `app/main.py` — `create_analysis_job()`, `process_analysis()`
+
+---
+
+## Chrome Extension: `video-utils.js` / `video-utils-script.js`
+
+### `isValidVideoId(id) -> boolean`
+Validates that a string is a well-formed 11-character YouTube video ID.
+
+### `extractVideoIdFromUrl(url) -> string | null`
+Extracts a YouTube video ID from a URL. Supports `?v=`, `/shorts/`, `/embed/`, `/v/`, `youtu.be`, and hash fragment formats.
+
+---
+
+## Chrome Extension: `logging-utils.js` / `logging-utils-script.js`
+
+Shared structured logging utilities with log-level filtering (`debug`, `info`, `warn`, `error`). Both module and script variants are provided for ES module imports and manifest injection respectively.
+
+---
+
+## Chrome Extension: `config.js` / `config-script.js`
+
+Shared configuration constants (API URLs, timeouts, feature flags). Both module and script variants are provided.
+
+---
+
+## Chrome Extension: `timeline-utils.js` / `timeline-utils-script.js`
+
+Timeline formatting and timestamp conversion utilities for video playback synchronization.

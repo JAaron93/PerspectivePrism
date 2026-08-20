@@ -14,9 +14,9 @@ This rulebook defines the core architectural invariants, security boundaries, an
 
 ## 2. Frontend Architecture (React 19 + TypeScript 7.0 + Vite)
 
-* **TypeScript 7.0 Standard (ADR 003)**:
-  * The frontend exclusively uses **TypeScript 7.0** (`tsc` rewritten in native Go) for sub-second build times (`tsc -b && vite build`) and multithreaded type-checking.
-  * Uses Microsoft's `@typescript/typescript6` compatibility package to bridge AST parsing for `typescript-eslint` until TS 7.1 releases the stabilized programmatic compiler API. Do NOT flag the side-by-side `@typescript/typescript6` dependency as redundant.
+* **TypeScript 7.0 Standard (ADR 004)**:
+  - Frontend development uses TypeScript 7.0 (`typescript-7: npm:typescript@^7.0.2`) with Go-based compiler backend for sub-second build times (`tsc -b && vite build`).
+  - ESLint AST analysis is bridged via Microsoft's `@typescript/typescript6` compatibility package until TS 7.1 exposes the stable programmatic compiler API. Do NOT flag the side-by-side `@typescript/typescript6` dependency as redundant.
 * **UI & State Simplicity**:
   * Do NOT suggest third-party state management libraries (Redux, Zustand, MobX) or external UI component frameworks (Tailwind, Material UI, CSS-in-JS). Plain custom CSS is intentionally maintained.
   * Functional React components with hooks only; no class components.
@@ -29,11 +29,11 @@ This rulebook defines the core architectural invariants, security boundaries, an
 
 ## 3. Chrome Extension Architecture (Manifest V3 + Zero-Build Vanilla JS)
 
-* **Zero-Build Vanilla JS Runtime (ADR 003)**:
+* **Zero-Build Vanilla JS Runtime (ADR 004)**:
   * The Chrome Extension runtime is intentionally built with **vanilla JavaScript (ES modules for service worker/popup/options, and classic injection scripts for YouTube DOM manipulation)** with **zero build steps** during daily development.
   * Developers load the extension unpacked directly from source (`chrome://extensions`) with 0ms reload latency.
   * Do NOT suggest converting the Chrome Extension source code to TypeScript or introducing Webpack/Rollup bundlers into the development workflow.
-  * Type safety is enforced via JSDoc annotations (`/** @type {...} */`) and a non-emitting `tsconfig.json` (`"noEmit": true`, `"checkJs": false` default with opt-in `@ts-check`, and `@types/chrome`).
+  * Type safety is enforced via JSDoc annotations (`/** @type {...} */`), ambient globals (`globals.d.ts`), and a non-emitting `tsconfig.json` (`"noEmit": true`, `"checkJs": true`, and `@types/chrome`).
 * **Security & Credential Isolation**:
   * **Storage Isolation**: User API keys and sensitive tokens must be stored strictly in `chrome.storage.local` (NEVER `chrome.storage.sync`).
   * **IPC Origin Verification**: `background.js` must validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` handlers.

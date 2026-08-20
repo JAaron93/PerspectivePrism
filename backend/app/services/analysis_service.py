@@ -1,10 +1,9 @@
-import os
 import logging
 import asyncio
 import time
-from typing import Dict, List, Optional, Any
+from typing import List, Any
 
-from app.core.config import settings
+from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
     BiasAnalysis,
     Claim,
@@ -19,12 +18,10 @@ from app.utils.input_sanitizer import (
     sanitize_context,
     sanitize_evidence_text,
     sanitize_perspective_value,
-    wrap_user_data,
 )
+from app.utils.llm_utils import execute_adk_agent
+from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
 from google.genai import errors
 
 logger = logging.getLogger(__name__)
@@ -35,31 +32,35 @@ class AnalysisServiceError(Exception):
     pass
 
 
-class PerspectiveAnalysisAgent(Agent):
-    pass
-
-
-class BiasAnalysisAgent(Agent):
-    pass
-
-
 class AnalysisService:
-    def __init__(self, model_name: str | None = None):
-        self.api_key = (settings.GEMINI_API_KEY or settings.LLM_API_KEY or "").strip()
-        if self.api_key:
-            os.environ["GEMINI_API_KEY"] = self.api_key
-        else:
-            raise ValueError(
-                "LLM_API_KEY is not configured (GEMINI_API_KEY is also not configured). Please set one of them in your .env file. "
-                "Example: GEMINI_API_KEY=AIzaSy..."
-            )
+    def __init__(self, model_name: str | None = None, settings: Any = None):
+        self.settings = settings or globals().get("settings")
+        provider_info = configure_provider_env(self.settings)
+
+        self.gcp_project = provider_info["project"]
+        self.gcp_location = provider_info["location"]
+        self.gemini_tier = provider_info["tier"]
+
+        # Tier-aware concurrency throttle: limits concurrent LLM API calls
+        # to prevent 429 rate-limit errors on lower tiers.
+        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
+        try:
+            max_concurrent = max(1, int(max_concurrent_raw))
+        except (ValueError, TypeError):
+            max_concurrent = 4
+        self.max_concurrency = max_concurrent
+        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
+        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, self.max_concurrency)
+
+        backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
 
         # Expose backup_client for health check compatibility
-        self.backup_client = True if settings.BACKUP_LLM_MODEL else None
+        self.backup_client = True if backup_model else None
 
-        self.perspective_agent_primary = PerspectiveAnalysisAgent(
+        self.perspective_agent_primary = Agent(
             name="perspective_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -72,9 +73,9 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.perspective_agent_backup = PerspectiveAnalysisAgent(
+        self.perspective_agent_backup = Agent(
             name="perspective_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are an objective analyst. Your task is to analyze a claim based on evidence from a specific perspective.\n\n"
                 "INSTRUCTIONS:\n"
@@ -87,9 +88,9 @@ class AnalysisService:
             output_key="perspective_result",
         )
 
-        self.bias_agent_primary = BiasAnalysisAgent(
+        self.bias_agent_primary = Agent(
             name="bias_agent_primary",
-            model=model_name or settings.LLM_MODEL,
+            model=primary_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"
@@ -106,9 +107,9 @@ class AnalysisService:
             output_key="bias_result",
         )
 
-        self.bias_agent_backup = BiasAnalysisAgent(
+        self.bias_agent_backup = Agent(
             name="bias_agent_backup",
-            model=settings.BACKUP_LLM_MODEL,
+            model=backup_model,
             instruction=(
                 "You are a bias and deception analyst. Your task is to analyze text for various forms of bias and potential deception.\n\n"
                 "INSTRUCTIONS:\n"
@@ -133,60 +134,19 @@ class AnalysisService:
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
-        session_service = InMemorySessionService()
-        attempts = 2
-        current_prompt = user_prompt
-        last_err = None
-
-        for attempt in range(attempts):
-            try:
-                attempt_session_id = f"s_attempt_{attempt}"
-                await session_service.create_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                runner = Runner(agent=agent, app_name="app", session_service=session_service)
-
-                async for event in runner.run_async(
-                    user_id="user",
-                    session_id=attempt_session_id,
-                    new_message=types.Content(role="user", parts=[types.Part.from_text(text=current_prompt)]),
-                ):
-                    if event.error_code:
-                        try:
-                            code_int = int(event.error_code)
-                            response_json = {"error": {"message": event.error_message}}
-                            if 400 <= code_int < 500:
-                                raise errors.ClientError(code=code_int, response_json=response_json)
-                            elif code_int >= 500:
-                                raise errors.ServerError(code=code_int, response_json=response_json)
-                            else:
-                                raise errors.APIError(code=code_int, response_json=response_json)
-                        except (ValueError, TypeError) as conversion_error:
-                            raise errors.APIError(
-                                code=500,
-                                response_json={"error": {"message": f"{event.error_code}: {event.error_message}"}}
-                            ) from conversion_error
-
-                session = await session_service.get_session(app_name="app", user_id="user", session_id=attempt_session_id)
-                result = session.state.get(output_key)
-                if result:
-                    if isinstance(result, dict):
-                        if output_key == "perspective_result":
-                            result = PerspectiveAnalysisLLMOutput.model_validate(result)
-                        elif output_key == "bias_result":
-                            result = BiasAnalysis.model_validate(result)
-                    return result
-            except errors.APIError as e:
-                last_err = e
-                logger.warning(f"Agent execution attempt {attempt + 1} failed: {e}")
-                if attempt == 0 and not is_backup:
-                    current_prompt = (
-                        f"{user_prompt}\n\n"
-                        f"WARNING: The previous attempt failed with the following error: {e}. "
-                        f"Please ensure you return a valid JSON object strictly matching the schema requirements."
-                    )
-                else:
-                    raise e
-
-        raise last_err or Exception("Agent execution failed with no result")
+        """Acquires the tier-aware semaphore then delegates to the shared execute_adk_agent helper."""
+        async with self._llm_semaphore:
+            schema_map = {
+                "perspective_result": PerspectiveAnalysisLLMOutput,
+                "bias_result": BiasAnalysis,
+            }
+            return await execute_adk_agent(
+                agent=agent,
+                user_prompt=user_prompt,
+                output_key=output_key,
+                output_schema=schema_map.get(output_key),
+                is_backup=is_backup,
+            )
 
     async def _run_agent_with_fallback(
         self,
@@ -301,13 +261,9 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"CLAIM: {sanitized_claim}\n"
-            f"PERSPECTIVE: {sanitized_perspective}\n"
-            f"EVIDENCE:\n{sanitized_evidence}\n"
-            f"===USER DATA END===\n"
-            f"Please analyze this claim from the specified perspective based on the evidence."
+        user_prompt = build_user_data_prompt(
+            f"CLAIM: {sanitized_claim}\nPERSPECTIVE: {sanitized_perspective}\nEVIDENCE:\n{sanitized_evidence}",
+            "Please analyze this claim from the specified perspective based on the evidence."
         )
 
         try:
@@ -357,12 +313,9 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
-        user_prompt = (
-            f"===USER DATA START===\n"
-            f"CLAIM TEXT: {sanitized_claim}\n"
-            f"CONTEXT: {sanitized_context if sanitized_context else 'No context provided'}\n"
-            f"===USER DATA END===\n"
-            f"Please analyze this claim and context for bias and deception."
+        user_prompt = build_user_data_prompt(
+            f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}",
+            "Please analyze this claim and context for bias and deception."
         )
 
         try:
