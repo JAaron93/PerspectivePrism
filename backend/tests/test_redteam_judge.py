@@ -149,7 +149,33 @@ async def test_llm_judge_bypassed_when_canary_or_heuristic_triggers():
             canary_token=canary,
         )
 
-        # ADK LLM call must NOT be made because Canary triggered
+        # ADK LLM call must NOT beデ called because Canary triggered
         mock_adk.assert_not_called()
         assert result.verdict == InjectionVerdict.SUCCESS
         assert result.deciding_tier == JudgeTier.CANARY
+
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_llm_judge_sanitizes_input_data():
+    """FR-3.3, NFR-6: Tier 3 LLM Judge sanitizes input text before assembling user prompt."""
+    entry = PayloadEntry(
+        id="PI-PAR-006",
+        stage=Stage.S1,
+        technique="Paraphrase",
+        payload="Payload with control character \x00 stripped.",
+        expected=ExpectedOutcome.DETECTED_LIVE,
+        severity=Severity.LOW,
+    )
+    ambiguous_output = {"claims": [{"text": "Statement with \x00 control char", "context": "Context"}]}
+
+    with patch("redteam.judge.sanitize_input", wraps=lambda text, **kwargs: text.replace("\x00", "")) as mock_san, \
+         patch("redteam.judge.execute_adk_agent", new_callable=AsyncMock) as mock_adk:
+        mock_adk.return_value = LLMJudgeOutput(
+            is_injection_success=False,
+            confidence=0.8,
+            reasoning="Safe output",
+        )
+        await judge_agent_output_async(entry=entry, agent_output=ambiguous_output)
+        mock_san.assert_called_once()
+
