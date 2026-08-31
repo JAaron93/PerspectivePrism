@@ -15,7 +15,7 @@ class PerspectivePrismClient {
     this.MAX_REQUEST_AGE = 300000; // 5 minutes
 
     // Cache Configuration
-    this.CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    this.CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (604,800,000 ms)
     this.MAX_CACHE_ITEMS = 50;
     this.inMemoryCache = new Map();
     this.delegateCache = options.delegateCache ?? (typeof window !== "undefined" && (typeof process === "undefined" || !globalThis.process?.env?.VITEST));
@@ -488,45 +488,58 @@ class PerspectivePrismClient {
       return null;
     }
 
-    const key = `cache_${videoId}`;
+    const legacyKey = `cache_${videoId}`;
+    const prefix = `cache_${videoId}_`;
+    const ttlMs = await this.getCacheTtlMs();
 
     // Check in-memory cache first (fallback)
-    if (this.inMemoryCache.has(key)) {
-      const entry = this.inMemoryCache.get(key);
-      const age = Date.now() - entry.timestamp;
-      if (age > this.CACHE_TTL_MS) {
-        this.inMemoryCache.delete(key);
-        return null;
+    const validMem = [];
+    for (const [memKey, entry] of this.inMemoryCache.entries()) {
+      if (memKey === legacyKey || memKey.startsWith(prefix)) {
+        if (this.isExpired(entry, ttlMs)) {
+          this.inMemoryCache.delete(memKey);
+        } else {
+          validMem.push(entry);
+        }
       }
-      return entry.data;
+    }
+    if (validMem.length > 0) {
+      validMem.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      return validMem[0].data;
     }
 
-    // Primary cache key strategy: Simple key = `cache_{videoId}`
-    // This ensures one analysis per video (latest overwrites previous)
     try {
-      const result = await chrome.storage.local.get(key);
-      let entry = result[key];
+      const allStorage = await chrome.storage.local.get(null);
+      const matchingKeys = Object.keys(allStorage).filter(
+        (k) => k === legacyKey || k.startsWith(prefix),
+      );
 
-      if (!entry) return null;
+      if (matchingKeys.length === 0) return null;
 
-      // Check expiration
-      const age = Date.now() - entry.timestamp;
-      if (age > this.CACHE_TTL_MS) {
-        console.log(`[PerspectivePrismClient] Cache expired for ${videoId}`);
-        await chrome.storage.local.remove(key);
-        // Track cache miss due to expiration
-        if (this.metricsTracker) {
-          try {
-            await this.metricsTracker.recordCacheMiss(videoId);
-          } catch (metricsError) {
-            console.warn(
-              "[PerspectivePrismClient] Failed to record cache miss metric:",
-              metricsError,
-            );
-          }
+      const validEntries = [];
+      const expiredKeys = [];
+
+      const ttlMs = await this.getCacheTtlMs();
+      for (const k of matchingKeys) {
+        const entry = allStorage[k];
+        if (this.isExpired(entry, ttlMs)) {
+          expiredKeys.push(k);
+        } else {
+          validEntries.push({ key: k, entry });
         }
-        return null;
       }
+
+      if (expiredKeys.length > 0) {
+        chrome.storage.local.remove(expiredKeys).catch(() => {});
+      }
+
+      if (validEntries.length === 0) return null;
+
+      // Sort by timestamp descending (newest entry first)
+      validEntries.sort((a, b) => (b.entry.timestamp || 0) - (a.entry.timestamp || 0));
+      const newestItem = validEntries[0];
+      let entry = newestItem.entry;
+      const key = newestItem.key;
 
       // Apply Migrations
       const migratedEntry = await this.migrateCacheEntry(entry);
@@ -625,11 +638,16 @@ class PerspectivePrismClient {
       return;
     }
 
-    const key = `cache_${videoId}`;
+    const contentHash =
+      data.content_hash ||
+      data.metadata?.content_hash ||
+      (await this.computeContentHash(data));
+    const key = `cache_${videoId}_${contentHash}`;
     const entry = {
       schemaVersion: PerspectivePrismClient.CURRENT_SCHEMA_VERSION,
       timestamp: Date.now(),
       lastAccessed: Date.now(),
+      contentHash: contentHash,
       data: data,
     };
 
@@ -685,6 +703,73 @@ class PerspectivePrismClient {
   }
 
   /**
+   * Internal SHA-256 helper for client caching
+   * @param {string} str
+   * @returns {Promise<string>}
+   */
+  async sha256Hex(str) {
+    try {
+      const cryptoObj =
+        typeof globalThis !== "undefined"
+          ? globalThis.crypto
+          : typeof crypto !== "undefined"
+            ? crypto
+            : null;
+      const encoderObj =
+        typeof globalThis !== "undefined" && globalThis.TextEncoder
+          ? globalThis.TextEncoder
+          : typeof TextEncoder !== "undefined"
+            ? TextEncoder
+            : null;
+      if (cryptoObj && cryptoObj.subtle && cryptoObj.subtle.digest && encoderObj) {
+        const encoder = new encoderObj();
+        const data = encoder.encode(str);
+        const hashBuffer = await cryptoObj.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+        return hashHex.slice(0, 16);
+      }
+    } catch (_e) {
+      // Fallback
+    }
+    // High-entropy 64-bit dual-pass hash fallback (DJB2 + SDBM) if crypto.subtle is unavailable
+    let h1 = 5381;
+    let h2 = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      h1 = Math.imul(h1, 33) ^ char;
+      h2 = char + (h2 << 6) + (h2 << 16) - h2;
+      h1 |= 0;
+      h2 |= 0;
+    }
+    return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
+  }
+
+  /**
+   * Compute a content hash for data when not provided by backend
+   * @param {Object|string} data
+   * @returns {Promise<string>}
+   */
+  async computeContentHash(data) {
+    if (!data) return "default";
+    if (typeof data === "string") {
+      return this.sha256Hex(data);
+    }
+    if (data.content_hash && typeof data.content_hash === "string") {
+      return data.content_hash;
+    }
+    if (data.metadata?.content_hash && typeof data.metadata.content_hash === "string") {
+      return data.metadata.content_hash;
+    }
+    try {
+      const jsonString = JSON.stringify(data);
+      return await this.sha256Hex(jsonString);
+    } catch (_err) {
+      return "default";
+    }
+  }
+
+  /**
    * Estimate the size of a cache entry in bytes.
    * @param {Object} entry - The cache entry to estimate
    * @returns {number} - Estimated size in bytes
@@ -705,13 +790,28 @@ class PerspectivePrismClient {
     }
   }
 
+  isCacheEntry(key, entry) {
+    if (!key || typeof key !== "string" || !key.startsWith("cache_")) {
+      return false;
+    }
+    const reserved = new Set(["cache_metrics", "cache_metadata", "cache_stats", "cache_settings"]);
+    if (reserved.has(key)) {
+      return false;
+    }
+    if (entry !== undefined && entry !== null) {
+      if (typeof entry !== "object") return false;
+      return Boolean(entry.data || entry.timestamp || entry.videoId);
+    }
+    return true;
+  }
+
   /**
    * Enforce LRU cache limits.
    */
   async enforceCacheLimits() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       if (cacheKeys.length <= this.MAX_CACHE_ITEMS) return;
 
@@ -738,16 +838,38 @@ class PerspectivePrismClient {
   }
 
   /**
+   * Get configured TTL in milliseconds from storage settings
+   * @returns {Promise<number>}
+   */
+  async getCacheTtlMs() {
+    try {
+      const syncStorage = await chrome.storage.sync.get("config");
+      if (typeof syncStorage?.config?.cacheDuration === "number" && syncStorage.config.cacheDuration > 0) {
+        return syncStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+      const localStorage = await chrome.storage.local.get("config");
+      if (typeof localStorage?.config?.cacheDuration === "number" && localStorage.config.cacheDuration > 0) {
+        return localStorage.config.cacheDuration * 60 * 60 * 1000;
+      }
+    } catch (_e) {
+      // Fallback
+    }
+    return this.CACHE_TTL_MS;
+  }
+
+  /**
    * Check if a cache entry is expired.
    * @param {Object} entry - The cache entry to check
+   * @param {number} [customTtlMs] - Optional custom TTL in milliseconds
    * @returns {boolean} - True if expired, false otherwise
    */
-  isExpired(entry) {
+  isExpired(entry, customTtlMs = null) {
     if (!entry || !entry.timestamp) {
       return true;
     }
+    const ttlMs = customTtlMs || this.CACHE_TTL_MS;
     const age = Date.now() - entry.timestamp;
-    return age > this.CACHE_TTL_MS;
+    return age > ttlMs;
   }
 
   /**
@@ -756,13 +878,14 @@ class PerspectivePrismClient {
    */
   async cleanupExpiredCache() {
     try {
+      const ttlMs = await this.getCacheTtlMs();
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
       const keysToRemove = [];
 
       for (const key of cacheKeys) {
         const entry = all[key];
-        if (this.isExpired(entry)) {
+        if (this.isExpired(entry, ttlMs)) {
           keysToRemove.push(key);
         }
       }
@@ -788,7 +911,7 @@ class PerspectivePrismClient {
   async clear() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       if (cacheKeys.length > 0) {
         console.log(
@@ -807,9 +930,23 @@ class PerspectivePrismClient {
    * @param {string} videoId - The video ID to remove from cache
    */
   async remove(videoId) {
-    const key = `cache_${videoId}`;
+    const legacyKey = `cache_${videoId}`;
+    const prefix = `cache_${videoId}_`;
     try {
-      await chrome.storage.local.remove(key);
+      const all = await chrome.storage.local.get(null);
+      const keysToRemove = Object.keys(all).filter(
+        (k) => k === legacyKey || k.startsWith(prefix),
+      );
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      } else {
+        await chrome.storage.local.remove(legacyKey);
+      }
+      for (const k of Array.from(this.inMemoryCache.keys())) {
+        if (k === legacyKey || k.startsWith(prefix)) {
+          this.inMemoryCache.delete(k);
+        }
+      }
       console.log(
         `[PerspectivePrismClient] Removed cache entry for ${videoId}`,
       );
@@ -829,7 +966,7 @@ class PerspectivePrismClient {
   async getStats() {
     try {
       const all = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache_"));
+      const cacheKeys = Object.keys(all).filter((k) => this.isCacheEntry(k, all[k]));
 
       let totalSize = 0;
       for (const key of cacheKeys) {
@@ -876,7 +1013,7 @@ class PerspectivePrismClient {
   /**
    * Migrates a cache entry to the current schema version.
    * @param {Object} entry - The cache entry to migrate.
-   * @returns {Object|null} - The migrated entry, or null if migration failed.
+   * @returns {Promise<Object|null>} - The migrated entry, or null if migration failed.
    */
   async migrateCacheEntry(entry) {
     let currentVersion = entry.schemaVersion || 0;
@@ -1162,7 +1299,7 @@ class PerspectivePrismClient {
           console.error(
             `[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`,
           );
-          this.broadcastResult(videoId, {
+          this.notifyCompletion(videoId, {
             error: "Analysis failed: State lost during recovery",
           });
         }

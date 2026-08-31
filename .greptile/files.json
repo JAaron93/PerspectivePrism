@@ -1,0 +1,12 @@
+[
+  "AGENTS.md",
+  "architecture.md",
+  "docs/adr/001-non-greedy-rust-sanitizer-via-pyo3.md",
+  "docs/adr/002-rigorous-side-panel-specification.md",
+  "docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md",
+  "docs/adr/004-selective-typescript-migration-strategy.md",
+  ".agents/rules/backend_invariants.md",
+  ".agents/rules/frontend_invariants.md",
+  ".agents/rules/chrome_extension_invariants.md",
+  ".agents/rules/testing_and_hygiene.md"
+]

@@ -362,3 +362,137 @@ body {
   background-color: var(--color-warning-bg);
   color: var(--color-warning);
 }
+
+/* ==========================================================================
+   Optimistic UI Shimmer Skeletons & Stream Animations
+   ========================================================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--border-color) 0%,
+    var(--bg-secondary) 50%,
+    var(--border-color) 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.skeleton-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+}
+
+.skeleton-line.title {
+  width: 70%;
+}
+
+.skeleton-line.short {
+  width: 40%;
+}
+
+.skeleton-line.timestamp {
+  width: 45px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.skeleton-perspective-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.skeleton-perspective-box {
+  height: 36px;
+  border-radius: 6px;
+}
+
+/* Perspective Stance Chips */
+.stance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stance-scientific {
+  background-color: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.stance-journalistic {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.stance-left {
+  background-color: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.stance-right {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+/* Card Morph & Stream Animations */
+.card-morph-enter {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-morph-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

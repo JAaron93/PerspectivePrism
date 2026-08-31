@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { PerspectivePrismClient, HttpError } from "../../client.js";
 
 describe("PerspectivePrismClient - Retry Logic", () => {
   let client;
@@ -24,10 +25,6 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       mockAlarms.push({ name, ...alarmInfo });
       return Promise.resolve();
     });
-
-    // Import the client (class only, to avoid side effects of instantation in module scope if any)
-    const clientModule = await import("../../client.js");
-    const PerspectivePrismClient = clientModule.default || clientModule.PerspectivePrismClient;
 
     // We need to mock the global fetch for testing makeAnalysisRequest failures
     vi.stubGlobal('fetch', vi.fn());
@@ -50,7 +47,10 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       expect(client.shouldRetryError(error)).toBe(true);
     });
 
-    it.todo("should retry on 500 status - requires HttpError to be exported from client.js");
+    it("should retry on 500 status", () => {
+      const error = new HttpError(500, "Internal Server Error");
+      expect(client.shouldRetryError(error)).toBe(true);
+    });
   });
 
   describe("executeAnalysisRequest()", () => {

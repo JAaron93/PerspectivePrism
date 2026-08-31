@@ -21,6 +21,7 @@ test.describe("Playback Synchronization Integration Flow", () => {
     const mockResult = {
       video_id: videoId,
       metadata: { analyzed_at: new Date().toISOString() },
+      overall_assessment: "Likely True",
       claims: [
         {
           claim_text: claimText1,
@@ -93,10 +94,17 @@ test.describe("Playback Synchronization Integration Flow", () => {
 
     // 5. Open and load the Side Panel URL in a separate page tab to simulate side panel frame
     const sidePanelPage = await context.newPage();
-    await sidePanelPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await sidePanelPage.goto(`chrome-extension://${extensionId}/sidepanel.html?v=${videoId}`);
 
     // Bring the YouTube page back to the front so it becomes the active tab
     await page.bringToFront();
+
+    // Trigger state check on side panel page to sync with active YouTube tab
+    await sidePanelPage.evaluate(async () => {
+      if (typeof window.checkCurrentTabState === "function") {
+        await window.checkCurrentTabState();
+      }
+    });
 
     // Verify it loads results (reaches complete status)
     const stateResults = sidePanelPage.locator("#state-results");

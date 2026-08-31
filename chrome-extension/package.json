@@ -9,10 +9,12 @@
     "test:coverage": "vitest --run --coverage",
     "test:integration": "playwright test -c tests/integration/playwright.config.js",
     "lint": "eslint .",
-    "build": "node build.js"
+    "typecheck": "tsc --noEmit",
+    "build": "vite build"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@types/chrome": "^0.0.308",
     "@vitest/coverage-v8": "^4.1.10",
     "archiver": "^7.0.1",
     "clean-css": "^5.3.3",
@@ -21,6 +23,22 @@
     "msw": "^2.15.0",
     "playwright": "^1.57.0",
     "terser": "^5.37.0",
+    "typescript": "^7.0.2",
+    "vite": "^6.0.0",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.12"
+  },
+  "overrides": {
+    "minimatch@3": {
+      "brace-expansion": "1.1.18"
+    },
+    "minimatch@9": {
+      "brace-expansion": "2.1.4"
+    },
+    "minimatch@10": {
+      "brace-expansion": "2.1.4"
+    }
   }
 }

@@ -67,7 +67,7 @@ class Logger {
         // Let's rely on a fire-and-forget update.
         await chrome.storage.local.set({ extension_logs: this.history });
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore persistence errors to avoid loop
     }
   }
@@ -158,7 +158,7 @@ class Logger {
         // Attempt to extract and sanitize URL if the whole string is a URL
         const url = new URL(sanitized);
         return this.sanitizeUrlObj(url).toString();
-      } catch (e) {
+      } catch (_e) {
         // If it's a string containing a URL, finding and replacing is harder without aggressive regex
         // For now, simple query param stripping via regex if it looks like a URL
         sanitized = sanitized.replace(
@@ -207,7 +207,7 @@ class Logger {
         }
       }
       return copy;
-    } catch (e) {
+    } catch (_e) {
       return "[Unserializable Object]";
     }
   }
@@ -248,5 +248,10 @@ class Logger {
 
 // Singleton instance
 const logger = new Logger();
+
+if (typeof window !== "undefined") {
+  window.Logger = Logger;
+  window.logger = logger;
+}
 
 export { Logger, logger };

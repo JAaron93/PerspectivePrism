@@ -12,19 +12,22 @@ const mockStorage = {
   local: {
     data: {},
     get: vi.fn((keys) => {
+      if (keys === null || keys === undefined) {
+        return Promise.resolve({ ...mockStorage.local.data });
+      }
       if (typeof keys === "string") {
         return Promise.resolve({ [keys]: mockStorage.local.data[keys] });
       }
-      if (keys === null) {
-        return Promise.resolve({ ...mockStorage.local.data });
+      if (Array.isArray(keys)) {
+        const result = {};
+        keys.forEach((key) => {
+          if (mockStorage.local.data[key] !== undefined) {
+            result[key] = mockStorage.local.data[key];
+          }
+        });
+        return Promise.resolve(result);
       }
-      const result = {};
-      keys.forEach((key) => {
-        if (mockStorage.local.data[key] !== undefined) {
-          result[key] = mockStorage.local.data[key];
-        }
-      });
-      return Promise.resolve(result);
+      return Promise.resolve({ ...mockStorage.local.data });
     }),
     set: vi.fn((items) => {
       Object.assign(mockStorage.local.data, items);

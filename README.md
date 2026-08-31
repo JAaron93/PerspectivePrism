@@ -61,25 +61,32 @@ In an era where video content increasingly shapes public opinion and political d
 
 I used Perspective Prism to analyze claims from a political commentary video, discovering that 3 out of 7 major claims lacked credible supporting evidence and exhibited strong emotional manipulation tactics. Armed with this Truth Profile, I was able to disuade an acquaintance from taking the video's claims at face value, which would have otherwise reinforced their existing beliefs.
 
-**Future Enhancements**: With additional development time, I plan to apply comprehensive quality assurance to the Chrome extension, including:
+## 🧩 Chrome Extension & Store Publishing Readiness
 
+Perspective Prism features a Manifest V3 Chrome Extension modernized and hardened under the `extension-security-and-vertexai-migration` track:
 
-- **Comprehensive Testing Strategy**
-  - CI/CD pipeline with automated unit and integration tests on every commit
-  - Manual testing across browser variants (Chrome, Brave, Edge) and YouTube layouts (desktop, mobile, Shorts, embedded)
-  - Accessibility testing with screen readers (NVDA/JAWS) and keyboard-only navigation
-  - Performance benchmarking (memory usage, page load impact, cache efficiency)
-
-- **Structured Logging & Monitoring**
-  - Privacy-safe logging utility that sanitizes URLs, tokens, and user data
-  - Metrics tracking for selector success rates, cache hit/miss ratios, and API performance
-  - Error aggregation for debugging production issues
-
-- **Release Quality Validation**
-  - Pre-release checklist requiring 100% test pass rate and manual QA completion
-  - Build validation ensuring minified assets work correctly and package size is optimized
-  - Store submission validation with up-to-date screenshots and privacy policy alignment
-  - Performance targets: <10MB memory usage, <100ms page load impact, <5s cached analysis
+- **Native Chrome Side Panel Integration (`chrome.sidePanel`)**
+  - Renders progressive claim streams, stance chips, and deception ratings exclusively in Chrome's native side panel without creating or mounting in-page floating DOM overlays (`#pp-analysis-panel` excised).
+- **BYOK & Sensitive Data Storage Isolation (`chrome.storage.local`)**
+  - Stores all user credentials, backend URL settings, and consent flags exclusively in `chrome.storage.local`, isolating sensitive secrets from `chrome.storage.sync` with automatic one-time upgrade migration.
+- **Service Worker IPC Origin Validation**
+  - Background service worker verifies `sender.id === chrome.runtime.id` for all message listeners, rejecting untrusted external origin calls with structured `UNAUTHORIZED` error responses.
+- **Strict Content Security Policy & Manifest MV3 Hardening**
+  - Enforces `script-src 'self'; object-src 'none';` CSP, replaces legacy `tabs` permission with `activeTab`, and removes localhost HTTP host permissions.
+- **DOMPurify HTML & Link Sanitization**
+  - Dynamically sanitizes all claim text, stance badges, tags, and evidence URLs (`sanitizeText` and `sanitizeUrl`) using vendored DOMPurify, rendering plain text `<span>` elements for empty/invalid source URLs.
+- **Optimistic UI & Zero-Latency Feedback**
+  - Displays instant animated CSS shimmer loader cards (<50ms) upon analysis start before backend streaming begins.
+- **Content-Hashed Local Storage Caching**
+  - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
+- **Comprehensive Quality Assurance & E2E Testing**
+  - **Vitest Unit Test Suite**: Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
+  - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
+  - **FastAPI Pytest Backend Suite**: Complete backend test suite covering API endpoints, claim extraction, and reliability circuit breakers (`pytest`).
+- **AI Code Review & Quality Gates (Qodo)**
+  - Automated PR reviews and hard compliance checks configured via [.qodo.yaml](.qodo.yaml) and [pr_compliance_checklist.yaml](pr_compliance_checklist.yaml).
+- **Chrome Web Store Submission Disclosure**
+  - Full metadata, privacy disclosure, CSP compliance, and permission justifications documented in [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md).
 
 ## 📊 Agent Evaluation
 
@@ -117,7 +124,8 @@ Since there are no funds allocated to scale this extension further, the extensio
     - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
+- **Chrome Extension**: Manifest V3, Vanilla JavaScript (ES modules + classic injection scripts), Zero-Build Runtime
 - **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
 ## 📋 Prerequisites
@@ -165,11 +173,24 @@ Copy `.env.example` to `.env` in the `backend/` directory:
 cp backend/.env.example backend/.env
 ```
 
-To run the full analysis, you need to configure your Gemini API credentials in `.env`:
+To run the full analysis, configure your GCP Vertex AI credentials in `.env` (utilizing GCP billing credits for 300+ RPM high-throughput quota):
+
+1. **Link GCP Billing Account**: Ensure your GCP project has an active Billing Account attached in Google Cloud Console.
+2. **Enable Vertex AI API**:
+   ```bash
+   gcloud services enable aiplatform.googleapis.com
+   ```
+3. **Authenticate via ADC (Application Default Credentials)**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+Configure `.env` with your project ID:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
-LLM_PROVIDER=google
+GCP_PROJECT=your_gcp_project_id_here
+GCP_LOCATION=global
+GEMINI_TIER=paid
 LLM_MODEL=gemini-3.5-flash-lite
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
@@ -178,6 +199,22 @@ Additional configuration:
    - `GOOGLE_API_KEY`: Google Custom Search JSON API key
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
+
+#### Production Ingress Security & TLS Requirements
+For production backend deployments:
+- **HTTPS Enforcement**: All external client-to-backend API communication MUST use HTTPS. Cleartext HTTP is restricted to `localhost` / `127.0.0.1` environments.
+- **TLS 1.3 Ingress Termination**: Production reverse proxies or ingress gateways (e.g., Cloud Run Ingress, Nginx, Caddy) MUST enforce TLS 1.3 encryption.
+
+#### Environment & Quota Verification
+Audit your local environment setup and high-throughput quota using the diagnostic scripts:
+
+```bash
+# Verify ADC setup, project linkage, and Gemini 3.5 connectivity
+python3 verify_environment.py
+
+# Run mocked parallel burst test (20 concurrent requests) to verify tier limits
+PYTHONPATH=backend python3 backend/scripts/burst_test.py 20
+```
 
 5. Run the server:
    ```bash
@@ -230,12 +267,12 @@ Additional configuration:
 
 #### Production Build & Packaging
 For distribution or release testing, compile and package the extension:
-1. Run the build script:
+1. Run the build command:
    ```bash
    cd chrome-extension
    npm run build
    ```
-   This script minifies JavaScript (removing development `console.log` statements) and CSS files, creates a production-ready `dist/` directory, and bundles it into `perspective-prism-extension.zip`.
+   This command runs Vite (`vite build` via `vite.config.js`) to bundle entry points, minify JavaScript (stripping development `console.log` statements via Terser) and CSS files, copy static assets, and generate a production-ready `dist/` directory.
 2. Load the production build:
    - Navigate to `chrome://extensions/`.
    - Click **Load unpacked** and select the `chrome-extension/dist` directory.
@@ -255,7 +292,7 @@ To allow the extension to communicate with your local Perspective Prism Backend:
 #### Configuration Options
 Access settings by right-clicking the extension icon and selecting **Options**:
 - **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
-- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 24 hours).
+- **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 7 days, using content-hashed storage keys `cache_${videoId}_${contentHash}` with 10MB auto-LRU eviction).
 - **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
 
 ## 🧪 Testing
@@ -277,6 +314,9 @@ The Chrome Extension has unit tests using Vitest and integration tests using Pla
 cd chrome-extension
 # Install testing dependencies
 npm install
+
+# Run static type checking via non-emitting tsc
+npm run typecheck
 
 # Run unit tests
 npm run test
@@ -344,7 +384,10 @@ The project is organized as follows:
     - `evidence_retriever.py`: Queries Google Custom Search API to find external evidence for claims
     - `analysis_service.py`: Synthesizes evidence and analyzes claims from multiple perspectives
   - `app/models/`: Defines Pydantic data models for requests and responses
-  - `app/utils/`: Contains utility modules (input sanitization, configuration)
+  - `app/utils/`: Contains shared utility modules
+    - `input_sanitizer.py`: Rust-accelerated input sanitization (prompt injection defense)
+    - `llm_utils.py`: Shared ADK agent execution (`get_validated_api_key`, `execute_adk_agent`)
+    - `prompt_helpers.py`: Standardized prompt formatting with `===USER DATA START===` / `===USER DATA END===` delimiters
     - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application
@@ -356,11 +399,12 @@ The project is organized as follows:
   - `evaluate_agents.py`: Benchmark script measuring success rate, latency, and output quality
 - **chrome-extension/**: YouTube Chrome Extension (Manifest V3) - Nearly Complete Implementation
   - **Core Components**:
-    - `manifest.json`: Extension configuration with permissions, content scripts, and background service worker
-    - `background.js`: Service worker handling message passing, API requests, and extension lifecycle
-    - `content.js`: Injected script that detects YouTube videos, injects analysis button, and renders results panel
-    - `client.js`: API client with async job polling, retry logic, cache management, and MV3 persistence
+    - `manifest.json`: Extension configuration with Manifest V3 permissions (`sidePanel`, `storage`), content scripts, and background service worker
+    - `background.js`: Service worker handling message passing, lazy API client initialization (`getClient()`), native Side Panel triggering (`OPEN_SIDE_PANEL`), and extension lifecycle resilience
+    - `content.js`: Injected script that detects YouTube videos, injects action button, handles SPA navigation, and dispatches side panel open requests
+    - `client.js`: API client with async job polling, retry logic, content-hashed local cache management, and MV3 persistence
   - **UI Pages**:
+    - `sidepanel.html/js/css`: Native Chrome Side Panel UI showing claim timeline, progressive perspective streams, and truth profiles
     - `popup.html/js/css`: Extension popup showing analysis status and cache statistics
     - `options.html/js/css`: Settings page for backend URL configuration, cache controls, and privacy settings
     - `welcome.html/js/css`: Onboarding page for first-time users
@@ -371,14 +415,13 @@ The project is organized as follows:
     - `quota-manager.js`: Chrome storage quota monitoring and LRU cache eviction
     - `metrics-tracker.js`: Performance metrics collection (cache hits, API latency)
     - `memory-monitor.js`: Memory profiling for extension performance
-    - `panel-styles.js`: Shadow DOM styling for analysis panel (dark/light theme support)
     - `video-utils.js / video-utils-script.js`: Shared video URL validation and extraction logic
   - **Accessibility**:
     - `ClaimNavigator` class for keyboard navigation (Arrow keys, Home/End)
     - Screen reader announcements (ARIA live regions)
     - Roving tabindex focus management
   - **Testing Infrastructure**:
-    - `tests/unit/`: Vitest unit tests for cache, config, and API client
+    - `tests/unit/`: Vitest unit tests for cache, config, API client, and Service Worker resilience (`background-resilience.test.js`)
     - `tests/integration/`: Integration tests for end-to-end flows
     - `tests/manual_qa/`: Manual QA test guides and regression scenarios
     - Multiple test HTML pages for component validation and performance benchmarking

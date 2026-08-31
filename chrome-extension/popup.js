@@ -9,7 +9,10 @@
  * - Managing different popup states (Not on YouTube, Idle, In Progress, Complete, Error, Not Configured)
  */
 
-const logger = new window.Logger("[Popup]");
+import { Logger } from "./logging-utils.js";
+import { extractVideoIdFromUrl } from "./video-utils.js";
+
+const logger = new Logger("[Popup]");
 
 // DOM elements
 const statusElement = document.getElementById("status");
@@ -82,7 +85,9 @@ function updateCacheStats(stats) {
 function showProgress(progress, text) {
   progressContainer.style.display = "block";
   progressFill.style.width = `${progress}%`;
-  progressFill.parentElement.setAttribute("aria-valuenow", progress);
+  if (progressFill.parentElement) {
+    progressFill.parentElement.setAttribute("aria-valuenow", String(progress));
+  }
   progressText.textContent = text;
 }
 
@@ -172,7 +177,7 @@ async function checkCurrentStatus() {
     currentVideoId = videoId;
 
     // Check if backend is configured
-    const config = await chrome.storage.sync.get("config");
+    const config = await chrome.storage.local.get("config");
 
     if (!config.config || !config.config.backendUrl) {
       showNotConfiguredState();

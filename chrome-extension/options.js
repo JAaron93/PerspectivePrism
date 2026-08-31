@@ -1,7 +1,7 @@
-// Options page script for Perspective Prism extension
-// Handles settings UI, validation, and persistence
+import { ConfigManager, ConfigValidator } from "./config.js";
+import { Logger } from "./logging-utils.js";
 
-const logger = new window.Logger("[Options]");
+const logger = new Logger("[Options]");
 
 // DOM elements
 let backendUrlInput;
@@ -71,7 +71,7 @@ async function loadSettings() {
     // Populate form fields
     backendUrlInput.value = config.backendUrl || "";
     cacheEnabledCheckbox.checked = config.cacheEnabled !== false;
-    cacheDurationInput.value = config.cacheDuration || 24;
+    cacheDurationInput.value = config.cacheDuration || 168;
     allowAnalysisCheckbox.checked = config.allowAnalysis !== false;
 
     logger.info("Settings loaded:", config);
