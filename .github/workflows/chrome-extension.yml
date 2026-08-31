@@ -12,6 +12,10 @@ on:
       - 'chrome-extension/**'
       - '.github/workflows/chrome-extension.yml'
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   test-and-validate:
     runs-on: ubuntu-latest
