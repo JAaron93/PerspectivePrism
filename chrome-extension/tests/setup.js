@@ -7,6 +7,34 @@
 
 import { vi } from "vitest";
 
+// Node 24+ exposes an experimental global localStorage/sessionStorage that is
+// unusable (undefined) unless --localstorage-file is provided. Because the
+// globals already exist, Vitest's jsdom environment does not override them
+// with jsdom's working storage, so install an in-memory shim when needed.
+const installStorageShim = (name) => {
+  const existing = globalThis[name];
+  if (existing && typeof existing.getItem === "function") {
+    return;
+  }
+  const store = new Map();
+  Object.defineProperty(globalThis, name, {
+    value: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(String(key), String(value)),
+      removeItem: (key) => store.delete(key),
+      clear: () => store.clear(),
+      key: (index) => [...store.keys()][index] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+};
+installStorageShim("localStorage");
+installStorageShim("sessionStorage");
+
 // Create Chrome API mock object
 const createChromeMock = () => {
   return {
