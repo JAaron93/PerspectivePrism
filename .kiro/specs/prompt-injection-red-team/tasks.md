@@ -49,17 +49,17 @@ All tasks follow strict TDD: write the failing test first, verify failure, imple
 
 ## Track B: Deterministic Sanitizer Probe
 
-### Task 4: Probe runner [STATUS: PENDING]
+### Task 4: Probe runner [STATUS: COMPLETE]
 *Traceability: FR-2.1, FR-2.2, FR-2.4 · AC: AC-1, AC-2*
-- [ ] Write failing tests asserting per-payload classification (`blocked` / `bypassed` / `error`) and delimiter-forgery survival detection for a `PI-DLM` fixture; verify they fail.
-- [ ] Implement `.benchmarks/redteam/probe.py`: iterate corpus, call `sanitize_input` with stage-appropriate `max_length` (transcript 100000, claim 5000, evidence 10000), assemble final prompt via `build_user_data_prompt`, flag surviving forged delimiters; tests now pass.
-- [ ] Verify zero network calls (pure in-process) — no LLM/YouTube/Search I/O in probe execution.
+- [x] Write failing tests asserting per-payload classification (`blocked` / `bypassed` / `error`) and delimiter-forgery survival detection for a `PI-DLM` fixture; verify they fail.
+- [x] Implement `.benchmarks/redteam/probe.py`: iterate corpus, call `sanitize_input` with stage-appropriate `max_length` (transcript 100000, claim 5000, evidence 10000), assemble final prompt via `build_user_data_prompt`, flag surviving forged delimiters; tests now pass.
+- [x] Verify zero network calls (pure in-process) — no LLM/YouTube/Search I/O in probe execution.
 - **Dependencies:** Task 1, Task 2.
 
-### Task 5: Deterministic pytest suite [STATUS: PENDING]
+### Task 5: Deterministic pytest suite [STATUS: COMPLETE]
 *Traceability: FR-2.3, FR-2.4, NFR-1 · AC: AC-2*
-- [ ] Write failing tests runnable via `pytest -m redteam` from `backend/` that (a) execute the Task 4 probe over the full corpus, (b) fail the suite if any `LEG` payload is rejected, (c) complete under 60s; verify they fail.
-- [ ] Wire the suite to the probe and confirm `pytest -m redteam` passes with the current sanitizer; confirm full `pytest` shows no regressions.
+- [x] Write failing tests runnable via `pytest -m redteam` from `backend/` that (a) execute the Task 4 probe over the full corpus, (b) fail the suite if any `LEG` payload is rejected, (c) complete under 60s; verify they fail.
+- [x] Wire the suite to the probe and confirm `pytest -m redteam` passes with the current sanitizer; confirm full `pytest` shows no regressions.
 - **Dependencies:** Task 3, Task 4.
 
 ---
