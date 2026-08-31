@@ -182,7 +182,7 @@ function renderResults(data) {
       const claimCard = document.createElement("div");
       claimCard.className = "claim-card";
       if (claim.timestamp) {
-        claimCard.dataset.timestampSeconds = parseTimestampToSeconds(claim.timestamp);
+        claimCard.dataset.timestampSeconds = String(parseTimestampToSeconds(claim.timestamp));
       }
 
       // Card Header

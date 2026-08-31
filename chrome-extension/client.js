@@ -1013,7 +1013,7 @@ class PerspectivePrismClient {
   /**
    * Migrates a cache entry to the current schema version.
    * @param {Object} entry - The cache entry to migrate.
-   * @returns {Object|null} - The migrated entry, or null if migration failed.
+   * @returns {Promise<Object|null>} - The migrated entry, or null if migration failed.
    */
   async migrateCacheEntry(entry) {
     let currentVersion = entry.schemaVersion || 0;
@@ -1299,7 +1299,7 @@ class PerspectivePrismClient {
           console.error(
             `[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`,
           );
-          this.broadcastResult(videoId, {
+          this.notifyCompletion(videoId, {
             error: "Analysis failed: State lost during recovery",
           });
         }

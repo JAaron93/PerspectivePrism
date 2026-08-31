@@ -124,7 +124,8 @@ Since there are no funds allocated to scale this extension further, the extensio
     - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
+- **Chrome Extension**: Manifest V3, Vanilla JavaScript (ES modules + classic injection scripts), Zero-Build Runtime
 - **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
 ## 📋 Prerequisites
@@ -314,6 +315,9 @@ cd chrome-extension
 # Install testing dependencies
 npm install
 
+# Run static type checking via non-emitting tsc
+npm run typecheck
+
 # Run unit tests
 npm run test
 
@@ -380,7 +384,10 @@ The project is organized as follows:
     - `evidence_retriever.py`: Queries Google Custom Search API to find external evidence for claims
     - `analysis_service.py`: Synthesizes evidence and analyzes claims from multiple perspectives
   - `app/models/`: Defines Pydantic data models for requests and responses
-  - `app/utils/`: Contains utility modules (input sanitization, configuration)
+  - `app/utils/`: Contains shared utility modules
+    - `input_sanitizer.py`: Rust-accelerated input sanitization (prompt injection defense)
+    - `llm_utils.py`: Shared ADK agent execution (`get_validated_api_key`, `execute_adk_agent`)
+    - `prompt_helpers.py`: Standardized prompt formatting with `===USER DATA START===` / `===USER DATA END===` delimiters
     - `video_utils.py`: Extracts YouTube Video IDs from various URL formats
   - `tests/`: Integration and unit tests for the backend services
 - **frontend/**: React + TypeScript + Vite frontend application

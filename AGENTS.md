@@ -1,279 +1,115 @@
 # AGENTS.md
 
-This file provides guidance to Software Engineering Agents (SEAs) and Qodo AI Review Agents when working with code in this repository.
+This document serves as the **Supreme Behavioral & Architectural Constitution** for Software Engineering Agents (SEAs) and Greptile Review Agents working in this repository.
 
 > [!IMPORTANT]
-> **Active Specification & Review Guidelines**: For active task tracks, architectural guardrails, and Qodo review rules, refer to **[.qodo.yaml](.qodo.yaml)**, **[pr_compliance_checklist.yaml](pr_compliance_checklist.yaml)**, and the **[extension-security-and-vertexai-migration specification suite](.kiro/specs/extension-security-and-vertexai-migration/)**.
+> **Active Specification & Review Guidelines**: PR code reviews and quality gates are governed by **[`.greptile/rules.md`](.greptile/rules.md)** and configured via **[`.greptile/config.json`](.greptile/config.json)**. Architectural decisions are documented in **[`docs/adr/`](docs/adr/)**. Domain-specific implementation guardrails are maintained under **[`.agents/rules/`](.agents/rules/)**.
 
-# Review Governance & Security Invariants
-
-- **Qodo Review Agent Standard**: All PR reviews and automated quality gates are governed by `.qodo.yaml` and `pr_compliance_checklist.yaml`. Do not create or reference `.macroscope/` files.
-- **BYOK Storage Isolation**: User credentials and sensitive settings MUST be stored exclusively in `chrome.storage.local` across both module (`config.js`) and script (`config-script.js`) variants. `chrome.storage.sync` is prohibited for secrets.
-- **IPC Origin Verification**: Service worker `background.js` MUST validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` listeners, returning structured error objects `{ success: false, error: "...", code: "UNAUTHORIZED" }`.
-- **Structured Output Scope**: Pydantic `output_schema` or `response_schema` enforcement applies to model calls returning application business data (claim extraction, perspective & bias analyses). Utility operations (`count_tokens`, health probes) are exempt.
-- **Spec Task & Track Completion Tagging**: When completing tasks in `.kiro/specs/` files, update both the parent Track header (`## Track B: ... [COMPLETED]`) and each individual task header (`### Task X: ... [COMPLETED]`) to maintain strict status parity across spec suites.
+---
 
 # Project Overview
 
-Perspective Prism is a system designed to analyze YouTube video transcripts for claims, bias, and deception using a multi-perspective approach. It consists of three main components:
+Perspective Prism analyzes YouTube video transcripts for claims, bias, and deception using a multi-perspective approach:
+1. **Backend**: Python 3.10+ FastAPI application orchestrating the claim extraction and analysis pipeline.
+2. **Frontend**: React 19 + TypeScript 7.0 Single Page Application for standalone interaction.
+3. **Chrome Extension**: Manifest V3 browser extension integrating analysis directly into YouTube watch pages.
 
-1.  **Backend**: A Python FastAPI application that orchestrates the analysis pipeline.
-2.  **Frontend**: A React/TypeScript web application for standalone user interaction.
-3.  **Chrome Extension**: A Manifest V3 browser extension that integrates the analysis directly into YouTube watch pages.
+---
 
-# Model Provider & Architecture Invariants
+# Supreme Architecture & Model Invariants
 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-> - **Framework & SDK**: This project exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
-> - **Provider & Authentication Modes**: Exclusively uses **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` utilizing GCP billing credits with 300+ RPM high-throughput quota). AI Studio API keys (`GEMINI_API_KEY`, `LLM_API_KEY`) and free tier rate-limit throttles are permanently removed.
-> - **Primary & Backup Models**: Only Gemini 3.x series models are allowed (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup). Gemini 2.x and non-Google models are prohibited.
-> - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed. Do NOT import, reference, or attempt to migrate code to these deprecated SDKs under any circumstances.
-> - **Strict Async I/O & Non-Blocking Event Loop**: All network I/O operations (LLM model calls, web search, transcript retrieval) MUST use non-blocking `async`/`await` patterns (e.g. `client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`) to maximize high-throughput paid-tier parallel execution (300+ RPM). Synchronous blocking network calls inside event loop contexts are strictly prohibited.
-> - **Code Inspection Requirement**: SEAs must always inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors. Do not rely on prompt assumptions or historical transcripts.
+> - **Framework & SDK**: Exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
+> - **Provider & Authentication Mode**: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM high-throughput quota). AI Studio API keys and free tier rate-limit throttles are permanently removed.
+> - **Primary & Backup Models**: Gemini 3.x series models only (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
+> - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed.
+> - **Strict Async I/O & Non-Blocking Event Loop**: All network I/O operations (LLM model calls, web search, transcript retrieval) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
+> - **Code Inspection Requirement**: Inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors.
+
+---
+
+# Review Governance & Security Invariants
+
+* **Greptile Review Agent Standard**: All PR reviews and automated quality gates are governed by `.greptile/rules.md` and `.greptile/config.json`. Do not create or reference `.macroscope/` or legacy Qodo files.
+* **BYOK Storage Isolation**: User credentials and sensitive settings MUST be stored exclusively in `chrome.storage.local` across both module (`config.js`) and script (`config-script.js`) variants. `chrome.storage.sync` is prohibited for secrets.
+* **IPC Origin Verification**: Service worker `background.js` MUST validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` listeners, returning structured error objects `{ success: false, error: "...", code: "UNAUTHORIZED" }`.
+* **Structured Output Scope**: Pydantic `output_schema` or `response_schema` enforcement applies to model calls returning application business data (claim extraction, perspective & bias analyses). Utility operations (`count_tokens`, health probes) are exempt.
+
+---
 
 # Repository Layout
 
 ```
 /
-├── backend/              # Python FastAPI backend
-│   ├── app/
-│   │   ├── api/         # API route handlers
-│   │   ├── core/        # Configuration (pydantic-settings)
-│   │   ├── models/      # Pydantic schemas and data models
-│   │   ├── services/    # Business logic (ClaimExtractor, EvidenceRetriever, AnalysisService)
-│   │   ├── utils/       # Utility functions (input_sanitizer.py)
-│   │   └── main.py      # FastAPI entry point
+├── .agents/
+│   └── rules/            # Modular domain rulebooks (backend, frontend, extension, testing)
+├── .greptile/            # Greptile automated review rules and configuration
+├── backend/              # Python FastAPI backend (ADK 2.0, Vertex AI, Rust PyO3 Sanitizer)
+│   ├── app/             # API routes, core settings, models, and services
 │   └── tests/           # pytest test suite
-├── frontend/            # React + TypeScript + Vite SPA
-├── chrome-extension/    # Manifest V3 browser extension
+├── frontend/            # React 19 + TypeScript 7.0 + Vite SPA
+├── chrome-extension/    # Manifest V3 browser extension (Zero-build vanilla JS + Side Panel)
 │   └── tests/           # Vitest unit tests + Playwright integration tests
 ├── docs/
-│   └── adr/             # Architecture Decision Records
+│   └── adr/             # Architecture Decision Records (ADR 001 - 004)
 ├── walkthroughs/        # Developer walkthroughs and implementation guides
-├── .benchmarks/         # Agent evaluation scripts
-└── AGENTS.md            # This file
+└── AGENTS.md            # This Constitution & Rules Index
 ```
 
-# Backend Development
+---
 
-The backend is located in the `backend/` directory. It uses Python 3.10+ and FastAPI.
+# System Architecture Pipeline
 
-## Setup
-1.  Navigate to `backend/`.
-2.  Create a virtual environment: `python3 -m venv venv`.
-3.  Activate it: `source venv/bin/activate`.
-4.  Install dependencies: `pip install -r requirements.txt`.
-5.  Set up `.env` from `.env.example` (requires Gemini and Google Search API keys).
-6.  **Rust Toolchain Configuration**:
-    When compiling the Rust extension (`prism_sanitizer_rs`), if the Rust compiler (`rustc`/`cargo`) is not found on the `PATH`, prepend the local Rustup stable toolchain bin directory to your `PATH` (typically located at `~/.rustup/toolchains/stable-x86_64-apple-darwin/bin` on macOS):
-    ```bash
-    export PATH="~/.rustup/toolchains/stable-x86_64-apple-darwin/bin:$PATH"
-    pip install -e .
-    ```
+The analysis pipeline follows four core stages:
+1. **Claim Extraction**: Fetches YouTube transcript and uses ADK 2.0 `ExtractorAgent` (Gemini Structured Outputs) to identify verifiable claims with timestamps.
+2. **Evidence Retrieval**: Queries Google Custom Search across four perspectives in parallel: Scientific, Journalistic, Partisan Left, Partisan Right.
+3. **Perspective & Bias Analysis**: Evaluates claims against retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances, applying deception threshold filters.
+4. **Truth Profile**: Assembles the overall assessment (`Likely True`, `Likely False`, `Mixed`, `Suspicious/Deceptive`), per-perspective confidence ratings, and bias indicators.
 
+---
 
-## Common Commands
+# Tier Summaries & Quick Commands
 
-*   **Run Server**: `uvicorn app.main:app --reload` (starts on port 8000)
-*   **Run Tests**: `pytest`
-*   **Run Specific Test**: `pytest tests/test_input_sanitizer.py`
-*   **Verify Environment**: `python3 verify_environment.py` (audits ADC setup, project linkage & Gemini connectivity)
-*   **Run Burst Test**: `PYTHONPATH=backend python3 backend/scripts/burst_test.py 20` (runs mocked 20-request burst test)
-*   **Virtual Environment Invocation Path**: When running commands or test suites from the root directory targeting the backend environment, always explicitly qualify the path to the virtual environment binary (`backend/venv/bin/python` or `backend/venv/bin/pytest`), rather than using relative `./venv/bin/` paths.
+### 1. Backend (`backend/`)
+* **Stack**: Python 3.10+, FastAPI, Google ADK 2.0, `google-genai` (Vertex AI mode), PyO3 Rust extension (`prism_sanitizer_rs`).
+* **Run Server**: `uvicorn app.main:app --reload` (port 8000)
+* **Run Tests**: `source backend/venv/bin/activate && cd backend && GCP_PROJECT=test-project LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`
 
-## Architecture & Key Files
+### 2. Frontend (`frontend/`)
+* **Stack**: React 19, TypeScript 7.0 (native Go compiler engine via ADR 004), Vite, plain custom CSS.
+* **Dev Server**: `npm run dev` (port 5173)
+* **Build**: `npm run build` (sub-second compile via `tsc -b && vite build`)
+* **Lint**: `npm run lint`
 
-*   `app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration.
-*   `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
-*   `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
-*   `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection. Includes a circuit breaker that tracks transient `google-genai` failures and falls back to `gemini-3.1-flash-lite`.
-*   `app/utils/input_sanitizer.py`: **Critical security component.** Integrates a high-performance Rust compiled extension (`prism_sanitizer_rs` via PyO3) for regex patterns and control character sanitization. All user-supplied content must pass through this before being sent to any LLM.
-*   `app/core/config.py`: `pydantic-settings` configuration. Key settings include `MAX_CLAIMS_PER_ANALYSIS`, `DECEPTION_THRESHOLD_HIGH`, `DECEPTION_THRESHOLD_MODERATE`, and `CHROME_EXTENSION_IDS`.
-*   `pyproject.toml`: Build and test configuration.
+### 3. Chrome Extension (`chrome-extension/`)
+* **Stack**: Manifest V3, zero-build vanilla JS (ADR 004), Native Side Panel API, JSDoc static semantic type checking (`checkJs: true`).
+* **Typecheck**: `npm run typecheck` (`tsc --noEmit`)
+* **Lint**: `npm run lint`
+* **Unit Tests**: `npm test` (Vitest)
+* **Integration Tests**: `npm run test:integration` (Playwright persistent context)
 
-## Async Job API
+---
 
-Analysis runs asynchronously. The flow is:
+## Constitution & Rule Maintenance Protocol
 
-1.  `POST /analyze/jobs` — submits a YouTube URL, returns a `job_id`.
-2.  `GET /analyze/jobs/{job_id}` — poll for status (`PENDING` → `PROCESSING` → `COMPLETED` / `FAILED`) and incremental results.
+Future AI agents, pair programmers, and automated tooling must adhere to this rule governance protocol:
 
-Results are updated incrementally as each perspective completes. Completed jobs are cleaned up after 1 hour by a background task.
+1. **Root `AGENTS.md` Scope**:
+   * Reserved strictly for core project identity, primary architectural invariants, vendor lock-in standards, review directives, and the rule index.
+   * **Do NOT** append granular function signatures, component rules, or test mocking specifics directly to this root file.
+2. **`.agents/rules/` Modular Scope**:
+   * Detailed implementation guardrails, DB/storage mechanics, logging privacy, BDD/test patterns, and hygiene MUST be added to or updated within the appropriate domain file under `.agents/rules/`.
+3. **Proposal Workflow**:
+   * Before modifying project rules or adding new constraints (e.g. during `/learn` or code review resolutions), agents MUST draft a proposal/plan outlining the classification, rationale, and diffs, and obtain explicit user approval before writing changes to disk.
 
-## Coding Conventions
+---
 
-*   Use `async`/`await` for all I/O operations.
-*   **All user inputs must be sanitized via `input_sanitizer.py` before LLM processing** — no exceptions.
-*   Use Pydantic models for all request/response schemas.
-*   Use structured logging via the `logging` module; log details server-side and return generic errors to clients.
-*   Configuration via `pydantic-settings` and `.env` files — never hardcode secrets.
-*   Catch specific exceptions; avoid bare `except` clauses.
+## Modular Domain Rules Index
 
-## Testing & Mocking Conventions
+Detailed engineering invariants and implementation guidelines are maintained in the following modular rulebooks:
 
-*   **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials (e.g., `LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`) to prevent Pydantic configuration validation errors during test collection.
-*   **Dependency Injection for Settings**: When extracting utility classes (e.g., API clients) that require configuration, do not import `app.core.config.settings` directly inside the utility. Instead, pass `settings` via dependency injection in the constructor (`def __init__(self, settings=None):`). This ensures that module-level `patch` mocks from `pytest` propagate correctly to the utilities.
-*   **External SDK Mock Safety**: When passing optional `pydantic-settings` fields to external SDKs (like `google.genai.Client`), explicitly type-check the values (e.g., `if isinstance(settings.OPTIONAL_URL, str):`) to prevent `TypeError`. Tests that mock `settings` often return `MagicMock` objects for unspecified attributes, which will crash strict external clients if not sanitized to `None` or omitted.
-*   **Pydantic ClassVar & Defensive Guards**: Constant lookup dictionaries on `BaseSettings` classes MUST be annotated with `typing.ClassVar` (e.g. `TIER_CONCURRENCY_LIMITS: ClassVar[dict[str, int]]`) to prevent `pydantic-settings` from treating them as configurable environment fields. Runtime properties deriving concurrency counts MUST defensively cast and clamp values (`max(1, int(val))`).
-*   **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`) to prevent parent environment leaks.
-*   **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
-*   **Dynamic Script Settings Instantiation**: Executable scripts and CLI tools (`burst_test.py`, `verify_environment.py`) MUST instantiate `Settings(_env_file=None)` dynamically inside function entrypoints rather than reading top-level cached module imports, allowing `os.environ` test patches and command-line overrides to take immediate effect without stale state collisions.
-
-# Frontend Development
-
-The frontend is located in the `frontend/` directory. It uses React 19, TypeScript, and Vite.
-
-## Setup
-1.  Navigate to `frontend/`.
-2.  Install dependencies: `npm install`.
-3.  Set up `.env` from `.env.example`.
-
-## Common Commands
-
-*   **Start Dev Server**: `npm run dev` (starts on port 5173)
-*   **Build for Production**: `npm run build`
-*   **Lint Code**: `npm run lint`
-*   **Preview Production Build**: `npm run preview`
-
-## Coding Conventions
-
-*   Functional components with hooks; no class components.
-*   TypeScript interfaces for all API response types.
-*   Environment variables prefixed with `VITE_`.
-*   Error handling with try/catch and user-friendly error messages.
-
-# Chrome Extension
-
-The extension is located in `chrome-extension/`. It uses vanilla JavaScript (ES modules for pages/background, classic scripts for content scripts), HTML, and CSS, bundled with **Vite 6** (`vite.config.js`).
-
-## Setup
-1.  Navigate to `chrome-extension/`.
-2.  Install dev dependencies: `npm install`.
-3.  Build production bundle: `npm run build`.
-
-**To load in Chrome**: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select `chrome-extension/dist` (for production build) or `chrome-extension/` (for dev).
-
-## Common Commands
-
-*   **Build Production Bundle**: `npm run build` (Vite 6 multi-entry bundling into `dist/`)
-*   **Validate Manifest**: `node scripts/check-manifest.js` (validates root and `dist/` manifests)
-*   **Run Unit Tests**: `npm test` (Vitest, single run)
-*   **Run Unit Tests (watch)**: `npm run test:watch`
-*   **Run Coverage**: `npm run test:coverage`
-*   **Run Integration Tests**: `npm run test:integration` (Playwright with `xvfb-run`)
-
-## Testing & Debugging Tool Routing Discipline
-
-* **Primary Integration Test Harness**: Always use **Playwright's Persistent Extension Context** (`npm run test:integration` in `chrome-extension/`) for automated integration testing, assertions, regression checks, and CI quality gates.
-* **Domain-Relevant Test Fixtures**: **Never use pop music videos or dummy Rick Astley IDs (`dQw4w9WgXcQ`) for automated testing or browser QA**. Always use realistic journalism, news analysis, science reporting, or policy documentary video URLs/IDs (e.g. PBS NewsHour, BBC News, DW News, or Veritasium claims) so test data accurately reflects Perspective Prism's claim extraction domain.
-* **Network Mocking & Stubbing (MSW v2)**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/` + `msw` skill) for intercepting FastAPI backend requests (`/analyze/jobs`), simulating stream progress chunks, testing network errors (500/429), and verifying local cache hit/miss behavior without making live API calls.
-* **Selective Interactive Debugging**: Use **Chrome DevTools MCP** (via the `chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively diagnosing tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT use Chrome DevTools MCP for routine test suite execution.
-
-### Automated Accessibility (axe-core MCP & a11y-debugging) Rules
-- **Prerequisites Before Scanning:**
-  1. Wait for client-side rendering/hydration to complete before invoking `analyze`.
-  2. Dismiss modal overlays, cookie consent banners, or dropdowns that block page interaction.
-  3. For auth-gated routes, read credentials/tokens from local `.env` or session cookies—do not guess credentials.
-- **Workflow Pattern:**
-  1. Run `analyze` on specific, isolated selectors (e.g., `#main-content`, `form.checkout`) rather than whole-page scans when debugging specific components.
-  2. Call `remediate` on returned violation IDs to get code-level fixes.
-  3. Focus fixes on semantic HTML elements (`<button>` over `<div onClick>`), proper ARIA labels, and WCAG AA color contrast compliance.
-- **Tool Complementarity (`axe-core-mcp` vs `a11y-debugging` skill):**
-  - **`axe-core-mcp`**: Primary tool for component-level DOM scanning (`analyze` on specific selectors) and direct code-level remediation (`remediate`).
-  - **`a11y-debugging` skill**: Used for full-page Lighthouse accessibility scores, visual tap-target size validation (48x48px), and testing interactive keyboard focus traps (`Tab`/`Shift+Tab` cycling).
-
-## Git Merge & Documentation Invariants
-
-* **Git Merge Resolution & Parent Verification**:
-  - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit`.
-  - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
-* **Documentation Hygiene & Test Suite Claims**:
-  - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
-  - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).
-
-## Key Files
-
-*   `vite.config.js`: Vite 6 multi-entry build configuration with `copyExtensionAssets` plugin and Terser minification.
-*   `manifest.json`: Extension configuration (Manifest V3).
-*   `content.js`: Content script — UI injection and DOM manipulation on YouTube pages.
-*   `claim-navigator.js`: Keyboard navigation and accessibility (`ClaimNavigator` class).
-*   `background.js`: Service worker for API coordination.
-*   `client.js`: Backend API client used by content and popup scripts.
-*   `sidepanel.html` / `sidepanel.css` / `sidepanel.js`: Native Chrome Side Panel UI, Optimistic UI shimmer skeletons, and progressive streaming.
-*   `config.js` / `config-script.js`: Extension configuration (module and script variants).
-*   `logging-utils.js` / `logging-utils-script.js`: Logging utilities (module and script variants).
-*   `popup.html` / `popup.js`: Browser action popup.
-*   `options.html` / `options.js`: Extension options page.
-*   `welcome.html` / `welcome.js`: Onboarding page.
-
-## Content Script Load Order
-
-Scripts are injected into YouTube pages in this order:
-`logging-utils-script.js` → `config-script.js` → `consent.js` → `claim-navigator.js` → `content.js`
-
-## Coding Conventions
-
-*   Vanilla JS with ES module syntax — no framework, no build step.
-*   Shared utilities MUST maintain two variants when exposed to content scripts: a module version (e.g. `config.js`) with `export` statements for modern module imports (`background.js`, `options.js`), and a classic script version (e.g. `config-script.js`) without `export` statements for direct `manifest.json` content script injection and synchronous HTML test fixture loading.
-*   **ESLint Globals**: Functions and variables defined in vanilla scripts (`*-script.js`), shared module classes (e.g. `CacheManager`), and standard Web APIs (`crypto`, `TextEncoder`) must be explicitly added to the `globals` object in `eslint.config.js`. Failing to do so will cause `no-undef` errors and fail the CI pipeline when consumed by other scripts.
-*   **Vendored Script ESLint Ignores**: All third-party vendored ES modules placed in `chrome-extension/vendor/` MUST be explicitly added to the `ignores` array (`vendor/**/*`) in `eslint.config.js`. ESLint must not lint third-party code, which will trigger unconfigured plugin rule errors during CI execution.
-*   **Scoped Package Overrides**: When resolving transitive vulnerabilities via `"overrides"` in `package.json`, NEVER use a top-level blanket override for dependencies across major version boundaries. ALWAYS use parent-scoped overrides (e.g. `"minimatch@3": { "brace-expansion": "1.1.18" }`) to preserve semantic version contracts for downstream toolchains.
-*   The backend is allowlisted for CORS via the `CHROME_EXTENSION_IDS` setting in the backend config.
-
-## Architectural Guidelines
-
-*   **SPA Navigation & Stale Responses**: YouTube is a Single Page Application (SPA). `yt-navigate-start` events reset the active video context. When guarding against delayed API responses, **never bypass the stale-response guard if `currentVideoId` is `null`**. A `null` ID indicates the user has navigated away from a video page; allowing a delayed response through will incorrectly render UI on a non-video page. Always strictly compare `analysisVideoId !== currentVideoId`.
-*   **Storage Eviction & Reserved Key Protection**: When enumerating `chrome.storage.local` keys starting with `cache_` for TTL eviction, LRU pruning, or cache clearing, all operations MUST filter targets using an `isCacheEntry(key, entry)` validator to exclude reserved non-analysis metadata keys (`cache_metrics`, `cache_metadata`, `cache_stats`, `cache_settings`). Failing to exclude reserved keys causes metrics and settings to be permanently wiped during eviction.
-*   **Content-Hashed Storage Keys**: Analysis cache entries must use key format `cache_${videoId}_${contentHash}`. If a backend response does not supply a `content_hash`, compute a deterministic SHA-256 digest of the serialized payload locally (`computeContentHash(data)`) to prevent overwriting existing entries for the same video.
-*   **Storage Key Video ID Parsing**: When extracting video IDs from content-hashed storage keys in tests or metrics utilities, use `key.replace("cache_", "").split("_")[0]` to correctly extract the 11-character video ID candidate regardless of key format (`cache_${videoId}_${contentHash}` or legacy `cache_${videoId}`).
-*   **Configurable TTL Propagation**: All cache expiration routines (`checkCache`, `isExpired`, `cleanupExpiredCache`, `evictExpiredAndLRU`) MUST load the user-configured `cacheDuration` setting from storage and pass the calculated `ttlMs` to all expiration checks—including secondary and in-memory (`inMemoryCache`) fallback lookups—preventing stale data returns.
-*   **Non-Cryptographic Fallback Hashing**: Fallback hashing implementations used when `crypto.subtle` is unavailable MUST employ a 64-bit dual-pass algorithm combining DJB2 (`Math.imul(h1, 33) ^ char`) and SDBM (`char + (h2 << 6) + (h2 << 16) - h2`) formatted as a 16-character hex string `(h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0")` to prevent 32-bit hash collisions on large JSON payloads.
-*   **Storage Migration Write & Cleanup Protection**: During legacy storage migration (e.g. `chrome.storage.sync` to `chrome.storage.local`), deletion of legacy keys (`chrome.storage.sync.remove(...)`) MUST be strictly guarded behind verified completion of `chrome.storage.local.set` (checking `chrome.runtime.lastError` in callbacks or using `await` inside `try...catch`). Asynchronous cleanup calls MUST be explicitly awaited with error logging rather than silently ignored via fire-and-forget `.catch(() => {})`.
-*   **Strict URL Protocol Allowlisting**: `sanitizeUrl()` and link sanitization functions MUST enforce an explicit protocol allowlist (parsing via `new URL()` and validating `protocol === "http:" || protocol === "https:"`) rather than relying on protocol denylists. Un-allowlisted URLs MUST resolve to `"#"` and render as plain text `<span>` elements rather than clickable `<a>` links to prevent unexpected document navigation to non-web schemes (`file:`, `chrome:`, `chrome-extension:`).
-*   **Integration Testing (Playwright)**: 
-    *   **No Arbitrary Timeouts**: When testing delayed API responses (e.g., simulating a long analysis to test cancellation or navigation), do not use arbitrary timeouts (e.g., `setTimeout`). Instead, expose a Promise signal from the route handler and `await` that signal in the test *before* triggering the cancellation or SPA navigation. This ensures the request is actually in-flight.
-    *   **Consistent Fixtures**: Always use `buildMockResult` from `fixtures.js` for API mocks rather than inline JSON literals. Extend the fixture signature if new data overrides (like `deceptionScore`) are needed.
-    *   **Storage Mock Parity**: When refactoring extension modules to use `chrome.storage.local` for settings or consent parameters, update all background test fixtures (`fixtures.js`, `consent-flow.spec.js`) and manager classes in lockstep. Mocking `chrome.storage.sync` when runtime code reads `chrome.storage.local` causes 403 Forbidden / missing consent errors in integration tests.
-    *   **Side Panel URL Parameter Fallback**: `checkCurrentTabState()` in `sidepanel.js` MUST fallback to extracting video IDs from `window.location.href` (`?v=VIDEO_ID`) when `chrome.tabs.query` does not return a YouTube watch URL. This ensures Playwright standalone tab contexts (`chrome-extension://${extensionId}/sidepanel.html?v=${videoId}`) correctly resolve the active video ID.
-    *   **CI/CD Virtual Display Invariant (`xvfb-run`)**: Chrome Extensions CANNOT initialize background Service Workers or Side Panel APIs in pure headless mode on Linux. In GitHub Actions (Linux), you MUST install dependencies via `npx playwright install --with-deps`, launch Playwright persistent context with `headless: false`, and execute tests wrapped in `xvfb-run npm run test:integration`. Omitting `xvfb-run` causes execution to hang indefinitely.
-*   **Unit Testing Injected Scripts (Vitest)**: To achieve test parity for `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
-
-### Native Side Panel UI & Progressive Streaming Rules
-
-*   **Zero-Latency Optimistic UI**: On video analysis start or cache miss, `sidepanel.js` must immediately render 4 animated CSS shimmer cards (<50ms execution latency) corresponding to Scientific, Journalistic, Partisan Left, and Partisan Right perspectives.
-*   **Progressive Stream Chunk Morphing**: As backend progress broadcasts (`JOB_PROGRESS` / `ANALYSIS_PROGRESS`) arrive, skeleton cards morph smoothly into populated claim stance cards with confidence fill meters and stance chips.
-*   **Idempotent Skeleton Rendering & DOM Preservation**: Skeleton loaders and placeholder card generators (`renderOptimisticSkeletons`) MUST check if the container already has populated or morphed child nodes before clearing container contents (`container.innerHTML = ""`). Container clearing MUST be explicitly restricted to context switches (e.g. `videoId` or `tabId` changes) or state resets (`idle`/`error`), preserving in-flight progressive stream cards during routine state refreshes or side panel re-activations.
-*   **SPA State Sync (`VIDEO_NAVIGATED` & `YOUTUBE_NAVIGATED`)**: Content script broadcasts `VIDEO_NAVIGATED` and `YOUTUBE_NAVIGATED` upon `yt-navigate-finish`. The Side Panel handles these messages to reset generation state, check `chrome.storage.local` cache (<20ms hit response), or render optimistic skeletons (<50ms miss response).
-*   **Vitest Async Init Guard**: Any Vitest test suite executing a module with top-level or DOMContentLoaded asynchronous initialization (such as `sidepanel.js` calling `checkCurrentTabState()`) MUST wait for the initial outbound `chrome.runtime.sendMessage` payload (e.g. `type: "GET_ANALYSIS_STATE"`) inside a `vi.waitFor` block prior to dispatching synthetic listener messages. Rationale: Synchronous `onMessage` listener registration happens before `checkCurrentTabState()` resolves; dispatching messages without waiting will evaluate state guards against uninitialized `null` variables (e.g. `message.videoId === currentVideoId`), silently dropping test events.
-
-### State Management & Rebinding Rules
-
-*   **Preserve State on Rebind**: When rebinding media playback listeners (e.g., video sync listeners), do not reset sequence counters or ordering variables (like `playbackSequence`). Ensure the monotonic sequence continues from the prior value.
-*   **Node-Level Element Comparison**: When checking if the active media element is current, compare node instances directly (`video !== activeVideoElement`) rather than checking for nullity (`!activeVideoElement`), to capture same-URL node substitutions.
-*   **Tab & Context Isolation & Clearance**: In global views or side panels, always reset generation IDs, sequence state, and tab scoping (e.g., `currentGenerationId = null`, `lastSequence = -1`, and `currentTabId = tabId` without `|| currentTabId` fallback) when switching active tabs or when `chrome.tabs.query` returns no active tab, preventing stale tab scoping leaks.
-*   **Vitest Chrome Mocking**: Ensure unit tests mocking Chrome tabs also mock `chrome.tabs.onActivated` and `chrome.tabs.onUpdated` to support simulated tab context switching and verify state reset flows.
-
-### UI Overlay Excise & Privacy Modal Invariants
-
-*   **Component & Modal Scope Isolation**: When excising or refactoring DOM overlays (e.g., `#pp-analysis-panel`), do NOT alter or bypass independent user dialogs (e.g., Privacy & Data Collection Consent modals `#pp-consent-dialog-host` managed by `ConsentManager`).
-*   **Integration Test Intent Alignment**: When updating integration test assertions (Playwright), ensure tests asserting user choice/consent (such as `consent-flow.spec.js`) verify the active attachment and user action flow for modal dialogs rather than checking for element absence when test setup explicitly clears consent storage.
-
-### Service Worker Resilience & Vitest Mocking Rules
-
-*   **Storage Session Mocking**: Any Vitest test suite executing background code that interacts with `chrome.storage.session` or `chrome.runtime.onInstalled`/`onStartup` must verify those properties are defined in `chrome-extension/tests/setup.js`.
-*   **Idempotent Promise Getters**: In Service Worker modules, lazy initialization getters (`getClient()`) should return the cached Promise reference (`clientPromise`) directly rather than decorating the getter function with `async`, ensuring strict promise reference identity across concurrent callers during Service Worker wake-up.
-# System Architecture
-
-The system follows a pipeline approach:
-
-1.  **Claim Extraction**: Fetches the YouTube transcript and uses the ADK 2.0 `ExtractorAgent` (leveraging Gemini Structured Outputs) to identify key claims with timestamps. The prompt format utilizes context caching by placing raw transcript data at the absolute beginning inside untrusted data delimiters.
-2.  **Evidence Retrieval**: For each claim, queries Google Custom Search across four perspectives in parallel: Scientific, Journalistic, Partisan Left, Partisan Right.
-3.  **Perspective & Bias Analysis**: Evaluates each claim against the retrieved evidence and context using ADK 2.0 `AnalysisAgent` instances. High-deception ratings short-circuit overall assessment, and moderate-deception ratings downgrade assessments.
-4.  **Truth Profile**: Assembles the final result — overall assessment (`Likely True`, `Likely False`, `Mixed`, or `Suspicious/Deceptive`), per-perspective analysis, and bias indicators.
-
-## External Services
-
-*   **YouTube Transcript API**: Fetches video transcript text.
-*   **Google Custom Search JSON API**: Evidence retrieval per perspective.
-*   **Gemini API (via `google-genai` SDK and `google-adk`)**: Serves all LLM needs. Uses `gemini-3.5-flash-lite` as the primary model and falls back to `gemini-3.1-flash-lite` if the primary service experiences transient failures (429/500/503).
+* **[Backend Invariants](file:///.agents/rules/backend_invariants.md)**: Python FastAPI rules, ADK 2.0 patterns, Rust PyO3 input sanitizer compilation, `pydantic-settings` dependency injection, SDK mock safety, and concurrency testing.
+* **[Frontend Invariants](file:///.agents/rules/frontend_invariants.md)**: React 19 standards, TypeScript 7.0 Go native compiler architecture (ADR 004), `@typescript/typescript6` ESLint bridge, custom CSS conventions, and API schema interfaces.
+* **[Chrome Extension Invariants](file:///.agents/rules/chrome_extension_invariants.md)**: Manifest V3 zero-build vanilla JS architecture (ADR 004), `checkJs: true` semantic typechecking, ambient `globals.d.ts`, content script load order, BYOK storage isolation (`chrome.storage.local`), IPC origin verification, native Side Panel UI, and cache key content hashing.
+* **[Testing & Hygiene Invariants](file:///.agents/rules/testing_and_hygiene.md)**: Playwright persistent context integration test harness, domain-relevant news fixtures, MSW v2 mocking, Vitest script execution, accessibility scanning (axe-core vs a11y-debugging), git merge 2-parent verification, and documentation hygiene.

@@ -35,7 +35,7 @@ async def run_burst_test(concurrency_count: int = 20, mock_delay: float = 0.05, 
         deception_rationale="Claim is factual and supported by evidence.",
     )
 
-    async def mock_agent_call(agent, user_prompt, output_key, is_backup=False):
+    async def mock_agent_call(agent, user_prompt, output_key, output_schema=None, is_backup=False, **kwargs):
         # Simulate realistic async LLM processing delay inside semaphore
         await asyncio.sleep(mock_delay)
         return mock_bias_output
@@ -48,8 +48,10 @@ async def run_burst_test(concurrency_count: int = 20, mock_delay: float = 0.05, 
         context="Energy transition report analysis.",
     )
 
-    # Patch the underlying agent execution method to use our fast mock
-    with patch.object(AnalysisService, "_run_agent_direct_inner", side_effect=mock_agent_call):
+    # Patch execute_adk_agent at the locally-bound name in analysis_service — patching
+    # the origin module (llm_utils) would not intercept calls already bound via
+    # `from app.utils.llm_utils import execute_adk_agent` in analysis_service.
+    with patch("app.services.analysis_service.execute_adk_agent", side_effect=mock_agent_call):
         service = AnalysisService(settings=cfg)
 
         async def single_request(request_id: int):
