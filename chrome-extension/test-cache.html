@@ -89,13 +89,23 @@
         // Mock console to capture logs
         const originalConsoleLog = console.log;
         const originalConsoleError = console.error;
+
+        function appendLogEntry(level, args) {
+            const div = document.createElement('div');
+            if (level === 'ERROR') {
+                div.style.color = 'red';
+            }
+            div.textContent = `${level}: ${args.join(' ')}`;
+            document.getElementById('log').appendChild(div);
+        }
+
         console.log = (...args) => {
             originalConsoleLog(...args);
-            document.getElementById('log').innerHTML += `<div>INFO: ${args.join(' ')}</div>`;
+            appendLogEntry('INFO', args);
         };
         console.error = (...args) => {
             originalConsoleError(...args);
-            document.getElementById('log').innerHTML += `<div style="color:red">ERROR: ${args.join(' ')}</div>`;
+            appendLogEntry('ERROR', args);
         };
     </script>
 
