@@ -49,6 +49,10 @@ A benchmarking framework that validates the entire analysis pipeline against a c
 
 A sophisticated multi-perspective search tool that queries the Google Custom Search API to gather external evidence for each extracted claim. Rather than performing a single generic search, the Evidence Retriever executes **perspective-specific queries**—tailoring search terms to find scientific studies (`site:nih.gov OR site:nature.com`), journalistic sources (`site:nytimes.com OR site:reuters.com`), and partisan viewpoints. It handles API quota limits gracefully, implements exponential backoff retry logic for transient failures, and normalizes search results into a consistent format (title, snippet, URL). The retriever also performs relevance filtering, discarding results that don't contain claim-related keywords, ensuring the `AnalysisService` receives only high-quality evidence. This tool is essential for transforming subjective claims into fact-checkable assertions backed by authoritative external sources.
 
+### Red-Team Injection Benchmark (`.benchmarks/redteam/`)
+
+A specialized security evaluation framework for auditing Perspective Prism's transcript-to-Gemini pipeline against Indirect Prompt Injection (IPI) threats. The harness includes a versioned corpus of attack and control payloads spanning 11 threat taxonomy categories (direct overrides, delimiter escapes, persona hijacking, Unicode homoglyphs, and multilingual attacks) plus legitimate journalism controls. It supports deterministic offline validation (`pytest -m redteam`) and live agent probing with automated canary and heuristic detection.
+
 ## 🏁 Conclusion
 
 Perspective Prism addresses the core problem of filter bubbles and misinformation by automating the fact-checking process that most users don't have time to perform manually. When a user submits a YouTube video URL, the system retrieves the video's transcript and initiates a sophisticated multi-agent workflow. The **Claim Extractor** agent uses large language models to intelligently parse the transcript, identifying specific claims that can be verified rather than opinions or subjective statements. Each extracted claim is then passed to the **Evidence Retriever** agent, which conducts targeted searches across trusted external sources using the Google Custom Search API. The **Analysis Engine** synthesizes this evidence with the original claim, evaluating the degree of support or refutation while simultaneously detecting logical fallacies, emotional manipulation tactics, and other bias indicators. Finally, the **Truth Profiler** aggregates these multi-perspective analyses into a comprehensive report that presents users with a balanced view—showing not just whether claims are true or false, but _how_ different perspectives (scientific, journalistic, partisan) interpret the same information. This automated pipeline transforms hours of manual research into seconds of computational analysis, empowering users to escape their filter bubbles and make informed decisions about the content they consume.
@@ -107,6 +111,15 @@ python .benchmarks/evaluate_agents.py
 The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
 * **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
 * **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
+
+### Red-Team Prompt-Injection Suite
+To run the deterministic prompt-injection validation suite offline (zero network calls, <60s execution):
+
+```bash
+cd backend
+source venv/bin/activate
+pytest -m redteam
+```
 
 ## ☁️ Deployment Strategy
 

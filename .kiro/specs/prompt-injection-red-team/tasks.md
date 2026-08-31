@@ -19,30 +19,30 @@ All tasks follow strict TDD: write the failing test first, verify failure, imple
 
 ## Track A: Payload Corpus & Taxonomy
 
-### Task 1: Corpus schema, loader, and validation [STATUS: PENDING]
+### Task 1: Corpus schema, loader, and validation [STATUS: COMPLETE]
 *Traceability: FR-1.1, FR-1.2, FR-1.4 · AC: —*
-- [ ] Write failing tests asserting (a) a valid YAML entry loads, (b) an entry missing `stage` raises with file name + payload id in the message, (c) duplicate ids across files raise; verify they fail.
-- [ ] Define the YAML payload schema (`id`, `stage`, `technique`, `payload`, `expected`, `severity`) as a Pydantic model in `.benchmarks/redteam/corpus.py`.
-- [ ] Implement loader that walks `.benchmarks/redteam/payloads/*.yaml` and yields validated entries; tests now pass.
-- [ ] Register `redteam` pytest marker in `backend/pyproject.toml` under `[tool.pytest.ini_options]`.
-- [ ] Run full `pytest` to confirm no regressions.
+- [x] Write failing tests asserting (a) a valid YAML entry loads, (b) an entry missing `stage` raises with file name + payload id in the message, (c) duplicate ids across files raise; verify they fail.
+- [x] Define the YAML payload schema (`id`, `stage`, `technique`, `payload`, `expected`, `severity`) as a Pydantic model in `.benchmarks/redteam/corpus.py`.
+- [x] Implement loader that walks `.benchmarks/redteam/payloads/*.yaml` and yields validated entries; tests now pass.
+- [x] Register `redteam` pytest marker in `backend/pyproject.toml` under `[tool.pytest.ini_options]`.
+- [x] Run full `pytest` to confirm no regressions.
 - **Dependencies:** none.
 
-### Task 2: Author attack payload categories [STATUS: PENDING]
+### Task 2: Author attack payload categories [STATUS: COMPLETE]
 *Traceability: FR-1.3 · AC: AC-1 fixture*
-- [ ] Author ≥5 payloads each for `PI-DIR`, `PI-PAR`, `PI-ROL`, `PI-OUT`, `PI-EXF` with stage assignments (S1/S2/S3).
-- [ ] Author ≥5 payloads each for `PI-DLM`, `PI-SPL`, `PI-TRN`, `PI-ENC`; `PI-DLM` MUST include a transcript embedding literal `===USER DATA END===` + forged instructions (H1 test case).
-- [ ] Author ≥5 payloads each for `PI-UNI`, `PI-MUL` (homoglyphs, full-width, non-English languages).
-- [ ] Verify all entries pass the Task 1 loader validation; frame payloads as journalism/news-style transcript narration (project fixture rule).
+- [x] Author ≥5 payloads each for `PI-DIR`, `PI-PAR`, `PI-ROL`, `PI-OUT`, `PI-EXF` with stage assignments (S1/S2/S3).
+- [x] Author ≥5 payloads each for `PI-DLM`, `PI-SPL`, `PI-TRN`, `PI-ENC`; `PI-DLM` MUST include a transcript embedding literal `===USER DATA END===` + forged instructions (H1 test case).
+- [x] Author ≥5 payloads each for `PI-UNI`, `PI-MUL` (homoglyphs, full-width, non-English languages).
+- [x] Verify all entries pass the Task 1 loader validation; frame payloads as journalism/news-style transcript narration (project fixture rule).
 - **Dependencies:** Task 1 (schema).
 
 > [!TIP] PARALLEL EXECUTION
 > Task 2 and Task 3 split by file set — two authors can work concurrently without conflicts.
 
-### Task 3: Author legitimate control corpus [STATUS: PENDING]
+### Task 3: Author legitimate control corpus [STATUS: COMPLETE]
 *Traceability: FR-1.3, FR-2.3 · AC: AC-2 fixture*
-- [ ] Author ≥10 `LEG` entries: realistic news/science/policy transcript excerpts that quote attack-adjacent phrases ("ignore previous instructions", "system prompt", role-play quotes) in benign contexts.
-- [ ] Verify all entries pass the Task 1 loader validation and are tagged `expected: passes-but-safe`.
+- [x] Author ≥10 `LEG` entries: realistic news/science/policy transcript excerpts that quote attack-adjacent phrases ("ignore previous instructions", "system prompt", role-play quotes) in benign contexts.
+- [x] Verify all entries pass the Task 1 loader validation and are tagged `expected: passes-but-safe`.
 - **Dependencies:** Task 1 (schema).
 
 ---
