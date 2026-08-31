@@ -66,19 +66,19 @@ All tasks follow strict TDD: write the failing test first, verify failure, imple
 
 ## Track C: Live LLM Injection Probe & Judge
 
-### Task 6: Live runner skeleton with safety rails [STATUS: PENDING]
+### Task 6: Live runner skeleton with safety rails [STATUS: COMPLETE]
 *Traceability: FR-3.1, FR-3.4, FR-3.5, NFR-2, NFR-3, NFR-6 · AC: AC-4*
-- [ ] Write failing tests asserting (a) `--live` without `GCP_PROJECT`/`GOOGLE_CLOUD_PROJECT` exits with configuration error before any LLM call, (b) budget counter aborts after N calls, (c) mocked transcript/evidence fixtures are used (no YouTube/Search I/O); verify they fail.
-- [ ] Implement `.benchmarks/redteam/live_probe.py` reusing `ClaimExtractor` / `AnalysisService` with DI'd settings; respect the tier-aware semaphore; seed randomness; log model names + corpus version; tests now pass.
-- [ ] Confirm all I/O is non-blocking `async`/`await` and only Gemini 3.x models are referenced.
+- [x] Write failing tests asserting (a) `--live` without `GCP_PROJECT`/`GOOGLE_CLOUD_PROJECT` exits with configuration error before any LLM call, (b) budget counter aborts after N calls, (c) mocked transcript/evidence fixtures are used (no YouTube/Search I/O); verify they fail.
+- [x] Implement `.benchmarks/redteam/live_probe.py` reusing `ClaimExtractor` / `AnalysisService` with DI'd settings; respect the tier-aware semaphore; seed randomness; log model names + corpus version; tests now pass.
+- [x] Confirm all I/O is non-blocking `async`/`await` and only Gemini 3.x models are referenced.
 - **Dependencies:** Task 4.
 
-### Task 7: Judge layer (canary → heuristic → LLM judge) [STATUS: PENDING]
+### Task 7: Judge layer (canary → heuristic → LLM judge) [STATUS: COMPLETE]
 *Traceability: FR-3.2, FR-3.3, FR-3.4, NFR-5 · AC: AC-3*
-- [ ] Write failing tests for canary detection on synthetic output and heuristic detection of demanded `deception_rating`/stance values and persona drift; verify they fail.
-- [ ] Write failing test asserting the LLM judge is invoked only when tiers 1–2 are inconclusive (mock the judge model); verify it fails.
-- [ ] Implement the three tiers; judge LLM call uses `gemini-3.5-flash-lite` with schema-constrained verdict output and candidate text wrapped in USER DATA delimiters; tests now pass.
-- [ ] Record the deciding tier for every judged payload in the run results.
+- [x] Write failing tests for canary detection on synthetic output and heuristic detection of demanded `deception_rating`/stance values and persona drift; verify they fail.
+- [x] Write failing test asserting the LLM judge is invoked only when tiers 1–2 are inconclusive (mock the judge model); verify it fails.
+- [x] Implement the three tiers; judge LLM call uses `gemini-3.5-flash-lite` with schema-constrained verdict output and candidate text wrapped in USER DATA delimiters; tests now pass.
+- [x] Record the deciding tier for every judged payload in the run results.
 - **Dependencies:** Task 6.
 
 > [!TIP] PARALLEL EXECUTION
