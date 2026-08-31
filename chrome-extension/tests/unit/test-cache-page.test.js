@@ -22,8 +22,9 @@ describe("test-cache.html console logging harness", () => {
       path.resolve(__dirname, "../../test-cache.html"),
       "utf8"
     );
-    const firstScript = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-    new Function("window", firstScript)(globalThis);
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const harnessScript = [...parsed.scripts].find((script) => !script.src);
+    new Function("window", harnessScript.textContent)(globalThis);
   });
 
   afterAll(() => {
