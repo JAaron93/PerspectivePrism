@@ -19,9 +19,9 @@ const installStorageShim = (name) => {
   const store = new Map();
   Object.defineProperty(globalThis, name, {
     value: {
-      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      getItem: (key) => (store.has(String(key)) ? store.get(String(key)) : null),
       setItem: (key, value) => store.set(String(key), String(value)),
-      removeItem: (key) => store.delete(key),
+      removeItem: (key) => store.delete(String(key)),
       clear: () => store.clear(),
       key: (index) => [...store.keys()][index] ?? null,
       get length() {
