@@ -148,9 +148,9 @@ async def _single_attempt_execute_adk_agent(
     output_key: str,
     output_schema: Optional[Any] = None,
     is_backup: bool = False,
-    max_attempts: int = 1,
+    max_attempts: int = 2,
 ) -> Any:
-    """Enforces per-request budget acquisition and single-attempt execution across primary and fallback calls."""
+    """Enforces per-request budget acquisition and single-attempt execution for probe contexts while preserving retries for non-probe calls."""
     active_counter = _active_budget_counter.get()
     if active_counter is not None:
         acquired = await active_counter.try_acquire_async()
@@ -158,6 +158,9 @@ async def _single_attempt_execute_adk_agent(
             raise BudgetExhaustedError(
                 f"Budget exhausted: limit of {active_counter.limit} calls reached before calling agent '{getattr(agent, 'name', 'agent')}'"
             )
+        effective_max_attempts = 1
+    else:
+        effective_max_attempts = max_attempts
 
     return await base_execute_adk_agent(
         agent=agent,
@@ -165,7 +168,7 @@ async def _single_attempt_execute_adk_agent(
         output_key=output_key,
         output_schema=output_schema,
         is_backup=is_backup,
-        max_attempts=1,
+        max_attempts=effective_max_attempts,
     )
 
 

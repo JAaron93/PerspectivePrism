@@ -274,6 +274,37 @@ async def test_live_probe_enforces_single_attempt_target_calls():
 
 @pytest.mark.redteam
 @pytest.mark.asyncio
+async def test_non_probe_execution_preserves_caller_retries():
+    """NFR-6: Non-probe requests without active budget context preserve caller's default retry behavior."""
+    from redteam.live_probe import _single_attempt_execute_adk_agent, _active_budget_counter
+
+    # Ensure no active budget counter is set in this context
+    token = _active_budget_counter.set(None)
+    try:
+        recorded_kwargs = []
+
+        async def mock_exec(*args, **kwargs):
+            recorded_kwargs.append(kwargs)
+            return {"status": "ok"}
+
+        with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec):
+            extractor = ClaimExtractor(settings=None)
+            await _single_attempt_execute_adk_agent(
+                agent=extractor.agent,
+                user_prompt="test prompt",
+                output_key="test_key",
+                max_attempts=2,
+            )
+
+        assert len(recorded_kwargs) == 1
+        # When no probe budget context is active, caller's max_attempts=2 is preserved
+        assert recorded_kwargs[0].get("max_attempts") == 2
+    finally:
+        _active_budget_counter.reset(token)
+
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
 async def test_concurrent_tasks_preserve_single_attempt_patching():
     """FR-3.4, NFR-2: Concurrent tasks in corpus execution all execute under max_attempts=1 without unpatching races."""
     config = LiveProbeConfig(budget=10, concurrency=4)
