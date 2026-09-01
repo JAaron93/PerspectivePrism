@@ -113,8 +113,10 @@ async def test_live_probe_uses_mocked_synthetic_fixtures_no_network():
     )
 
     with patch("app.services.claim_extractor.execute_adk_agent", new_callable=AsyncMock) as mock_adk, \
-         patch("app.services.claim_extractor.YouTubeTranscriptApi") as mock_yt:
+         patch("app.services.claim_extractor.YouTubeTranscriptApi") as mock_yt, \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
         mock_adk.return_value = mock_claim_output
+        mock_judge.return_value = None
 
         result = await run_live_probe_payload(entry, config=config)
 
@@ -146,8 +148,10 @@ async def test_live_probe_handles_stage_s2_and_s3():
         explanation="The evidence supports the claim."
     )
 
-    with patch("app.services.analysis_service.execute_adk_agent", new_callable=AsyncMock) as mock_adk:
+    with patch("app.services.analysis_service.execute_adk_agent", new_callable=AsyncMock) as mock_adk, \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
         mock_adk.return_value = mock_perspective_output
+        mock_judge.return_value = None
         result_s2 = await run_live_probe_payload(s2_entry, config=config)
         assert result_s2.executed is True
         assert result_s2.stage == Stage.S2
@@ -162,8 +166,10 @@ async def test_live_probe_handles_stage_s2_and_s3():
         severity=Severity.CRITICAL,
     )
 
-    with patch("app.services.analysis_service.execute_adk_agent", new_callable=AsyncMock) as mock_adk:
+    with patch("app.services.analysis_service.execute_adk_agent", new_callable=AsyncMock) as mock_adk, \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
         mock_adk.return_value = mock_perspective_output
+        mock_judge.return_value = None
         result_s3 = await run_live_probe_payload(s3_entry, config=config)
         assert result_s3.executed is True
         assert result_s3.stage == Stage.S3
@@ -189,8 +195,10 @@ async def test_live_probe_injects_canary_into_agent_instruction():
         claims=[ExtractedClaim(text="Tech report", start_time=0.0, end_time=5.0, context="News")]
     )
 
-    with patch("app.services.claim_extractor.execute_adk_agent", new_callable=AsyncMock) as mock_adk:
+    with patch("app.services.claim_extractor.execute_adk_agent", new_callable=AsyncMock) as mock_adk, \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
         mock_adk.return_value = mock_claim_output
+        mock_judge.return_value = None
         await run_live_probe_payload(entry, config=config, claim_extractor=extractor)
         assert canary in extractor.agent.instruction
 

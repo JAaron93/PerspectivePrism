@@ -197,10 +197,6 @@ async def run_live_probe_payload(
             model_name=active_config.model_name,
             settings=settings or app_settings,
         )
-        # Disable unbudgeted backup model fallback calls during red-team evaluation
-        analyzer.perspective_agent_backup = None
-        analyzer.bias_agent_backup = None
-        analyzer.backup_client = None
 
         # Inject task-specific canary into this payload's isolated agent system instructions
         canary_prompt_suffix = (
