@@ -258,3 +258,35 @@ async def test_live_probe_enforces_single_attempt_target_calls():
     assert recorded_kwargs[0].get("max_attempts") == 1
 
 
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_concurrent_tasks_preserve_single_attempt_patching():
+    """FR-3.4, NFR-2: Concurrent tasks in corpus execution all execute under max_attempts=1 without unpatching races."""
+    config = LiveProbeConfig(budget=10, concurrency=4)
+    entries = [
+        PayloadEntry(
+            id=f"PI-PAR-CONC-{i}",
+            stage=Stage.S2,
+            technique="Concurrent test",
+            payload=f"Payload {i}",
+            expected=ExpectedOutcome.PASSES_BUT_SAFE,
+            severity=Severity.LOW,
+        )
+        for i in range(4)
+    ]
+
+    recorded_kwargs = []
+
+    async def mock_exec(*args, **kwargs):
+        recorded_kwargs.append(kwargs)
+        return PerspectiveAnalysisLLMOutput(stance="SUPPORTS", confidence=0.8, explanation="Ok")
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec):
+        await run_live_probe_corpus(entries, config=config)
+
+    assert len(recorded_kwargs) >= 4
+    for kw in recorded_kwargs:
+        assert kw.get("max_attempts") == 1
+
+
+

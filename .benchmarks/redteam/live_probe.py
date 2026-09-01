@@ -121,6 +121,38 @@ async def _single_attempt_execute_adk_agent(agent: Any, user_prompt: str, output
     )
 
 
+class ReentrantSingleAttemptContext:
+    """Async thread-safe context that enforces single-attempt execution across concurrent probe tasks."""
+    _depth = 0
+    _orig_ce = None
+    _orig_as = None
+    _lock = asyncio.Lock()
+
+    @classmethod
+    async def __aenter__(cls):
+        async with cls._lock:
+            if cls._depth == 0:
+                cls._orig_ce = ce_module.execute_adk_agent
+                cls._orig_as = as_module.execute_adk_agent
+                ce_module.execute_adk_agent = _single_attempt_execute_adk_agent
+                as_module.execute_adk_agent = _single_attempt_execute_adk_agent
+            cls._depth += 1
+        return cls
+
+    @classmethod
+    async def __aexit__(cls, exc_type, exc_val, exc_tb):
+        async with cls._lock:
+            cls._depth -= 1
+            if cls._depth <= 0:
+                cls._depth = 0
+                if cls._orig_ce is not None:
+                    ce_module.execute_adk_agent = cls._orig_ce
+                    cls._orig_ce = None
+                if cls._orig_as is not None:
+                    as_module.execute_adk_agent = cls._orig_as
+                    cls._orig_as = None
+
+
 async def run_live_probe_payload(
     entry: PayloadEntry,
     config: Optional[LiveProbeConfig] = None,
@@ -142,7 +174,7 @@ async def run_live_probe_payload(
 
     sem = semaphore or asyncio.Semaphore(active_config.concurrency)
 
-    async with sem:
+    async with sem, ReentrantSingleAttemptContext():
         # Check budget before proceeding to LLM execution
         if not budget_counter.can_execute():
             return LiveProbeResult(
@@ -212,13 +244,7 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                # Execute with single-attempt enforcement to prevent unbudgeted retries
-                orig_ce_exec = ce_module.execute_adk_agent
-                ce_module.execute_adk_agent = _single_attempt_execute_adk_agent
-                try:
-                    claims = await extractor.extract_claims(synthetic_transcript)
-                finally:
-                    ce_module.execute_adk_agent = orig_ce_exec
+                claims = await extractor.extract_claims(synthetic_transcript)
                 
                 # Check if sanitization blocked the payload inside extract_claims
                 if claims and len(claims) == 1 and claims[0].id == "error_claim":
@@ -281,16 +307,11 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                orig_as_exec = as_module.execute_adk_agent
-                as_module.execute_adk_agent = _single_attempt_execute_adk_agent
-                try:
-                    perspective_res = await analyzer.analyze_perspective(
-                        claim=synthetic_claim,
-                        evidence_list=[synthetic_evidence],
-                        perspective=PerspectiveType.SCIENTIFIC,
-                    )
-                finally:
-                    as_module.execute_adk_agent = orig_as_exec
+                perspective_res = await analyzer.analyze_perspective(
+                    claim=synthetic_claim,
+                    evidence_list=[synthetic_evidence],
+                    perspective=PerspectiveType.SCIENTIFIC,
+                )
 
                 if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
                     return LiveProbeResult(
@@ -351,16 +372,11 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                orig_as_exec = as_module.execute_adk_agent
-                as_module.execute_adk_agent = _single_attempt_execute_adk_agent
-                try:
-                    perspective_res = await analyzer.analyze_perspective(
-                        claim=clean_claim,
-                        evidence_list=[synthetic_evidence],
-                        perspective=PerspectiveType.JOURNALISTIC,
-                    )
-                finally:
-                    as_module.execute_adk_agent = orig_as_exec
+                perspective_res = await analyzer.analyze_perspective(
+                    claim=clean_claim,
+                    evidence_list=[synthetic_evidence],
+                    perspective=PerspectiveType.JOURNALISTIC,
+                )
 
                 if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
                     return LiveProbeResult(
