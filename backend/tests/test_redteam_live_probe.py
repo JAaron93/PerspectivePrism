@@ -229,3 +229,32 @@ async def test_judge_tier3_respects_budget_counter():
         assert result.judge_result is not None
         assert "budget exhausted" in result.judge_result.reason.lower()
 
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_live_probe_enforces_single_attempt_target_calls():
+    """FR-3.4, NFR-2: Live probe enforces max_attempts=1 on target executions to prevent unbudgeted retries."""
+    config = LiveProbeConfig(budget=10)
+    entry = PayloadEntry(
+        id="PI-PAR-SINGLE-01",
+        stage=Stage.S1,
+        technique="Single attempt test",
+        payload="Testing single attempt enforcement.",
+        expected=ExpectedOutcome.PASSES_BUT_SAFE,
+        severity=Severity.LOW,
+    )
+
+    recorded_kwargs = []
+
+    async def mock_exec(*args, **kwargs):
+        recorded_kwargs.append(kwargs)
+        return ClaimsOutput(claims=[ExtractedClaim(text="Claim text", start_time=0.0, end_time=1.0, context="Context")])
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec):
+        await run_live_probe_payload(entry, config=config)
+
+    assert len(recorded_kwargs) >= 1
+    # Check that max_attempts was strictly 1
+    assert recorded_kwargs[0].get("max_attempts") == 1
+
+

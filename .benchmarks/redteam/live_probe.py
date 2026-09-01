@@ -19,6 +19,9 @@ from app.models.schemas import (
 )
 from app.services.claim_extractor import ClaimExtractor
 from app.services.analysis_service import AnalysisService
+import app.services.claim_extractor as ce_module
+import app.services.analysis_service as as_module
+from app.utils.llm_utils import execute_adk_agent as base_execute_adk_agent
 from redteam.corpus import PayloadEntry, Stage
 from redteam.probe import ProbeStatus
 from redteam.judge import JudgeResult, judge_agent_output_async
@@ -104,6 +107,18 @@ def verify_live_environment(settings: Any = None) -> None:
         raise LiveRunnerConfigError(
             "Vertex AI configuration missing: GCP_PROJECT or GOOGLE_CLOUD_PROJECT must be set for live probe execution."
         )
+
+
+async def _single_attempt_execute_adk_agent(agent: Any, user_prompt: str, output_key: str, output_schema: Optional[Any] = None, is_backup: bool = False, max_attempts: int = 1) -> Any:
+    """Forces single-attempt execution for probe targets so retries cannot exceed the budget cap."""
+    return await base_execute_adk_agent(
+        agent=agent,
+        user_prompt=user_prompt,
+        output_key=output_key,
+        output_schema=output_schema,
+        is_backup=is_backup,
+        max_attempts=1,
+    )
 
 
 async def run_live_probe_payload(
@@ -197,7 +212,13 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                claims = await extractor.extract_claims(synthetic_transcript)
+                # Execute with single-attempt enforcement to prevent unbudgeted retries
+                orig_ce_exec = ce_module.execute_adk_agent
+                ce_module.execute_adk_agent = _single_attempt_execute_adk_agent
+                try:
+                    claims = await extractor.extract_claims(synthetic_transcript)
+                finally:
+                    ce_module.execute_adk_agent = orig_ce_exec
                 
                 # Check if sanitization blocked the payload inside extract_claims
                 if claims and len(claims) == 1 and claims[0].id == "error_claim":
@@ -260,11 +281,16 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                perspective_res = await analyzer.analyze_perspective(
-                    claim=synthetic_claim,
-                    evidence_list=[synthetic_evidence],
-                    perspective=PerspectiveType.SCIENTIFIC,
-                )
+                orig_as_exec = as_module.execute_adk_agent
+                as_module.execute_adk_agent = _single_attempt_execute_adk_agent
+                try:
+                    perspective_res = await analyzer.analyze_perspective(
+                        claim=synthetic_claim,
+                        evidence_list=[synthetic_evidence],
+                        perspective=PerspectiveType.SCIENTIFIC,
+                    )
+                finally:
+                    as_module.execute_adk_agent = orig_as_exec
 
                 if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
                     return LiveProbeResult(
@@ -325,11 +351,16 @@ async def run_live_probe_payload(
                         error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                     )
 
-                perspective_res = await analyzer.analyze_perspective(
-                    claim=clean_claim,
-                    evidence_list=[synthetic_evidence],
-                    perspective=PerspectiveType.JOURNALISTIC,
-                )
+                orig_as_exec = as_module.execute_adk_agent
+                as_module.execute_adk_agent = _single_attempt_execute_adk_agent
+                try:
+                    perspective_res = await analyzer.analyze_perspective(
+                        claim=clean_claim,
+                        evidence_list=[synthetic_evidence],
+                        perspective=PerspectiveType.JOURNALISTIC,
+                    )
+                finally:
+                    as_module.execute_adk_agent = orig_as_exec
 
                 if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
                     return LiveProbeResult(
