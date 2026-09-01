@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import secrets
+from contextvars import ContextVar
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,6 +34,14 @@ logger = logging.getLogger(__name__)
 class LiveRunnerConfigError(Exception):
     """Raised when environment or live runner configuration is missing or invalid."""
     pass
+
+
+class BudgetExhaustedError(Exception):
+    """Raised when LLM API call budget is exhausted."""
+    pass
+
+
+_active_budget_counter: ContextVar[Optional["BudgetCounter"]] = ContextVar("active_budget_counter", default=None)
 
 
 class BudgetCounter:
@@ -133,8 +142,23 @@ def verify_live_environment(settings: Any = None) -> None:
         )
 
 
-async def _single_attempt_execute_adk_agent(agent: Any, user_prompt: str, output_key: str, output_schema: Optional[Any] = None, is_backup: bool = False, max_attempts: int = 1) -> Any:
-    """Forces single-attempt execution for probe targets so retries cannot exceed the budget cap."""
+async def _single_attempt_execute_adk_agent(
+    agent: Any,
+    user_prompt: str,
+    output_key: str,
+    output_schema: Optional[Any] = None,
+    is_backup: bool = False,
+    max_attempts: int = 1,
+) -> Any:
+    """Enforces per-request budget acquisition and single-attempt execution across primary and fallback calls."""
+    active_counter = _active_budget_counter.get()
+    if active_counter is not None:
+        acquired = await active_counter.try_acquire_async()
+        if not acquired:
+            raise BudgetExhaustedError(
+                f"Budget exhausted: limit of {active_counter.limit} calls reached before calling agent '{getattr(agent, 'name', 'agent')}'"
+            )
+
     return await base_execute_adk_agent(
         agent=agent,
         user_prompt=user_prompt,
@@ -197,71 +221,116 @@ async def run_live_probe_payload(
         budget_counter = BudgetCounter(limit=active_config.budget)
 
     sem = semaphore or asyncio.Semaphore(active_config.concurrency)
+    budget_token = _active_budget_counter.set(budget_counter)
 
-    async with sem, ReentrantSingleAttemptContext():
-        # Check budget before proceeding to LLM execution
-        if not budget_counter.can_execute():
-            return LiveProbeResult(
-                payload_id=entry.id,
-                stage=entry.stage,
-                executed=False,
-                probe_status=ProbeStatus.BYPASSED,
-                error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
-            )
-
-        # Canary token setup
-        canary = active_config.canary_token or f"CANARY_{secrets.token_hex(8)}"
-
-        # Initialize isolated agent instances per payload carrying strictly this run's canary
-        extractor = ClaimExtractor(
-            model_name=active_config.model_name,
-            settings=settings or app_settings,
-        )
-        base_extractor_agent = claim_extractor.agent if claim_extractor is not None else extractor.agent
-        extractor.agent = _clone_agent_with_canary(base_extractor_agent, canary)
-
-        analyzer = AnalysisService(
-            model_name=active_config.model_name,
-            settings=settings or app_settings,
-        )
-        src_analyzer = analysis_service if analysis_service is not None else analyzer
-        analyzer.perspective_agent_primary = _clone_agent_with_canary(src_analyzer.perspective_agent_primary, canary)
-        analyzer.perspective_agent_backup = _clone_agent_with_canary(src_analyzer.perspective_agent_backup, canary)
-        analyzer.bias_agent_primary = _clone_agent_with_canary(src_analyzer.bias_agent_primary, canary)
-        analyzer.bias_agent_backup = _clone_agent_with_canary(src_analyzer.bias_agent_backup, canary)
-
-        try:
-            if entry.stage == Stage.S1:
-                # Stage 1: Direct transcript injection
-                synthetic_transcript = Transcript(
-                    video_id=f"redteam_{entry.id}",
-                    segments=[
-                        TranscriptSegment(
-                            text=entry.payload,
-                            start=0.0,
-                            duration=10.0,
-                        )
-                    ],
-                    full_text=entry.payload,
+    try:
+        async with sem, ReentrantSingleAttemptContext():
+            # Check budget before proceeding to LLM execution
+            if not budget_counter.can_execute():
+                return LiveProbeResult(
+                    payload_id=entry.id,
+                    stage=entry.stage,
+                    executed=False,
+                    probe_status=ProbeStatus.BYPASSED,
+                    error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                 )
 
-                # Acquire budget right before the LLM call
-                acquired = await budget_counter.try_acquire_async()
-                if not acquired:
+            # Canary token setup
+            canary = active_config.canary_token or f"CANARY_{secrets.token_hex(8)}"
+
+            # Initialize isolated agent instances per payload carrying strictly this run's canary
+            extractor = ClaimExtractor(
+                model_name=active_config.model_name,
+                settings=settings or app_settings,
+            )
+            base_extractor_agent = claim_extractor.agent if claim_extractor is not None else extractor.agent
+            extractor.agent = _clone_agent_with_canary(base_extractor_agent, canary)
+
+            analyzer = AnalysisService(
+                model_name=active_config.model_name,
+                settings=settings or app_settings,
+            )
+            src_analyzer = analysis_service if analysis_service is not None else analyzer
+            analyzer.perspective_agent_primary = _clone_agent_with_canary(src_analyzer.perspective_agent_primary, canary)
+            analyzer.perspective_agent_backup = _clone_agent_with_canary(src_analyzer.perspective_agent_backup, canary)
+            analyzer.bias_agent_primary = _clone_agent_with_canary(src_analyzer.bias_agent_primary, canary)
+            analyzer.bias_agent_backup = _clone_agent_with_canary(src_analyzer.bias_agent_backup, canary)
+
+            try:
+                if entry.stage == Stage.S1:
+                    # Stage 1: Direct transcript injection
+                    synthetic_transcript = Transcript(
+                        video_id=f"redteam_{entry.id}",
+                        segments=[
+                            TranscriptSegment(
+                                text=entry.payload,
+                                start=0.0,
+                                duration=10.0,
+                            )
+                        ],
+                        full_text=entry.payload,
+                    )
+
+                    claims = await extractor.extract_claims(synthetic_transcript)
+                    
+                    # Check if sanitization blocked the payload inside extract_claims
+                    if claims and len(claims) == 1 and claims[0].id == "error_claim":
+                        metadata = claims[0].metadata or {}
+                        if metadata.get("code") == "sanitization_failed":
+                            return LiveProbeResult(
+                                payload_id=entry.id,
+                                stage=entry.stage,
+                                executed=False,
+                                probe_status=ProbeStatus.BLOCKED,
+                                error="Blocked by input sanitization",
+                            )
+
+                    output_summary = {
+                        "claim_count": len(claims),
+                        "claims": [c.model_dump() for c in claims],
+                    }
+
+                    judge_res = await judge_agent_output_async(
+                        entry=entry,
+                        agent_output=output_summary,
+                        canary_token=canary,
+                        judge_model_name=active_config.model_name,
+                        budget_counter=budget_counter,
+                    )
+
                     return LiveProbeResult(
                         payload_id=entry.id,
                         stage=entry.stage,
-                        executed=False,
+                        executed=True,
                         probe_status=ProbeStatus.BYPASSED,
-                        error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
+                        agent_output_summary=output_summary,
+                        judge_result=judge_res,
                     )
 
-                claims = await extractor.extract_claims(synthetic_transcript)
-                
-                # Check if sanitization blocked the payload inside extract_claims
-                if claims and len(claims) == 1 and claims[0].id == "error_claim":
-                    metadata = claims[0].metadata or {}
-                    if metadata.get("code") == "sanitization_failed":
+                elif entry.stage == Stage.S2:
+                    # Stage 2: Second-order payload via extracted claim
+                    synthetic_claim = Claim(
+                        id=f"claim_{entry.id}",
+                        text=entry.payload,
+                        timestamp_start=0.0,
+                        timestamp_end=10.0,
+                        context="Journalism news segment discussing investigative reporting.",
+                    )
+                    synthetic_evidence = Evidence(
+                        title="Verified Research Finding",
+                        snippet="Independent scientific analysis corroborates baseline factual data.",
+                        source="reputable_journal",
+                        url="https://example.org/news",
+                        perspective=PerspectiveType.SCIENTIFIC,
+                    )
+
+                    perspective_res = await analyzer.analyze_perspective(
+                        claim=synthetic_claim,
+                        evidence_list=[synthetic_evidence],
+                        perspective=PerspectiveType.SCIENTIFIC,
+                    )
+
+                    if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
                         return LiveProbeResult(
                             payload_id=entry.id,
                             stage=entry.stage,
@@ -270,176 +339,120 @@ async def run_live_probe_payload(
                             error="Blocked by input sanitization",
                         )
 
-                output_summary = {
-                    "claim_count": len(claims),
-                    "claims": [c.model_dump() for c in claims],
-                }
+                    output_summary = {
+                        "stance": perspective_res.stance.value if hasattr(perspective_res.stance, "value") else str(perspective_res.stance),
+                        "confidence": perspective_res.confidence,
+                        "explanation": perspective_res.explanation,
+                    }
 
-                judge_res = await judge_agent_output_async(
-                    entry=entry,
-                    agent_output=output_summary,
-                    canary_token=canary,
-                    judge_model_name=active_config.model_name,
-                    budget_counter=budget_counter,
-                )
+                    judge_res = await judge_agent_output_async(
+                        entry=entry,
+                        agent_output=output_summary,
+                        canary_token=canary,
+                        judge_model_name=active_config.model_name,
+                        budget_counter=budget_counter,
+                    )
 
+                    return LiveProbeResult(
+                        payload_id=entry.id,
+                        stage=entry.stage,
+                        executed=True,
+                        probe_status=ProbeStatus.BYPASSED,
+                        agent_output_summary=output_summary,
+                        judge_result=judge_res,
+                    )
+
+                elif entry.stage == Stage.S3:
+                    # Stage 3: Evidence injection
+                    clean_claim = Claim(
+                        id=f"claim_{entry.id}",
+                        text="Global renewable energy adoption rates increased in 2024.",
+                        timestamp_start=0.0,
+                        timestamp_end=10.0,
+                        context="Documentary narrative on energy transitions.",
+                    )
+                    synthetic_evidence = Evidence(
+                        title="External Article",
+                        snippet=entry.payload,
+                        source="external_source",
+                        url="https://example.org/article",
+                        perspective=PerspectiveType.JOURNALISTIC,
+                    )
+
+                    perspective_res = await analyzer.analyze_perspective(
+                        claim=clean_claim,
+                        evidence_list=[synthetic_evidence],
+                        perspective=PerspectiveType.JOURNALISTIC,
+                    )
+
+                    if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
+                        return LiveProbeResult(
+                            payload_id=entry.id,
+                            stage=entry.stage,
+                            executed=False,
+                            probe_status=ProbeStatus.BLOCKED,
+                            error="Blocked by input sanitization",
+                        )
+
+                    output_summary = {
+                        "stance": perspective_res.stance.value if hasattr(perspective_res.stance, "value") else str(perspective_res.stance),
+                        "confidence": perspective_res.confidence,
+                        "explanation": perspective_res.explanation,
+                    }
+
+                    judge_res = await judge_agent_output_async(
+                        entry=entry,
+                        agent_output=output_summary,
+                        canary_token=canary,
+                        judge_model_name=active_config.model_name,
+                        budget_counter=budget_counter,
+                    )
+
+                    return LiveProbeResult(
+                        payload_id=entry.id,
+                        stage=entry.stage,
+                        executed=True,
+                        probe_status=ProbeStatus.BYPASSED,
+                        agent_output_summary=output_summary,
+                        judge_result=judge_res,
+                    )
+
+                else:
+                    return LiveProbeResult(
+                        payload_id=entry.id,
+                        stage=entry.stage,
+                        executed=False,
+                        probe_status=ProbeStatus.ERROR,
+                        error=f"Unknown stage: {entry.stage}",
+                    )
+
+            except BudgetExhaustedError as be:
                 return LiveProbeResult(
                     payload_id=entry.id,
                     stage=entry.stage,
-                    executed=True,
+                    executed=False,
                     probe_status=ProbeStatus.BYPASSED,
-                    agent_output_summary=output_summary,
-                    judge_result=judge_res,
+                    error=str(be),
                 )
-
-            elif entry.stage == Stage.S2:
-                # Stage 2: Second-order payload via extracted claim
-                synthetic_claim = Claim(
-                    id=f"claim_{entry.id}",
-                    text=entry.payload,
-                    timestamp_start=0.0,
-                    timestamp_end=10.0,
-                    context="Journalism news segment discussing investigative reporting.",
-                )
-                synthetic_evidence = Evidence(
-                    title="Verified Research Finding",
-                    snippet="Independent scientific analysis corroborates baseline factual data.",
-                    source="reputable_journal",
-                    url="https://example.org/news",
-                    perspective=PerspectiveType.SCIENTIFIC,
-                )
-
-                acquired = await budget_counter.try_acquire_async()
-                if not acquired:
+            except Exception as exc:
+                if "Budget exhausted" in str(exc) or (exc.__cause__ and "Budget exhausted" in str(exc.__cause__)):
                     return LiveProbeResult(
                         payload_id=entry.id,
                         stage=entry.stage,
                         executed=False,
                         probe_status=ProbeStatus.BYPASSED,
-                        error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
+                        error=str(exc),
                     )
-
-                perspective_res = await analyzer.analyze_perspective(
-                    claim=synthetic_claim,
-                    evidence_list=[synthetic_evidence],
-                    perspective=PerspectiveType.SCIENTIFIC,
-                )
-
-                if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
-                    return LiveProbeResult(
-                        payload_id=entry.id,
-                        stage=entry.stage,
-                        executed=False,
-                        probe_status=ProbeStatus.BLOCKED,
-                        error="Blocked by input sanitization",
-                    )
-
-                output_summary = {
-                    "stance": perspective_res.stance.value if hasattr(perspective_res.stance, "value") else str(perspective_res.stance),
-                    "confidence": perspective_res.confidence,
-                    "explanation": perspective_res.explanation,
-                }
-
-                judge_res = await judge_agent_output_async(
-                    entry=entry,
-                    agent_output=output_summary,
-                    canary_token=canary,
-                    judge_model_name=active_config.model_name,
-                    budget_counter=budget_counter,
-                )
-
-                return LiveProbeResult(
-                    payload_id=entry.id,
-                    stage=entry.stage,
-                    executed=True,
-                    probe_status=ProbeStatus.BYPASSED,
-                    agent_output_summary=output_summary,
-                    judge_result=judge_res,
-                )
-
-            elif entry.stage == Stage.S3:
-                # Stage 3: Evidence injection
-                clean_claim = Claim(
-                    id=f"claim_{entry.id}",
-                    text="Global renewable energy adoption rates increased in 2024.",
-                    timestamp_start=0.0,
-                    timestamp_end=10.0,
-                    context="Documentary narrative on energy transitions.",
-                )
-                synthetic_evidence = Evidence(
-                    title="External Article",
-                    snippet=entry.payload,
-                    source="external_source",
-                    url="https://example.org/article",
-                    perspective=PerspectiveType.JOURNALISTIC,
-                )
-
-                acquired = await budget_counter.try_acquire_async()
-                if not acquired:
-                    return LiveProbeResult(
-                        payload_id=entry.id,
-                        stage=entry.stage,
-                        executed=False,
-                        probe_status=ProbeStatus.BYPASSED,
-                        error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
-                    )
-
-                perspective_res = await analyzer.analyze_perspective(
-                    claim=clean_claim,
-                    evidence_list=[synthetic_evidence],
-                    perspective=PerspectiveType.JOURNALISTIC,
-                )
-
-                if perspective_res.confidence == 0.0 and perspective_res.explanation and "sanitization" in perspective_res.explanation.lower():
-                    return LiveProbeResult(
-                        payload_id=entry.id,
-                        stage=entry.stage,
-                        executed=False,
-                        probe_status=ProbeStatus.BLOCKED,
-                        error="Blocked by input sanitization",
-                    )
-
-                output_summary = {
-                    "stance": perspective_res.stance.value if hasattr(perspective_res.stance, "value") else str(perspective_res.stance),
-                    "confidence": perspective_res.confidence,
-                    "explanation": perspective_res.explanation,
-                }
-
-                judge_res = await judge_agent_output_async(
-                    entry=entry,
-                    agent_output=output_summary,
-                    canary_token=canary,
-                    judge_model_name=active_config.model_name,
-                    budget_counter=budget_counter,
-                )
-
-                return LiveProbeResult(
-                    payload_id=entry.id,
-                    stage=entry.stage,
-                    executed=True,
-                    probe_status=ProbeStatus.BYPASSED,
-                    agent_output_summary=output_summary,
-                    judge_result=judge_res,
-                )
-
-            else:
+                logger.error(f"Error executing live probe for payload {entry.id}: {exc}")
                 return LiveProbeResult(
                     payload_id=entry.id,
                     stage=entry.stage,
                     executed=False,
                     probe_status=ProbeStatus.ERROR,
-                    error=f"Unknown stage: {entry.stage}",
+                    error=str(exc),
                 )
-
-        except Exception as exc:
-            logger.error(f"Error executing live probe for payload {entry.id}: {exc}")
-            return LiveProbeResult(
-                payload_id=entry.id,
-                stage=entry.stage,
-                executed=False,
-                probe_status=ProbeStatus.ERROR,
-                error=str(exc),
-            )
+    finally:
+        _active_budget_counter.reset(budget_token)
 
 
 async def run_live_probe_corpus(

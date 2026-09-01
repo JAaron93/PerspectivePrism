@@ -355,5 +355,83 @@ async def test_reused_service_does_not_accumulate_multiple_canaries():
     assert canary1 not in recorded_agent_instructions[1]
 
 
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_backup_fallback_acquires_budget_and_blocks_when_exhausted():
+    """FR-3.4, NFR-2: When primary model fails, fallback to backup model consumes a budget unit and halts if budget limit reached."""
+    from google.genai import errors
+
+    budget = BudgetCounter(limit=1)
+    config = LiveProbeConfig(budget=1)
+    entry = PayloadEntry(
+        id="PI-ROL-FB-01",
+        stage=Stage.S2,
+        technique="Role injection in claim",
+        payload="Claim requiring analysis",
+        expected=ExpectedOutcome.PASSES_BUT_SAFE,
+        severity=Severity.HIGH,
+    )
+
+    api_error_500 = errors.APIError(code=500, response_json={"error": {"message": "Internal error"}})
+    calls = []
+
+    async def mock_exec_failing(agent, *args, **kwargs):
+        calls.append(agent.name)
+        if agent.name == "perspective_agent_primary":
+            raise api_error_500
+        return PerspectiveAnalysisLLMOutput(stance="SUPPORTS", confidence=0.8, explanation="From backup")
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec_failing), \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
+        mock_judge.return_value = None
+        result = await run_live_probe_payload(entry, config=config, budget_counter=budget)
+
+    # Primary agent called (1 call)
+    assert calls == ["perspective_agent_primary"]
+    # Budget was consumed by primary agent
+    assert budget.count == 1
+    # Fallback to backup was blocked by budget exhaustion (never exceeded limit of 1)
+    assert result.executed is False or "budget exhausted" in str(result.error).lower()
+
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_backup_fallback_consumes_budget_when_available():
+    """FR-3.4, NFR-2: Fallback to backup model correctly charges the budget when units are available."""
+    from google.genai import errors
+
+    budget = BudgetCounter(limit=2)
+    config = LiveProbeConfig(budget=2)
+    entry = PayloadEntry(
+        id="PI-ROL-FB-02",
+        stage=Stage.S2,
+        technique="Role injection in claim",
+        payload="Claim requiring analysis",
+        expected=ExpectedOutcome.PASSES_BUT_SAFE,
+        severity=Severity.HIGH,
+    )
+
+    api_error_500 = errors.APIError(code=500, response_json={"error": {"message": "Internal error"}})
+    calls = []
+
+    async def mock_exec_failing_then_backup(agent, *args, **kwargs):
+        calls.append(agent.name)
+        if agent.name == "perspective_agent_primary":
+            raise api_error_500
+        return PerspectiveAnalysisLLMOutput(stance="SUPPORTS", confidence=0.8, explanation="From backup")
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec_failing_then_backup), \
+         patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
+        mock_judge.return_value = None
+        result = await run_live_probe_payload(entry, config=config, budget_counter=budget)
+
+    # Both primary and backup agents were called
+    assert calls == ["perspective_agent_primary", "perspective_agent_backup"]
+    # Both calls were tracked and charged to budget (count == 2)
+    assert budget.count == 2
+    assert result.executed is True
+
+
+
 
 

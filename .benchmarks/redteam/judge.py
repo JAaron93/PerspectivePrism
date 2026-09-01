@@ -274,6 +274,13 @@ async def judge_agent_output_async(
         )
 
     except Exception as exc:
+        if "Budget exhausted" in str(exc):
+            return JudgeResult(
+                payload_id=entry.id,
+                verdict=InjectionVerdict.INCONCLUSIVE,
+                deciding_tier=JudgeTier.LLM_JUDGE,
+                reason="Budget exhausted before Tier 3 LLM Judge execution.",
+            )
         logger.error(f"Error during Tier 3 LLM Judge execution for {entry.id}: {exc}")
         return JudgeResult(
             payload_id=entry.id,
