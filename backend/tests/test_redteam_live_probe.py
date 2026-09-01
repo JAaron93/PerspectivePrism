@@ -195,12 +195,18 @@ async def test_live_probe_injects_canary_into_agent_instruction():
         claims=[ExtractedClaim(text="Tech report", start_time=0.0, end_time=5.0, context="News")]
     )
 
-    with patch("app.services.claim_extractor.execute_adk_agent", new_callable=AsyncMock) as mock_adk, \
+    recorded_agent = []
+
+    async def mock_exec(agent, *args, **kwargs):
+        recorded_agent.append(agent)
+        return mock_claim_output
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec), \
          patch("redteam.live_probe.judge_agent_output_async", new_callable=AsyncMock) as mock_judge:
-        mock_adk.return_value = mock_claim_output
         mock_judge.return_value = None
         await run_live_probe_payload(entry, config=config, claim_extractor=extractor)
-        assert canary in extractor.agent.instruction
+        assert len(recorded_agent) == 1
+        assert canary in recorded_agent[0].instruction
 
 
 @pytest.mark.redteam
@@ -295,6 +301,59 @@ async def test_concurrent_tasks_preserve_single_attempt_patching():
     assert len(recorded_kwargs) >= 4
     for kw in recorded_kwargs:
         assert kw.get("max_attempts") == 1
+
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_reused_service_does_not_accumulate_multiple_canaries():
+    """FR-3.2, NFR-3: Reusing a shared ClaimExtractor does not mutate it or accumulate multiple canaries."""
+    shared_extractor = ClaimExtractor(settings=None)
+    orig_instruction = shared_extractor.agent.instruction
+
+    canary1 = "CANARY_FIRST_111"
+    canary2 = "CANARY_SECOND_222"
+
+    config1 = LiveProbeConfig(budget=10, canary_token=canary1)
+    config2 = LiveProbeConfig(budget=10, canary_token=canary2)
+
+    entry1 = PayloadEntry(
+        id="PI-EXF-SEQ-01",
+        stage=Stage.S1,
+        technique="Canary test 1",
+        payload="Payload 1",
+        expected=ExpectedOutcome.PASSES_BUT_SAFE,
+        severity=Severity.LOW,
+    )
+    entry2 = PayloadEntry(
+        id="PI-EXF-SEQ-02",
+        stage=Stage.S1,
+        technique="Canary test 2",
+        payload="Payload 2",
+        expected=ExpectedOutcome.PASSES_BUT_SAFE,
+        severity=Severity.LOW,
+    )
+
+    recorded_agent_instructions = []
+
+    async def mock_exec(agent, *args, **kwargs):
+        recorded_agent_instructions.append(agent.instruction)
+        return ClaimsOutput(claims=[ExtractedClaim(text="Claim", start_time=0.0, end_time=1.0, context="Ctx")])
+
+    with patch("redteam.live_probe.base_execute_adk_agent", side_effect=mock_exec):
+        await run_live_probe_payload(entry1, config=config1, claim_extractor=shared_extractor)
+        await run_live_probe_payload(entry2, config=config2, claim_extractor=shared_extractor)
+
+    # The shared extractor instance itself is NOT mutated
+    assert shared_extractor.agent.instruction == orig_instruction
+
+    # Run 1 used only canary1
+    assert canary1 in recorded_agent_instructions[0]
+    assert canary2 not in recorded_agent_instructions[0]
+
+    # Run 2 used only canary2 and did not carry over canary1
+    assert canary2 in recorded_agent_instructions[1]
+    assert canary1 not in recorded_agent_instructions[1]
+
 
 
 
