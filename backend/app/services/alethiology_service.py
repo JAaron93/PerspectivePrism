@@ -188,6 +188,7 @@ class AlethiologyService:
         self.cb_last_failure_time = 0
         self.cb_open = False
         self.cb_half_open = False
+        self.cb_probing = False
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(
@@ -214,6 +215,7 @@ class AlethiologyService:
         output_key: str = "alethiology_result",
     ) -> Any:
         use_backup = False
+        is_probe = False
 
         async with self._cb_lock:
             if self.cb_open:
@@ -222,13 +224,20 @@ class AlethiologyService:
                     logger.info("Alethiology circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
                     self.cb_open = False
                     self.cb_half_open = True
+                    self.cb_probing = True
+                    is_probe = True
                 else:
                     use_backup = True
             elif self.cb_half_open:
-                logger.info("Alethiology circuit breaker HALF-OPEN. Sending probe request to primary...")
+                if not self.cb_probing:
+                    logger.info("Alethiology circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
+                    self.cb_probing = True
+                    is_probe = True
+                else:
+                    use_backup = True
 
         if use_backup:
-            logger.warning("Alethiology circuit breaker OPEN. Using backup provider.")
+            logger.warning("Alethiology circuit breaker OPEN/PROBING. Using backup provider.")
             try:
                 return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
             except Exception as e:
@@ -237,9 +246,10 @@ class AlethiologyService:
         try:
             result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
             async with self._cb_lock:
-                if self.cb_half_open:
+                if is_probe or self.cb_half_open:
                     logger.info("Alethiology probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
+                    self.cb_probing = False
                     self.cb_failures = 0
                 elif self.cb_failures > 0:
                     logger.info("Alethiology primary provider recovered. Resetting failure count.")
@@ -251,16 +261,20 @@ class AlethiologyService:
 
             if not is_transient:
                 logger.error(f"Non-transient error in alethiology agent: {e}")
+                async with self._cb_lock:
+                    if is_probe:
+                        self.cb_probing = False
                 raise e
 
             current_use_backup = False
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
                 fail_threshold = getattr(self.settings, "CIRCUIT_BREAKER_FAIL_THRESHOLD", 3)
-                if self.cb_half_open:
+                if is_probe or self.cb_half_open:
                     logger.error(f"Alethiology probe request FAILED: {e}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False
+                    self.cb_probing = False
                 else:
                     self.cb_failures += 1
                     logger.error(f"Alethiology primary provider failed (Count: {self.cb_failures}): {e}")
@@ -283,9 +297,10 @@ class AlethiologyService:
 
             raise e
 
-    async def analyze_alethiology(self, claim: Claim) -> AlethiologyAnalysis:
+    async def analyze_alethiology(self, claim: Claim) -> Optional[AlethiologyAnalysis]:
         """
         Analyzes the implicit theory of truth (epistemological framework) of a claim.
+        Returns None if sanitization or analysis cannot be completed.
         """
         try:
             sanitized_claim = sanitize_claim_text(claim.text)
@@ -296,12 +311,7 @@ class AlethiologyService:
                 claim.text[:50],
                 e,
             )
-            return AlethiologyAnalysis(
-                primary_theory="Correspondence (Empirical)",
-                secondary_theory=None,
-                epistemic_summary="Input validation failed during sanitization.",
-                quote_evidences=[],
-            )
+            return None
 
         user_prompt = build_user_data_prompt(
             f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}",
@@ -335,9 +345,4 @@ class AlethiologyService:
             if "Budget exhausted" in str(e) or (e.__cause__ and "Budget exhausted" in str(e.__cause__)):
                 raise e
             logger.exception("Error in alethiology analysis for claim '%s'", claim.text[:50])
-            return AlethiologyAnalysis(
-                primary_theory="Correspondence (Empirical)",
-                secondary_theory=None,
-                epistemic_summary="Alethiology analysis could not be completed.",
-                quote_evidences=[],
-            )
+            return None

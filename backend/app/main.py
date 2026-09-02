@@ -282,17 +282,14 @@ async def process_analysis(job_id: str, request: VideoRequest):
                     process_single_perspective(perspective, evidence)
                 )
             
-            # Run perspective analyses concurrently, but wait for all to complete
-            # before computing overall assessment
-            perspective_analyses = await asyncio.gather(*analysis_tasks)
-            
-            # 5. Analyze Bias and Alethiology concurrently
-            bias_analysis, alethiology_analysis = await asyncio.gather(
+            # 4. Analyze Perspectives, Bias, and Alethiology concurrently in a single phase
+            *perspective_analyses, bias_analysis, alethiology_analysis = await asyncio.gather(
+                *analysis_tasks,
                 analysis_service.analyze_bias_and_deception(claim),
                 analysis_service.analyze_alethiology(claim),
             )
             
-            # 6. Construct Truth Profile (Finalize for this claim)
+            # 5. Construct Truth Profile (Finalize for this claim)
             overall_assessment = compute_overall_assessment(perspective_analyses, bias_analysis.deception_rating)
             
             # Update the claim with final assessments, bias, and alethiology info

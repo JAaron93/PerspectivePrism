@@ -135,6 +135,7 @@ class AnalysisService:
         self.cb_last_failure_time = 0
         self.cb_open = False
         self.cb_half_open = False
+        self.cb_probing = False
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
@@ -161,6 +162,7 @@ class AnalysisService:
         output_key: str,
     ) -> Any:
         use_backup = False
+        is_probe = False
         
         async with self._cb_lock:
             if self.cb_open:
@@ -168,13 +170,20 @@ class AnalysisService:
                     logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
                     self.cb_open = False
                     self.cb_half_open = True
+                    self.cb_probing = True
+                    is_probe = True
                 else:
                     use_backup = True
             elif self.cb_half_open:
-                logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+                if not self.cb_probing:
+                    logger.info("Circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
+                    self.cb_probing = True
+                    is_probe = True
+                else:
+                    use_backup = True
 
         if use_backup:
-            logger.warning("Circuit breaker OPEN. Using backup provider.")
+            logger.warning("Circuit breaker OPEN/PROBING. Using backup provider.")
             try:
                 return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
             except Exception as e:
@@ -183,9 +192,10 @@ class AnalysisService:
         try:
             result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
             async with self._cb_lock:
-                if self.cb_half_open:
+                if is_probe or self.cb_half_open:
                     logger.info("Probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
+                    self.cb_probing = False
                     self.cb_failures = 0
                 elif self.cb_failures > 0:
                     logger.info("Primary provider recovered. Resetting failure count.")
@@ -197,15 +207,19 @@ class AnalysisService:
             
             if not is_transient:
                 logger.error(f"Non-transient error in primary agent: {e}")
+                async with self._cb_lock:
+                    if is_probe:
+                        self.cb_probing = False
                 raise e
 
             current_use_backup = False
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
-                if self.cb_half_open:
+                if is_probe or self.cb_half_open:
                     logger.error(f"Probe request FAILED: {e}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False
+                    self.cb_probing = False
                 else:
                     self.cb_failures += 1
                     logger.error(f"Primary provider failed (Count: {self.cb_failures}): {e}")
@@ -352,7 +366,7 @@ class AnalysisService:
                 deception_rating=0.0, deception_rationale="Analysis failed."
             )
 
-    async def analyze_alethiology(self, claim: Claim) -> AlethiologyAnalysis:
+    async def analyze_alethiology(self, claim: Claim) -> Optional[AlethiologyAnalysis]:
         """
         Analyzes the implicit theory of truth (epistemological framework) of a claim.
         """

@@ -97,8 +97,7 @@ class TestAlethiologyAnalysisExecution:
         claim = Claim(id="c_bad", text="Invalid\x00Claim", context="Context")
         result = await alethiology_service.analyze_alethiology(claim)
 
-        assert result.primary_theory == "Correspondence (Empirical)"
-        assert "Input validation failed" in result.epistemic_summary
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_analyze_alethiology_quotes_sanitized(self, alethiology_service):
@@ -154,6 +153,41 @@ class TestAlethiologyCircuitBreakerAndFallback:
         with patch.object(alethiology_service, "_run_agent_direct", side_effect=budget_err):
             with pytest.raises(Exception, match="Budget exhausted"):
                 await alethiology_service.analyze_alethiology(claim)
+
+    @pytest.mark.asyncio
+    async def test_half_open_probe_ownership_prevents_stampede(self, alethiology_service):
+        alethiology_service.cb_open = True
+        alethiology_service.cb_last_failure_time = 0  # expired
+
+        expected_output = AlethiologyAnalysis(
+            primary_theory="Correspondence (Empirical)",
+            secondary_theory=None,
+            epistemic_summary="Summary",
+            quote_evidences=[]
+        )
+
+        call_records = []
+
+        async def fake_run_direct(agent, user_prompt, output_key, is_backup=False):
+            call_records.append((agent.name, is_backup))
+            await asyncio.sleep(0.01)
+            return expected_output
+
+        with patch.object(alethiology_service, "_run_agent_direct", side_effect=fake_run_direct):
+            claim = Claim(id="c1", text="Claim 1")
+            # Run two concurrent calls during half-open
+            r1, r2 = await asyncio.gather(
+                alethiology_service.analyze_alethiology(claim),
+                alethiology_service.analyze_alethiology(claim)
+            )
+
+            assert r1 is not None
+            assert r2 is not None
+            # Exactly one call should be probe to primary, other routed to backup
+            primary_calls = [c for c in call_records if c[0] == "alethiology_agent_primary"]
+            backup_calls = [c for c in call_records if c[0] == "alethiology_agent_backup"]
+            assert len(primary_calls) == 1
+            assert len(backup_calls) == 1
 
 
 class TestAnalysisServiceIntegration:
