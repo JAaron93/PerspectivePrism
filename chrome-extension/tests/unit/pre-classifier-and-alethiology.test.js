@@ -170,6 +170,68 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       }
     });
 
+    it("should ensure cancelled in-flight ordinary request does not corrupt replacement override state", async () => {
+      const videoId = "cancelRace1";
+
+      const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
+        if (opts?.method === "POST") {
+          const body = JSON.parse(opts.body);
+          if (!body.force_override) {
+            return new Promise((_, reject) => {
+              if (opts.signal) {
+                opts.signal.addEventListener("abort", () => {
+                  reject(new DOMException("The user aborted a request.", "AbortError"));
+                });
+              }
+            });
+          }
+          return {
+            ok: true,
+            json: async () => ({
+              job_id: "override-job-win",
+              status: "pending",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            status: "completed",
+            result: {
+              video_id: videoId,
+              metadata: { analyzed_at: "2026-09-02T12:00:00Z" },
+              claims: [],
+            },
+          }),
+        };
+      });
+      globalThis.fetch = mockFetch;
+
+      // Start non-forced request
+      const ordinaryPromise = client.performAnalysis(videoId, { forceOverride: false });
+
+      // Wait until fetch starts and registers
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // Now start override request
+      const overridePromise = client.performAnalysis(videoId, { forceOverride: true });
+
+      const [, resOverride] = await Promise.all([
+        ordinaryPromise.catch((e) => e),
+        overridePromise,
+      ]);
+
+      expect(resOverride.success).toBe(true);
+
+      // Verify no retry alarm was scheduled for the cancelled ordinary request
+      const alarms = await chrome.alarms.getAll();
+      const retryAlarms = alarms.filter((a) => a.name.includes(videoId));
+      expect(retryAlarms.length).toBe(0);
+
+      // Verify pending request in-memory is cleared upon completion
+      expect(client.pendingRequests.has(videoId)).toBe(false);
+    });
+
     it("should validate analysis data containing eligibility payload and empty claims", () => {
       const payload = {
         video_id: "abcdefghijk",

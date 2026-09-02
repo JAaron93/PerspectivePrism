@@ -112,7 +112,15 @@ class PerspectivePrismClient {
         logger.info(
           `[PerspectivePrismClient] Cancelling non-forced in-flight request for ${videoId} to start force override`,
         );
+        const oldPromise = this.pendingRequests.get(videoId);
         this.cancelAnalysis(videoId);
+        if (oldPromise) {
+          try {
+            await oldPromise;
+          } catch (_e) {
+            // Expected cancellation rejection
+          }
+        }
       } else {
         logger.info(
           `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
@@ -172,8 +180,10 @@ class PerspectivePrismClient {
       const result = await requestPromise;
       return result;
     } finally {
-      this.pendingRequests.delete(videoId);
-      this.pendingRequestOptions.delete(videoId);
+      if (this.pendingRequests.get(videoId) === requestPromise) {
+        this.pendingRequests.delete(videoId);
+        this.pendingRequestOptions.delete(videoId);
+      }
     }
   }
 
@@ -220,6 +230,16 @@ class PerspectivePrismClient {
       this.notifyCompletion(videoId, successResult);
       return successResult;
     } catch (error) {
+      // If cancelled or aborted, do not schedule retries or log error
+      // @ts-ignore
+      if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
+        return {
+          success: false,
+          error: "Analysis cancelled",
+          isCancelled: true,
+        };
+      }
+
       this.logError(
         `Analysis failed for ${videoId} (attempt ${attempt})`,
         error,
@@ -363,11 +383,13 @@ class PerspectivePrismClient {
    */
   async makeAnalysisRequest(videoUrl, videoId, options = {}) {
     const controller = new AbortController();
+    let isTimeout = false;
 
     // Store abort controller for cancellation
     this.abortControllers.set(videoId, controller);
 
     const timeoutId = setTimeout(() => {
+      isTimeout = true;
       controller.abort();
     }, this.TIMEOUT_MS);
 
@@ -403,15 +425,24 @@ class PerspectivePrismClient {
       this.validateAnalysisData(result);
       return result;
     } catch (error) {
-      if (error.name === "AbortError") {
-        throw new TimeoutError("Analysis request timed out");
+      if (error.name === "AbortError" || controller.signal.aborted) {
+        if (isTimeout) {
+          throw new TimeoutError("Analysis request timed out");
+        }
+        const cancelErr = new Error("Analysis cancelled");
+        cancelErr.name = "AbortError";
+        // @ts-ignore
+        cancelErr.isCancelled = true;
+        throw cancelErr;
       }
       throw error;
     } finally {
       clearTimeout(timeoutId);
       progressTimers.forEach((t) => clearTimeout(t));
-      // Clean up abort controller
-      this.abortControllers.delete(videoId);
+      // Clean up abort controller only if this controller is still current
+      if (this.abortControllers.get(videoId) === controller) {
+        this.abortControllers.delete(videoId);
+      }
     }
   }
 
@@ -475,8 +506,15 @@ class PerspectivePrismClient {
   }
 
   shouldRetryError(error) {
-    // Don't retry validation errors
-    if (error instanceof ValidationError) {
+    // Don't retry validation errors or cancellations
+    if (
+      error instanceof ValidationError ||
+      error.name === "AbortError" ||
+      // @ts-ignore
+      error.isCancelled ||
+      error.message?.includes("cancelled") ||
+      error.message?.includes("aborted")
+    ) {
       return false;
     }
 

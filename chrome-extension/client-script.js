@@ -78,8 +78,16 @@
         );
 
         if (isForceOverride && !inFlightIsForce) {
+          const oldPromise = this.pendingRequests.get(videoId);
           this.pendingRequests.delete(videoId);
           this.pendingRequestOptions.delete(videoId);
+          if (oldPromise) {
+            try {
+              await oldPromise;
+            } catch (_e) {
+              // Expected cancellation rejection
+            }
+          }
         } else {
           return this.pendingRequests.get(videoId);
         }
@@ -99,8 +107,10 @@
         const result = await requestPromise;
         return result;
       } finally {
-        this.pendingRequests.delete(videoId);
-        this.pendingRequestOptions.delete(videoId);
+        if (this.pendingRequests.get(videoId) === requestPromise) {
+          this.pendingRequests.delete(videoId);
+          this.pendingRequestOptions.delete(videoId);
+        }
       }
     }
 
