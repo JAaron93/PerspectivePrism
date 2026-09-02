@@ -19,6 +19,9 @@ MAX_CLAIM_LENGTH = 5000
 MAX_EVIDENCE_LENGTH = 10000
 MAX_CONTEXT_LENGTH = 2000
 MAX_PERSPECTIVE_LENGTH = 50
+MAX_METADATA_FIELD_LENGTH = 1000
+MAX_CATEGORY_LENGTH = 100
+MAX_QUOTE_LENGTH = 1500
 
 # Suspicious patterns that might indicate injection attempts
 SUSPICIOUS_PATTERNS = [
@@ -195,6 +198,47 @@ def sanitize_context(context: Optional[str]) -> str:
     )
 
 
+def sanitize_metadata_field(
+    text: Optional[str],
+    field_name: str = "Metadata field",
+    max_length: int = MAX_METADATA_FIELD_LENGTH
+) -> str:
+    """Sanitize client-extracted YouTube metadata string."""
+    if not text:
+        return ""
+    return sanitize_input(
+        text,
+        max_length=max_length,
+        field_name=field_name,
+        allow_suspicious_patterns=False,
+        allow_control_chars=False
+    )
+
+
+def sanitize_category_string(category: Optional[str]) -> str:
+    """Sanitize YouTube category name."""
+    if not category:
+        return ""
+    return sanitize_input(
+        category,
+        max_length=MAX_CATEGORY_LENGTH,
+        field_name="Category name",
+        allow_suspicious_patterns=False,
+        allow_control_chars=False
+    )
+
+
+def sanitize_quote_evidence(quote: str) -> str:
+    """Sanitize exact transcript quote evidence."""
+    return sanitize_input(
+        quote,
+        max_length=MAX_QUOTE_LENGTH,
+        field_name="Quote evidence",
+        allow_suspicious_patterns=False,
+        allow_control_chars=False
+    )
+
+
 def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
     """
     Wrap user data in clearly delimited sections with dynamic nonce delimiters.
@@ -207,3 +251,4 @@ def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = N
     start_delim = f"==={label} {nonce} START==="
     end_delim = f"==={label} {nonce} END==="
     return f"{start_delim}\n{data}\n{end_delim}"
+

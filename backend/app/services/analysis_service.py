@@ -5,6 +5,7 @@ from typing import List, Any
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
+    AlethiologyAnalysis,
     BiasAnalysis,
     Claim,
     Evidence,
@@ -12,6 +13,7 @@ from app.models.schemas import (
     PerspectiveType,
     PerspectiveAnalysisLLMOutput,
 )
+from app.services.alethiology_service import AlethiologyService
 from app.utils.input_sanitizer import (
     SanitizationError,
     sanitize_claim_text,
@@ -57,6 +59,8 @@ class AnalysisService:
 
         # Expose backup_client for health check compatibility
         self.backup_client = True if backup_model else None
+
+        self.alethiology_service = AlethiologyService(model_name=primary_model, settings=self.settings)
 
         self.perspective_agent_primary = Agent(
             name="perspective_agent_primary",
@@ -131,6 +135,7 @@ class AnalysisService:
         self.cb_last_failure_time = 0
         self.cb_open = False
         self.cb_half_open = False
+        self.cb_probing = False
         self._cb_lock = asyncio.Lock()
 
     async def _run_agent_direct(self, agent: Agent, user_prompt: str, output_key: str, is_backup: bool = False) -> Any:
@@ -139,6 +144,7 @@ class AnalysisService:
             schema_map = {
                 "perspective_result": PerspectiveAnalysisLLMOutput,
                 "bias_result": BiasAnalysis,
+                "alethiology_result": AlethiologyAnalysis,
             }
             return await execute_adk_agent(
                 agent=agent,
@@ -156,6 +162,7 @@ class AnalysisService:
         output_key: str,
     ) -> Any:
         use_backup = False
+        is_probe = False
         
         async with self._cb_lock:
             if self.cb_open:
@@ -163,13 +170,20 @@ class AnalysisService:
                     logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
                     self.cb_open = False
                     self.cb_half_open = True
+                    self.cb_probing = True
+                    is_probe = True
                 else:
                     use_backup = True
             elif self.cb_half_open:
-                logger.info("Circuit breaker HALF-OPEN. Sending probe request to primary...")
+                if not self.cb_probing:
+                    logger.info("Circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
+                    self.cb_probing = True
+                    is_probe = True
+                else:
+                    use_backup = True
 
         if use_backup:
-            logger.warning("Circuit breaker OPEN. Using backup provider.")
+            logger.warning("Circuit breaker OPEN/PROBING. Using backup provider.")
             try:
                 return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
             except Exception as e:
@@ -178,11 +192,12 @@ class AnalysisService:
         try:
             result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
             async with self._cb_lock:
-                if self.cb_half_open:
+                if is_probe:
                     logger.info("Probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
+                    self.cb_probing = False
                     self.cb_failures = 0
-                elif self.cb_failures > 0:
+                elif not self.cb_open and not self.cb_half_open and self.cb_failures > 0:
                     logger.info("Primary provider recovered. Resetting failure count.")
                     self.cb_failures = 0
             return result
@@ -192,16 +207,22 @@ class AnalysisService:
             
             if not is_transient:
                 logger.error(f"Non-transient error in primary agent: {e}")
+                async with self._cb_lock:
+                    if is_probe:
+                        self.cb_open = True
+                        self.cb_half_open = False
+                        self.cb_probing = False
                 raise e
 
             current_use_backup = False
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
-                if self.cb_half_open:
+                if is_probe:
                     logger.error(f"Probe request FAILED: {e}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False
-                else:
+                    self.cb_probing = False
+                elif not self.cb_open and not self.cb_half_open:
                     self.cb_failures += 1
                     logger.error(f"Primary provider failed (Count: {self.cb_failures}): {e}")
                     if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
@@ -346,4 +367,11 @@ class AnalysisService:
             return BiasAnalysis(
                 deception_rating=0.0, deception_rationale="Analysis failed."
             )
+
+    async def analyze_alethiology(self, claim: Claim) -> Optional[AlethiologyAnalysis]:
+        """
+        Analyzes the implicit theory of truth (epistemological framework) of a claim.
+        """
+        return await self.alethiology_service.analyze_alethiology(claim)
+
 

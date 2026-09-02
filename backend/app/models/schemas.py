@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -11,8 +11,83 @@ class PerspectiveType(str, Enum):
     PARTISAN_RIGHT = "Partisan (Right)"
 
 
+TruthTheoryType = Literal[
+    "Correspondence (Empirical)",
+    "Coherence (Systemic Narrative)",
+    "Pragmatic (Practical Utility)",
+    "Perspectivism (Lived Experience)",
+    "Consensus (Institutional Agreement)",
+    "Deflationary (Rhetorical Endorsement)"
+]
+
+
+class VideoMetadata(BaseModel):
+    title: str = Field(default="", description="YouTube video title")
+    channel_name: str = Field(default="", description="Channel or creator name")
+    category_id: Optional[str] = Field(default=None, description="YouTube Category ID")
+    category_name: Optional[str] = Field(default=None, description="Category name (e.g. News & Politics, Music)")
+    tags: List[str] = Field(default_factory=list, description="Video tags/keywords")
+    description_snippet: str = Field(default="", description="First 250 characters of description")
+
+
 class VideoRequest(BaseModel):
     url: HttpUrl
+    force_override: bool = Field(
+        default=False,
+        description="When True, bypasses the Pre-Classification guardrail gate and forces full analysis."
+    )
+    metadata: Optional[VideoMetadata] = Field(
+        default=None,
+        description="Client-extracted YouTube DOM metadata to assist pre-classification."
+    )
+
+
+class ContentEligibilityResult(BaseModel):
+    is_analysable: bool = Field(
+        ...,
+        description="True if video contains political discourse, news, commentary, debate, or socio-economic claims."
+    )
+    confidence_score: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence level between 0.0 and 1.0 that classification is correct."
+    )
+    detected_category: str = Field(
+        ...,
+        description="2-3 word label for detected content type (e.g. 'Anime Music Video', 'Political Commentary')."
+    )
+    disclaimer_title: str = Field(
+        ...,
+        description="Short user-facing header if is_analysable is False (e.g. 'Analysis Skipped')."
+    )
+    disclaimer_message: str = Field(
+        ...,
+        description="Clear, respectful explanation of why analysis was skipped."
+    )
+    key_topics_found: List[str] = Field(
+        default_factory=list,
+        description="Brief list of top topics identified in the metadata/transcript."
+    )
+
+
+class AlethiologyAnalysis(BaseModel):
+    primary_theory: TruthTheoryType = Field(
+        ...,
+        description="Dominant epistemological theory of truth the speaker operates on."
+    )
+    secondary_theory: Optional[TruthTheoryType] = Field(
+        default=None,
+        description="Supporting or secondary truth framework present in the transcript."
+    )
+    epistemic_summary: str = Field(
+        ...,
+        description="Strictly neutral 2-3 sentence explanation of HOW the speaker builds their case."
+    )
+    quote_evidences: List[str] = Field(
+        default_factory=list,
+        description="Exact transcript quotes where speaker demonstrates their truth assumptions."
+    )
 
 
 class TranscriptSegment(BaseModel):
@@ -85,6 +160,7 @@ class TruthProfile(BaseModel):
     perspectives: List[PerspectiveAnalysis]
     bias_analysis: BiasAnalysis
     overall_assessment: str
+    alethiology: Optional[AlethiologyAnalysis] = None
 
 
 class AnalysisMetadata(BaseModel):
@@ -101,6 +177,7 @@ class ClientTruthProfile(BaseModel):
     overall_assessment: str
     perspectives: Dict[str, PerspectiveAnalysis]
     bias_indicators: BiasIndicators
+    alethiology: Optional[AlethiologyAnalysis] = None
 
 
 class ClientClaimAnalysis(BaseModel):
@@ -113,6 +190,7 @@ class ClientClaimAnalysis(BaseModel):
 class AnalysisResponse(BaseModel):
     video_id: str
     metadata: AnalysisMetadata
+    eligibility: Optional[ContentEligibilityResult] = None
     claims: List[ClientClaimAnalysis]
 
 
