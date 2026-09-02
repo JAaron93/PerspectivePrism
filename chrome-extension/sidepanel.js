@@ -46,7 +46,7 @@ let currentTabId = null;
 let lastSequence = -1;
 let currentGenerationId = null;
 let activeAnalysisToken = 0;
-let isSelfInitiating = false;
+let pendingCheckCacheToken = 0;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -200,7 +200,7 @@ async function startAnalysis(videoId, options = {}) {
     progressBarFill.setAttribute("aria-valuenow", "0");
   }
 
-  isSelfInitiating = true;
+  pendingCheckCacheToken++;
   try {
     const response = await chrome.runtime.sendMessage({
       type: "ANALYZE_VIDEO",
@@ -234,8 +234,6 @@ async function startAnalysis(videoId, options = {}) {
     if (errorMessage) {
       errorMessage.textContent = err?.message || "Analysis request failed";
     }
-  } finally {
-    isSelfInitiating = false;
   }
 }
 
@@ -673,6 +671,7 @@ async function checkCurrentTabState() {
     
     if (tabId !== currentTabId || videoId !== currentVideoId) {
       activeAnalysisToken++;
+      pendingCheckCacheToken++;
       currentGenerationId = null;
       lastSequence = -1;
       const container = document.getElementById("skeleton-container") || skeletonContainer;
@@ -717,9 +716,7 @@ function handleAnalysisState(state) {
       break;
       
     case "in_progress":
-      if (!isSelfInitiating) {
-        activeAnalysisToken++;
-      }
+      pendingCheckCacheToken++;
       showState("loading");
       renderOptimisticSkeletons();
       loadingSubmessage.textContent = state.submessage || "Analyzing video...";
@@ -729,17 +726,17 @@ function handleAnalysisState(state) {
       break;
       
     case "complete": {
-      // Capture the video ID and analysis generation synchronously so we can detect stale responses.
+      // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
-      const requestedAnalysisToken = activeAnalysisToken;
+      const thisCacheToken = ++pendingCheckCacheToken;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
         videoId: requestedVideoId
       }).then((response) => {
-        // Discard the response if navigation or the active analysis has changed.
+        // Discard the response if navigation or a newer cache/analysis generation occurred.
         if (
           currentVideoId !== requestedVideoId ||
-          activeAnalysisToken !== requestedAnalysisToken
+          pendingCheckCacheToken !== thisCacheToken
         ) return;
         if (response && response.success && response.data) {
           if (
@@ -758,7 +755,7 @@ function handleAnalysisState(state) {
       }).catch(() => {
         if (
           currentVideoId !== requestedVideoId ||
-          activeAnalysisToken !== requestedAnalysisToken
+          pendingCheckCacheToken !== thisCacheToken
         ) return;
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
@@ -845,6 +842,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "VIDEO_NAVIGATED" || message.type === "YOUTUBE_NAVIGATED") {
     if (message.videoId && message.videoId !== currentVideoId) {
       activeAnalysisToken++;
+      pendingCheckCacheToken++;
       currentVideoId = message.videoId;
       currentGenerationId = null;
       lastSequence = -1;
