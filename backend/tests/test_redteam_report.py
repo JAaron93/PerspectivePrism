@@ -212,6 +212,20 @@ def test_baseline_diff_identifies_regressions_and_improvements(sample_corpus, sa
     assert report_improved.baseline_diff.improvements[0].payload_id == "PI-DLM-001"
     assert report_improved.baseline_diff.improvements[0].change_type == "improvement"
 
+    # Case 4: Missing/removed baseline payload triggers regression
+    omitted_results = [
+        sample_probe_results[0],  # Only PI-DIR-001, PI-DLM-001 omitted from results
+        sample_probe_results[2],
+    ]
+    report_omitted = build_report(
+        results=omitted_results,
+        corpus=sample_corpus,
+        baseline=baseline_data,
+    )
+    assert report_omitted.baseline_diff is not None
+    assert report_omitted.baseline_diff.has_regressions is True
+    assert any(r.payload_id == "PI-DLM-001" and r.current_status == "missing" for r in report_omitted.baseline_diff.regressions)
+
 
 @pytest.mark.redteam
 def test_baseline_update_is_explicit_only(tmp_path, sample_corpus, sample_probe_results):

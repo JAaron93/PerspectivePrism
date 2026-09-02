@@ -174,6 +174,29 @@ def diff_against_baseline(
         else:
             unchanged.append(item)
 
+    # Check for missing baselined payloads (omissions / coverage loss)
+    for payload_id, base_raw in baseline_results.items():
+        if payload_id not in current_payload_results:
+            base_category = (
+                base_raw.get("category", get_category_from_id(payload_id))
+                if isinstance(base_raw, dict)
+                else getattr(base_raw, "category", get_category_from_id(payload_id))
+            )
+            base_status = (
+                base_raw.get("probe_status", "unknown")
+                if isinstance(base_raw, dict)
+                else getattr(base_raw, "probe_status", "unknown")
+            )
+            item = DiffItem(
+                payload_id=payload_id,
+                category=str(base_category),
+                baseline_status=str(base_status),
+                current_status="missing",
+                change_type="regression",
+                details="Payload present in baseline was removed or omitted from current corpus evaluation",
+            )
+            regressions.append(item)
+
     has_regressions = len(regressions) > 0
     summary = f"{len(regressions)} regressions, {len(improvements)} improvements, {len(new_payloads)} new payloads, {len(unchanged)} unchanged."
 
