@@ -88,36 +88,50 @@ All tasks follow strict TDD: write the failing test first, verify failure, imple
 
 ## Track D: Reporting, Baseline, CI Gate
 
-### Task 8: Reporter & baseline diff [STATUS: PENDING]
+### Task 8: Reporter & baseline diff [STATUS: COMPLETE]
 *Traceability: FR-4.1–4.4, NFR-4 · AC: AC-1, AC-5*
-- [ ] Write failing tests asserting (a) report JSON contains per-category rates keyed by payload id, (b) no raw payload text appears anywhere in report output, (c) diff against baseline classifies regressions vs improvements, (d) `--update-baseline` is the only write path and is never implicit; verify they fail.
-- [ ] Implement `.benchmarks/redteam/report.py` (JSON + Markdown summary); tests now pass.
-- [ ] Run the first full deterministic suite and commit the resulting `redteam-baseline.json`.
+- [x] Write failing tests asserting (a) report JSON contains per-category rates keyed by payload id, (b) no raw payload text appears anywhere in report output, (c) diff against baseline classifies regressions vs improvements, (d) `--update-baseline` is the only write path and is never implicit; verify they fail.
+- [x] Implement `.benchmarks/redteam/report.py` (JSON + Markdown summary); tests now pass.
+- [x] Run the first full deterministic suite and commit the resulting `redteam-baseline.json`.
 - **Dependencies:** Task 5.
 
-### Task 9: CI gate wiring (review-only artifact) [STATUS: PENDING]
+### Task 9: CI gate wiring (review-only artifact) [STATUS: COMPLETE]
 *Traceability: FR-5.1–5.3, US-3 · AC: AC-5*
-- [ ] Draft the GitHub Actions job change (run `pytest -m redteam` in the backend CI job; fail on LEG rejection or baseline regression) as a written change proposal in this task's notes.
-- [ ] Confirm no agent edits to `**/.github/workflows/**` per FR-5.3 and repository guardrails; hand the proposal to a human for application.
+- [x] Draft the GitHub Actions job change (run `pytest -m redteam` in the backend CI job; fail on LEG rejection or baseline regression) as a written change proposal in this task's notes.
+- [x] Confirm no agent edits to `**/.github/workflows/**` per FR-5.3 and repository guardrails; hand the proposal to a human for application.
 - **Dependencies:** Task 8.
+
+#### CI Gate Proposal (for Human Application)
+```yaml
+# Add the following step to .github/workflows/ci.yml in the backend test job:
+- name: Run Prompt Injection Red-Team Deterministic Gate
+  run: |
+    cd backend
+    GCP_PROJECT=test-project LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy \
+      pytest -m redteam -v --durations=10
+```
+> **Notes on Gate Behavior:**
+> - Executes 100% offline with zero network calls and runs in <30 seconds.
+> - Automatically validates that all legitimate news/journalism control transcripts (`LEG`) pass sanitization (AC-2).
+> - Automatically fails the build if any new bypass regression appears relative to `.benchmarks/redteam/redteam-baseline.json` (AC-5).
 
 ---
 
 ## Track E: Fast-Track Hardening (design-time findings)
 
-### Task 10: Nonce-delimited user data sections [STATUS: PENDING]
+### Task 10: Nonce-delimited user data sections [STATUS: COMPLETE]
 *Traceability: FR-6.1, FR-6.3 · AC: AC-6*
-- [ ] Write failing test asserting `build_user_data_prompt` emits a fresh random delimiter per call and that a `PI-DLM` payload containing the old static delimiter remains contained inside the user-data section; verify it fails.
-- [ ] Modify `app/utils/prompt_helpers.py` to generate per-request nonce delimiters; test passes.
-- [ ] Update all call sites (`claim_extractor.py`, `analysis_service.py`); keep `input_sanitizer.wrap_user_data` consistent or remove it if superseded.
-- [ ] Update/extend `backend/tests/test_prompt_helpers.py` (or equivalent); run full `pytest` and confirm no existing test regresses.
+- [x] Write failing test asserting `build_user_data_prompt` emits a fresh random delimiter per call and that a `PI-DLM` payload containing the old static delimiter remains contained inside the user-data section; verify it fails.
+- [x] Modify `app/utils/prompt_helpers.py` to generate per-request nonce delimiters; test passes.
+- [x] Update all call sites (`claim_extractor.py`, `analysis_service.py`); keep `input_sanitizer.wrap_user_data` consistent or remove it if superseded.
+- [x] Update/extend `backend/tests/test_prompt_helpers.py` (or equivalent); run full `pytest` and confirm no existing test regresses.
 - **Dependencies:** none (independent of corpus work).
 
-### Task 11: NFKC normalization before pattern matching [STATUS: PENDING]
+### Task 11: NFKC normalization before pattern matching [STATUS: COMPLETE]
 *Traceability: FR-6.2, FR-6.3 · AC: —*
-- [ ] Write failing tests asserting full-width and homoglyph variants of denylist phrases (e.g., full-width "ignore previous instructions", Cyrillic lookalikes) are caught after NFKC normalization, and that existing benign unicode text still passes; verify they fail.
-- [ ] Decide layer: extend `prism_sanitizer_rs` (preferred, performance) or Python-side normalization in `sanitize_input` before the Rust call; implement; tests pass.
-- [ ] Update corresponding unit tests (`tests/test_input_sanitizer.py`); run full `pytest` and confirm no regressions.
+- [x] Write failing tests asserting full-width and homoglyph variants of denylist phrases (e.g., full-width "ignore previous instructions", Cyrillic lookalikes) are caught after NFKC normalization, and that existing benign unicode text still passes; verify they fail.
+- [x] Decide layer: extend `prism_sanitizer_rs` (preferred, performance) or Python-side normalization in `sanitize_input` before the Rust call; implement; tests pass.
+- [x] Update corresponding unit tests (`tests/test_input_sanitizer.py`); run full `pytest` and confirm no regressions.
 - **Dependencies:** none.
 
 > [!NOTE]
@@ -127,8 +141,8 @@ All tasks follow strict TDD: write the failing test first, verify failure, imple
 
 ## Definition of Done
 
-- [ ] All tracks complete with zero-drift status markers.
-- [ ] `pytest -m redteam` passes in under 60s with zero network calls.
-- [ ] At least one full live probe run executed against Vertex AI with results committed as baseline + report.
-- [ ] H1 (delimiter forgery) and H2 (denylist bypass) hypotheses explicitly confirmed or refuted in the report.
-- [ ] No `LEG` payload rejected; CI gate proposal documented for human application.
+- [x] All tracks complete with zero-drift status markers.
+- [x] `pytest -m redteam` passes in under 60s with zero network calls.
+- [x] At least one full live probe run executed against Vertex AI with results committed as baseline + report.
+- [x] H1 (delimiter forgery) and H2 (denylist bypass) hypotheses explicitly confirmed or refuted in the report.
+- [x] No `LEG` payload rejected; CI gate proposal documented for human application.

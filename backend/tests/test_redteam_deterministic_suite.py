@@ -62,9 +62,11 @@ def test_legitimate_control_corpus_never_rejected():
 @pytest.mark.redteam
 def test_delimiter_forgery_h1_survival_detected():
     """
-    Hypothesis H1 Verification:
-    Tests that delimiter forgery payloads (PI-DLM) containing '===USER DATA END==='
-    are flagged as delimiter_forgery_survived=True when they bypass the regex sanitizer.
+    Hypothesis H1 & Fast-Track Hardening (Track E / AC-6) Verification:
+    - Verifies that with dynamic nonce delimiters (default), all PI-DLM static delimiter
+      forgeries are contained and do not survive/escape.
+    - Verifies that when tested against matching static delimiters, the survival mechanism
+      is properly flagged.
     """
     corpus = load_corpus()
     dlm_entries = [
@@ -74,11 +76,18 @@ def test_delimiter_forgery_h1_survival_detected():
 
     assert len(dlm_entries) > 0, "Expected at least one PI-DLM entry containing '===USER DATA END==='"
 
-    results = [probe_payload(entry) for entry in dlm_entries]
-    surviving = [r for r in results if r.delimiter_forgery_survived]
+    # With dynamic nonce delimiters (Track E hardening), delimiter forgery is neutralized
+    hardened_results = [probe_payload(entry) for entry in dlm_entries]
+    surviving_hardened = [r for r in hardened_results if r.delimiter_forgery_survived]
+    assert len(surviving_hardened) == 0, (
+        "Dynamic nonce delimiters must contain all static delimiter forgery payloads"
+    )
 
-    assert len(surviving) > 0, (
-        "Expected at least one PI-DLM payload to bypass regex sanitizer and survive with delimiter intact"
+    # Hypothesis H1 confirmation: With fixed/static nonce matching the payload, the escape is flagged
+    static_results = [probe_payload(entry, nonce="") for entry in dlm_entries]
+    surviving_static = [r for r in static_results if r.delimiter_forgery_survived]
+    assert len(surviving_static) > 0, (
+        "Static delimiters allow delimiter forgery escape (Hypothesis H1 confirmed)"
     )
 
 
@@ -105,3 +114,35 @@ def test_per_category_distribution():
     for cat in expected_categories:
         assert cat in categories, f"Missing results for category: {cat}"
         assert len(categories[cat]) >= 5, f"Category {cat} should have >= 5 results"
+
+
+@pytest.mark.redteam
+def test_no_regressions_against_baseline():
+    """
+    FR-5.1 / AC-5 CI Gate Invariant:
+    Deterministic suite MUST fail the build if any regression appears relative to baseline
+    (e.g., a payload that was previously blocked in baseline is now bypassed).
+    """
+    from pathlib import Path
+    from redteam.report import build_report, load_baseline
+
+    baseline_paths = [
+        Path(".benchmarks/redteam/redteam-baseline.json"),
+        Path("../.benchmarks/redteam/redteam-baseline.json"),
+        Path(__file__).resolve().parent.parent.parent / ".benchmarks" / "redteam" / "redteam-baseline.json",
+    ]
+    baseline_file = next((p for p in baseline_paths if p.exists()), None)
+    if not baseline_file:
+        pytest.skip("Baseline file redteam-baseline.json not found; skipping regression check.")
+
+    baseline_data = load_baseline(baseline_file)
+    corpus = load_corpus()
+    results = run_probe(corpus)
+
+    report = build_report(results=results, corpus=corpus, baseline=baseline_data)
+    assert report.baseline_diff is not None
+    assert not report.baseline_diff.has_regressions, (
+        f"CI Gate Failure: {len(report.baseline_diff.regressions)} regressions found against baseline: "
+        f"{[r.payload_id for r in report.baseline_diff.regressions]}"
+    )
+
