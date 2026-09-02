@@ -899,5 +899,61 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(abortCalled).toBe(true);
       expect(recoveredPromiseSettled).toBe(true);
     });
+
+    it("should display valid cached result when navigating to video B even if video A had a newer start time", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      // 1. User starts analysis on video A
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              eligibility: { is_analysable: true },
+              claims: [{ claim_id: "c1", claim_text: "Claim B" }],
+            },
+          });
+        }
+        if (message.type === "GET_ANALYSIS_STATE") {
+          return Promise.resolve({
+            success: true,
+            state: {
+              status: "complete",
+              analyzedAt: Date.now() - 50000,
+            },
+          });
+        }
+        return new Promise(() => {}); // video A stays pending
+      });
+
+      sidepanelModule.startAnalysis("videoA11cha");
+
+      // 2. User navigates to video B
+      chrome.tabs.query.mockResolvedValue([
+        { id: 1, url: "https://www.youtube.com/watch?v=videoB11cha" },
+      ]);
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      messageListener({
+        type: "VIDEO_NAVIGATED",
+        videoId: "videoB11cha",
+      });
+
+      // 3. Video B completes with an analyzedAt timestamp older than video A's start time
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoB11cha",
+        state: {
+          status: "complete",
+          analyzedAt: Date.now() - 50000,
+        },
+      });
+
+      await new Promise((r) => setTimeout(r, 20));
+
+      // 4. Video B's results should be displayed and not rejected by video A's start time
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+    });
   });
 });

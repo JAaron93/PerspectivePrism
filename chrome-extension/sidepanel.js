@@ -49,6 +49,7 @@ let activeAnalysisToken = 0;
 let pendingCheckCacheToken = 0;
 let activeRequestId = null;
 let activeAnalysisStartTime = 0;
+let activeAnalysisVideoId = null;
 let requestCounter = 0;
 
 // DOM Elements
@@ -194,6 +195,7 @@ async function startAnalysis(videoId, options = {}) {
   const requestId = `sp_${Date.now()}_${++requestCounter}`;
   activeRequestId = requestId;
   activeAnalysisStartTime = Date.now();
+  activeAnalysisVideoId = videoId;
   currentVideoId = videoId;
   showState("loading");
   renderOptimisticSkeletons(true);
@@ -681,6 +683,9 @@ async function checkCurrentTabState() {
       pendingCheckCacheToken++;
       currentGenerationId = null;
       lastSequence = -1;
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
       const container = document.getElementById("skeleton-container") || skeletonContainer;
       if (container) {
         container.innerHTML = "";
@@ -746,7 +751,12 @@ function handleAnalysisState(state) {
       if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
         break;
       }
-      if (activeAnalysisStartTime && state.analyzedAt && state.analyzedAt < activeAnalysisStartTime) {
+      if (
+        activeAnalysisVideoId === currentVideoId &&
+        activeAnalysisStartTime &&
+        state.analyzedAt &&
+        state.analyzedAt < activeAnalysisStartTime
+      ) {
         break;
       }
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
@@ -883,6 +893,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       currentVideoId = message.videoId;
       currentGenerationId = null;
       lastSequence = -1;
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
     }
     checkCurrentTabState();
   } else if (message.type === "SYNC_PLAYBACK") {

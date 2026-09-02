@@ -1344,12 +1344,19 @@ class PerspectivePrismClient {
 
         if (state.status === "pending") {
           // Interrupted during execution, retry immediately
-          await this.executeAnalysisRequest(
+          const recoveryPromise = this.executeAnalysisRequest(
             state.videoId,
             state.videoUrl,
             state.attemptCount,
             state.options || {},
           );
+          this.pendingRequests.set(state.videoId, recoveryPromise);
+          this.pendingRequestOptions.set(state.videoId, state.options || {});
+          try {
+            await recoveryPromise;
+          } catch (_e) {
+            // Error logged and handled in executeAnalysisRequest
+          }
         } else if (state.status === "retrying") {
           // Check if alarm exists
           const nextAttempt = state.attemptCount + 1; // Assuming stored attempt is the last failed one
@@ -1363,12 +1370,19 @@ class PerspectivePrismClient {
               `[PerspectivePrismClient] Missing alarm for ${state.videoId}, rescheduling immediately`,
             );
             // If alarm is missing, execute it now to be safe and simple.
-            await this.executeAnalysisRequest(
+            const recoveryPromise = this.executeAnalysisRequest(
               state.videoId,
               state.videoUrl,
               state.attemptCount,
               state.options || {},
             );
+            this.pendingRequests.set(state.videoId, recoveryPromise);
+            this.pendingRequestOptions.set(state.videoId, state.options || {});
+            try {
+              await recoveryPromise;
+            } catch (_e) {
+              // Error logged and handled in executeAnalysisRequest
+            }
           }
         }
       }
