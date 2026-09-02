@@ -20,6 +20,9 @@
 interface AnalysisRequest {
   type: "ANALYZE_VIDEO";
   videoId: string;
+  forceOverride?: boolean;
+  force_override?: boolean;
+  metadata?: VideoMetadata;
 }
 
 /**
@@ -68,6 +71,7 @@ interface AnalysisData {
   video_id: string;
   claims: Claim[];
   metadata: AnalysisMetadata;
+  eligibility?: ContentEligibilityResult;
 }
 
 /**
@@ -94,6 +98,7 @@ interface TruthProfile {
   perspectives: PerspectiveSet;
   bias_indicators: BiasIndicators;
   overall_assessment: string;
+  alethiology?: AlethiologyAnalysis;
 }
 
 /**

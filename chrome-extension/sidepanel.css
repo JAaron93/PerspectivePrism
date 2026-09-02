@@ -238,6 +238,11 @@ body {
   color: var(--color-warning);
 }
 
+.badge-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
 .badge-false {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
@@ -495,4 +500,124 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Ineligible Disclaimer State (Pre-Classifier Early Exit) */
+#state-ineligible {
+  text-align: center;
+  align-items: center;
+}
+
+.disclaimer-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.disclaimer-tip .tip-icon {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.disclaimer-tip .tip-text {
+  flex: 1;
+}
+
+/* Epistemic Lens Component */
+.epistemic-lens-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.epistemic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.epistemic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.epistemic-chip-primary {
+  background-color: rgba(37, 99, 235, 0.12);
+  color: var(--primary-color);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.epistemic-chip-secondary {
+  background-color: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.epistemic-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 2px 0 4px 0;
+}
+
+.epistemic-quote-toggle {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-align: left;
+}
+
+.epistemic-quote-toggle:hover {
+  color: var(--text-primary);
+}
+
+.quote-toggle-icon {
+  font-size: 9px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.epistemic-quotes-content {
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.epistemic-quote {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 2px 0;
+  line-height: 1.35;
+}
+
 

@@ -41,7 +41,8 @@ export default [
         ConfigValidator: "readonly",
         DEFAULT_CONFIG: "readonly",
         extractVideoIdFromUrl: "readonly",
-        isValidVideoId: "readonly"
+        isValidVideoId: "readonly",
+        PerspectivePrismClient: "readonly"
       }
     },
     rules: {

@@ -40,6 +40,19 @@
       <div id="skeleton-container" class="skeleton-container" style="width: 100%; margin-top: 16px;" aria-label="Loading analysis skeletons"></div>
     </div>
 
+    <!-- Ineligible Disclaimer State (Pre-Classifier Guardrail Gate) -->
+    <div id="state-ineligible" class="state-container" style="display: none;">
+      <span class="logo-icon disclaimer-icon" style="font-size: 48px; color: var(--color-warning);">⚠️</span>
+      <h2 id="disclaimer-title" class="state-title">Analysis Skipped</h2>
+      <div id="disclaimer-category-badge" class="badge badge-warning" style="margin: 8px 0;">Non-Political Media</div>
+      <p id="disclaimer-message" class="state-description">This video appears to be non-political content and does not contain verifiable policy claims.</p>
+      <div class="disclaimer-tip">
+        <span class="tip-icon">💡</span>
+        <span class="tip-text">Tip: Navigate to a news broadcast or political commentary video to run full multi-perspective analysis.</span>
+      </div>
+      <button id="pp-force-analyze-btn" class="btn btn-primary" style="margin-top: 16px;" aria-label="Analyze anyway with force override">⚡ Analyze Anyway</button>
+    </div>
+
     <!-- Error State -->
     <div id="state-error" class="state-container" style="display: none;">
       <span class="logo-icon" style="font-size: 48px; color: var(--color-danger)">⚠️</span>

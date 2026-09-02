@@ -80,32 +80,32 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 5 and Track 6 can proceed completely in parallel once Track 1 schemas and Track 4 API contracts are defined.
 
-- [ ] **T5.1: Update Extension API Client for Metadata & Force Override**
+- [x] **T5.1: Update Extension API Client for Metadata & Force Override**
   - **Description**: Update `chrome-extension/client.js` and `chrome-extension/client-script.js` to accept `forceOverride` and `metadata` parameters in `createAnalysisJob(videoUrl, options)`.
   - **Dependencies**: T1.1, T4.1
   - **Traceability**: FR1, FR6, NFR3
 
-- [ ] **T5.2: Implement Ineligible Disclaimer UI State in Side Panel HTML & CSS**
+- [x] **T5.2: Implement Ineligible Disclaimer UI State in Side Panel HTML & CSS**
   - **Description**: Update `chrome-extension/sidepanel.html` and `chrome-extension/sidepanel.css` to add `#state-ineligible` container with warning icon, `#disclaimer-title`, `#disclaimer-category-badge`, `#disclaimer-message`, actionable navigation tip, and `#pp-force-analyze-btn` ("⚡ Analyze Anyway").
   - **Dependencies**: None
   - **Traceability**: FR12, NFR5
 
-- [ ] **T5.3: Implement "Analyze Anyway" Override Handler in Side Panel Controller**
+- [x] **T5.3: Implement "Analyze Anyway" Override Handler in Side Panel Controller**
   - **Description**: Update `chrome-extension/sidepanel.js` to handle `eligibility` payload. When `eligibility.is_analysable === false`, display `#state-ineligible`. Bind `#pp-force-analyze-btn` click event to trigger `startAnalysis(videoId, { forceOverride: true })`.
   - **Dependencies**: T5.1, T5.2
   - **Traceability**: FR12, FR13, US1, US3
 
-- [ ] **T5.4: Implement Epistemic Lens Component & Quote Accordion**
+- [x] **T5.4: Implement Epistemic Lens Component & Quote Accordion**
   - **Description**: Update `chrome-extension/sidepanel.js` and `sidepanel.css` to render an "Epistemic Lens" card within each claim's Truth Profile view, displaying primary/secondary theory chips, epistemic summary text, and a collapsible quote evidence drawer.
   - **Dependencies**: T1.1, T5.3
   - **Traceability**: FR14, US4, NFR5
 
-- [ ] **T5.5: Update Ambient TypeScript Definitions & Typecheck**
+- [x] **T5.5: Update Ambient TypeScript Definitions & Typecheck**
   - **Description**: Update `chrome-extension/globals.d.ts` with `TruthTheoryType`, `ContentEligibilityResult`, `AlethiologyAnalysis`, and updated `ClientTruthProfile`. Run `npm run typecheck` in `chrome-extension/` to verify zero errors under `checkJs: true`.
   - **Dependencies**: T5.1, T5.3, T5.4
   - **Traceability**: NFR4
 
-- [ ] **T5.6: Vitest Unit & Playwright Persistent Context Integration Tests**
+- [x] **T5.6: Vitest Unit & Playwright Persistent Context Integration Tests**
   - **Description**: Add unit tests in `chrome-extension/tests/unit/` for disclaimer rendering and override triggers. Add Playwright integration test `chrome-extension/tests/integration/pre-classifier-and-alethiology.spec.js` asserting UI transitions from disclaimer to full analysis upon clicking "Analyze Anyway".
   - **Dependencies**: T5.3, T5.4, T5.5
   - **Traceability**: FR12, FR13, FR14, FR15, US5

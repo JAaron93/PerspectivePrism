@@ -47,9 +47,10 @@ class PerspectivePrismClient {
   /**
    * Analyze a video by its ID.
    * @param {string} videoId - The YouTube video ID.
+   * @param {Object} [options] - Analysis options (e.g. forceOverride, metadata).
    * @returns {Promise<Object>} - The analysis result.
    */
-  async analyzeVideo(videoId) {
+  async analyzeVideo(videoId, options = {}) {
     // Validation
     if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
       return { success: false, error: "Invalid video ID format" };
@@ -62,7 +63,7 @@ class PerspectivePrismClient {
           `[PerspectivePrismClient] Recovery in progress, queueing request for ${videoId}`,
         );
         return new Promise((resolve, reject) => {
-          this.requestQueue.push({ videoId, resolve, reject });
+          this.requestQueue.push({ videoId, options, resolve, reject });
         });
       } else {
         logger.warn(
@@ -77,19 +78,26 @@ class PerspectivePrismClient {
       }
     }
 
-    return this.performAnalysis(videoId);
+    return this.performAnalysis(videoId, options);
   }
 
   /**
    * Internal method to perform analysis logic (extracted from analyzeVideo)
    * @param {string} videoId
+   * @param {Object} [options]
    */
-  async performAnalysis(videoId) {
-    // 1. Check Cache
-    const cachedResult = await this.checkCache(videoId);
-    if (cachedResult) {
-      logger.info(`[PerspectivePrismClient] Cache hit for ${videoId}`);
-      return { success: true, data: cachedResult, cached: true };
+  async performAnalysis(videoId, options = {}) {
+    const isForceOverride = Boolean(
+      options.forceOverride || options.force_override,
+    );
+
+    // 1. Check Cache (skip if forceOverride is requested)
+    if (!isForceOverride) {
+      const cachedResult = await this.checkCache(videoId);
+      if (cachedResult) {
+        logger.info(`[PerspectivePrismClient] Cache hit for ${videoId}`);
+        return { success: true, data: cachedResult, cached: true };
+      }
     }
 
     // Deduplication (In-memory)
@@ -126,7 +134,12 @@ class PerspectivePrismClient {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     // Create a promise for this request
-    const requestPromise = this.executeAnalysisRequest(videoId, videoUrl);
+    const requestPromise = this.executeAnalysisRequest(
+      videoId,
+      videoUrl,
+      0,
+      options,
+    );
     this.pendingRequests.set(videoId, requestPromise);
 
     try {
@@ -142,8 +155,9 @@ class PerspectivePrismClient {
    * @param {string} videoId
    * @param {string} videoUrl
    * @param {number} attempt
+   * @param {Object} [options]
    */
-  async executeAnalysisRequest(videoId, videoUrl, attempt = 0) {
+  async executeAnalysisRequest(videoId, videoUrl, attempt = 0, options = {}) {
     // Persist state start
     await this.persistRequestState({
       videoId,
@@ -151,10 +165,15 @@ class PerspectivePrismClient {
       startTime: Date.now(),
       attemptCount: attempt,
       status: "pending",
+      options,
     });
 
     try {
-      const result = await this.makeAnalysisRequest(videoUrl, videoId);
+      const result = await this.makeAnalysisRequest(
+        videoUrl,
+        videoId,
+        options,
+      );
 
       // Success
       await this.cleanupPersistedRequest(videoId);
@@ -270,11 +289,55 @@ class PerspectivePrismClient {
   }
 
   /**
+   * Create an analysis job on the backend.
+   * @param {string} videoUrl - Full YouTube video URL.
+   * @param {Object} [options] - Options including forceOverride, metadata, and signal.
+   * @returns {Promise<Object>} Backend job response object with job_id.
+   */
+  async createAnalysisJob(videoUrl, options = {}) {
+    const requestBody = {
+      url: videoUrl,
+      force_override: Boolean(options.forceOverride || options.force_override),
+    };
+
+    if (options.metadata) {
+      requestBody.metadata = options.metadata;
+    }
+
+    const response = await fetch(`${this.baseUrl}/analyze/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      throw new HttpError(response.status, response.statusText);
+    }
+
+    const jobData = await response.json();
+    const jobId = jobData.job_id;
+
+    // Validate job_id is present before polling
+    if (!jobId || typeof jobId !== "string" || jobId.trim() === "") {
+      console.error(
+        `[PerspectivePrismClient] Backend returned invalid job_id (type: ${typeof jobId})`,
+      );
+      throw new ValidationError("Backend returned invalid job_id");
+    }
+
+    return jobData;
+  }
+
+  /**
    * Make the actual HTTP request using the async job API.
    * @param {string} videoUrl
    * @param {string} videoId
+   * @param {Object} [options]
    */
-  async makeAnalysisRequest(videoUrl, videoId) {
+  async makeAnalysisRequest(videoUrl, videoId, options = {}) {
     const controller = new AbortController();
 
     // Store abort controller for cancellation
@@ -302,29 +365,11 @@ class PerspectivePrismClient {
     try {
       // 1. Submit Job
       console.log(`[PerspectivePrismClient] Submitting job for ${videoId}`);
-      const jobResponse = await fetch(`${this.baseUrl}/analyze/jobs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: videoUrl }), // Backend expects 'url', not 'video_url'
+      const jobData = await this.createAnalysisJob(videoUrl, {
+        ...options,
         signal: controller.signal,
       });
-
-      if (!jobResponse.ok) {
-        throw new HttpError(jobResponse.status, jobResponse.statusText);
-      }
-
-      const jobData = await jobResponse.json();
       const jobId = jobData.job_id;
-
-      // Validate job_id is present before polling
-      if (!jobId || typeof jobId !== "string" || jobId.trim() === "") {
-        console.error(
-          `[PerspectivePrismClient] Backend returned invalid job_id (type: ${typeof jobId})`,
-        );
-        throw new ValidationError("Backend returned invalid job_id");
-      }
 
       console.log(`[PerspectivePrismClient] Job submitted: ${jobId}`);
 
@@ -1370,10 +1415,59 @@ class PerspectivePrismClient {
       throw new ValidationError("Missing or invalid metadata.analyzed_at");
     }
 
+    // Validate eligibility if present
+    if (data.eligibility !== undefined && data.eligibility !== null) {
+      if (typeof data.eligibility !== "object") {
+        throw new ValidationError("eligibility must be an object");
+      }
+      const el = data.eligibility;
+      if (typeof el.is_analysable !== "boolean") {
+        throw new ValidationError("eligibility.is_analysable must be a boolean");
+      }
+      if (
+        typeof el.confidence_score !== "number" ||
+        el.confidence_score < 0 ||
+        el.confidence_score > 1
+      ) {
+        throw new ValidationError(
+          "eligibility.confidence_score must be a number between 0 and 1",
+        );
+      }
+      if (typeof el.detected_category !== "string") {
+        throw new ValidationError(
+          "eligibility.detected_category must be a string",
+        );
+      }
+      if (typeof el.disclaimer_title !== "string") {
+        throw new ValidationError(
+          "eligibility.disclaimer_title must be a string",
+        );
+      }
+      if (typeof el.disclaimer_message !== "string") {
+        throw new ValidationError(
+          "eligibility.disclaimer_message must be a string",
+        );
+      }
+      if (!Array.isArray(el.key_topics_found)) {
+        throw new ValidationError(
+          "eligibility.key_topics_found must be an array",
+        );
+      }
+    }
+
     // Validate claims
     if (!Array.isArray(data.claims)) {
       throw new ValidationError("claims must be an array");
     }
+
+    const CANONICAL_TRUTH_THEORIES = new Set([
+      "Correspondence (Empirical)",
+      "Coherence (Systemic Narrative)",
+      "Pragmatic (Practical Utility)",
+      "Perspectivism (Lived Experience)",
+      "Consensus (Institutional Agreement)",
+      "Deflationary (Rhetorical Endorsement)",
+    ]);
 
     data.claims.forEach((claim, index) => {
       if (typeof claim.claim_text !== "string") {
@@ -1419,10 +1513,52 @@ class PerspectivePrismClient {
           `Claim at index ${index} invalid emotional_manipulation array`,
         );
       }
-      if (typeof bi.deception_score !== "number") {
+      if (
+        bi.deception_score !== undefined &&
+        bi.deception_score !== null &&
+        typeof bi.deception_score !== "number"
+      ) {
         throw new ValidationError(
           `Claim at index ${index} invalid deception_score`,
         );
+      }
+
+      // Validate alethiology if present
+      if (tp.alethiology !== undefined && tp.alethiology !== null) {
+        if (typeof tp.alethiology !== "object") {
+          throw new ValidationError(
+            `Claim at index ${index} alethiology must be an object`,
+          );
+        }
+        const ale = tp.alethiology;
+        if (
+          typeof ale.primary_theory !== "string" ||
+          !CANONICAL_TRUTH_THEORIES.has(ale.primary_theory)
+        ) {
+          throw new ValidationError(
+            `Claim at index ${index} invalid primary_theory in alethiology`,
+          );
+        }
+        if (ale.secondary_theory !== undefined && ale.secondary_theory !== null) {
+          if (
+            typeof ale.secondary_theory !== "string" ||
+            !CANONICAL_TRUTH_THEORIES.has(ale.secondary_theory)
+          ) {
+            throw new ValidationError(
+              `Claim at index ${index} invalid secondary_theory in alethiology`,
+            );
+          }
+        }
+        if (typeof ale.epistemic_summary !== "string") {
+          throw new ValidationError(
+            `Claim at index ${index} missing epistemic_summary in alethiology`,
+          );
+        }
+        if (!Array.isArray(ale.quote_evidences)) {
+          throw new ValidationError(
+            `Claim at index ${index} quote_evidences must be an array`,
+          );
+        }
       }
     });
 

@@ -51,6 +51,12 @@ const stateIdle = document.getElementById("state-idle");
 const stateLoading = document.getElementById("state-loading");
 const stateError = document.getElementById("state-error");
 const stateResults = document.getElementById("state-results");
+const stateIneligible = document.getElementById("state-ineligible");
+
+const disclaimerTitle = document.getElementById("disclaimer-title");
+const disclaimerCategoryBadge = document.getElementById("disclaimer-category-badge");
+const disclaimerMessage = document.getElementById("disclaimer-message");
+const forceAnalyzeBtn = document.getElementById("pp-force-analyze-btn");
 
 const loadingTitle = document.getElementById("loading-title");
 const loadingSubmessage = document.getElementById("loading-submessage");
@@ -138,17 +144,107 @@ function showState(stateName) {
   if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
   if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
   if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
+  if (stateIneligible) stateIneligible.style.display = stateName === "ineligible" ? "flex" : "none";
+}
+
+/**
+ * Render ineligible disclaimer state (Pre-Classifier Guardrail Gate)
+ * @param {Object} eligibility - ContentEligibilityResult object from backend
+ */
+function renderIneligibleDisclaimer(eligibility) {
+  if (!eligibility) return;
+  showState("ineligible");
+
+  if (disclaimerTitle) {
+    disclaimerTitle.textContent = sanitizeText(
+      eligibility.disclaimer_title || "Analysis Skipped",
+    );
+  }
+
+  if (disclaimerCategoryBadge) {
+    const confidencePct = Math.round(
+      (eligibility.confidence_score !== undefined ? eligibility.confidence_score : 0) * 100,
+    );
+    const categoryText = sanitizeText(eligibility.detected_category || "Non-Political Media");
+    disclaimerCategoryBadge.textContent = `${categoryText} • ${confidencePct}% Match`;
+  }
+
+  if (disclaimerMessage) {
+    disclaimerMessage.textContent = sanitizeText(
+      eligibility.disclaimer_message ||
+        "This video appears to be non-political content and does not contain verifiable policy claims.",
+    );
+  }
+}
+
+/**
+ * Start or retry analysis for a given video ID with options
+ * @param {string} videoId
+ * @param {Object} [options]
+ */
+async function startAnalysis(videoId, options = {}) {
+  if (!videoId) return;
+  currentVideoId = videoId;
+  showState("loading");
+  renderOptimisticSkeletons(true);
+
+  if (loadingSubmessage) {
+    loadingSubmessage.textContent = "Analyzing video...";
+  }
+  if (progressBarFill) {
+    progressBarFill.style.width = "0%";
+    progressBarFill.setAttribute("aria-valuenow", "0");
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "ANALYZE_VIDEO",
+      videoId: videoId,
+      forceOverride: Boolean(options.forceOverride || options.force_override),
+      metadata: options.metadata,
+    });
+
+    if (response && response.success && response.data) {
+      if (
+        response.data.eligibility &&
+        response.data.eligibility.is_analysable === false
+      ) {
+        renderIneligibleDisclaimer(response.data.eligibility);
+      } else {
+        showState("results");
+        renderResults(response.data);
+      }
+    } else {
+      showState("error");
+      if (errorMessage) {
+        errorMessage.textContent = response?.error || "Analysis failed";
+      }
+    }
+  } catch (err) {
+    showState("error");
+    if (errorMessage) {
+      errorMessage.textContent = err?.message || "Analysis request failed";
+    }
+  }
 }
 
 if (typeof window !== "undefined") {
   window.showState = showState;
   window.renderOptimisticSkeletons = renderOptimisticSkeletons;
   window.checkCurrentTabState = checkCurrentTabState;
+  window.renderIneligibleDisclaimer = renderIneligibleDisclaimer;
+  window.startAnalysis = startAnalysis;
 }
 
 // Render analysis results
 function renderResults(data) {
   if (!data) return;
+
+  // If result is ineligible, show disclaimer instead of results
+  if (data.eligibility && data.eligibility.is_analysable === false) {
+    renderIneligibleDisclaimer(data.eligibility);
+    return;
+  }
 
   // Render overall assessment
   const assessment = sanitizeText(data.overall_assessment || "Unverified");
@@ -351,6 +447,86 @@ function renderResults(data) {
         body.appendChild(scoreRow);
       }
 
+      // 5. Epistemic Lens (Alethiology Specialist Analysis - T5.4)
+      const alethiology = claim.truth_profile?.alethiology;
+      if (alethiology && alethiology.primary_theory) {
+        const lensCard = document.createElement("div");
+        lensCard.className = "epistemic-lens-card";
+
+        const chipsContainer = document.createElement("div");
+        chipsContainer.className = "epistemic-chips";
+
+        const primaryChip = document.createElement("span");
+        primaryChip.className = "epistemic-chip epistemic-chip-primary";
+        primaryChip.textContent = `🔭 Epistemic Lens: ${sanitizeText(alethiology.primary_theory)}`;
+        chipsContainer.appendChild(primaryChip);
+
+        if (alethiology.secondary_theory) {
+          const secondaryChip = document.createElement("span");
+          secondaryChip.className = "epistemic-chip epistemic-chip-secondary";
+          secondaryChip.textContent = `🕸️ Supporting: ${sanitizeText(alethiology.secondary_theory)}`;
+          chipsContainer.appendChild(secondaryChip);
+        }
+
+        lensCard.appendChild(chipsContainer);
+
+        if (alethiology.epistemic_summary) {
+          const summaryP = document.createElement("p");
+          summaryP.className = "epistemic-summary";
+          summaryP.textContent = sanitizeText(alethiology.epistemic_summary);
+          lensCard.appendChild(summaryP);
+        }
+
+        if (
+          Array.isArray(alethiology.quote_evidences) &&
+          alethiology.quote_evidences.length > 0
+        ) {
+          const quoteToggle = document.createElement("button");
+          quoteToggle.type = "button";
+          quoteToggle.className = "epistemic-quote-toggle";
+          quoteToggle.setAttribute("role", "button");
+          quoteToggle.setAttribute("aria-expanded", "false");
+          quoteToggle.innerHTML = `<span class="quote-toggle-icon">▶</span> Quotes & Evidences (${alethiology.quote_evidences.length})`;
+
+          const quotesContent = document.createElement("div");
+          quotesContent.className = "epistemic-quotes-content";
+          quotesContent.style.display = "none";
+
+          alethiology.quote_evidences.forEach((quoteText) => {
+            const quoteEl = document.createElement("blockquote");
+            quoteEl.className = "epistemic-quote";
+            quoteEl.textContent = `"${sanitizeText(quoteText)}"`;
+            quotesContent.appendChild(quoteEl);
+          });
+
+          const toggleQuotes = (e) => {
+            e.stopPropagation();
+            const isCollapsed = quotesContent.style.display === "none";
+            quotesContent.style.display = isCollapsed ? "block" : "none";
+            quoteToggle.setAttribute("aria-expanded", String(isCollapsed));
+            const icon = /** @type {HTMLElement|null} */ (
+              quoteToggle.querySelector(".quote-toggle-icon")
+            );
+            if (icon) {
+              icon.style.transform = isCollapsed ? "rotate(90deg)" : "rotate(0deg)";
+            }
+          };
+
+          quoteToggle.addEventListener("click", toggleQuotes);
+          quoteToggle.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleQuotes(e);
+            }
+          });
+
+          lensCard.appendChild(quoteToggle);
+          lensCard.appendChild(quotesContent);
+        }
+
+        body.appendChild(lensCard);
+      }
+
       claimCard.appendChild(body);
 
       // Toggle expanded state on header click and keyboard activation.
@@ -537,8 +713,7 @@ function handleAnalysisState(state) {
       progressBarFill.setAttribute("aria-valuenow", progressVal);
       break;
       
-    case "complete":
-      showState("results");
+    case "complete": {
       // Capture the video ID synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       chrome.runtime.sendMessage({
@@ -548,7 +723,15 @@ function handleAnalysisState(state) {
         // Discard the response if navigation has already changed the active video.
         if (currentVideoId !== requestedVideoId) return;
         if (response && response.success && response.data) {
-          renderResults(response.data);
+          if (
+            response.data.eligibility &&
+            response.data.eligibility.is_analysable === false
+          ) {
+            renderIneligibleDisclaimer(response.data.eligibility);
+          } else {
+            showState("results");
+            renderResults(response.data);
+          }
         } else {
           showState("error");
           errorMessage.textContent = "Failed to load analysis results.";
@@ -559,6 +742,7 @@ function handleAnalysisState(state) {
         errorMessage.textContent = "Failed to load analysis results.";
       });
       break;
+    }
       
     case "error":
       showState("error");
@@ -681,14 +865,20 @@ if (cancelBtn) {
   });
 }
 
+// Force Analyze button ("⚡ Analyze Anyway" override)
+if (forceAnalyzeBtn) {
+  forceAnalyzeBtn.addEventListener("click", () => {
+    if (currentVideoId) {
+      startAnalysis(currentVideoId, { forceOverride: true });
+    }
+  });
+}
+
 // Retry analysis button
 if (retryBtn) {
   retryBtn.addEventListener("click", () => {
     if (currentVideoId) {
-      chrome.runtime.sendMessage({
-        type: "ANALYZE_VIDEO",
-        videoId: currentVideoId
-      }).catch(() => {});
+      startAnalysis(currentVideoId);
     }
   });
 }
@@ -718,4 +908,10 @@ if (typeof document !== "undefined") {
   }
 }
 
-export { sanitizeText, sanitizeUrl, renderResults };
+export {
+  sanitizeText,
+  sanitizeUrl,
+  renderResults,
+  renderIneligibleDisclaimer,
+  startAnalysis,
+};

@@ -316,6 +316,10 @@ async function handleAnalysisRequest(message) {
   }
 
   const videoId = validation.videoId;
+  const options = {
+    forceOverride: Boolean(message.forceOverride || message.force_override),
+    metadata: message.metadata || undefined,
+  };
 
   // Set state to in_progress
   // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
@@ -331,7 +335,7 @@ async function handleAnalysisRequest(message) {
 
   try {
     // Start analysis
-    const result = await activeClient.analyzeVideo(videoId);
+    const result = await activeClient.analyzeVideo(videoId, options);
 
     if (result.success) {
       // Set state to complete
@@ -340,6 +344,7 @@ async function handleAnalysisRequest(message) {
         claimCount: result.data?.claims?.length || 0,
         isCached: result.fromCache || false,
         analyzedAt: Date.now(),
+        eligibility: result.data?.eligibility || null,
       });
       
       if (!completeStateSaved) {
