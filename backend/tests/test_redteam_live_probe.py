@@ -92,6 +92,8 @@ async def test_live_probe_aborts_when_budget_exhausted():
     budget_exhausted_count = sum(1 for r in results if r.error and "budget" in r.error.lower())
     assert executed_count == 2
     assert budget_exhausted_count == 3
+    # Aborted entries due to budget exhaustion MUST report ProbeStatus.ERROR, not ProbeStatus.BYPASSED
+    assert all(r.probe_status == ProbeStatus.ERROR for r in results if not r.executed)
 
 
 @pytest.mark.redteam
@@ -422,7 +424,9 @@ async def test_backup_fallback_acquires_budget_and_blocks_when_exhausted():
     # Budget was consumed by primary agent
     assert budget.count == 1
     # Fallback to backup was blocked by budget exhaustion (never exceeded limit of 1)
-    assert result.executed is False or "budget exhausted" in str(result.error).lower()
+    assert result.executed is False
+    assert result.probe_status == ProbeStatus.ERROR
+    assert "budget exhausted" in str(result.error).lower()
 
 
 @pytest.mark.redteam

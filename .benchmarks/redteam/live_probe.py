@@ -234,7 +234,7 @@ async def run_live_probe_payload(
                     payload_id=entry.id,
                     stage=entry.stage,
                     executed=False,
-                    probe_status=ProbeStatus.BYPASSED,
+                    probe_status=ProbeStatus.ERROR,
                     error=f"Budget exhausted (limit of {budget_counter.limit} calls reached)",
                 )
 
@@ -434,7 +434,7 @@ async def run_live_probe_payload(
                     payload_id=entry.id,
                     stage=entry.stage,
                     executed=False,
-                    probe_status=ProbeStatus.BYPASSED,
+                    probe_status=ProbeStatus.ERROR,
                     error=str(be),
                 )
             except Exception as exc:
@@ -443,7 +443,7 @@ async def run_live_probe_payload(
                         payload_id=entry.id,
                         stage=entry.stage,
                         executed=False,
-                        probe_status=ProbeStatus.BYPASSED,
+                        probe_status=ProbeStatus.ERROR,
                         error=str(exc),
                     )
                 logger.error(f"Error executing live probe for payload {entry.id}: {exc}")
