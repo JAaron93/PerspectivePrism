@@ -830,6 +830,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === "VIDEO_NAVIGATED" || message.type === "YOUTUBE_NAVIGATED") {
     if (message.videoId && message.videoId !== currentVideoId) {
+      activeAnalysisToken++;
       currentVideoId = message.videoId;
       currentGenerationId = null;
       lastSequence = -1;

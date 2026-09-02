@@ -232,6 +232,67 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(client.pendingRequests.has(videoId)).toBe(false);
     });
 
+    it("should await cleanup of cancelled request before forced replacement persists new state", async () => {
+      const videoId = "cleanRace11";
+      let cleanupDone = false;
+      let persistStartedAfterCleanup = false;
+
+      // Mock storage to simulate delay in cleanup
+      const origRemove = chrome.storage.local.remove;
+      const origSet = chrome.storage.local.set;
+
+      chrome.storage.local.remove = vi.fn().mockImplementation(async (key) => {
+        await new Promise((r) => setTimeout(r, 20));
+        cleanupDone = true;
+        return origRemove ? origRemove(key) : undefined;
+      });
+
+      chrome.storage.local.set = vi.fn().mockImplementation(async (items) => {
+        if (items[`pending_request_${videoId}`]?.options?.forceOverride) {
+          persistStartedAfterCleanup = cleanupDone;
+        }
+        return origSet ? origSet(items) : undefined;
+      });
+
+      const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
+        if (opts?.method === "POST") {
+          const body = JSON.parse(opts.body);
+          if (!body.force_override) {
+            return new Promise((_, reject) => {
+              if (opts.signal) {
+                opts.signal.addEventListener("abort", () => {
+                  reject(new DOMException("Aborted", "AbortError"));
+                });
+              }
+            });
+          }
+          return {
+            ok: true,
+            json: async () => ({ job_id: "override-job", status: "pending" }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            status: "completed",
+            result: { video_id: videoId, metadata: { analyzed_at: "2026-09-02T12:00:00Z" }, claims: [] },
+          }),
+        };
+      });
+      globalThis.fetch = mockFetch;
+
+      const p1 = client.performAnalysis(videoId, { forceOverride: false });
+      await new Promise((r) => setTimeout(r, 10));
+      const p2 = client.performAnalysis(videoId, { forceOverride: true });
+
+      await Promise.allSettled([p1, p2]);
+
+      expect(persistStartedAfterCleanup).toBe(true);
+
+      chrome.storage.local.remove = origRemove;
+      chrome.storage.local.set = origSet;
+    });
+
     it("should validate analysis data containing eligibility payload and empty claims", () => {
       const payload = {
         video_id: "abcdefghijk",

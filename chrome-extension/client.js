@@ -113,7 +113,7 @@ class PerspectivePrismClient {
           `[PerspectivePrismClient] Cancelling non-forced in-flight request for ${videoId} to start force override`,
         );
         const oldPromise = this.pendingRequests.get(videoId);
-        this.cancelAnalysis(videoId);
+        await this.cancelAnalysis(videoId);
         if (oldPromise) {
           try {
             await oldPromise;
@@ -290,9 +290,9 @@ class PerspectivePrismClient {
   /**
    * Cancel an in-flight analysis request
    * @param {string} videoId - The video ID to cancel
-   * @returns {boolean} - True if request was cancelled, false if no request found
+   * @returns {Promise<boolean>} - True if request was cancelled, false if no request found
    */
-  cancelAnalysis(videoId) {
+  async cancelAnalysis(videoId) {
     const controller = this.abortControllers.get(videoId);
     if (controller) {
       console.log(
@@ -300,36 +300,37 @@ class PerspectivePrismClient {
       );
       controller.abort();
       this.abortControllers.delete(videoId);
-
-      // Clean up pending request
-      this.pendingRequests.delete(videoId);
-      this.pendingRequestOptions.delete(videoId);
-
-      // Clean up persisted state
-      this.cleanupPersistedRequest(videoId).catch((err) =>
-        console.error(
-          `[PerspectivePrismClient] Failed to cleanup after cancel:`,
-          err,
-        ),
-      );
-
-      // Notify any waiting resolvers
-      const resolvers = this.pendingResolvers.get(videoId);
-      if (resolvers) {
-        resolvers.forEach(({ resolve, timeoutId }) => {
-          clearTimeout(timeoutId);
-          resolve({
-            success: false,
-            error: "Analysis cancelled by user",
-            cancelled: true,
-          });
-        });
-        this.pendingResolvers.delete(videoId);
-      }
-
-      return true;
     }
-    return false;
+
+    // Clean up pending request
+    this.pendingRequests.delete(videoId);
+    this.pendingRequestOptions.delete(videoId);
+
+    // Clean up persisted state and await completion so it doesn't race forced replacement
+    try {
+      await this.cleanupPersistedRequest(videoId);
+    } catch (err) {
+      console.error(
+        `[PerspectivePrismClient] Failed to cleanup after cancel:`,
+        err,
+      );
+    }
+
+    // Notify any waiting resolvers
+    const resolvers = this.pendingResolvers.get(videoId);
+    if (resolvers) {
+      resolvers.forEach(({ resolve, timeoutId }) => {
+        clearTimeout(timeoutId);
+        resolve({
+          success: false,
+          error: "Analysis cancelled by user",
+          cancelled: true,
+        });
+      });
+      this.pendingResolvers.delete(videoId);
+    }
+
+    return Boolean(controller);
   }
 
   /**
