@@ -47,6 +47,8 @@ let lastSequence = -1;
 let currentGenerationId = null;
 let activeAnalysisToken = 0;
 let pendingCheckCacheToken = 0;
+let activeRequestId = null;
+let requestCounter = 0;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -188,6 +190,8 @@ async function startAnalysis(videoId, options = {}) {
   if (!videoId) return;
   const requestedVideoId = videoId;
   const analysisToken = ++activeAnalysisToken;
+  const requestId = `sp_${Date.now()}_${++requestCounter}`;
+  activeRequestId = requestId;
   currentVideoId = videoId;
   showState("loading");
   renderOptimisticSkeletons(true);
@@ -207,6 +211,7 @@ async function startAnalysis(videoId, options = {}) {
       videoId: videoId,
       forceOverride: Boolean(options.forceOverride || options.force_override),
       metadata: options.metadata,
+      requestId: requestId,
     });
 
     // Discard if navigation has changed the active video OR if a newer analysis was triggered
@@ -715,7 +720,11 @@ function handleAnalysisState(state) {
       showState("idle");
       break;
       
-    case "in_progress":
+    case "in_progress": {
+      const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
+      if (isExternal) {
+        activeAnalysisToken++;
+      }
       pendingCheckCacheToken++;
       showState("loading");
       renderOptimisticSkeletons();
@@ -724,8 +733,13 @@ function handleAnalysisState(state) {
       progressBarFill.style.width = `${progressVal}%`;
       progressBarFill.setAttribute("aria-valuenow", progressVal);
       break;
+    }
       
     case "complete": {
+      const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
+      if (isExternal) {
+        activeAnalysisToken++;
+      }
       // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       const thisCacheToken = ++pendingCheckCacheToken;

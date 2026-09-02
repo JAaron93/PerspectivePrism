@@ -321,11 +321,14 @@ async function handleAnalysisRequest(message) {
     metadata: message.metadata || undefined,
   };
 
+  const requestId = message.requestId || null;
+
   // Set state to in_progress
   // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
   const stateSaved = await setAnalysisState(videoId, {
     status: "in_progress",
     progress: 0,
+    requestId: requestId,
   });
 
   if (!stateSaved) {
@@ -345,6 +348,7 @@ async function handleAnalysisRequest(message) {
         isCached: result.fromCache || false,
         analyzedAt: Date.now(),
         eligibility: result.data?.eligibility || null,
+        requestId: requestId,
       });
       
       if (!completeStateSaved) {
