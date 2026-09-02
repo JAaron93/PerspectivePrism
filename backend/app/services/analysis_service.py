@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import time
-from typing import List, Any
+from typing import List, Any, Optional
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (

@@ -21,17 +21,17 @@
 
 ## Track 2: Pre-Classification Guardrail Gate (Backend)
 
-- [ ] **T2.1: Implement Deterministic Fast-Path Filter**
+- [x] **T2.1: Implement Deterministic Fast-Path Filter**
   - **Description**: Create `backend/app/services/content_classifier.py` with `evaluate_deterministic_fast_path(category_name, transcript_preview, metadata)`. Returns `ContentEligibilityResult(is_analysable=False, confidence_score=1.0, ...)` only when transcript is missing, category is `Music` or `Gaming`, AND metadata contains no political/socio-economic keywords.
   - **Dependencies**: T1.1
   - **Traceability**: FR2, NFR1
 
-- [ ] **T2.2: Implement ADK 2.0 Pre-Classifier Agent & Edge-Case Few-Shot Prompt**
+- [x] **T2.2: Implement ADK 2.0 Pre-Classifier Agent & Edge-Case Few-Shot Prompt**
   - **Description**: In `backend/app/services/content_classifier.py`, define `PreClassifierService` using Google ADK 2.0 `Agent` configured with `gemini-3.5-flash-lite` (primary) and `gemini-3.1-flash-lite` (backup) in Vertex AI mode with `output_schema=ContentEligibilityResult`. Include few-shot prompt calibrations for satire, political AMVs, documentaries in Education/Tech, and news-adjacent gaming commentary. Implement conservative thresholding (`confidence < 0.70` defaults to `is_analysable = True`).
   - **Dependencies**: T1.1, T2.1
   - **Traceability**: FR3, FR4, FR5, NFR2
 
-- [ ] **T2.3: TDD & BDD Unit Tests for Pre-Classifier Service**
+- [x] **T2.3: TDD & BDD Unit Tests for Pre-Classifier Service**
   - **Description**: Create `backend/tests/test_content_classifier.py` containing mocked unit tests and BDD Gherkin scenarios testing deterministic short-circuiting, metadata keyword pass-through on captionless videos, satire pass-through, low-confidence conservative fallback, and edge-case classification.
   - **Dependencies**: T2.2
   - **Traceability**: FR1, FR2, FR3, FR4, FR5, US1, US2, US5
@@ -59,7 +59,7 @@
 
 ## Track 4: API Endpoint & Background Job Orchestration (Backend)
 
-- [ ] **T4.1: Update `/analyze/jobs` Flow in `main.py` with Gate & Force Override**
+- [x] **T4.1: Update `/analyze/jobs` Flow in `main.py` with Gate & Force Override**
   - **Description**: In `backend/app/main.py`, update `process_analysis()` to:
     1. Check `request.force_override`. If `True`, log bypass and skip pre-classification.
     2. If `False`, run `PreClassifierService.classify_video()`.
@@ -68,7 +68,7 @@
   - **Dependencies**: T2.2, T3.2
   - **Traceability**: FR1, FR6, NFR1
 
-- [ ] **T4.2: End-to-End API Pipeline Tests**
+- [x] **T4.2: End-to-End API Pipeline Tests**
   - **Description**: Create `backend/tests/test_analysis_pipeline_integration.py` testing the complete `/analyze/jobs` API lifecycle with mocked Google GenAI Vertex AI calls, asserting early exit responses, force override bypass execution, and alethiology output fields.
   - **Dependencies**: T4.1
   - **Traceability**: FR6, US3, US5
