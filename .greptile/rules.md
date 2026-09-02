@@ -50,6 +50,9 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * `background.js` must strictly adhere to event-driven Service Worker lifecycles without assuming persistent in-memory global state.
 * **Accessibility (WCAG 2.1 AA)**:
   * `claim-navigator.js` must maintain proper keyboard focus management, ARIA live regions, and avoid keyboard focus traps (`Tab`/`Shift+Tab` cycling).
+* **Pre-Classification & Epistemic Lens UI**:
+  * The Side Panel must render the `#state-ineligible` disclaimer with category tags, confidence meter, and `[⚡ Analyze Anyway]` force-override action.
+  * Epistemic Lens cards in `#state-results` must sanitize all quote evidences and epistemic summary text before DOM injection.
 
 ---
 
@@ -59,6 +62,15 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * **All user-supplied inputs must pass through `app/utils/input_sanitizer.py` before being forwarded to any LLM model** — no exceptions.
   * Input sanitization is accelerated by the compiled PyO3 Rust extension (`prism_sanitizer_rs`, ADR 001). Flag any execution path or helper that bypasses sanitization.
   * Inspect `input_sanitizer.py` strictly for prompt injection vectors, Unicode edge cases, encoding tricks, or weakening of sanitization rules.
+* **Pre-Classification Guardrail Invariants**:
+  * All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST be sanitized through `input_sanitizer.py` before being passed to `PreClassifierService` or any LLM agent.
+  * Deterministic fast-path zero-token early exits MUST verify that the transcript is absent, the category is non-analytical (`Music`, `Gaming`), AND metadata contains no socio-political keywords.
+  * Ambiguity rule: If `is_analysable == False` but `confidence_score < 0.70`, the pipeline MUST default to allowing analysis (`is_analysable = True`).
+  * `force_override: bool = True` must cleanly bypass the pre-classifier and proceed to full claim analysis.
+* **Alethiology Specialist Agent Invariants**:
+  * Truth framework classifications must strictly adhere to the 6 canonical theories: `Correspondence (Empirical)`, `Coherence (Systemic Narrative)`, `Pragmatic (Practical Utility)`, `Perspectivism (Lived Experience)`, `Consensus (Institutional Agreement)`, and `Deflationary (Rhetorical Endorsement)`.
+  * **Strict Descriptive Neutrality (CRITICAL)**: Flag any prompt, output schema, or code that passes normative value judgments, ranks truth theories as "better" or "sounder," or pejoratively labels speakers with fallacies or falsehoods.
+  * Alethiology analysis must execute concurrently (`asyncio.gather`) with perspective and bias analyses to prevent sequential latency regression.
 * **Mandatory 100% GCP Vertex AI Mode (Paid Tier)**:
   * Backend LLM initialization must exclusively use GCP Vertex AI Mode via `configure_provider_env` (requiring `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT`).
   * Google AI Studio API key mode (`GEMINI_API_KEY`, `LLM_API_KEY`) and free-tier rate-limit throttling are permanently removed. Flag any PR introducing AI Studio key fallbacks or free-tier rate-limiting.
