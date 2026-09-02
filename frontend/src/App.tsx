@@ -16,6 +16,7 @@ const ALL_PERSPECTIVES = [
 
 function App() {
   const [url, setUrl] = useState('')
+  const [analyzedUrl, setAnalyzedUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,9 +26,8 @@ function App() {
     setLoading(true)
     setIsStreaming(false)
     setError(null)
-    if (forceOverride) {
-      setResults(null)
-    }
+    setResults(null)
+    setAnalyzedUrl(targetUrl)
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -137,7 +137,10 @@ function App() {
   }
 
   const handleForceAnalyze = () => {
-    startAnalysis(url, true)
+    const target = analyzedUrl || url
+    if (target) {
+      startAnalysis(target, true)
+    }
   }
 
   const getAssessmentClass = (assessment: string) => {
