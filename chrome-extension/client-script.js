@@ -35,6 +35,7 @@
     constructor(baseUrl = "http://localhost:8000") {
       this.baseUrl = baseUrl.replace(/\/$/, "");
       this.pendingRequests = new Map();
+      this.pendingRequestOptions = new Map();
       this.pendingResolvers = new Map();
       this.abortControllers = new Map();
       this.TIMEOUT_MS = 120000;
@@ -71,7 +72,17 @@
       }
 
       if (this.pendingRequests.has(videoId)) {
-        return this.pendingRequests.get(videoId);
+        const inFlightOptions = this.pendingRequestOptions.get(videoId) || {};
+        const inFlightIsForce = Boolean(
+          inFlightOptions.forceOverride || inFlightOptions.force_override,
+        );
+
+        if (isForceOverride && !inFlightIsForce) {
+          this.pendingRequests.delete(videoId);
+          this.pendingRequestOptions.delete(videoId);
+        } else {
+          return this.pendingRequests.get(videoId);
+        }
       }
 
       const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -82,12 +93,14 @@
         options,
       );
       this.pendingRequests.set(videoId, requestPromise);
+      this.pendingRequestOptions.set(videoId, options);
 
       try {
         const result = await requestPromise;
         return result;
       } finally {
         this.pendingRequests.delete(videoId);
+        this.pendingRequestOptions.delete(videoId);
       }
     }
 

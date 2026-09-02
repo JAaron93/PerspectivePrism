@@ -8,6 +8,7 @@ class PerspectivePrismClient {
   constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
     this.pendingRequests = new Map(); // In-memory deduplication
+    this.pendingRequestOptions = new Map(); // In-memory options tracking for override deduplication
     this.abortControllers = new Map(); // Map<videoId, AbortController> for cancellation
     this.MAX_RETRIES = 2;
     this.RETRY_DELAYS = [2000, 4000]; // Exponential backoff: 2s, 4s
@@ -102,33 +103,57 @@ class PerspectivePrismClient {
 
     // Deduplication (In-memory)
     if (this.pendingRequests.has(videoId)) {
-      logger.info(
-        `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
+      const inFlightOptions = this.pendingRequestOptions.get(videoId) || {};
+      const inFlightIsForce = Boolean(
+        inFlightOptions.forceOverride || inFlightOptions.force_override,
       );
-      return this.pendingRequests.get(videoId);
+
+      if (isForceOverride && !inFlightIsForce) {
+        logger.info(
+          `[PerspectivePrismClient] Cancelling non-forced in-flight request for ${videoId} to start force override`,
+        );
+        this.cancelAnalysis(videoId);
+      } else {
+        logger.info(
+          `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
+        );
+        return this.pendingRequests.get(videoId);
+      }
     }
 
     // Deduplication (Persistent)
     const persistedState = await this.getPersistedRequestState(videoId);
     if (persistedState && persistedState.status !== "completed") {
-      logger.info(
-        `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,
+      const persistedIsForce = Boolean(
+        persistedState.options?.forceOverride ||
+          persistedState.options?.force_override,
       );
-      return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          this.removeResolver(videoId, resolve);
-          // Resolve with error instead of rejecting to match API contract
-          resolve({
-            success: false,
-            error: "Analysis timed out (persisted)",
-            videoId,
-          });
-        }, this.TIMEOUT_MS);
 
-        const resolvers = this.pendingResolvers.get(videoId) || [];
-        resolvers.push({ resolve, reject, timeoutId });
-        this.pendingResolvers.set(videoId, resolvers);
-      });
+      if (isForceOverride && !persistedIsForce) {
+        logger.info(
+          `[PerspectivePrismClient] Clearing non-forced persisted request for ${videoId} to start force override`,
+        );
+        await this.cleanupPersistedRequest(videoId);
+      } else {
+        logger.info(
+          `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,
+        );
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            this.removeResolver(videoId, resolve);
+            // Resolve with error instead of rejecting to match API contract
+            resolve({
+              success: false,
+              error: "Analysis timed out (persisted)",
+              videoId,
+            });
+          }, this.TIMEOUT_MS);
+
+          const resolvers = this.pendingResolvers.get(videoId) || [];
+          resolvers.push({ resolve, reject, timeoutId });
+          this.pendingResolvers.set(videoId, resolvers);
+        });
+      }
     }
 
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -141,12 +166,14 @@ class PerspectivePrismClient {
       options,
     );
     this.pendingRequests.set(videoId, requestPromise);
+    this.pendingRequestOptions.set(videoId, options);
 
     try {
       const result = await requestPromise;
       return result;
     } finally {
       this.pendingRequests.delete(videoId);
+      this.pendingRequestOptions.delete(videoId);
     }
   }
 
@@ -256,6 +283,7 @@ class PerspectivePrismClient {
 
       // Clean up pending request
       this.pendingRequests.delete(videoId);
+      this.pendingRequestOptions.delete(videoId);
 
       // Clean up persisted state
       this.cleanupPersistedRequest(videoId).catch((err) =>

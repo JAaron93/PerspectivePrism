@@ -73,6 +73,103 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       );
     });
 
+    it("should not deduplicate or reuse non-forced in-flight or persisted request when forceOverride is true", async () => {
+      /** @type {any[]} */
+      const requestBodies = [];
+      const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
+        if (opts?.method === "POST") {
+          requestBodies.push(JSON.parse(opts.body));
+          return {
+            ok: true,
+            json: async () => ({
+              job_id: `job-${requestBodies.length}`,
+              status: "pending",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            status: "completed",
+            result: {
+              video_id: "abcdefghijk",
+              metadata: { analyzed_at: "2026-09-02T12:00:00Z" },
+              claims: [],
+            },
+          }),
+        };
+      });
+      globalThis.fetch = mockFetch;
+
+      const videoId = "abcdefghijk";
+
+      // Start non-forced request (in flight)
+      const ordinaryPromise = client.performAnalysis(videoId, { forceOverride: false });
+
+      // Allow ordinaryPromise to pass cache check and enter in-flight state
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // While ordinary request is in flight, invoke forced request
+      const overridePromise = client.performAnalysis(videoId, { forceOverride: true });
+
+      await Promise.allSettled([ordinaryPromise, overridePromise]);
+
+      // Verify that two distinct requests were made and the second one sent force_override: true
+      expect(requestBodies.length).toBe(2);
+      expect(requestBodies[0].force_override).toBe(false);
+      expect(requestBodies[1].force_override).toBe(true);
+    });
+
+    it("should not attach to persisted non-forced request when forceOverride is true", async () => {
+      const videoId = "persisted123";
+      await chrome.storage.local.set({
+        [`pending_request_${videoId}`]: {
+          videoId,
+          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          status: "pending",
+          startTime: Date.now(),
+          options: { forceOverride: false },
+        },
+      });
+
+      /** @type {any[]} */
+      const requestBodies = [];
+      const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
+        if (opts?.method === "POST") {
+          requestBodies.push(JSON.parse(opts.body));
+          return {
+            ok: true,
+            json: async () => ({
+              job_id: "override-job-1",
+              status: "pending",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            status: "completed",
+            result: {
+              video_id: videoId,
+              metadata: { analyzed_at: "2026-09-02T12:00:00Z" },
+              claims: [],
+            },
+          }),
+        };
+      });
+      globalThis.fetch = mockFetch;
+
+      await client.performAnalysis(videoId, { forceOverride: true });
+
+      expect(requestBodies.length).toBe(1);
+      expect(requestBodies[0].force_override).toBe(true);
+
+      const stored = await chrome.storage.local.get(`pending_request_${videoId}`);
+      if (stored[`pending_request_${videoId}`]) {
+        expect(Boolean(stored[`pending_request_${videoId}`].options?.forceOverride)).toBe(true);
+      }
+    });
+
     it("should validate analysis data containing eligibility payload and empty claims", () => {
       const payload = {
         video_id: "abcdefghijk",
