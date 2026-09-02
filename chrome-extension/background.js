@@ -386,7 +386,7 @@ async function handleCancelAnalysis(message) {
   const videoId = validation.videoId;
   
   try {
-    const cancelled = activeClient.cancelAnalysis(videoId);
+    const cancelled = await activeClient.cancelAnalysis(videoId);
     
     if (cancelled) {
       // Update state to cancelled

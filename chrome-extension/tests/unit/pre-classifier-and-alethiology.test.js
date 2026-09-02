@@ -667,5 +667,71 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       const stateIneligible = document.getElementById("state-ineligible");
       expect(stateIneligible.style.display).toBe("none");
     });
+
+    it("should discard stale completion CHECK_CACHE response if newer analysis starts for the same video", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let resolveCheckCache;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          return new Promise((resolve) => {
+            resolveCheckCache = () =>
+              resolve({
+                success: true,
+                data: {
+                  video_id: message.videoId,
+                  eligibility: {
+                    is_analysable: false,
+                    confidence_score: 0.9,
+                    detected_category: "Music",
+                    disclaimer_title: "Stale Cache Result",
+                    disclaimer_message: "Should be discarded",
+                  },
+                  claims: [],
+                },
+              });
+          });
+        }
+        if (message.type === "ANALYZE_VIDEO") {
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "Newer analysis result" }],
+            },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. Start on video A
+      await sidepanelModule.startAnalysis("videoA11char");
+
+      // 2. Trigger message complete for video A, invoking CHECK_CACHE
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      if (messageListener) {
+        messageListener({
+          type: "ANALYSIS_STATE_CHANGED",
+          videoId: "videoA11char",
+          state: { status: "complete" },
+        });
+      }
+
+      // 3. User triggers a newer analysis on video A before CHECK_CACHE resolves
+      const pNew = sidepanelModule.startAnalysis("videoA11char", { forceOverride: true });
+      await pNew;
+
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+
+      // 4. Now older CHECK_CACHE resolves late
+      if (resolveCheckCache) resolveCheckCache();
+      await new Promise((r) => setTimeout(r, 10));
+
+      // 5. Results should remain displayed and not overwritten by stale cache disclaimer
+      expect(stateResults.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
   });
 });

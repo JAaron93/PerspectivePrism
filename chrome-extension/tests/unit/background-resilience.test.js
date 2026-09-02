@@ -161,4 +161,29 @@ describe("Service Worker Resilience & Side Panel Triggering (Track 2)", () => {
       expect(results[1]).toHaveProperty("success", true);
     });
   });
+
+  describe("Analysis Cancellation (handleCancelAnalysis)", () => {
+    it("should await async cancelAnalysis and report failure if no analysis was active", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleCancelAnalysis, getClient } = backgroundModule;
+
+      const client = await getClient();
+      vi.spyOn(client, "cancelAnalysis").mockResolvedValue(false);
+
+      await expect(
+        handleCancelAnalysis({ videoId: "abcdefghijk" })
+      ).rejects.toThrow("No active analysis found for this video");
+    });
+
+    it("should await async cancelAnalysis and report success when analysis is active", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleCancelAnalysis, getClient } = backgroundModule;
+
+      const client = await getClient();
+      vi.spyOn(client, "cancelAnalysis").mockResolvedValue(true);
+
+      const res = await handleCancelAnalysis({ videoId: "abcdefghijk" });
+      expect(res).toEqual({ success: true, cancelled: true });
+    });
+  });
 });

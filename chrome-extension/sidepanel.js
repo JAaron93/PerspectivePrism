@@ -722,14 +722,18 @@ function handleAnalysisState(state) {
       break;
       
     case "complete": {
-      // Capture the video ID synchronously so we can detect stale responses.
+      // Capture the video ID and analysis generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
+      const requestedAnalysisToken = activeAnalysisToken;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
         videoId: requestedVideoId
       }).then((response) => {
-        // Discard the response if navigation has already changed the active video.
-        if (currentVideoId !== requestedVideoId) return;
+        // Discard the response if navigation or the active analysis has changed.
+        if (
+          currentVideoId !== requestedVideoId ||
+          activeAnalysisToken !== requestedAnalysisToken
+        ) return;
         if (response && response.success && response.data) {
           if (
             response.data.eligibility &&
@@ -745,7 +749,10 @@ function handleAnalysisState(state) {
           errorMessage.textContent = "Failed to load analysis results.";
         }
       }).catch(() => {
-        if (currentVideoId !== requestedVideoId) return;
+        if (
+          currentVideoId !== requestedVideoId ||
+          activeAnalysisToken !== requestedAnalysisToken
+        ) return;
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
       });
