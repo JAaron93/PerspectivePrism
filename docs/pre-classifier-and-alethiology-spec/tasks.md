@@ -22,7 +22,7 @@
 ## Track 2: Pre-Classification Guardrail Gate (Backend)
 
 - [ ] **T2.1: Implement Deterministic Fast-Path Filter**
-  - **Description**: Create `backend/app/services/content_classifier.py` with `evaluate_deterministic_fast_path(category_name, transcript_preview)`. Returns `ContentEligibilityResult(is_analysable=False, confidence_score=1.0, ...)` if transcript is missing and category is `Music` or `Gaming`.
+  - **Description**: Create `backend/app/services/content_classifier.py` with `evaluate_deterministic_fast_path(category_name, transcript_preview, metadata)`. Returns `ContentEligibilityResult(is_analysable=False, confidence_score=1.0, ...)` only when transcript is missing, category is `Music` or `Gaming`, AND metadata contains no political/socio-economic keywords.
   - **Dependencies**: T1.1
   - **Traceability**: FR2, NFR1
 
@@ -32,7 +32,7 @@
   - **Traceability**: FR3, FR4, FR5, NFR2
 
 - [ ] **T2.3: TDD & BDD Unit Tests for Pre-Classifier Service**
-  - **Description**: Create `backend/tests/test_content_classifier.py` containing mocked unit tests and BDD Gherkin scenarios testing deterministic short-circuiting, satire pass-through, low-confidence conservative fallback, and edge-case classification.
+  - **Description**: Create `backend/tests/test_content_classifier.py` containing mocked unit tests and BDD Gherkin scenarios testing deterministic short-circuiting, metadata keyword pass-through on captionless videos, satire pass-through, low-confidence conservative fallback, and edge-case classification.
   - **Dependencies**: T2.2
   - **Traceability**: FR1, FR2, FR3, FR4, FR5, US1, US2, US5
 

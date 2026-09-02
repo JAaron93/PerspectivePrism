@@ -31,7 +31,7 @@ flowchart TD
     subgraph Gate ["Pre-Classification Guardrail Gate"]
         E --> F{"force_override == True?"}
         F -- Yes --> L["Fetch Full Transcript (ClaimExtractor)"]
-        F -- No --> G{"Deterministic Pre-Filter:\nMissing Transcript AND\nCategory in (Music, Gaming)?"}
+        F -- No --> G{"Deterministic Pre-Filter:\nMissing Transcript AND\nCategory in (Music, Gaming) AND\nMetadata Lacks Political Signals?"}
         G -- Yes --> H["Early Exit: Return Ineligible Payload\n(Confidence: 1.0, is_analysable: False)"]
         G -- No --> I["Fetch Transcript Preview (~100 lines)"]
         I --> J["ADK 2.0 PreClassifierAgent\n(gemini-3.5-flash-lite structured output)"]
@@ -80,18 +80,23 @@ The classifier synthesizes two distinct signal streams:
    - First 50–100 lines of spoken transcript (empty string `""` if no captions exist).
 
 #### 3.1.2 Fast Deterministic Pre-Filter (Zero-Token Early Exit)
-To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious non-analytical content:
-- If `transcript is None or transcript.strip() == ""` **AND** the YouTube Category is explicitly `Music` or `Gaming`, the service immediately short-circuits with:
+To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious non-analytical content while guarding against premature false rejections:
+- **Condition for Deterministic Exit**:
+  1. `transcript is None or transcript.strip() == ""` (no speech captions available), **AND**
+  2. The YouTube Category is explicitly `Music` or `Gaming`, **AND**
+  3. The video metadata (`title`, `tags`, `description_snippet`) contains **NO** political, electoral, policy, or socio-economic keywords (e.g., does not contain words like *election*, *debate*, *ruling*, *senator*, *policy*, *strike*, *court*, *war*, *economy*).
+- When all three conditions match, the service immediately short-circuits with:
   ```json
   {
     "is_analysable": false,
     "confidence_score": 1.0,
     "detected_category": "Music / Non-Speech Media",
     "disclaimer_title": "No Spoken Commentary Found",
-    "disclaimer_message": "This video contains no speech captions and belongs to an entertainment/music category. Perspective Prism requires spoken claims to analyze.",
+    "disclaimer_message": "This video contains no speech captions and belongs to an entertainment/music category with no socio-political discourse in its metadata. Perspective Prism requires spoken claims to analyze.",
     "key_topics_found": []
   }
   ```
+- **Handling Missing Captions with Analytical Metadata**: If a video in `Music` or `Gaming` lacks captions but its title or metadata contains political or socio-economic terms (e.g., `"[AMV] Election 2024"`, `"Geoguessr Stream - Talking about Supreme Court ruling"`), it is **NOT** discarded by the fast path. Instead, it proceeds to the `PreClassifierAgent` to evaluate metadata, ensuring edge cases are properly categorized and allowing user force-override rather than falsely asserting 1.0 confidence of non-political content.
 
 #### 3.1.3 ADK 2.0 Pre-Classifier Agent Specification
 - **Agent Name**: `pre_classifier_agent_primary` (with fallback to `pre_classifier_agent_backup`).

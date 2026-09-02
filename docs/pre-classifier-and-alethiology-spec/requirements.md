@@ -15,7 +15,11 @@
 ### Track 1: Pre-Classification Guardrail Gate
 
 - **FR1 - Multi-Signal Ingestion**: The system MUST ingest both client-extracted YouTube metadata (`title`, `channel_name`, `category_id`, `category_name`, `tags`, `description_snippet`) and a transcript preview (first 50–100 lines of spoken captions) as classifier inputs.
-- **FR2 - Zero-Token Deterministic Fast Path**: If the transcript is absent or empty (`transcript is None or transcript.strip() == ""`) AND the YouTube category is strictly non-analytical (`Music`, `Gaming`), the system MUST immediately return `is_analysable = False` with `confidence_score = 1.0` without invoking an LLM.
+- **FR2 - Zero-Token Deterministic Fast Path**: The system MUST implement a zero-token deterministic early exit ONLY when:
+  1. The transcript is absent or empty (`transcript is None or transcript.strip() == ""`), AND
+  2. The YouTube category is non-analytical (`Music`, `Gaming`), AND
+  3. The video metadata (`title`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
+  If the video lacks captions but metadata suggests political discourse (e.g., `"[AMV] Election 2024"` or `"Gaming Stream - Talking Supreme Court"`), the request MUST NOT be fast-path rejected; it MUST proceed to the `PreClassifierAgent` to evaluate metadata and generate a context-aware disclaimer explaining caption absence rather than falsely asserting 1.0 confidence of non-political content.
 - **FR3 - ADK 2.0 Guardrail Agent**: The system MUST implement a dedicated ADK 2.0 `PreClassifierAgent` configured with `gemini-3.5-flash-lite` (and `gemini-3.1-flash-lite` circuit-breaker backup) in GCP Vertex AI mode enforcing the `ContentEligibilityResult` structured output schema.
 - **FR4 - Conservative Ambiguity Threshold**: If the agent returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST treat the classification as ambiguous and automatically default to allowing full analysis (`is_analysable = True`).
 - **FR5 - Edge-Case Prompt Calibration**: The agent system prompt MUST include few-shot calibration handling:
@@ -100,12 +104,23 @@
 Scenario: Non-analytical music video triggers early exit disclaimer
   Given a YouTube video with title "Lofi Hip Hop Radio - Beats to Relax/Study to"
   And the YouTube category is "Music"
+  And the metadata contains no political or socio-economic keywords
   And the transcript is empty or contains only non-speech music tags
   When the user opens the Perspective Prism Side Panel
   Then the Pre-Classifier Gate short-circuits deterministically without LLM tokens
   And the Side Panel displays the "Analysis Skipped" disclaimer
   And the category badge displays "Music / Non-Speech Media • 100% Match"
   And the "Analyze Anyway" button is rendered and clickable
+
+Scenario: Political Gaming video without captions routes to PreClassifierAgent
+  Given a YouTube video with title "Chill Geoguessr Stream! (Talking about recent Supreme Court ruling)"
+  And the YouTube category is "Gaming"
+  And the transcript is empty or unavailable
+  When the user opens the Perspective Prism Side Panel
+  Then the deterministic fast path detects political keywords in title/metadata and does not short-circuit
+  And the PreClassifierAgent evaluates the metadata
+  And the system reports the political context and clarifies caption requirements rather than falsely asserting 1.0 non-political confidence
+  And the "Analyze Anyway" button is available for force-override
 
 Scenario: Political satire video categorized under Entertainment is accepted
   Given a YouTube video with title "The Daily Show: Politicians React to New Tax Bill"
