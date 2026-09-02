@@ -9,9 +9,23 @@ from app.utils.video_utils import extract_video_id
 from app.utils.llm_utils import execute_adk_agent
 from app.utils.prompt_helpers import build_user_data_prompt
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import (
+    TranscriptsDisabled,
+    NoTranscriptFound,
+)
 from google.adk.agents import Agent
 
 logger = logging.getLogger(__name__)
+
+
+class TranscriptUnavailableError(Exception):
+    """Raised when a video explicitly lacks captions (e.g. disabled or none found)."""
+    pass
+
+
+class TranscriptRetrievalError(Exception):
+    """Raised when transcript retrieval fails due to transient network, API, or rate-limit errors."""
+    pass
 
 
 class ClaimExtractor:
@@ -75,9 +89,12 @@ class ClaimExtractor:
 
             full_text = " ".join([s.text for s in segments])
             return Transcript(video_id=video_id, segments=segments, full_text=full_text)
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            logger.info(f"No transcripts available for video {video_id}: {e}")
+            raise TranscriptUnavailableError(f"Transcripts unavailable: {str(e)}") from e
         except Exception as e:
             logger.error(f"Failed to fetch transcript for {video_id}: {e}")
-            raise Exception(f"Failed to fetch transcript: {str(e)}") from e
+            raise TranscriptRetrievalError(f"Failed to fetch transcript: {str(e)}") from e
 
     async def extract_claims(self, transcript: Transcript) -> List[Claim]:
         """

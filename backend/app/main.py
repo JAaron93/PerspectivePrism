@@ -10,9 +10,14 @@ from app.models.schemas import (
     AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators,
     PerspectiveAnalysis
 )
-from app.services.claim_extractor import ClaimExtractor
+from app.services.claim_extractor import (
+    ClaimExtractor,
+    TranscriptUnavailableError,
+    TranscriptRetrievalError,
+)
 from app.services.evidence_retriever import EvidenceRetriever
 from app.services.analysis_service import AnalysisService
+from app.services.content_classifier import PreClassifierService
 from app.utils.video_utils import extract_video_id
 import asyncio
 import logging
@@ -61,6 +66,7 @@ app.add_middleware(
 claim_extractor = ClaimExtractor()
 evidence_retriever = EvidenceRetriever()
 analysis_service = AnalysisService()
+content_classifier = PreClassifierService()
 
 
 # Job Store (In-memory for MVP)
@@ -180,24 +186,72 @@ async def process_analysis(job_id: str, request: VideoRequest):
         logger.debug(f"DEBUG: Starting analysis for job {job_id}, URL: {request.url}")
         logger.info(f"Starting analysis for job {job_id}, URL: {request.url}")
         
-        # 1. Extract Video ID and Transcript
-        
+        video_id = extract_video_id(str(request.url))
+        # Validation is now done in create_analysis_job
+
+        eligibility = None
+        transcript = None
+
+        if request.force_override:
+            logger.info("Job %s: Force override enabled. Bypassing Pre-Classification Guardrail Gate.", job_id)
+            transcript = await claim_extractor.get_transcript(video_id)
+        else:
+            # Fetch transcript preview or full transcript
+            transcript_preview = ""
+            try:
+                transcript = await claim_extractor.get_transcript(video_id)
+                if transcript and transcript.full_text:
+                    transcript_preview = transcript.full_text[:2000]
+            except TranscriptUnavailableError as e:
+                logger.info("Captions unavailable for video %s (%s). Evaluating gate with empty transcript.", video_id, e)
+                transcript = None
+                transcript_preview = ""
+            except Exception as e:
+                # Do not mask transient retrieval, network, or rate-limit failures as missing captions
+                logger.error("Failed to retrieve transcript for video %s due to retrieval error: %s", video_id, e)
+                raise
+
+            # Evaluate Pre-Classification Guardrail Gate
+            eligibility = await content_classifier.classify_video(
+                transcript_preview=transcript_preview,
+                metadata=request.metadata
+            )
+
+            if not eligibility.is_analysable:
+                logger.info(
+                    "Job %s early exit: video is ineligible (%s).",
+                    job_id,
+                    eligibility.detected_category
+                )
+                async with jobs_lock:
+                    if job_id in jobs:
+                        jobs[job_id]["status"] = JobStatus.COMPLETED
+                        jobs[job_id]["result"] = AnalysisResponse(
+                            video_id=video_id,
+                            metadata=AnalysisMetadata(
+                                analyzed_at=datetime.now(timezone.utc).isoformat()
+                            ),
+                            eligibility=eligibility,
+                            claims=[]
+                        )
+                return
+
+            # If eligible but transcript was unavailable, fail with explicit message
+            if transcript is None:
+                raise TranscriptUnavailableError(
+                    "Video was marked eligible for analysis but contains no speech captions required for claim extraction."
+                )
+
         def create_analysis_response(vid: str, cls: list) -> AnalysisResponse:
             return AnalysisResponse(
                 video_id=vid,
                 metadata=AnalysisMetadata(
                     analyzed_at=datetime.now(timezone.utc).isoformat()
                 ),
+                eligibility=eligibility,
                 claims=copy.deepcopy(cls)
             )
 
-
-
-        video_id = extract_video_id(str(request.url))
-        # Validation is now done in create_analysis_job
-        
-        transcript = await claim_extractor.get_transcript(video_id)
-        
         # 2. Extract Claims
         claims = await claim_extractor.extract_claims(transcript)
         
