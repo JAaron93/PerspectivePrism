@@ -351,6 +351,12 @@ async function handleAnalysisRequest(message) {
          logger.warn(`[Perspective Prism] Failed to save completion state for ${videoId}. UI may not update.`);
          // We don't throw here because we already have the result, but it's bad.
       }
+    } else if (result.isCancelled || result.cancelled) {
+      // If result was cancelled, preserve or record cancelled status without overwriting with error
+      await setAnalysisState(videoId, {
+        status: "cancelled",
+        cancelledAt: Date.now(),
+      });
     } else {
       // Set state to error
       await setAnalysisState(videoId, {
@@ -362,6 +368,13 @@ async function handleAnalysisRequest(message) {
 
     return result;
   } catch (error) {
+    if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
+      await setAnalysisState(videoId, {
+        status: "cancelled",
+        cancelledAt: Date.now(),
+      });
+      return { success: false, error: "Analysis cancelled", isCancelled: true };
+    }
     logger.error("Analysis request failed:", error);
 
     // Set state to error

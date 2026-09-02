@@ -185,5 +185,26 @@ describe("Service Worker Resilience & Side Panel Triggering (Track 2)", () => {
       const res = await handleCancelAnalysis({ videoId: "abcdefghijk" });
       expect(res).toEqual({ success: true, cancelled: true });
     });
+
+    it("should preserve cancelled status when analysis returns cancelled result", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      });
+
+      const res = await handleAnalysisRequest({ videoId: "abcdefghijk" });
+      expect(res.isCancelled).toBe(true);
+
+      expect(setSpy).toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "cancelled" }),
+      );
+    });
   });
 });

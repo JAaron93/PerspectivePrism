@@ -46,6 +46,7 @@ let currentTabId = null;
 let lastSequence = -1;
 let currentGenerationId = null;
 let activeAnalysisToken = 0;
+let isSelfInitiating = false;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -199,6 +200,7 @@ async function startAnalysis(videoId, options = {}) {
     progressBarFill.setAttribute("aria-valuenow", "0");
   }
 
+  isSelfInitiating = true;
   try {
     const response = await chrome.runtime.sendMessage({
       type: "ANALYZE_VIDEO",
@@ -232,6 +234,8 @@ async function startAnalysis(videoId, options = {}) {
     if (errorMessage) {
       errorMessage.textContent = err?.message || "Analysis request failed";
     }
+  } finally {
+    isSelfInitiating = false;
   }
 }
 
@@ -713,7 +717,9 @@ function handleAnalysisState(state) {
       break;
       
     case "in_progress":
-      activeAnalysisToken++;
+      if (!isSelfInitiating) {
+        activeAnalysisToken++;
+      }
       showState("loading");
       renderOptimisticSkeletons();
       loadingSubmessage.textContent = state.submessage || "Analyzing video...";
