@@ -17,6 +17,10 @@ from app.models.schemas import (
     AlethiologyAnalysis,
     ContentEligibilityResult,
 )
+from app.services.claim_extractor import (
+    TranscriptUnavailableError,
+    TranscriptRetrievalError,
+)
 
 
 @pytest.fixture
@@ -252,3 +256,75 @@ def test_job_not_found_returns_404(client):
     response = client.get("/analyze/jobs/00000000-0000-0000-0000-000000000000")
     assert response.status_code == 404
     assert response.json()["detail"] == "Job not found"
+
+
+@pytest.mark.asyncio
+async def test_job_transcript_retrieval_failure_does_not_mask_as_missing_captions(client):
+    """
+    Greptile Review P1 Fix: When transcript retrieval fails due to a transient API or network error,
+    the job MUST fail with an error rather than silently treating it as an absent transcript
+    and prematurely completing with an inaccurate 'No Spoken Commentary Found' disclaimer.
+    """
+    request_data = {
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "force_override": False,
+        "metadata": {
+            "title": "Some Music Video",
+            "category_name": "Music",
+            "tags": ["pop"],
+        }
+    }
+
+    with patch("app.main.claim_extractor.get_transcript", new_callable=AsyncMock) as mock_get_trans:
+        mock_get_trans.side_effect = TranscriptRetrievalError("Network timeout connecting to YouTube")
+
+        response = client.post("/analyze/jobs", json=request_data)
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        for _ in range(20):
+            await asyncio.sleep(0.05)
+            status_resp = client.get(f"/analyze/jobs/{job_id}")
+            data = status_resp.json()
+            if data["status"] in ("completed", "failed"):
+                break
+
+        assert data["status"] == "failed"
+        assert "Network timeout" in data["error"]
+        assert data["result"] is None
+
+
+@pytest.mark.asyncio
+async def test_job_transcript_unavailable_error_triggers_early_exit(client):
+    """
+    When captions are genuinely disabled or unavailable on a Music/Gaming video,
+    TranscriptUnavailableError correctly routes to the deterministic gate for early exit.
+    """
+    request_data = {
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "force_override": False,
+        "metadata": {
+            "title": "Instrumental Track",
+            "category_name": "Music",
+            "tags": ["instrumental"],
+        }
+    }
+
+    with patch("app.main.claim_extractor.get_transcript", new_callable=AsyncMock) as mock_get_trans:
+        mock_get_trans.side_effect = TranscriptUnavailableError("Transcripts disabled for video")
+
+        response = client.post("/analyze/jobs", json=request_data)
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        for _ in range(20):
+            await asyncio.sleep(0.05)
+            status_resp = client.get(f"/analyze/jobs/{job_id}")
+            data = status_resp.json()
+            if data["status"] in ("completed", "failed"):
+                break
+
+        assert data["status"] == "completed"
+        assert data["result"]["eligibility"]["is_analysable"] is False
+        assert data["result"]["eligibility"]["disclaimer_title"] == "No Spoken Commentary Found"
+        assert data["result"]["claims"] == []

@@ -2,6 +2,7 @@ import re
 import time
 import asyncio
 import logging
+import unicodedata
 from typing import Optional, Any, List
 
 from app.core.config import configure_provider_env, settings
@@ -66,18 +67,18 @@ def evaluate_deterministic_fast_path(
     if transcript_preview and transcript_preview.strip():
         return None
 
-    # 2. Category must be strictly Music or Gaming
-    cat_norm = (category_name or "").strip().lower()
+    # 2. Category must be strictly Music or Gaming (normalized via NFKC)
+    cat_norm = unicodedata.normalize("NFKC", (category_name or "")).strip().lower()
     if cat_norm not in {"music", "gaming"}:
         return None
 
-    # 3. Check metadata for political / socio-economic keywords
+    # 3. Check metadata for political / socio-economic keywords using NFKC normalization
     if metadata:
         metadata_text_parts = [
-            metadata.title or "",
-            metadata.channel_name or "",
-            metadata.description_snippet or "",
-            " ".join(metadata.tags or [])
+            unicodedata.normalize("NFKC", metadata.title or ""),
+            unicodedata.normalize("NFKC", metadata.channel_name or ""),
+            unicodedata.normalize("NFKC", metadata.description_snippet or ""),
+            " ".join(unicodedata.normalize("NFKC", tag) for tag in (metadata.tags or []))
         ]
         combined_metadata = " ".join(metadata_text_parts)
         if _KEYWORD_PATTERN.search(combined_metadata):

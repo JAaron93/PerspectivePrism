@@ -10,7 +10,11 @@ from app.models.schemas import (
     AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators,
     PerspectiveAnalysis
 )
-from app.services.claim_extractor import ClaimExtractor
+from app.services.claim_extractor import (
+    ClaimExtractor,
+    TranscriptUnavailableError,
+    TranscriptRetrievalError,
+)
 from app.services.evidence_retriever import EvidenceRetriever
 from app.services.analysis_service import AnalysisService
 from app.services.content_classifier import PreClassifierService
@@ -198,10 +202,14 @@ async def process_analysis(job_id: str, request: VideoRequest):
                 transcript = await claim_extractor.get_transcript(video_id)
                 if transcript and transcript.full_text:
                     transcript_preview = transcript.full_text[:2000]
-            except Exception as e:
-                logger.warning("Could not retrieve transcript for video %s: %s", video_id, e)
+            except TranscriptUnavailableError as e:
+                logger.info("Captions unavailable for video %s (%s). Evaluating gate with empty transcript.", video_id, e)
                 transcript = None
                 transcript_preview = ""
+            except Exception as e:
+                # Do not mask transient retrieval, network, or rate-limit failures as missing captions
+                logger.error("Failed to retrieve transcript for video %s due to retrieval error: %s", video_id, e)
+                raise
 
             # Evaluate Pre-Classification Guardrail Gate
             eligibility = await content_classifier.classify_video(
@@ -228,9 +236,11 @@ async def process_analysis(job_id: str, request: VideoRequest):
                         )
                 return
 
-            # If eligible but transcript was not fetched yet
+            # If eligible but transcript was unavailable, fail with explicit message
             if transcript is None:
-                transcript = await claim_extractor.get_transcript(video_id)
+                raise TranscriptUnavailableError(
+                    "Video was marked eligible for analysis but contains no speech captions required for claim extraction."
+                )
 
         def create_analysis_response(vid: str, cls: list) -> AnalysisResponse:
             return AnalysisResponse(

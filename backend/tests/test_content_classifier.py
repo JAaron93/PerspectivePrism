@@ -122,6 +122,23 @@ def test_fast_path_bypassed_when_metadata_contains_political_keyword(keyword):
     assert result is None, f"Fast path should not trigger for keyword: {keyword}"
 
 
+def test_fast_path_bypassed_when_metadata_contains_fullwidth_unicode_keywords():
+    """NFKC normalization ensures full-width Unicode characters (e.g. Ｅｌｅｃｔｉｏｎ) are recognized as political keywords."""
+    metadata = VideoMetadata(
+        title="Gaming Stream Ｅｌｅｃｔｉｏｎ ２０２４ Discussion",
+        channel_name="GamerStreamer",
+        category_name="Gaming",
+        tags=["gaming"],
+        description_snippet="Stream talking about politics."
+    )
+    result = evaluate_deterministic_fast_path(
+        category_name="Gaming",
+        transcript_preview="",
+        metadata=metadata
+    )
+    assert result is None
+
+
 # ============================================================================
 # Track 2: ADK 2.0 PreClassifierService Unit & BDD Tests (T2.2)
 # ============================================================================
