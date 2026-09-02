@@ -48,6 +48,7 @@ let currentGenerationId = null;
 let activeAnalysisToken = 0;
 let pendingCheckCacheToken = 0;
 let activeRequestId = null;
+let activeAnalysisStartTime = 0;
 let requestCounter = 0;
 
 // DOM Elements
@@ -192,6 +193,7 @@ async function startAnalysis(videoId, options = {}) {
   const analysisToken = ++activeAnalysisToken;
   const requestId = `sp_${Date.now()}_${++requestCounter}`;
   activeRequestId = requestId;
+  activeAnalysisStartTime = Date.now();
   currentVideoId = videoId;
   showState("loading");
   renderOptimisticSkeletons(true);
@@ -721,6 +723,10 @@ function handleAnalysisState(state) {
       break;
       
     case "in_progress": {
+      // If this in-progress event belongs to a superseded request, ignore it
+      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
       if (isExternal) {
         activeAnalysisToken++;
@@ -736,6 +742,13 @@ function handleAnalysisState(state) {
     }
       
     case "complete": {
+      // If this completion belongs to a superseded request or finished before active analysis began, ignore it
+      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
+      if (activeAnalysisStartTime && state.analyzedAt && state.analyzedAt < activeAnalysisStartTime) {
+        break;
+      }
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
       if (isExternal) {
         activeAnalysisToken++;
@@ -743,6 +756,7 @@ function handleAnalysisState(state) {
       // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       const thisCacheToken = ++pendingCheckCacheToken;
+      const expectedRequestId = state.requestId || activeRequestId;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
         videoId: requestedVideoId
@@ -750,7 +764,8 @@ function handleAnalysisState(state) {
         // Discard the response if navigation or a newer cache/analysis generation occurred.
         if (
           currentVideoId !== requestedVideoId ||
-          pendingCheckCacheToken !== thisCacheToken
+          pendingCheckCacheToken !== thisCacheToken ||
+          (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
         if (response && response.success && response.data) {
           if (
@@ -769,7 +784,8 @@ function handleAnalysisState(state) {
       }).catch(() => {
         if (
           currentVideoId !== requestedVideoId ||
-          pendingCheckCacheToken !== thisCacheToken
+          pendingCheckCacheToken !== thisCacheToken ||
+          (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";

@@ -139,9 +139,17 @@ class PerspectivePrismClient {
 
       if (isForceOverride && !persistedIsForce) {
         logger.info(
-          `[PerspectivePrismClient] Clearing non-forced persisted request for ${videoId} to start force override`,
+          `[PerspectivePrismClient] Cancelling non-forced persisted/recovered request for ${videoId} to start force override`,
         );
-        await this.cleanupPersistedRequest(videoId);
+        const prevRequestPromise = this.pendingRequests.get(videoId);
+        await this.cancelAnalysis(videoId);
+        if (prevRequestPromise) {
+          try {
+            await prevRequestPromise;
+          } catch (_e) {
+            // Ignore cancellation/abort rejections
+          }
+        }
       } else {
         logger.info(
           `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,

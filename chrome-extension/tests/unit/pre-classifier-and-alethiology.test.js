@@ -801,5 +801,103 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       const stateIneligible = document.getElementById("state-ineligible");
       expect(stateIneligible.style.display).toBe("none");
     });
+
+    it("should ignore superseded completion and not launch CHECK_CACHE or overwrite active analysis", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let checkCacheCalled = false;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          checkCacheCalled = true;
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              eligibility: {
+                is_analysable: false,
+                confidence_score: 0.95,
+                detected_category: "Music",
+                disclaimer_title: "Stale Cache Result",
+                disclaimer_message: "Should be discarded",
+              },
+              claims: [],
+            },
+          });
+        }
+        return new Promise(() => {}); // Active request stays pending
+      });
+
+      // 1. User starts Request 2 (Analyze Anyway)
+      sidepanelModule.startAnalysis("videoA11char", { forceOverride: true });
+
+      const stateLoading = document.getElementById("state-loading");
+      expect(stateLoading.style.display).toBe("flex");
+
+      // 2. Superseded Request 1 completes in background with older requestId
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoA11char",
+        state: {
+          status: "complete",
+          requestId: "sp_older_superseded_request",
+          analyzedAt: Date.now() - 1000,
+        },
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // 3. CHECK_CACHE must NOT have been called for superseded request
+      expect(checkCacheCalled).toBe(false);
+      expect(stateLoading.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
+
+    it("should abort and await recovered execution when force override replaces non-forced persisted request", async () => {
+      const client = new PerspectivePrismClient(
+        "https://api.perspectiveprism.org",
+        { storageType: "local" },
+      );
+
+      let recoveredPromiseSettled = false;
+      let abortCalled = false;
+
+      // Mock persisted state with non-forced options
+      vi.spyOn(client, "getPersistedRequestState").mockResolvedValue({
+        videoId: "videoA11char",
+        status: "processing",
+        options: { forceOverride: false },
+      });
+
+      const mockController = {
+        abort: vi.fn(() => {
+          abortCalled = true;
+        }),
+        signal: {},
+      };
+      client.abortControllers.set("videoA11char", mockController);
+
+      // Pending promise from recovery
+      const recoveredPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          recoveredPromiseSettled = true;
+          resolve({ success: false, cancelled: true });
+        }, 20);
+      });
+      client.pendingRequests.set("videoA11char", recoveredPromise);
+
+      vi.spyOn(client, "executeAnalysisRequest").mockResolvedValue({
+        eligibility: { is_analysable: true },
+        claims: [],
+      });
+
+      await client.performAnalysis("videoA11char", {
+        forceOverride: true,
+      });
+
+      expect(abortCalled).toBe(true);
+      expect(recoveredPromiseSettled).toBe(true);
+    });
   });
 });
