@@ -2,41 +2,10 @@ import { useState } from 'react'
 import './App.css'
 
 import { ThinkingComponent } from './components/ThinkingComponent'
+import { EligibilityDisclaimer } from './components/EligibilityDisclaimer'
+import { EpistemicLensCard } from './components/EpistemicLensCard'
 import { formatTimestamp } from './utils/time'
-
-interface ClaimAnalysis {
-  claim_text: string
-  video_timestamp_start: number | null
-  video_timestamp_end: number | null
-  truth_profile: {
-    overall_assessment: string
-    perspectives: Record<string, {
-      perspective: string
-      stance: string
-      confidence: number
-      explanation: string
-      evidence: Array<{
-        url: string
-        title: string
-        snippet: string
-        source: string
-      }>
-    }>
-    bias_indicators: {
-      logical_fallacies: string[]
-      emotional_manipulation: string[]
-      deception_score: number | null
-    }
-  }
-}
-
-interface AnalysisResponse {
-  video_id: string
-  metadata: {
-    analyzed_at: string
-  }
-  claims: ClaimAnalysis[]
-}
+import type { AnalysisResponse, JobStatusResponse } from './types'
 
 const ALL_PERSPECTIVES = [
   "Scientific",
@@ -52,23 +21,27 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<AnalysisResponse | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const startAnalysis = async (targetUrl: string, forceOverride: boolean = false) => {
     setLoading(true)
     setIsStreaming(false)
     setError(null)
-    setResults(null)
+    if (forceOverride) {
+      setResults(null)
+    }
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-      // 1. Create Job
+      // 1. Create Job with optional force_override
       const createResponse = await fetch(`${apiUrl}/analyze/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url: targetUrl,
+          force_override: forceOverride,
+        }),
       })
 
       if (!createResponse.ok) {
@@ -95,10 +68,10 @@ function App() {
             throw new Error('Failed to check job status')
           }
 
-          const statusData = await statusResponse.json()
+          const statusData: JobStatusResponse = await statusResponse.json()
           let progressDetected = false
 
-          // Always update results if available (even if partial)
+          // Always update results if available (even if partial or ineligible)
           if (statusData.result) {
             const currentClaimsCount = statusData.result.claims ? statusData.result.claims.length : 0
             if (currentClaimsCount > lastClaimsCount) {
@@ -107,6 +80,14 @@ function App() {
             }
             
             setResults(statusData.result)
+
+            // If the video was determined ineligible by the Pre-Classification Gate, early return
+            if (statusData.result.eligibility && !statusData.result.eligibility.is_analysable) {
+              setLoading(false)
+              setIsStreaming(false)
+              return
+            }
+
             // If we have at least one claim, we can stop the "init" loading
             if (currentClaimsCount > 0 && statusData.status !== 'completed') {
               setLoading(false)
@@ -117,7 +98,7 @@ function App() {
           if (statusData.status === 'completed') {
             setLoading(false)
             setIsStreaming(false)
-            currentPollInterval = INITIAL_POLL_INTERVAL // Reset (though we're done)
+            currentPollInterval = INITIAL_POLL_INTERVAL
           } else if (statusData.status === 'failed') {
             setError(statusData.error || 'Analysis failed')
             setLoading(false)
@@ -150,6 +131,15 @@ function App() {
     }
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    startAnalysis(url, false)
+  }
+
+  const handleForceAnalyze = () => {
+    startAnalysis(url, true)
+  }
+
   const getAssessmentClass = (assessment: string) => {
     const normalized = assessment.toLowerCase().replace(/\s+/g, '-')
     return `overall-assessment assessment-${normalized}`
@@ -159,14 +149,16 @@ function App() {
     return `stance stance-${stance.toLowerCase()}`
   }
 
-
-
   const getDeceptionLevel = (score: number | null) => {
     if (score === null) return null
     if (score > 7) return 'High'
     if (score > 4) return 'Moderate'
     return 'Low'
   }
+
+  const isIneligible = Boolean(
+    results?.eligibility && !results.eligibility.is_analysable
+  )
 
   return (
     <div className="app">
@@ -218,81 +210,94 @@ function App() {
             <span className="video-id">Video ID: {results.video_id}</span>
           </div>
 
-          {results.claims.map((claimAnalysis, index) => (
-            <div key={`claim-${index}`} className="truth-profile">
-              <div className="claim-header">
-                <h3>Claim {index + 1}</h3>
-                <p className="claim-text">{claimAnalysis.claim_text}</p>
-                <div className="timestamp">
-                  {formatTimestamp(claimAnalysis.video_timestamp_start, claimAnalysis.video_timestamp_end)}
+          {isIneligible && results.eligibility ? (
+            <EligibilityDisclaimer
+              eligibility={results.eligibility}
+              onForceAnalyze={handleForceAnalyze}
+              loading={loading}
+            />
+          ) : (
+            results.claims.map((claimAnalysis, index) => (
+              <div key={`claim-${index}`} className="truth-profile">
+                <div className="claim-header">
+                  <h3>Claim {index + 1}</h3>
+                  <p className="claim-text">{claimAnalysis.claim_text}</p>
+                  <div className="timestamp">
+                    {formatTimestamp(claimAnalysis.video_timestamp_start, claimAnalysis.video_timestamp_end)}
+                  </div>
                 </div>
-              </div>
 
-              <div className={getAssessmentClass(claimAnalysis.truth_profile.overall_assessment)}>
-                {claimAnalysis.truth_profile.overall_assessment}
-              </div>
+                <div className={getAssessmentClass(claimAnalysis.truth_profile.overall_assessment)}>
+                  {claimAnalysis.truth_profile.overall_assessment}
+                </div>
 
-              <div className="perspectives-section">
-                <h3>Perspective Analysis</h3>
-                <div className="perspectives-grid">
-                  {ALL_PERSPECTIVES.map((perspectiveName) => {
-                    const perspective = claimAnalysis.truth_profile.perspectives[perspectiveName]
-                    
-                    if (!perspective) {
-                       return (
-                         <div key={perspectiveName} className="perspective-card">
-                            <div className="perspective-header">
-                              <span className="perspective-name">{perspectiveName}</span>
-                            </div>
-                            <ThinkingComponent context={`Analyzing ${perspectiveName} perspective...`} />
-                         </div>
-                       )
-                    }
+                <EpistemicLensCard
+                  alethiology={claimAnalysis.truth_profile.alethiology}
+                  isStreaming={isStreaming}
+                />
 
-                    return (
-                    <div key={perspectiveName} className="perspective-card">
-                      <div className="perspective-header">
-                        <span className="perspective-name">{perspectiveName}</span>
-                        <span className={getStanceClass(perspective.stance)}>
-                          {perspective.stance}
-                        </span>
+                <div className="perspectives-section">
+                  <h3>Perspective Analysis</h3>
+                  <div className="perspectives-grid">
+                    {ALL_PERSPECTIVES.map((perspectiveName) => {
+                      const perspective = claimAnalysis.truth_profile.perspectives[perspectiveName]
+                      
+                      if (!perspective) {
+                         return (
+                           <div key={perspectiveName} className="perspective-card">
+                              <div className="perspective-header">
+                                <span className="perspective-name">{perspectiveName}</span>
+                              </div>
+                              <ThinkingComponent context={`Analyzing ${perspectiveName} perspective...`} />
+                           </div>
+                         )
+                      }
+
+                      return (
+                      <div key={perspectiveName} className="perspective-card">
+                        <div className="perspective-header">
+                          <span className="perspective-name">{perspectiveName}</span>
+                          <span className={getStanceClass(perspective.stance)}>
+                            {perspective.stance}
+                          </span>
+                        </div>
+
+                        <div className="confidence">
+                          Confidence: {(perspective.confidence * 100).toFixed(0)}%
+                        </div>
+
+                        <div className="confidence-bar">
+                          <div
+                            className="confidence-fill"
+                            style={{ width: `${perspective.confidence * 100}%` }}
+                          />
+                        </div>
+
+                        <p className="explanation">{perspective.explanation}</p>
                       </div>
+                    )})}
+                  </div>
+                </div>
 
-                      <div className="confidence">
-                        Confidence: {(perspective.confidence * 100).toFixed(0)}%
-                      </div>
-
-                      <div className="confidence-bar">
-                        <div
-                          className="confidence-fill"
-                          style={{ width: `${perspective.confidence * 100}%` }}
-                        />
-                      </div>
-
-                      <p className="explanation">{perspective.explanation}</p>
+                <div className="bias-section">
+                  <h3>Deception Analysis</h3>
+                  <div className="deception-rating">
+                    <div className="deception-score">
+                      {claimAnalysis.truth_profile.bias_indicators.deception_score !== null
+                        ? claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1) + '/10' 
+                        : '-/10'}
                     </div>
-                  )})}
-                </div>
-              </div>
-
-              <div className="bias-section">
-                <h3>Deception Analysis</h3>
-                <div className="deception-rating">
-                  <div className="deception-score">
-                    {claimAnalysis.truth_profile.bias_indicators.deception_score !== null
-                      ? claimAnalysis.truth_profile.bias_indicators.deception_score.toFixed(1) + '/10' 
-                      : '-/10'}
-                  </div>
-                  <div className="deception-rationale">
-                    {claimAnalysis.truth_profile.bias_indicators.deception_score === null
-                     ? <span className="analyzing-bias">Analyzing bias patterns...</span>
-                     : `Deception Score: ${getDeceptionLevel(claimAnalysis.truth_profile.bias_indicators.deception_score)}`
-                    }
+                    <div className="deception-rationale">
+                      {claimAnalysis.truth_profile.bias_indicators.deception_score === null
+                       ? <span className="analyzing-bias">Analyzing bias patterns...</span>
+                       : `Deception Score: ${getDeceptionLevel(claimAnalysis.truth_profile.bias_indicators.deception_score)}`
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>
