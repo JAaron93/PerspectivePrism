@@ -2,17 +2,17 @@
 
 ## Track 1: Backend Data Models & Rust Sanitization Extensions
 
-- [ ] **T1.1: Extend Pydantic Schemas for Pre-Classifier and Alethiology**
+- [x] **T1.1: Extend Pydantic Schemas for Pre-Classifier and Alethiology**
   - **Description**: Update `backend/app/models/schemas.py` to define `TruthTheoryType` literal enum, `VideoMetadata`, `VideoRequest` (adding `force_override: bool = False` and `metadata: Optional[VideoMetadata]`), `ContentEligibilityResult`, `AlethiologyAnalysis`, and update `ClientTruthProfile` and `AnalysisResponse` to include `alethiology` and `eligibility`.
   - **Dependencies**: None
   - **Traceability**: FR1, FR3, FR6, FR7, FR9, NFR2
 
-- [ ] **T1.2: Extend Rust Input Sanitizer and PyO3 Bindings**
+- [x] **T1.2: Extend Rust Input Sanitizer and PyO3 Bindings**
   - **Description**: Update `backend/app/utils/input_sanitizer.py` and `backend/prism_sanitizer_rs/src/lib.rs` (if necessary) to provide dedicated sanitization helpers `sanitize_metadata_field()`, `sanitize_category_string()`, and `sanitize_quote_evidence()` ensuring stripping of control characters and XSS injection vectors.
   - **Dependencies**: None
   - **Traceability**: FR11, NFR3
 
-- [ ] **T1.3: TDD Unit Tests for New Schemas and Sanitization Helpers**
+- [x] **T1.3: TDD Unit Tests for New Schemas and Sanitization Helpers**
   - **Description**: Create `backend/tests/test_schemas_and_sanitizer.py` verifying serialization/deserialization of `ContentEligibilityResult` and `AlethiologyAnalysis`, validation bounds on confidence scores, and strict input sanitization behavior.
   - **Dependencies**: T1.1, T1.2
   - **Traceability**: FR11, US5
@@ -40,17 +40,17 @@
 
 ## Track 3: Alethiology Specialist Agent (Backend)
 
-- [ ] **T3.1: Implement Alethiology Specialist Agent & System Prompt**
+- [x] **T3.1: Implement Alethiology Specialist Agent & System Prompt**
   - **Description**: Create `backend/app/services/alethiology_service.py` defining `AlethiologyService` with ADK 2.0 `Agent(model=primary_model, output_schema=AlethiologyAnalysis)`. Incorporate the strict descriptive neutrality guardrail (no normative judgments, no fallacy accusations) and few-shot examples for the 6 truth theories (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary).
   - **Dependencies**: T1.1
   - **Traceability**: FR7, FR8, FR9, NFR2
 
-- [ ] **T3.2: Integrate Alethiology Agent into Parallel Async Execution Pipeline**
+- [x] **T3.2: Integrate Alethiology Agent into Parallel Async Execution Pipeline**
   - **Description**: Update `backend/app/services/analysis_service.py` and `backend/app/main.py` to dispatch `analyze_alethiology()` concurrently inside `asyncio.gather` alongside perspective analyses and bias/deception analysis for each claim, assembling the result into `ClientTruthProfile.alethiology`.
   - **Dependencies**: T1.1, T3.1
   - **Traceability**: FR10, NFR1
 
-- [ ] **T3.3: TDD & BDD Unit Tests for Alethiology Specialist Agent**
+- [x] **T3.3: TDD & BDD Unit Tests for Alethiology Specialist Agent**
   - **Description**: Create `backend/tests/test_alethiology_service.py` verifying schema adherence, parallel non-blocking execution, neutrality guardrails (ensuring conspiracy theories are classified as Coherence without bias slurs), and empirical science classification as Correspondence.
   - **Dependencies**: T3.1, T3.2
   - **Traceability**: FR7, FR8, FR9, FR10, US4, US5

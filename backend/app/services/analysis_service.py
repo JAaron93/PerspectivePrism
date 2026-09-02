@@ -5,6 +5,7 @@ from typing import List, Any
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
+    AlethiologyAnalysis,
     BiasAnalysis,
     Claim,
     Evidence,
@@ -12,6 +13,7 @@ from app.models.schemas import (
     PerspectiveType,
     PerspectiveAnalysisLLMOutput,
 )
+from app.services.alethiology_service import AlethiologyService
 from app.utils.input_sanitizer import (
     SanitizationError,
     sanitize_claim_text,
@@ -57,6 +59,8 @@ class AnalysisService:
 
         # Expose backup_client for health check compatibility
         self.backup_client = True if backup_model else None
+
+        self.alethiology_service = AlethiologyService(model_name=primary_model, settings=self.settings)
 
         self.perspective_agent_primary = Agent(
             name="perspective_agent_primary",
@@ -139,6 +143,7 @@ class AnalysisService:
             schema_map = {
                 "perspective_result": PerspectiveAnalysisLLMOutput,
                 "bias_result": BiasAnalysis,
+                "alethiology_result": AlethiologyAnalysis,
             }
             return await execute_adk_agent(
                 agent=agent,
@@ -346,4 +351,11 @@ class AnalysisService:
             return BiasAnalysis(
                 deception_rating=0.0, deception_rationale="Analysis failed."
             )
+
+    async def analyze_alethiology(self, claim: Claim) -> AlethiologyAnalysis:
+        """
+        Analyzes the implicit theory of truth (epistemological framework) of a claim.
+        """
+        return await self.alethiology_service.analyze_alethiology(claim)
+
 

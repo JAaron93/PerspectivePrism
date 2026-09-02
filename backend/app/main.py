@@ -286,13 +286,16 @@ async def process_analysis(job_id: str, request: VideoRequest):
             # before computing overall assessment
             perspective_analyses = await asyncio.gather(*analysis_tasks)
             
-            # 5. Analyze Bias and Deception
-            bias_analysis = await analysis_service.analyze_bias_and_deception(claim)
+            # 5. Analyze Bias and Alethiology concurrently
+            bias_analysis, alethiology_analysis = await asyncio.gather(
+                analysis_service.analyze_bias_and_deception(claim),
+                analysis_service.analyze_alethiology(claim),
+            )
             
             # 6. Construct Truth Profile (Finalize for this claim)
             overall_assessment = compute_overall_assessment(perspective_analyses, bias_analysis.deception_rating)
             
-            # Update the claim with final assessments and bias info
+            # Update the claim with final assessments, bias, and alethiology info
             # Note: perspectives are already populated incrementally!
             
             bias_indicators = BiasIndicators(
@@ -304,6 +307,7 @@ async def process_analysis(job_id: str, request: VideoRequest):
             # Update the existing object in place or replace it - let's update fields to be safe
             claims_to_return[i].truth_profile.overall_assessment = overall_assessment
             claims_to_return[i].truth_profile.bias_indicators = bias_indicators
+            claims_to_return[i].truth_profile.alethiology = alethiology_analysis
             
             # One final update for this claim (fixing the overall assessment and bias)
             async with jobs_lock:
