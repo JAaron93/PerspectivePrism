@@ -419,12 +419,12 @@ async def test_backup_fallback_acquires_budget_and_blocks_when_exhausted():
         mock_judge.return_value = None
         result = await run_live_probe_payload(entry, config=config, budget_counter=budget)
 
-    # Primary agent called (1 call)
+    # Primary agent called (1 call executed before fallback budget exhaustion)
     assert calls == ["perspective_agent_primary"]
     # Budget was consumed by primary agent
     assert budget.count == 1
-    # Fallback to backup was blocked by budget exhaustion (never exceeded limit of 1)
-    assert result.executed is False
+    # Fallback to backup was blocked by budget exhaustion (never exceeded limit of 1), but primary execution is accurately reported as executed=True
+    assert result.executed is True
     assert result.probe_status == ProbeStatus.ERROR
     assert "budget exhausted" in str(result.error).lower()
 

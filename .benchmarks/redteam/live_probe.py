@@ -228,6 +228,7 @@ async def run_live_probe_payload(
 
     try:
         async with sem, ReentrantSingleAttemptContext():
+            start_budget_count = budget_counter.count
             # Check budget before proceeding to LLM execution
             if not budget_counter.can_execute():
                 return LiveProbeResult(
@@ -430,19 +431,21 @@ async def run_live_probe_payload(
                     )
 
             except BudgetExhaustedError as be:
+                has_executed = budget_counter.count > start_budget_count
                 return LiveProbeResult(
                     payload_id=entry.id,
                     stage=entry.stage,
-                    executed=False,
+                    executed=has_executed,
                     probe_status=ProbeStatus.ERROR,
                     error=str(be),
                 )
             except Exception as exc:
+                has_executed = budget_counter.count > start_budget_count
                 if "Budget exhausted" in str(exc) or (exc.__cause__ and "Budget exhausted" in str(exc.__cause__)):
                     return LiveProbeResult(
                         payload_id=entry.id,
                         stage=entry.stage,
-                        executed=False,
+                        executed=has_executed,
                         probe_status=ProbeStatus.ERROR,
                         error=str(exc),
                     )
@@ -450,7 +453,7 @@ async def run_live_probe_payload(
                 return LiveProbeResult(
                     payload_id=entry.id,
                     stage=entry.stage,
-                    executed=False,
+                    executed=has_executed,
                     probe_status=ProbeStatus.ERROR,
                     error=str(exc),
                 )
