@@ -89,6 +89,8 @@ This document defines the implementation guidelines, security invariants, testin
   3. Video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
 * **Conservative Ambiguity Fallback**: If the `PreClassifierAgent` returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST automatically default to allowing analysis (`is_analysable = True`).
 * **Force Override Bypass**: When `VideoRequest.force_override == True`, the Pre-Classification Gate MUST be completely bypassed.
+* **Unicode NFKC Keyword Normalization**: Prior to evaluating any deterministic fast-path keyword filter or metadata regex denylist, all metadata fields (`title`, `channel_name`, `description_snippet`, `tags`) and category strings MUST undergo Unicode NFKC normalization (`unicodedata.normalize("NFKC", text)`) to collapse full-width Latin (e.g. `Ｅｌｅｃｔｉｏｎ`), circled characters, and compatibility homoglyphs before regex scanning.
+* **Transcript Retrieval Error Isolation (No Caption Absence Masking)**: In background job processing and pre-classification orchestration, pipelines MUST strictly differentiate genuine caption unavailability (`TranscriptsDisabled`, `NoTranscriptFound`, `TranscriptUnavailableError`) from transient network, rate-limit, or provider retrieval failures (`TranscriptRetrievalError`, `HTTPError`, `RequestBlocked`). Transient errors MUST fail the job with the underlying error cause and MUST NEVER be masked as empty transcripts triggering non-speech deterministic early-exit disclaimers.
 
 ---
 

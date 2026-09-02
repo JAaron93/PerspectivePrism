@@ -65,6 +65,8 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **Pre-Classification Guardrail Invariants**:
   * All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST be sanitized through `input_sanitizer.py` before being passed to `PreClassifierService` or any LLM agent.
   * Deterministic fast-path zero-token early exits MUST verify that the transcript is absent, the category is non-analytical (`Music`, `Gaming`), AND metadata contains no socio-political keywords.
+  * Prior to deterministic fast-path evaluation, all metadata fields MUST undergo Unicode NFKC normalization to ensure compatibility homoglyphs and full-width characters cannot bypass keyword pattern matching.
+  * The pipeline MUST distinguish between genuine caption absence (`TranscriptsDisabled`, `NoTranscriptFound`, `TranscriptUnavailableError`) and transient retrieval/network failures (`TranscriptRetrievalError`). Transient errors must fail the job and never be masked as empty captions triggering premature early exit disclaimers.
   * Ambiguity rule: If `is_analysable == False` but `confidence_score < 0.70`, the pipeline MUST default to allowing analysis (`is_analysable = True`).
   * `force_override: bool = True` must cleanly bypass the pre-classifier and proceed to full claim analysis.
 * **Alethiology Specialist Agent Invariants**:
