@@ -84,7 +84,7 @@ To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious n
 - **Condition for Deterministic Exit**:
   1. `transcript is None or transcript.strip() == ""` (no speech captions available), **AND**
   2. The YouTube Category is explicitly `Music` or `Gaming`, **AND**
-  3. The video metadata (`title`, `tags`, `description_snippet`) contains **NO** political, electoral, policy, or socio-economic keywords (e.g., does not contain words like *election*, *debate*, *ruling*, *senator*, *policy*, *strike*, *court*, *war*, *economy*).
+  3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains **NO** political, electoral, policy, or socio-economic keywords (e.g., does not contain words like *election*, *debate*, *ruling*, *senator*, *policy*, *strike*, *court*, *war*, *economy*).
 - When all three conditions match, the service immediately short-circuits with:
   ```json
   {
