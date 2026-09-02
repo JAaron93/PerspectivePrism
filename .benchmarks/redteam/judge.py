@@ -247,13 +247,14 @@ async def judge_agent_output_async(
     judge_agent = create_llm_judge_agent(model_name=judge_model_name, nonce=judge_nonce)
 
     try:
-        # Strictly single-attempt to prevent untracked retry requests bypassing budget cap
+        # Single attempt when under a budget cap to prevent unbudgeted calls; allow standard retries when standalone
+        effective_max_attempts = 1 if budget_counter is not None else 2
         judge_output: Optional[LLMJudgeOutput] = await execute_adk_agent(
             agent=judge_agent,
             user_prompt=user_prompt,
             output_key="judge_result",
             output_schema=LLMJudgeOutput,
-            max_attempts=1,
+            max_attempts=effective_max_attempts,
         )
 
         if judge_output is None:

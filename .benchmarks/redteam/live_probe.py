@@ -42,6 +42,7 @@ class BudgetExhaustedError(Exception):
 
 
 _active_budget_counter: ContextVar[Optional["BudgetCounter"]] = ContextVar("active_budget_counter", default=None)
+_task_calls_made: ContextVar[int] = ContextVar("task_calls_made", default=0)
 
 
 class BudgetCounter:
@@ -162,6 +163,9 @@ async def _single_attempt_execute_adk_agent(
     else:
         effective_max_attempts = max_attempts
 
+    # Track provider call execution within this task context
+    _task_calls_made.set(_task_calls_made.get() + 1)
+
     return await base_execute_adk_agent(
         agent=agent,
         user_prompt=user_prompt,
@@ -225,10 +229,10 @@ async def run_live_probe_payload(
 
     sem = semaphore or asyncio.Semaphore(active_config.concurrency)
     budget_token = _active_budget_counter.set(budget_counter)
+    task_calls_token = _task_calls_made.set(0)
 
     try:
         async with sem, ReentrantSingleAttemptContext():
-            start_budget_count = budget_counter.count
             # Check budget before proceeding to LLM execution
             if not budget_counter.can_execute():
                 return LiveProbeResult(
@@ -431,7 +435,7 @@ async def run_live_probe_payload(
                     )
 
             except BudgetExhaustedError as be:
-                has_executed = budget_counter.count > start_budget_count
+                has_executed = _task_calls_made.get() > 0
                 return LiveProbeResult(
                     payload_id=entry.id,
                     stage=entry.stage,
@@ -440,7 +444,7 @@ async def run_live_probe_payload(
                     error=str(be),
                 )
             except Exception as exc:
-                has_executed = budget_counter.count > start_budget_count
+                has_executed = _task_calls_made.get() > 0
                 if "Budget exhausted" in str(exc) or (exc.__cause__ and "Budget exhausted" in str(exc.__cause__)):
                     return LiveProbeResult(
                         payload_id=entry.id,
@@ -459,6 +463,7 @@ async def run_live_probe_payload(
                 )
     finally:
         _active_budget_counter.reset(budget_token)
+        _task_calls_made.reset(task_calls_token)
 
 
 async def run_live_probe_corpus(

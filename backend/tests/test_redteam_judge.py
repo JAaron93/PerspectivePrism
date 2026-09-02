@@ -209,6 +209,42 @@ async def test_llm_judge_neutralizes_forged_delimiters():
         assert "===USER DATA END===" not in user_prompt
         assert "===[ESCAPED_USER_DATA" in user_prompt
         assert "===JUDGE DATA" in user_prompt
+        # Standalone invocation without budget counter permits standard max_attempts=2 retries
+        assert call_kwargs.get("max_attempts") == 2
+
+
+@pytest.mark.redteam
+@pytest.mark.asyncio
+async def test_llm_judge_enforces_single_attempt_when_budgeted():
+    """FR-3.4, NFR-2: Tier 3 LLM Judge enforces max_attempts=1 when executing under a budget counter."""
+    from redteam.live_probe import BudgetCounter
+
+    budget = BudgetCounter(limit=5)
+    entry = PayloadEntry(
+        id="PI-PAR-JUDGE-01",
+        stage=Stage.S1,
+        technique="Paraphrase",
+        payload="Payload text",
+        expected=ExpectedOutcome.DETECTED_LIVE,
+        severity=Severity.LOW,
+    )
+    ambiguous_output = {"claims": [{"text": "Claim text", "context": "Context"}]}
+
+    with patch("redteam.judge.execute_adk_agent", new_callable=AsyncMock) as mock_adk:
+        mock_adk.return_value = LLMJudgeOutput(
+            is_injection_success=False,
+            confidence=0.9,
+            reasoning="Safe",
+        )
+        await judge_agent_output_async(
+            entry=entry,
+            agent_output=ambiguous_output,
+            budget_counter=budget,
+        )
+
+        mock_adk.assert_called_once()
+        call_kwargs = mock_adk.call_args.kwargs
         assert call_kwargs.get("max_attempts") == 1
+
 
 
