@@ -45,6 +45,7 @@ let currentVideoId = null;
 let currentTabId = null;
 let lastSequence = -1;
 let currentGenerationId = null;
+let activeAnalysisToken = 0;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -185,6 +186,7 @@ function renderIneligibleDisclaimer(eligibility) {
 async function startAnalysis(videoId, options = {}) {
   if (!videoId) return;
   const requestedVideoId = videoId;
+  const analysisToken = ++activeAnalysisToken;
   currentVideoId = videoId;
   showState("loading");
   renderOptimisticSkeletons(true);
@@ -205,8 +207,8 @@ async function startAnalysis(videoId, options = {}) {
       metadata: options.metadata,
     });
 
-    // Discard if navigation has changed the active video while analysis was in flight
-    if (currentVideoId !== requestedVideoId) return;
+    // Discard if navigation has changed the active video OR if a newer analysis was triggered
+    if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
 
     if (response && response.success && response.data) {
       if (
@@ -225,7 +227,7 @@ async function startAnalysis(videoId, options = {}) {
       }
     }
   } catch (err) {
-    if (currentVideoId !== requestedVideoId) return;
+    if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
     showState("error");
     if (errorMessage) {
       errorMessage.textContent = err?.message || "Analysis request failed";
@@ -666,6 +668,7 @@ async function checkCurrentTabState() {
     }
     
     if (tabId !== currentTabId || videoId !== currentVideoId) {
+      activeAnalysisToken++;
       currentGenerationId = null;
       lastSequence = -1;
       const container = document.getElementById("skeleton-container") || skeletonContainer;
@@ -919,4 +922,5 @@ export {
   renderResults,
   renderIneligibleDisclaimer,
   startAnalysis,
+  checkCurrentTabState,
 };

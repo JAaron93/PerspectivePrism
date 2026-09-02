@@ -473,5 +473,138 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(quotesContent.style.display).toBe("none");
       expect(quoteToggle.getAttribute("aria-expanded")).toBe("false");
     });
+
+    it("should discard stale analysis response when user initiates newer analysis on same video", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let resolveFirstAnalysis;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "ANALYZE_VIDEO") {
+          if (!message.forceOverride) {
+            // First slow request returns ineligible disclaimer
+            return new Promise((resolve) => {
+              resolveFirstAnalysis = () =>
+                resolve({
+                  success: true,
+                  data: {
+                    video_id: message.videoId,
+                    eligibility: {
+                      is_analysable: false,
+                      confidence_score: 0.95,
+                      detected_category: "Music",
+                      disclaimer_title: "Stale Ineligible",
+                      disclaimer_message: "This should be discarded",
+                    },
+                    claims: [],
+                  },
+                });
+            });
+          }
+          // Second forced request returns results
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "Forced result" }],
+            },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. Initial analysis for video A (slow)
+      const p1 = sidepanelModule.startAnalysis("videoA11char");
+
+      // 2. User starts a new forced analysis for the same video A
+      const p2 = sidepanelModule.startAnalysis("videoA11char", { forceOverride: true });
+      await p2;
+
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+
+      // 3. First request resolves late
+      resolveFirstAnalysis();
+      await p1;
+
+      // 4. Verify that results state was NOT overwritten by the stale disclaimer
+      expect(stateResults.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
+
+    it("should discard stale analysis response when user navigates A -> B -> A before first request resolves", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let resolveVideoA1;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "ANALYZE_VIDEO") {
+          if (message.videoId === "videoA11char" && !message.forceOverride) {
+            return new Promise((resolve) => {
+              resolveVideoA1 = () =>
+                resolve({
+                  success: true,
+                  data: {
+                    video_id: "videoA11char",
+                    eligibility: {
+                      is_analysable: false,
+                      confidence_score: 0.99,
+                      detected_category: "Music",
+                      disclaimer_title: "Stale Ineligible",
+                      disclaimer_message: "Stale message",
+                    },
+                    claims: [],
+                  },
+                });
+            });
+          }
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "Fresh result" }],
+            },
+          });
+        }
+        if (message.type === "GET_ANALYSIS_STATE") {
+          return Promise.resolve({ success: true, state: { status: "idle" } });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. User starts analysis on Video A
+      const p1 = sidepanelModule.startAnalysis("videoA11char");
+
+      // 2. User navigates to Video B
+      chrome.tabs.query.mockImplementation((queryInfo, callback) => {
+        const tabs = [{ id: 123, url: "https://www.youtube.com/watch?v=videoB11char" }];
+        if (callback) callback(tabs);
+        return Promise.resolve(tabs);
+      });
+      await sidepanelModule.checkCurrentTabState();
+
+      // 3. User navigates back to Video A
+      chrome.tabs.query.mockImplementation((queryInfo, callback) => {
+        const tabs = [{ id: 123, url: "https://www.youtube.com/watch?v=videoA11char" }];
+        if (callback) callback(tabs);
+        return Promise.resolve(tabs);
+      });
+      await sidepanelModule.checkCurrentTabState();
+
+      // 4. User starts fresh forced analysis on Video A
+      const p2 = sidepanelModule.startAnalysis("videoA11char", { forceOverride: true });
+      await p2;
+
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+
+      // 5. Video A1 resolves late
+      resolveVideoA1();
+      await p1;
+
+      // 6. State should still be results, not overwritten by stale ineligible disclaimer
+      expect(stateResults.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
   });
 });
