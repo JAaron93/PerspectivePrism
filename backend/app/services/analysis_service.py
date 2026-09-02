@@ -192,12 +192,12 @@ class AnalysisService:
         try:
             result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
             async with self._cb_lock:
-                if is_probe or self.cb_half_open:
+                if is_probe:
                     logger.info("Probe request successful. Closing circuit breaker.")
                     self.cb_half_open = False
                     self.cb_probing = False
                     self.cb_failures = 0
-                elif self.cb_failures > 0:
+                elif not self.cb_open and not self.cb_half_open and self.cb_failures > 0:
                     logger.info("Primary provider recovered. Resetting failure count.")
                     self.cb_failures = 0
             return result
@@ -209,18 +209,20 @@ class AnalysisService:
                 logger.error(f"Non-transient error in primary agent: {e}")
                 async with self._cb_lock:
                     if is_probe:
+                        self.cb_open = True
+                        self.cb_half_open = False
                         self.cb_probing = False
                 raise e
 
             current_use_backup = False
             async with self._cb_lock:
                 self.cb_last_failure_time = time.time()
-                if is_probe or self.cb_half_open:
+                if is_probe:
                     logger.error(f"Probe request FAILED: {e}. Re-opening circuit breaker.")
                     self.cb_open = True
                     self.cb_half_open = False
                     self.cb_probing = False
-                else:
+                elif not self.cb_open and not self.cb_half_open:
                     self.cb_failures += 1
                     logger.error(f"Primary provider failed (Count: {self.cb_failures}): {e}")
                     if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:

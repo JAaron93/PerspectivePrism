@@ -189,6 +189,47 @@ class TestAlethiologyCircuitBreakerAndFallback:
             assert len(primary_calls) == 1
             assert len(backup_calls) == 1
 
+    @pytest.mark.asyncio
+    async def test_non_probe_in_flight_does_not_resolve_half_open_state(self, alethiology_service):
+        """Verify that a non-probe request completing while breaker is half-open does not resolve the probe."""
+        alethiology_service.cb_open = False
+        alethiology_service.cb_half_open = False
+        alethiology_service.cb_probing = False
+
+        expected_output = AlethiologyAnalysis(
+            primary_theory="Correspondence (Empirical)",
+            secondary_theory=None,
+            epistemic_summary="Summary",
+            quote_evidences=[]
+        )
+
+        async def slow_primary_run(agent, user_prompt, output_key, is_backup=False):
+            if is_backup:
+                return expected_output
+            # Simulate slow primary request that was launched before breaker opened
+            await asyncio.sleep(0.05)
+            return expected_output
+
+        with patch.object(alethiology_service, "_run_agent_direct", side_effect=slow_primary_run):
+            claim = Claim(id="c1", text="Slow claim")
+
+            # Request 1 starts when closed (is_probe = False)
+            task1 = asyncio.create_task(alethiology_service.analyze_alethiology(claim))
+            await asyncio.sleep(0.01)
+
+            # While Request 1 is in-flight, breaker transitions to half-open by an external event or timeout
+            alethiology_service.cb_open = False
+            alethiology_service.cb_half_open = True
+            alethiology_service.cb_probing = True
+
+            # Wait for Request 1 to complete
+            res1 = await task1
+            assert res1 is not None
+
+            # Circuit breaker should STILL be in half-open / probing state because Request 1 was NOT the probe
+            assert alethiology_service.cb_half_open is True
+            assert alethiology_service.cb_probing is True
+
 
 class TestAnalysisServiceIntegration:
     """Test integration between AnalysisService and AlethiologyService."""
