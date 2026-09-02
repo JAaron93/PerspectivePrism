@@ -1356,6 +1356,11 @@ class PerspectivePrismClient {
             await recoveryPromise;
           } catch (_e) {
             // Error logged and handled in executeAnalysisRequest
+          } finally {
+            if (this.pendingRequests.get(state.videoId) === recoveryPromise) {
+              this.pendingRequests.delete(state.videoId);
+              this.pendingRequestOptions.delete(state.videoId);
+            }
           }
         } else if (state.status === "retrying") {
           // Check if alarm exists
@@ -1382,6 +1387,11 @@ class PerspectivePrismClient {
               await recoveryPromise;
             } catch (_e) {
               // Error logged and handled in executeAnalysisRequest
+            } finally {
+              if (this.pendingRequests.get(state.videoId) === recoveryPromise) {
+                this.pendingRequests.delete(state.videoId);
+                this.pendingRequestOptions.delete(state.videoId);
+              }
             }
           }
         }

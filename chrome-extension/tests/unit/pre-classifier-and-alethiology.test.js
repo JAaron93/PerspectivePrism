@@ -955,5 +955,50 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       const stateResults = document.getElementById("state-results");
       expect(stateResults.style.display).toBe("flex");
     });
+
+    it("should clean up recovered request from pendingRequests upon settlement", async () => {
+      vi.useFakeTimers();
+      try {
+        const client = new PerspectivePrismClient(
+          "https://api.perspectiveprism.org",
+          { storageType: "local" },
+        );
+
+        chrome.storage.local.get.mockResolvedValue({
+          pending_request_recovVideo1: {
+            videoId: "recovVideo1",
+            videoUrl: "https://www.youtube.com/watch?v=recovVideo1",
+            status: "pending",
+            startTime: Date.now(),
+            attemptCount: 0,
+            options: {},
+          },
+        });
+
+        /** @type {(value?: any) => void} */
+        let executePromiseResolve;
+        const executePromise = new Promise((resolve) => {
+          executePromiseResolve = resolve;
+        });
+        vi.spyOn(client, "executeAnalysisRequest").mockReturnValue(executePromise);
+
+        const recoveryTask = client.recoverPersistedRequests();
+
+        // Advance timers for the 500ms recovery delay
+        await vi.advanceTimersByTimeAsync(550);
+
+        // While recovery is executing, pendingRequests contains the promise
+        expect(client.pendingRequests.has("recovVideo1")).toBe(true);
+
+        // Settle the recovery promise
+        executePromiseResolve({ success: true });
+        await recoveryTask;
+
+        // After settlement, pendingRequests must be cleared
+        expect(client.pendingRequests.has("recovVideo1")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
