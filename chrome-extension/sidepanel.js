@@ -713,6 +713,7 @@ function handleAnalysisState(state) {
       break;
       
     case "in_progress":
+      activeAnalysisToken++;
       showState("loading");
       renderOptimisticSkeletons();
       loadingSubmessage.textContent = state.submessage || "Analyzing video...";

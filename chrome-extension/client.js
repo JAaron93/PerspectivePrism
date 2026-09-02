@@ -294,20 +294,28 @@ class PerspectivePrismClient {
    */
   async cancelAnalysis(videoId) {
     const controller = this.abortControllers.get(videoId);
+    let wasCancelled = false;
     if (controller) {
       console.log(
         `[PerspectivePrismClient] Cancelling analysis for ${videoId}`,
       );
       controller.abort();
       this.abortControllers.delete(videoId);
+      wasCancelled = true;
     }
 
-    // Clean up pending request
-    this.pendingRequests.delete(videoId);
+    if (this.pendingRequests.has(videoId)) {
+      this.pendingRequests.delete(videoId);
+      wasCancelled = true;
+    }
     this.pendingRequestOptions.delete(videoId);
 
     // Clean up persisted state and await completion so it doesn't race forced replacement
     try {
+      const persistedState = await this.getPersistedRequestState(videoId);
+      if (persistedState) {
+        wasCancelled = true;
+      }
       await this.cleanupPersistedRequest(videoId);
     } catch (err) {
       console.error(
@@ -318,7 +326,8 @@ class PerspectivePrismClient {
 
     // Notify any waiting resolvers
     const resolvers = this.pendingResolvers.get(videoId);
-    if (resolvers) {
+    if (resolvers && resolvers.length > 0) {
+      wasCancelled = true;
       resolvers.forEach(({ resolve, timeoutId }) => {
         clearTimeout(timeoutId);
         resolve({
@@ -330,7 +339,7 @@ class PerspectivePrismClient {
       this.pendingResolvers.delete(videoId);
     }
 
-    return Boolean(controller);
+    return wasCancelled;
   }
 
   /**

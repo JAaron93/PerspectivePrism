@@ -232,6 +232,18 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(client.pendingRequests.has(videoId)).toBe(false);
     });
 
+    it("should return true when cancelAnalysis cancels request attached via pendingResolvers or persisted state without controller", async () => {
+      const videoId = "noCtrlVid11";
+      const resolveMock = vi.fn();
+      client.pendingResolvers.set(videoId, [{ resolve: resolveMock, timeoutId: 123 }]);
+
+      const cancelled = await client.cancelAnalysis(videoId);
+      expect(cancelled).toBe(true);
+      expect(resolveMock).toHaveBeenCalledWith(
+        expect.objectContaining({ cancelled: true, error: "Analysis cancelled by user" })
+      );
+    });
+
     it("should await cleanup of cancelled request before forced replacement persists new state", async () => {
       const videoId = "cleanRace11";
       let cleanupDone = false;
@@ -730,6 +742,62 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
 
       // 5. Results should remain displayed and not overwritten by stale cache disclaimer
       expect(stateResults.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
+
+    it("should advance activeAnalysisToken and discard stale CHECK_CACHE response when external in_progress state is received", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let resolveCheckCache;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          return new Promise((resolve) => {
+            resolveCheckCache = () =>
+              resolve({
+                success: true,
+                data: {
+                  video_id: message.videoId,
+                  eligibility: {
+                    is_analysable: false,
+                    confidence_score: 0.95,
+                    detected_category: "Music",
+                    disclaimer_title: "Stale Cache Result",
+                    disclaimer_message: "Should be discarded",
+                  },
+                  claims: [],
+                },
+              });
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. Video A completes, triggering CHECK_CACHE
+      await sidepanelModule.startAnalysis("videoA11char");
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoA11char",
+        state: { status: "complete" },
+      });
+
+      // 2. Content script starts an external analysis for video A: broadcasts ANALYSIS_STATE_CHANGED in_progress
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoA11char",
+        state: { status: "in_progress", submessage: "External analyzing..." },
+      });
+
+      const stateLoading = document.getElementById("state-loading");
+      expect(stateLoading.style.display).toBe("flex");
+
+      // 3. The older CHECK_CACHE resolves late
+      if (resolveCheckCache) resolveCheckCache();
+      await new Promise((r) => setTimeout(r, 10));
+
+      // 4. Stale cache disclaimer must be discarded; loading state must remain intact
+      expect(stateLoading.style.display).toBe("flex");
       const stateIneligible = document.getElementById("state-ineligible");
       expect(stateIneligible.style.display).toBe("none");
     });
