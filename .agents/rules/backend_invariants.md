@@ -76,3 +76,23 @@ This document defines the implementation guidelines, security invariants, testin
 * **Dynamic Nonce Prompt Delimiters**: `build_user_data_prompt()` and `wrap_user_data()` MUST wrap untrusted user data in per-request cryptographic random nonces (`===USER DATA <nonce> START===` / `===USER DATA <nonce> END===`), rendering embedded static delimiter forgeries inert and preventing prompt breakouts.
 * **Unicode NFKC Normalization**: `sanitize_input()` MUST apply `unicodedata.normalize("NFKC", text)` prior to regex pattern and control character matching to collapse full-width Latin, circled/enclosed characters, and compatibility homoglyphs to ASCII before denylist evaluation.
 * **Red-Team Report Confidentiality & Baseline Omission Tracking**: Red-team reports (`redteam-report.json`, `redteam-report.md`) MUST reference corpus-relative payload IDs only with zero raw payload text. Baseline diff comparisons (`diff_against_baseline`) MUST treat removed/omitted baselined payloads as regressions to prevent silent security test coverage loss. Baseline updates MUST be strictly explicit (`--update-baseline`).
+
+---
+
+## 6. Pre-Classification Guardrail Gate Invariants
+
+* **Mandatory Metadata Sanitization**: All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST pass through `input_sanitizer.py` (`prism_sanitizer_rs`) before being processed by `PreClassifierService` or any LLM agent.
+* **Deterministic Fast-Path Preconditions**: Zero-token early exits (`is_analysable = False`, `confidence = 1.0`) MUST verify:
+  1. The transcript is absent or empty (`transcript is None or transcript.strip() == ""`),
+  2. The YouTube category is strictly non-analytical (`Music`, `Gaming`), AND
+  3. Video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
+* **Conservative Ambiguity Fallback**: If the `PreClassifierAgent` returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST automatically default to allowing analysis (`is_analysable = True`).
+* **Force Override Bypass**: When `VideoRequest.force_override == True`, the Pre-Classification Gate MUST be completely bypassed.
+
+---
+
+## 7. Alethiology Specialist Agent Invariants
+
+* **6 Canonical Truth Frameworks**: Truth theory classifications must strictly adhere to the 6 defined types: `Correspondence (Empirical)`, `Coherence (Systemic Narrative)`, `Pragmatic (Practical Utility)`, `Perspectivism (Lived Experience)`, `Consensus (Institutional Agreement)`, and `Deflationary (Rhetorical Endorsement)`.
+* **Strict Descriptive Neutrality (CRITICAL)**: The agent MUST remain strictly descriptive and neutral. It is strictly prohibited from evaluating whether a truth theory is "better", "more rational", or "sound", and must never accuse speakers of fallacies or falsehoods.
+* **Concurrent Non-Blocking Execution**: Alethiology analysis must execute concurrently (`asyncio.gather`) alongside perspective and bias analyses, adding 0ms sequential latency overhead to the claim analysis loop.
