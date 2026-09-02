@@ -39,7 +39,7 @@ The Perspective Prism multi-agent system is equipped with custom-built tools des
 
 ### Input Sanitizer (`input_sanitizer.py`)
 
-A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers to optimize Gemini's implicit context caching.
+A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: Unicode NFKC normalization to neutralize full-width and homoglyph evasion, high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using per-request dynamic cryptographic nonces (`===USER DATA <nonce> START===` and `===USER DATA <nonce> END===`) to neutralize delimiter forgery attacks and optimize Gemini's implicit context caching.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -48,6 +48,10 @@ A benchmarking framework that validates the entire analysis pipeline against a c
 ### Evidence Retriever (`evidence_retriever.py`)
 
 A sophisticated multi-perspective search tool that queries the Google Custom Search API to gather external evidence for each extracted claim. Rather than performing a single generic search, the Evidence Retriever executes **perspective-specific queries**—tailoring search terms to find scientific studies (`site:nih.gov OR site:nature.com`), journalistic sources (`site:nytimes.com OR site:reuters.com`), and partisan viewpoints. It handles API quota limits gracefully, implements exponential backoff retry logic for transient failures, and normalizes search results into a consistent format (title, snippet, URL). The retriever also performs relevance filtering, discarding results that don't contain claim-related keywords, ensuring the `AnalysisService` receives only high-quality evidence. This tool is essential for transforming subjective claims into fact-checkable assertions backed by authoritative external sources.
+
+### Red-Team Injection Benchmark (`.benchmarks/redteam/`)
+
+A specialized security evaluation framework for auditing Perspective Prism's transcript-to-Gemini pipeline against Indirect Prompt Injection (IPI) threats. The harness includes a versioned corpus of attack and control payloads spanning 11 threat taxonomy categories (direct overrides, delimiter escapes, persona hijacking, Unicode homoglyphs, and multilingual attacks) plus legitimate journalism controls. It supports deterministic offline validation (`pytest -m redteam`), automated JSON/Markdown reporting (`redteam/report.py`), baseline regression gating against committed baselines (`redteam-baseline.json`), and live agent probing with automated canary, heuristic, and LLM judge tiers.
 
 ## 🏁 Conclusion
 
@@ -107,6 +111,15 @@ python .benchmarks/evaluate_agents.py
 The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
 * **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
 * **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
+
+### Red-Team Prompt-Injection Suite
+To run the deterministic prompt-injection validation suite offline (zero network calls, <60s execution):
+
+```bash
+cd backend
+source venv/bin/activate
+pytest -m redteam
+```
 
 ## ☁️ Deployment Strategy
 

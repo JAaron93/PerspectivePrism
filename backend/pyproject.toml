@@ -18,6 +18,7 @@ dependencies = [
   "youtube-transcript-api",
   "google-genai>=2.9.0,<3.0.0",
   "google-adk>=2.4.0,<3.0.0",
+  "pyyaml",
   "prism_sanitizer_rs @ file:prism_sanitizer_rs",
 ]
 
@@ -30,9 +31,12 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "../.benchmarks"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "redteam: prompt-injection red-team suite",
+]
 filterwarnings = [
     "ignore:BaseAgentConfig is deprecated:DeprecationWarning",
 ]

@@ -155,6 +155,8 @@ class ClaimExtractor:
             return claims
 
         except Exception as e:
+            if "Budget exhausted" in str(e):
+                raise e
             logger.error(f"Error extracting claims with LLM: {e}")
             return [
                 Claim(

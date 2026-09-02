@@ -214,6 +214,8 @@ class AnalysisService:
                 try:
                     return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
                 except Exception as backup_err:
+                    if "Budget exhausted" in str(backup_err):
+                        raise backup_err
                     logger.error(f"Backup provider ALSO failed: {backup_err}")
                     raise AnalysisServiceError(f"Primary and backup providers both failed. Backup error: {backup_err}") from backup_err
 
@@ -283,6 +285,8 @@ class AnalysisService:
             )
 
         except Exception as e:
+            if "Budget exhausted" in str(e) or (e.__cause__ and "Budget exhausted" in str(e.__cause__)):
+                raise e
             logger.exception("Error in perspective analysis for %s", perspective.value)
             return PerspectiveAnalysis(
                 perspective=perspective,
@@ -336,6 +340,8 @@ class AnalysisService:
             )
 
         except Exception as e:
+            if "Budget exhausted" in str(e) or (e.__cause__ and "Budget exhausted" in str(e.__cause__)):
+                raise e
             logger.exception("Error in bias analysis for claim '%s'", claim.text[:50])
             return BiasAnalysis(
                 deception_rating=0.0, deception_rationale="Analysis failed."
