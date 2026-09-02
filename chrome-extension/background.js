@@ -357,26 +357,35 @@ async function handleAnalysisRequest(message) {
       }
     } else if (result.isCancelled || result.cancelled) {
       // If result was cancelled, preserve or record cancelled status without overwriting with error
-      await setAnalysisState(videoId, {
-        status: "cancelled",
-        cancelledAt: Date.now(),
-      });
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+        await setAnalysisState(videoId, {
+          status: "cancelled",
+          cancelledAt: Date.now(),
+          requestId: requestId,
+        });
+      }
     } else {
       // Set state to error
       await setAnalysisState(videoId, {
         status: "error",
         errorMessage: result.error || "Analysis failed",
         errorDetails: "",
+        requestId: requestId,
       });
     }
 
     return result;
   } catch (error) {
     if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
-      await setAnalysisState(videoId, {
-        status: "cancelled",
-        cancelledAt: Date.now(),
-      });
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+        await setAnalysisState(videoId, {
+          status: "cancelled",
+          cancelledAt: Date.now(),
+          requestId: requestId,
+        });
+      }
       return { success: false, error: "Analysis cancelled", isCancelled: true };
     }
     logger.error("Analysis request failed:", error);

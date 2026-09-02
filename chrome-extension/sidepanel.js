@@ -782,9 +782,16 @@ function handleAnalysisState(state) {
       errorMessage.textContent = state.errorMessage || "An error occurred during analysis.";
       break;
       
-    case "cancelled":
+    case "cancelled": {
+      // If the cancellation event belongs to a superseded request, do not abort active analysis or switch to idle
+      if (state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
+      activeAnalysisToken++;
+      pendingCheckCacheToken++;
       showState("idle");
       break;
+    }
   }
 }
 
