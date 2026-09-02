@@ -39,7 +39,7 @@ The Perspective Prism multi-agent system is equipped with custom-built tools des
 
 ### Input Sanitizer (`input_sanitizer.py`)
 
-A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using `===USER DATA START===` and `===USER DATA END===` markers to optimize Gemini's implicit context caching.
+A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: Unicode NFKC normalization to neutralize full-width and homoglyph evasion, high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using per-request dynamic cryptographic nonces (`===USER DATA <nonce> START===` and `===USER DATA <nonce> END===`) to neutralize delimiter forgery attacks and optimize Gemini's implicit context caching.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -51,7 +51,7 @@ A sophisticated multi-perspective search tool that queries the Google Custom Sea
 
 ### Red-Team Injection Benchmark (`.benchmarks/redteam/`)
 
-A specialized security evaluation framework for auditing Perspective Prism's transcript-to-Gemini pipeline against Indirect Prompt Injection (IPI) threats. The harness includes a versioned corpus of attack and control payloads spanning 11 threat taxonomy categories (direct overrides, delimiter escapes, persona hijacking, Unicode homoglyphs, and multilingual attacks) plus legitimate journalism controls. It supports deterministic offline validation (`pytest -m redteam`) and live agent probing with automated canary and heuristic detection.
+A specialized security evaluation framework for auditing Perspective Prism's transcript-to-Gemini pipeline against Indirect Prompt Injection (IPI) threats. The harness includes a versioned corpus of attack and control payloads spanning 11 threat taxonomy categories (direct overrides, delimiter escapes, persona hijacking, Unicode homoglyphs, and multilingual attacks) plus legitimate journalism controls. It supports deterministic offline validation (`pytest -m redteam`), automated JSON/Markdown reporting (`redteam/report.py`), baseline regression gating against committed baselines (`redteam-baseline.json`), and live agent probing with automated canary, heuristic, and LLM judge tiers.
 
 ## 🏁 Conclusion
 

@@ -6,6 +6,7 @@ interpolated into LLM prompts, protecting against prompt injection attacks.
 """
 
 import re
+import secrets
 import unicodedata
 from typing import Optional
 
@@ -122,8 +123,9 @@ def sanitize_input(
     if not isinstance(text, str):
         raise SanitizationError(f"{field_name} must be a string")
     
-    # Strip leading/trailing whitespace
+    # Strip leading/trailing whitespace and apply NFKC normalization
     text = text.strip()
+    text = unicodedata.normalize("NFKC", text)
     
     if not text:
         raise SanitizationError(f"{field_name} cannot be empty")
@@ -193,11 +195,15 @@ def sanitize_context(context: Optional[str]) -> str:
     )
 
 
-def wrap_user_data(data: str, label: str = "USER DATA") -> str:
+def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
     """
-    Wrap user data in clearly delimited sections.
+    Wrap user data in clearly delimited sections with dynamic nonce delimiters.
     
     This makes it clear to the LLM where user-provided data begins and ends,
-    reducing the risk of prompt injection.
+    reducing the risk of prompt injection and neutralizing delimiter forgery.
     """
-    return f"{USER_DATA_START}\n{label}:\n{data}\n{USER_DATA_END}"
+    if not nonce:
+        nonce = secrets.token_hex(4)
+    start_delim = f"==={label} {nonce} START==="
+    end_delim = f"==={label} {nonce} END==="
+    return f"{start_delim}\n{data}\n{end_delim}"

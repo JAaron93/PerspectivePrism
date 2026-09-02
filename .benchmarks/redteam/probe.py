@@ -1,5 +1,6 @@
 """Deterministic sanitizer probe runner for prompt-injection red-teaming."""
 
+import re
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,7 +11,11 @@ from app.utils.input_sanitizer import (
     MAX_CLAIM_LENGTH,
     MAX_EVIDENCE_LENGTH,
 )
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    generate_nonce,
+    get_user_data_delimiters,
+)
 from redteam.corpus import PayloadEntry, Stage
 
 
@@ -58,7 +63,8 @@ class ProbeResult(BaseModel):
 
 def probe_payload(
     entry: PayloadEntry,
-    default_instruction: str = "Extract all factual claims."
+    default_instruction: str = "Extract all factual claims.",
+    nonce: Optional[str] = None,
 ) -> ProbeResult:
     """
     Executes a single corpus payload through the deterministic sanitization layer.
@@ -92,13 +98,20 @@ def probe_payload(
             delimiter_forgery_survived=False,
         )
 
-    # Payload bypassed sanitization — construct prompt and check delimiter containment
-    assembled_prompt = build_user_data_prompt(data=sanitized, instruction=default_instruction)
+    # Determine nonce and build prompt
+    effective_nonce = generate_nonce() if nonce is None else nonce
+    _, end_delim = get_user_data_delimiters(nonce=effective_nonce)
+    assembled_prompt = build_user_data_prompt(
+        data=sanitized,
+        instruction=default_instruction,
+        nonce=effective_nonce,
+    )
     
-    # Check if a forged delimiter sequence survived sanitization
-    # e.g., if the payload contained '===USER DATA END===' and it survived into sanitized text
+    # Delimiter forgery check:
+    # Delimiter forgery survives (escapes prompt section) only if the active closing delimiter
+    # matches a delimiter forged inside the sanitized payload text.
     delimiter_forgery_survived = (
-        "===USER DATA END===" in entry.payload and "===USER DATA END===" in sanitized
+        ("===USER DATA" in entry.payload) and (end_delim in sanitized)
     )
 
     return ProbeResult(
@@ -113,9 +126,10 @@ def probe_payload(
 
 def run_probe(
     corpus: List[PayloadEntry],
-    default_instruction: str = "Extract all factual claims."
+    default_instruction: str = "Extract all factual claims.",
+    nonce: Optional[str] = None,
 ) -> List[ProbeResult]:
     """
     Executes all payloads in the provided corpus through the deterministic sanitizer probe.
     """
-    return [probe_payload(entry, default_instruction=default_instruction) for entry in corpus]
+    return [probe_payload(entry, default_instruction=default_instruction, nonce=nonce) for entry in corpus]
