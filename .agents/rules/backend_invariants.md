@@ -68,3 +68,23 @@ This document defines the implementation guidelines, security invariants, testin
 * **Comprehensive Provider Environment Cleanup**: Functions configuring provider environment variables (`configure_provider_env()`) MUST pop all stale keys across alternative auth modes (`GCP_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_API_KEY`, `LLM_API_KEY`).
 * **Public Contract & Async Behavioral Testing**: Unit tests verifying concurrency limits MUST assert public attributes (e.g. `service.max_concurrency`) and test actual async acquisition behavior using `asyncio.wait_for`. Never assert private internal attributes like `semaphore._value`.
 * **Dynamic Script Settings Instantiation**: Executable scripts and CLI tools (`burst_test.py`, `verify_environment.py`) MUST instantiate `Settings(_env_file=None)` dynamically inside function entrypoints rather than reading top-level cached module imports.
+
+---
+
+## 6. Pre-Classification Guardrail Gate Invariants
+
+* **Mandatory Metadata Sanitization**: All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST pass through `input_sanitizer.py` (`prism_sanitizer_rs`) before being processed by `PreClassifierService` or any LLM agent.
+* **Deterministic Fast-Path Preconditions**: Zero-token early exits (`is_analysable = False`, `confidence = 1.0`) MUST verify:
+  1. The transcript is absent or empty (`transcript is None or transcript.strip() == ""`),
+  2. The YouTube category is strictly non-analytical (`Music`, `Gaming`), AND
+  3. Video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
+* **Conservative Ambiguity Fallback**: If the `PreClassifierAgent` returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST automatically default to allowing analysis (`is_analysable = True`).
+* **Force Override Bypass**: When `VideoRequest.force_override == True`, the Pre-Classification Gate MUST be completely bypassed.
+
+---
+
+## 7. Alethiology Specialist Agent Invariants
+
+* **6 Canonical Truth Frameworks**: Truth theory classifications must strictly adhere to the 6 defined types: `Correspondence (Empirical)`, `Coherence (Systemic Narrative)`, `Pragmatic (Practical Utility)`, `Perspectivism (Lived Experience)`, `Consensus (Institutional Agreement)`, and `Deflationary (Rhetorical Endorsement)`.
+* **Strict Descriptive Neutrality (CRITICAL)**: The agent MUST remain strictly descriptive and neutral. It is strictly prohibited from evaluating whether a truth theory is "better", "more rational", or "sound", and must never accuse speakers of fallacies or falsehoods.
+* **Concurrent Non-Blocking Execution**: Alethiology analysis must execute concurrently (`asyncio.gather`) alongside perspective and bias analyses, adding 0ms sequential latency overhead to the claim analysis loop.

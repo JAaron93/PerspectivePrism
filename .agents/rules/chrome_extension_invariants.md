@@ -66,3 +66,5 @@ This document defines the implementation guidelines, security invariants, storag
 * **Tab Context Isolation**: Reset generation IDs, sequence state, and tab scoping when switching active tabs or when tabs query returns no active tab.
 * **UI Overlay Excise & Privacy Isolation**: Excised in-page overlays must not alter independent user dialogs (Privacy & Consent modals managed by `ConsentManager`).
 * **Idempotent Service Worker Promise Getters**: Lazy initialization getters (`getClient()`) must return the cached Promise reference (`clientPromise`) directly to preserve promise identity during Service Worker wake-up.
+* **Pre-Classification Disclaimer State**: When the backend returns an ineligible result (`eligibility.is_analysable === false`), the Side Panel MUST render `#state-ineligible` with category tags, confidence meter, and a prominent `[⚡ Analyze Anyway]` force-override button.
+* **Epistemic Lens UI Component**: In `#state-results`, each claim card MUST render the interactive Epistemic Lens badge (primary/secondary theory chips), neutral summary, and collapsible quote accordion, ensuring all text content is sanitized prior to DOM insertion.

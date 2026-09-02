@@ -13,6 +13,9 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Vitest Script Evaluation**: To test `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
 * **Vitest Async Init Guards**: Any Vitest test suite executing a module with top-level asynchronous initialization (such as `sidepanel.js` calling `checkCurrentTabState()`) MUST wait for the initial outbound `chrome.runtime.sendMessage` payload inside a `vi.waitFor` block prior to dispatching synthetic listener messages.
 * **Selective Interactive Debugging**: Use Chrome DevTools MCP (`chrome-devtools`, `memory-leak-debugging`, or `a11y-debugging` skills) **ONLY** when actively diagnosing tricky runtime bugs, memory leaks, detached DOM nodes, or Service Worker sleep state race conditions during development. Do NOT use Chrome DevTools MCP for routine test suite execution.
+* **Review Comment Evaluation Protocol (Valid vs. By-Design Edge Cases)**:
+  - **Valid Metadata Omissions**: If an automated review agent identifies that an ingested signal (e.g. `channel_name`) was omitted from a multi-field filter condition, treat it as valid and apply cascading updates (`design.md` -> `requirements.md` -> `tasks.md`).
+  - **By-Design Zero-Caption Edge Cases**: If a review comment flags that captionless media with non-political metadata bypasses LLM calibration, treat it as by-design: transcript-based analysis cannot run without text or audio, and the user-facing `[⚡ Analyze Anyway]` (Force Override) button is the designated architectural mechanism for manual bypass.
 
 ---
 
