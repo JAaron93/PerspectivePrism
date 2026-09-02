@@ -207,15 +207,11 @@ class PerspectivePrismClient {
         await this.persistRequestState({
           videoId,
           videoUrl,
-          startTime: Date.now(), // Keep original start time? Maybe better to track original.
-          // For simplicity, let's update timestamp to now for the "last activity"
-          // but we should probably keep the original start time if we want to timeout the whole thing.
-          // Let's stick to the plan: store startTime.
-          // We need to fetch the original start time if we want to preserve it,
-          // or just pass it through. For now, let's just update the attempt count.
+          startTime: Date.now(),
           attemptCount: attempt + 1,
           lastError: error.message,
           status: "retrying",
+          options,
         });
 
         // Schedule alarm with safe naming
@@ -1268,6 +1264,7 @@ class PerspectivePrismClient {
             state.videoId,
             state.videoUrl,
             state.attemptCount,
+            state.options || {},
           );
         } else if (state.status === "retrying") {
           // Check if alarm exists
@@ -1281,12 +1278,12 @@ class PerspectivePrismClient {
             console.warn(
               `[PerspectivePrismClient] Missing alarm for ${state.videoId}, rescheduling immediately`,
             );
-            // If alarm is missing, we should probably just execute it now or schedule it.
-            // Let's execute it now to be safe and simple.
+            // If alarm is missing, execute it now to be safe and simple.
             await this.executeAnalysisRequest(
               state.videoId,
               state.videoUrl,
               state.attemptCount,
+              state.options || {},
             );
           }
         }
@@ -1307,9 +1304,9 @@ class PerspectivePrismClient {
 
     // Process queue
     while (this.requestQueue.length > 0) {
-      const { videoId, resolve, reject } = this.requestQueue.shift();
+      const { videoId, options, resolve, reject } = this.requestQueue.shift();
       try {
-        const result = await this.performAnalysis(videoId);
+        const result = await this.performAnalysis(videoId, options || {});
         resolve(result);
       } catch (error) {
         reject(error);
@@ -1337,6 +1334,7 @@ class PerspectivePrismClient {
             videoId,
             state.videoUrl,
             state.attemptCount,
+            state.options || {},
           );
           // executeAnalysisRequest handles notification on completion
         } else {

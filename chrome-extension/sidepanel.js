@@ -184,6 +184,7 @@ function renderIneligibleDisclaimer(eligibility) {
  */
 async function startAnalysis(videoId, options = {}) {
   if (!videoId) return;
+  const requestedVideoId = videoId;
   currentVideoId = videoId;
   showState("loading");
   renderOptimisticSkeletons(true);
@@ -204,6 +205,9 @@ async function startAnalysis(videoId, options = {}) {
       metadata: options.metadata,
     });
 
+    // Discard if navigation has changed the active video while analysis was in flight
+    if (currentVideoId !== requestedVideoId) return;
+
     if (response && response.success && response.data) {
       if (
         response.data.eligibility &&
@@ -221,6 +225,7 @@ async function startAnalysis(videoId, options = {}) {
       }
     }
   } catch (err) {
+    if (currentVideoId !== requestedVideoId) return;
     showState("error");
     if (errorMessage) {
       errorMessage.textContent = err?.message || "Analysis request failed";
