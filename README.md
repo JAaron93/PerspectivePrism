@@ -25,7 +25,7 @@ Perspective Prism operates as an end-to-end pipeline of specialized sub-agents:
 2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.5-flash-lite`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
 3.  **Evidence Retriever**: Dynamically queries the Google Custom Search API in parallel across four distinct perspectives (Scientific, Journalistic, Partisan Left, Partisan Right).
 4.  **Perspective & Bias Analysis**: Evaluates extracted claims against retrieved evidence, assesses support/refutation stances, and detects emotional manipulation or logical fallacies.
-5.  **Alethiology Engine (Epistemic Lens)**: Assesses the philosophical grounding of each claim across four classical theories of truth (Correspondence, Coherence, Pragmatic, Consensus), extracting exact transcript quotes and synthesizing an epistemic summary.
+5.  **Alethiology Engine (Epistemic Lens)**: Assesses the philosophical grounding of each claim across six canonical theories of truth (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), extracting exact transcript quote evidences and synthesizing an epistemic summary.
 6.  **Truth Profiler**: Aggregates perspective stances, bias scores, and epistemic lens analyses into a rich, intuitive "Truth Profile".
 
 ### 🚀 High-Performance Analysis
@@ -48,7 +48,7 @@ A two-tier pre-classification guardrail gate that assesses whether a video's tra
 
 ### Alethiology Service (`alethiology_service.py`)
 
-An epistemic analysis engine that evaluates extracted claims against four classical philosophical theories of truth: **Correspondence** (alignment with observable empirical reality), **Coherence** (internal logical consistency within a theoretical model), **Pragmatic** (practical utility and predictive value), and **Consensus** (inter-subjective agreement across scientific or expert communities). Powered by Google ADK 2.0 with strict Gemini structured outputs, the agent outputs primary and secondary theory classifications, an epistemic synthesis summary, and verbatim supporting quotes, elevating the analysis beyond binary true/false verdicts into rich epistemological depth.
+An epistemic analysis engine that evaluates extracted claims against six canonical philosophical theories of truth: **Correspondence (Empirical)**, **Coherence (Systemic Narrative)**, **Pragmatic (Practical Utility)**, **Perspectivism (Lived Experience)**, **Consensus (Institutional Agreement)**, and **Deflationary (Rhetorical Endorsement)**. Powered by Google ADK 2.0 with strict Gemini structured outputs, the agent outputs primary and secondary theory classifications, an epistemic synthesis summary, and verbatim transcript quote evidences, elevating the analysis beyond binary true/false verdicts into rich epistemological depth.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -83,7 +83,7 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 - **Pre-Classifier Ineligibility Disclaimer & Force-Override Gate**
   - When non-factual content is detected, displays an accessible `#state-ineligible` container with category tags, confidence score meter, explanatory message, and an accessible `[⚡ Analyze Anyway]` force-override button that bypasses pre-classification and pins `forceOverride: true`.
 - **Epistemic Lens Truth Theory Visualization**
-  - Claim cards render an Epistemic Lens card (`.pp-epistemic-lens-card`) featuring primary and secondary philosophical theory chips (Correspondence, Coherence, Pragmatic, Consensus), an epistemic synthesis summary, and an accessible collapsible quote evidence drawer (`.pp-quote-drawer`).
+  - Claim cards render an Epistemic Lens card (`.pp-epistemic-lens-card`) featuring primary and secondary philosophical theory chips (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), an epistemic synthesis summary, and an accessible collapsible quote evidence drawer (`.pp-quote-drawer`).
 - **Resilient MV3 Service Worker Concurrency**
   - Background service worker and client architecture feature generational cache staleness invalidation (`pendingCheckCacheToken`), synchronous ownership clearing upon analysis completion, stale cancellation rejection (`targetRequestId`), and smooth multi-caller waiting on intermediate background retries.
 - **BYOK & Sensitive Data Storage Isolation (`chrome.storage.local`)**

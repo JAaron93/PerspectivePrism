@@ -35,17 +35,19 @@ To prevent false-positive censorship or classifier errors, users have full agenc
 * In the Chrome extension client, `forceOverride` is pinned across all retry sequences and clears cached ineligibility disclaimers.
 
 ### 3. Alethiology Agent & Epistemic Lens (`AlethiologyService`)
-For eligible claims, an ADK 2.0 `AlethiologyService` analyzes the epistemological grounding of each claim across four classical theories of truth:
-1. **Correspondence Theory**: Does the claim correspond directly to observable empirical facts, physical evidence, or scientific measurements?
-2. **Coherence Theory**: Does the claim fit logically and consistently within an established systemic or theoretical framework?
-3. **Pragmatic Theory**: Is the claim useful, actionable, or demonstrably effective in practical application?
-4. **Consensus Theory**: Is the claim supported by intersubjective agreement among relevant communities, peer-reviewed experts, or institutional consensus?
+For eligible claims, an ADK 2.0 `AlethiologyService` analyzes the epistemological grounding of each claim across six canonical theories of truth:
+1. **Correspondence (Empirical)**: Does the claim correspond directly to observable empirical facts, physical evidence, or scientific measurements?
+2. **Coherence (Systemic Narrative)**: Does the claim fit logically and consistently within an established systemic or theoretical framework?
+3. **Pragmatic (Practical Utility)**: Is the claim useful, actionable, or demonstrably effective in practical application?
+4. **Perspectivism (Lived Experience)**: Is the claim grounded in situated personal perspective, phenomenological standpoint, or subjective lived experience?
+5. **Consensus (Institutional Agreement)**: Is the claim supported by intersubjective agreement among relevant communities, peer-reviewed experts, or institutional consensus?
+6. **Deflationary (Rhetorical Endorsement)**: Does the claim treat truth purely as a device of rhetorical emphasis, agreement, or semantic ascent without substantive ontological commitments?
 
 The agent outputs a structured `AlethiologyAnalysis` object containing:
-* `primary_theory` and `secondary_theory` (`correspondence`, `coherence`, `pragmatic`, `consensus`).
-* `epistemic_summary`: A concise synthesis explaining how the claim functions under the selected theories.
-* `quotes`: Exact supporting quotes extracted from the transcript.
-* `confidence_score`: Epistemic confidence between 0.0 and 1.0.
+* `primary_theory`: Dominant epistemological framework from `TruthTheoryType`.
+* `secondary_theory`: Optional supporting framework from `TruthTheoryType`.
+* `epistemic_summary`: Strictly neutral 2-3 sentence synthesis of how the speaker builds their case.
+* `quote_evidences`: Exact transcript quotes where the speaker demonstrates their truth assumptions.
 
 ### 4. Client Presentation Parity & Concurrency Hardening
 * **Chrome Extension Side Panel**:

@@ -91,29 +91,29 @@ sequenceDiagram
     EXT-->>CE: Extracted Claims List
     CE-->>BE: List of Claims
 
-    Note over BE,AL: Stage 3, 4 & 5: Multi-Perspective, Bias, & Epistemic Analysis
+    Note over BE,AL: Stage 3, 4 & 5: Evidence Retrieval, Perspectives, Bias, & Epistemic Analysis
     loop For each claim
-        par Evidence Retrieval
-            BE->>ER: retrieve_evidence(claim)
-            ER->>EXT: Google Custom Search (Scientific, Journalistic, Partisan)
-            EXT-->>ER: Search Snippets & Sources
-            ER-->>BE: Evidence Dict
-        and Perspective Analysis
-            BE->>AS: analyze_perspective(claim, evidence)
+        BE->>ER: retrieve_evidence(claim, perspectives)
+        ER->>EXT: Google Custom Search (Scientific, Journalistic, Partisan)
+        EXT-->>ER: Search Snippets & Sources
+        ER-->>BE: Evidence Dict
+
+        par Multi-Perspective Analysis
+            BE->>AS: analyze_perspective(claim, perspective, evidence)
             AS->>EXT: Gemini ADK Perspective Agent
             EXT-->>AS: Perspective Analysis Results
             AS-->>BE: Perspective Ratings
+        and Bias & Deception Analysis
+            BE->>AS: analyze_bias_and_deception(claim)
+            AS->>EXT: Gemini ADK Bias Agent
+            EXT-->>AS: Bias & Deception Ratings
+            AS-->>BE: Bias Results
         and Alethiology (Epistemic Lens)
-            BE->>AL: analyze_alethiology(claim, transcript_context)
+            BE->>AL: analyze_alethiology(claim)
             AL->>EXT: Gemini ADK Alethiology Agent
-            EXT-->>AL: AlethiologyAnalysis (Theories, Summary, Quotes)
+            EXT-->>AL: AlethiologyAnalysis (Theories, Summary, Quote Evidences)
             AL-->>BE: Epistemic Lens Analysis
         end
-        
-        BE->>AS: analyze_bias_and_deception(claim)
-        AS->>EXT: Gemini ADK Bias Agent
-        EXT-->>AS: Bias & Deception Ratings
-        AS-->>BE: Bias Results
         
         BE->>BE: Assemble Truth Profile (Perspectives + Bias + Alethiology)
     end
@@ -135,7 +135,11 @@ sequenceDiagram
   "force_override": false,
   "metadata": {
     "title": "Video Title",
-    "description": "Video Description"
+    "channel_name": "Channel Name",
+    "category_id": "25",
+    "category_name": "News & Politics",
+    "tags": ["news", "politics"],
+    "description_snippet": "First 250 characters of description"
   }
 }
 ```
@@ -148,20 +152,22 @@ sequenceDiagram
   "detected_category": "Music",
   "disclaimer_title": "Content Not Analysable",
   "disclaimer_message": "This video appears to be musical or entertainment content lacking factual empirical claims.",
-  "justification": "Identified official music video markers and lyrical structures."
+  "key_topics_found": [
+    "music video",
+    "lyrics"
+  ]
 }
 ```
 
 ### 3. Alethiology Schema (`AlethiologyAnalysis`)
 ```json
 {
-  "primary_theory": "correspondence",
-  "secondary_theory": "coherence",
+  "primary_theory": "Correspondence (Empirical)",
+  "secondary_theory": "Coherence (Systemic Narrative)",
   "epistemic_summary": "The claim relies primarily on empirical observation and sensor measurement, supported by structural consistency with thermodynamic models.",
-  "quotes": [
+  "quote_evidences": [
     "Measurements recorded by the orbital probe confirmed a 1.2% variance."
-  ],
-  "confidence_score": 0.88
+  ]
 }
 ```
 
