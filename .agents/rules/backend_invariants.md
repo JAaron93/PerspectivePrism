@@ -14,7 +14,7 @@ This document defines the implementation guidelines, security invariants, testin
 * **Strict Non-Blocking Async I/O**:
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.
-* **Zero-Throttling Capability Standards (ADR 006)**:
+* **Zero-Throttling Capability Standards (ADR 007)**:
   - **Mandatory Generation Config Factory**: Every ADK 2.0 `Agent` instance MUST attach a `generate_content_config` created via `build_agent_generation_config(model=..., task_type=..., settings=...)`. Raw `Agent(...)` instantiations without generation configs are strictly prohibited.
   - **Task-Aware Dynamic `thinking_level` Standards**:
     - Deep analytical / extraction / evaluation agents (`extractor`, `analysis`, `alethiology`, `judge`): Must resolve to `thinking_level="HIGH"` (`types.ThinkingLevel.HIGH`) to exploit Gemini 3.8 Flash's native recursive reasoning loops.

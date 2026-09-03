@@ -21,7 +21,12 @@ from app.utils.input_sanitizer import (
     sanitize_evidence_text,
     sanitize_perspective_value,
 )
-from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
+from app.utils.llm_utils import (
+    execute_adk_agent,
+    init_tier_concurrency,
+    execute_agent_with_circuit_breaker,
+    build_agent_generation_config,
+)
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors
@@ -37,22 +42,13 @@ class AnalysisServiceError(Exception):
 class AnalysisService:
     def __init__(self, model_name: str | None = None, settings: Any = None):
         self.settings = settings or globals().get("settings")
-        provider_info = configure_provider_env(self.settings)
-
+        provider_info, max_concurrent, self._llm_semaphore = init_tier_concurrency(
+            self.settings, service_name="AnalysisService", configure_fn=configure_provider_env
+        )
         self.gcp_project = provider_info["project"]
         self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
-
-        # Tier-aware concurrency throttle: limits concurrent LLM API calls
-        # to prevent 429 rate-limit errors on lower tiers.
-        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
-        try:
-            max_concurrent = max(1, int(max_concurrent_raw))
-        except (ValueError, TypeError):
-            max_concurrent = 4
         self.max_concurrency = max_concurrent
-        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
-        logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, self.max_concurrency)
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
         primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
@@ -181,86 +177,16 @@ class AnalysisService:
         user_prompt: str,
         output_key: str,
     ) -> Any:
-        use_backup = False
-        is_probe = False
-        
-        async with self._cb_lock:
-            if self.cb_open:
-                if time.time() - self.cb_last_failure_time > settings.CIRCUIT_BREAKER_RESET_TIMEOUT:
-                    logger.info("Circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
-                    self.cb_open = False
-                    self.cb_half_open = True
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-            elif self.cb_half_open:
-                if not self.cb_probing:
-                    logger.info("Circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-
-        if use_backup:
-            logger.warning("Circuit breaker OPEN/PROBING. Using backup provider.")
-            try:
-                return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-            except Exception as e:
-                raise AnalysisServiceError(f"Fallback to backup failed: {e}") from e
-
-        try:
-            result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
-            async with self._cb_lock:
-                if is_probe:
-                    logger.info("Probe request successful. Closing circuit breaker.")
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                    self.cb_failures = 0
-                elif not self.cb_open and not self.cb_half_open and self.cb_failures > 0:
-                    logger.info("Primary provider recovered. Resetting failure count.")
-                    self.cb_failures = 0
-            return result
-
-        except Exception as e:
-            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 502, 503, 504)
-            
-            if not is_transient:
-                logger.error(f"Non-transient error in primary agent: {e}")
-                async with self._cb_lock:
-                    if is_probe:
-                        self.cb_open = True
-                        self.cb_half_open = False
-                        self.cb_probing = False
-                raise e
-
-            current_use_backup = False
-            async with self._cb_lock:
-                self.cb_last_failure_time = time.time()
-                if is_probe:
-                    logger.error(f"Probe request FAILED: {e}. Re-opening circuit breaker.")
-                    self.cb_open = True
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                elif not self.cb_open and not self.cb_half_open:
-                    self.cb_failures += 1
-                    logger.error(f"Primary provider failed (Count: {self.cb_failures}): {e}")
-                    if self.cb_failures >= settings.CIRCUIT_BREAKER_FAIL_THRESHOLD:
-                        self.cb_open = True
-                        logger.critical("Circuit breaker TRIPPED. Switching to backup provider.")
-                current_use_backup = True
-
-            if current_use_backup:
-                logger.warning("Primary failed with transient error. Falling back to backup agent...")
-                try:
-                    return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-                except Exception as backup_err:
-                    if "Budget exhausted" in str(backup_err):
-                        raise backup_err
-                    logger.error(f"Backup provider ALSO failed: {backup_err}")
-                    raise AnalysisServiceError(f"Primary and backup providers both failed. Backup error: {backup_err}") from backup_err
-
-            raise e
+        return await execute_agent_with_circuit_breaker(
+            service_state=self,
+            run_direct_fn=self._run_agent_direct,
+            agent_primary=agent_primary,
+            agent_backup=agent_backup,
+            user_prompt=user_prompt,
+            output_key=output_key,
+            service_name="Analysis",
+            error_cls=AnalysisServiceError,
+        )
 
 
 

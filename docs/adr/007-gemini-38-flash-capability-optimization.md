@@ -1,4 +1,4 @@
-# ADR 006: Gemini 3.8 Flash Capability Optimization and Zero-Throttling Architecture
+# ADR 007: Gemini 3.8 Flash Capability Optimization and Zero-Throttling Architecture
 
 ## Status
 Accepted

@@ -32,6 +32,14 @@ graph TD
         AL -->|Epistemic Truth Theories| Vertex
     end
     
+    subgraph Rust Native Core Engine (prism_sanitizer_rs)
+        RS["PyO3 Compiled Extension\n(Unified Sanitizer, Aho-Corasick DFA, Transcript Processor, Delimiter Guard)"]
+    end
+
+    API -.->|Sanitize Input & Delimiters| RS
+    PC -.->|Aho-Corasick Fast-Path (<50µs)| RS
+    CE -.->|Vectorized Chunking (<2ms)| RS
+    
     style User fill:#f9f,stroke:#333,stroke-width:2px
     style Client fill:#bbf,stroke:#333,stroke-width:2px
     style ExtUI fill:#bbf,stroke:#333,stroke-width:2px
@@ -43,7 +51,15 @@ graph TD
     style ER fill:#dfd,stroke:#333,stroke-width:1px
     style AS fill:#dfd,stroke:#333,stroke-width:1px
     style AL fill:#eef,stroke:#333,stroke-width:1px
+    style RS fill:#ffd,stroke:#e65100,stroke-width:2px
 ```
+
+### Security & Native Performance Boundary
+Perspective Prism enforces strict CPU-bound workload isolation under [ADR 001](docs/adr/001-non-greedy-rust-sanitizer-via-pyo3.md) and [ADR 006](docs/adr/006-rust-native-core-engine.md):
+- **Single-Crossing FFI Boundary**: Reduces Python-to-Rust crossings to 1 call per string (`sanitize_input`), eliminating chatty serialization overhead.
+- **DFA Multi-Pattern Fast-Path**: Aho-Corasick automaton searches 65+ political keywords simultaneously in linear time $O(N)$ with zero backtracking.
+- **Vectorized Chunking**: Pre-allocates buffer capacity for 100k-character transcripts, eliminating quadratic memory allocations.
+- **Specification Index**: The complete technical blueprint is documented under [`docs/rust-core-engine-spec/`](docs/rust-core-engine-spec/).
 
 ---
 

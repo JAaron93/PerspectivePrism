@@ -23,7 +23,7 @@ Perspective Prism analyzes YouTube video transcripts for claims, bias, and decep
 > - **Framework & SDK**: Exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
 > - **Provider & Authentication Mode**: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM high-throughput quota). AI Studio API keys and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
-> - **Zero-Throttling Generation Standards (ADR 006)**: Primary analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) use `thinking_level="HIGH"`, `max_output_tokens=65536` (64K ceiling), and 120s HTTP timeouts (`GEMINI_HTTP_TIMEOUT=120.0`). Screening micro-tasks (`PreClassifierService`) use `thinking_level="LOW"` and `max_output_tokens=2048`. Thought signatures and thinking tokens are strictly preserved (`EXCLUDED_TELEMETRY_KEYS`).
+> - **Zero-Throttling Generation Standards (ADR 007)**: Primary analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) use `thinking_level="HIGH"`, `max_output_tokens=65536` (64K ceiling), and 120s HTTP timeouts (`GEMINI_HTTP_TIMEOUT=120.0`). Screening micro-tasks (`PreClassifierService`) use `thinking_level="LOW"` and `max_output_tokens=2048`. Thought signatures and thinking tokens are strictly preserved (`EXCLUDED_TELEMETRY_KEYS`).
 > - **Forbidden SDKs**: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently removed.
 > - **Strict Async I/O & Non-Blocking Event Loop**: All network I/O operations (LLM model calls, web search, transcript retrieval) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
 > - **Code Inspection Requirement**: Inspect actual source files (`app/services/claim_extractor.py`, `app/services/analysis_service.py`, `app/core/config.py`) before making statements or planning refactors.
@@ -53,7 +53,7 @@ Perspective Prism analyzes YouTube video transcripts for claims, bias, and decep
 ├── chrome-extension/    # Manifest V3 browser extension (Zero-build vanilla JS + Side Panel)
 │   └── tests/           # Vitest unit tests + Playwright integration tests
 ├── docs/
-│   └── adr/             # Architecture Decision Records (ADR 001 - 004)
+│   └── adr/             # Architecture Decision Records (ADR 001 - 007)
 ├── walkthroughs/        # Developer walkthroughs and implementation guides
 └── AGENTS.md            # This Constitution & Rules Index
 ```
