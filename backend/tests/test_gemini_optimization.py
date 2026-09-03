@@ -69,6 +69,13 @@ class TestDynamicThinkingLevelRouting:
             # Router and unclassified tasks properly adopt the env override
             assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="router") == "low"
 
+    def test_router_ceiling_resists_high_env_override(self):
+        with patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "high"}):
+            # Router tasks must strictly enforce LOW even when general env is HIGH to protect latency
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="router") == "low"
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="micro_task") == "low"
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="classifier") == "low"
+
     def test_analytical_floor_strictly_non_bypassable(self):
         with patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "minimal"}):
             for task in ["extractor", "analysis", "alethiology", "judge", "evaluator"]:
@@ -112,6 +119,26 @@ class TestBuildAgentGenerationConfig:
             assert cfg.thinking_config is not None
             assert cfg.thinking_config.thinking_level == types.ThinkingLevel.LOW
             assert cfg.http_options.timeout == 120.0
+
+    def test_build_generation_config_for_router_with_high_env(self):
+        high_settings = Settings(
+            _env_file=None,
+            GCP_PROJECT="test-project",
+            GEMINI_MAX_OUTPUT_TOKENS=65536,
+            GEMINI_HTTP_TIMEOUT=120.0,
+            GEMINI_THINKING_LEVEL="high",
+        )
+        with patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "high"}):
+            cfg = build_agent_generation_config(
+                model="gemini-3.8-flash",
+                task_type="router",
+                settings=high_settings,
+            )
+            assert cfg is not None
+            # Must remain 2048 tokens and LOW thinking to preserve sub-second guardrail latency
+            assert cfg.max_output_tokens == 2048
+            assert cfg.thinking_config is not None
+            assert cfg.thinking_config.thinking_level == types.ThinkingLevel.LOW
 
     def test_analytical_floors_enforced_against_low_settings(self):
         low_settings = Settings(

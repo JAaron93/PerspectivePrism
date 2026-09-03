@@ -50,17 +50,17 @@ def get_gemini_thinking_level(
     if task_type in ANALYTICAL_TASK_TYPES:
         return "high"
 
-    # 2. Explicit environment variable override for non-analytical tasks
+    # 2. Enforce strict, non-bypassable router ceiling: micro-tasks and routers must strictly use LOW
+    if task_type in ROUTER_TASK_TYPES:
+        return "low"
+
+    # 3. Explicit environment variable override for general/unclassified tasks
     env_level = os.getenv("GEMINI_THINKING_LEVEL")
     if env_level and str(env_level).strip():
         return str(env_level).strip().lower()
 
     if default is not None:
         return default
-
-    # 3. Bypass deep thinking for micro-tasks, routers, and guardrail classifiers
-    if task_type in ROUTER_TASK_TYPES:
-        return "low"
 
     # 4. Settings configuration override if explicitly configured
     settings_level = getattr(settings, "GEMINI_THINKING_LEVEL", None)
@@ -87,9 +87,11 @@ def build_agent_generation_config(
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
     thinking levels, expanded output ceilings, and request HTTP timeout options.
     Enforces mandatory, non-bypassable Zero-Throttling floors (65,536 tokens, 120s timeout, HIGH thinking)
-    for analytical tasks ('extractor', 'analysis', 'alethiology', 'judge', 'evaluator') per AGENTS.md.
+    for analytical tasks ('extractor', 'analysis', 'alethiology', 'judge', 'evaluator')
+    and mandatory LOW thinking with 2048 tokens for routers ('router', 'classifier', 'micro_task') per AGENTS.md.
     """
     is_analytical = task_type in ANALYTICAL_TASK_TYPES
+    is_router = task_type in ROUTER_TASK_TYPES
 
     resolved_level_str = thinking_level or get_gemini_thinking_level(
         model=model,
@@ -98,6 +100,8 @@ def build_agent_generation_config(
     )
     if is_analytical:
         resolved_level_str = "high"
+    elif is_router and thinking_level is None:
+        resolved_level_str = "low"
 
     # Determine max output tokens
     if max_output_tokens is None:
