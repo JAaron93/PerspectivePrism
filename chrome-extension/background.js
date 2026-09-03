@@ -321,21 +321,33 @@ async function handleAnalysisRequest(message) {
     metadata: message.metadata || undefined,
   };
 
-  const requestId =
+  const isForce = Boolean(options.forceOverride);
+  const existingState = await StateManager.get(videoId);
+
+  let requestId =
     message.requestId ||
     `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  // Set state to in_progress
-  // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
-  const stateSaved = await setAnalysisState(videoId, {
-    status: "in_progress",
-    progress: 0,
-    requestId: requestId,
-  });
+  // If an analysis is already in progress and this is not a force override,
+  // adopt the existing requestId so concurrent requests do not steal ownership from active analysis
+  if (existingState && existingState.status === "in_progress" && !isForce) {
+    if (existingState.requestId) {
+      requestId = existingState.requestId;
+    }
+  } else {
+    // Set state to in_progress
+    // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
+    const stateSaved = await setAnalysisState(videoId, {
+      status: "in_progress",
+      progress: 0,
+      requestId: requestId,
+      forceOverride: isForce,
+    });
 
-  if (!stateSaved) {
-    logger.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
-    throw new Error("Failed to initialize analysis state. Please try again.");
+    if (!stateSaved) {
+      logger.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
+      throw new Error("Failed to initialize analysis state. Please try again.");
+    }
   }
 
   try {

@@ -259,5 +259,39 @@ describe("Service Worker Resilience & Side Panel Triggering (Track 2)", () => {
         expect.objectContaining({ status: "error", requestId: "req-old-123" }),
       );
     });
+
+    it("should preserve in-progress requestId ownership when concurrent non-forced request arrives", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: true,
+        data: { claims: [] },
+      });
+
+      // Existing state belongs to side-panel forced request
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "sp-forced-123",
+        forceOverride: true,
+      });
+
+      // Concurrent content-script request arrives without force override
+      await handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "cs-concurrent-456" });
+
+      // Must NOT overwrite initial state with cs-concurrent-456 in_progress write
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "in_progress", requestId: "cs-concurrent-456" }),
+      );
+
+      // Must complete with sp-forced-123 ownership preserved
+      expect(setSpy).toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "complete", requestId: "sp-forced-123" }),
+      );
+    });
   });
 });
