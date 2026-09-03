@@ -117,17 +117,17 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 6 can proceed concurrently with Track 5.
 
-- [ ] **T6.1: Update Frontend TypeScript Interfaces**
+- [x] **T6.1: Update Frontend TypeScript Interfaces**
   - **Description**: Update `frontend/src/types/index.ts` (or `types.ts`) with `TruthTheoryType`, `ContentEligibilityResult`, `AlethiologyAnalysis`, and updated `VideoRequest`.
   - **Dependencies**: T1.1
   - **Traceability**: FR16, NFR4
 
-- [ ] **T6.2: Implement React Pre-Classification Disclaimer & Epistemic Lens Components**
+- [x] **T6.2: Implement React Pre-Classification Disclaimer & Epistemic Lens Components**
   - **Description**: Create `frontend/src/components/EligibilityDisclaimer.tsx` and `frontend/src/components/EpistemicLensCard.tsx`. Update analysis page to render disclaimer when ineligible and display Epistemic Lens in claim cards.
   - **Dependencies**: T6.1
   - **Traceability**: FR16, NFR5
 
-- [ ] **T6.3: Verify Production Build and Linting**
+- [x] **T6.3: Verify Production Build and Linting**
   - **Description**: Run `npm run build` (`tsc -b && vite build` via TypeScript 7.0 native compiler) and `npm run lint` in `frontend/` to ensure sub-second compilation and zero lint regressions.
   - **Dependencies**: T6.1, T6.2
   - **Traceability**: FR16, NFR4

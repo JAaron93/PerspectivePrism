@@ -24,6 +24,11 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * All API response shapes and job payloads must be explicitly typed using TypeScript interfaces; flag any usage of `any`.
   * All frontend environment variables must be strictly prefixed with `VITE_`.
   * Ensure async job polling logic (`POST /analyze/jobs` ➔ `GET /analyze/jobs/{job_id}`) includes proper loading states, timeout handling, and user-friendly error messages.
+* **State Management & Override Invariants**:
+  * On any new URL submission, `setResults(null)` must be called unconditionally; flag any implementation where previous results or disclaimers persist during new job creation.
+  * When implementing "Analyze Anyway" force-override actions, verify that the handler submits the exact URL associated with the displayed disclaimer (`analyzedUrl`), not the live mutable input field value (`url`).
+* **Test Scope Isolation**:
+  * Verify that `tsconfig.app.json` excludes test files (`src/**/__tests__/*`) so Node built-in types (`node:test`, `node:assert`) do not pollute the client browser compilation target.
 
 ---
 

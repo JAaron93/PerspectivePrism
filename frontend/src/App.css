@@ -345,14 +345,309 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-.deception-score {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #e9d5ff;
+/* ==========================================================================
+   Eligibility Disclaimer (Pre-Classification Gate State)
+   ========================================================================== */
+
+.eligibility-disclaimer {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
 }
 
-.deception-rationale {
-  flex: 1;
+.disclaimer-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.disclaimer-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.disclaimer-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fde047;
+  margin: 0;
+}
+
+.disclaimer-category-badge {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fef08a;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.disclaimer-message {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.25rem;
+}
+
+.disclaimer-topics {
+  margin-bottom: 1.25rem;
+}
+
+.topics-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.5rem;
+}
+
+.topics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.topic-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.disclaimer-divider {
+  height: 1px;
+  background: rgba(251, 191, 36, 0.2);
+  margin: 1.25rem 0;
+}
+
+.disclaimer-tip {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 1.5rem;
+}
+
+.disclaimer-tip strong {
+  color: #fde047;
+}
+
+.disclaimer-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.force-analyze-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  min-width: 180px;
+  padding: 0.75rem 1.75rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.force-analyze-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+}
+
+.force-analyze-btn:focus-visible {
+  outline: 3px solid #fde047;
+  outline-offset: 3px;
+}
+
+.force-analyze-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ==========================================================================
+   Epistemic Lens Card (Truth Framework Visualization)
+   ========================================================================== */
+
+.epistemic-lens-card {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: border-color 0.2s ease;
+}
+
+.epistemic-lens-card:hover {
+  border-color: rgba(129, 140, 248, 0.4);
+}
+
+.epistemic-lens-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.epistemic-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.epistemic-lens-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #c7d2fe;
+}
+
+.epistemic-lens-subtitle {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(199, 210, 254, 0.6);
+}
+
+.epistemic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.theory-chip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.theory-correspondence {
+  background: rgba(6, 182, 212, 0.2);
+  color: #67e8f9;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+}
+
+.theory-coherence {
+  background: rgba(168, 85, 247, 0.2);
+  color: #e9d5ff;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.theory-pragmatic {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.theory-perspectivism {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.theory-consensus {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.theory-deflationary {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.theory-default {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.epistemic-summary {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 1rem 0;
+}
+
+.epistemic-quotes-section {
+  border-top: 1px solid rgba(99, 102, 241, 0.15);
+  padding-top: 0.75rem;
+}
+
+.quote-accordion-toggle {
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 36px;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.quote-accordion-toggle:hover {
+  background: rgba(165, 180, 252, 0.1);
+  color: #e0e7ff;
+}
+
+.quote-accordion-toggle:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
+.accordion-arrow {
+  font-size: 0.75rem;
+}
+
+.quote-evidences-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.epistemic-quote {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid #818cf8;
+  border-radius: 0 8px 8px 0;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.85);
 }

@@ -37,4 +37,29 @@ This document defines the implementation guidelines, compiler architecture, and 
 * `npm run dev`: Starts local Vite dev server on port 5173.
 * `npm run build`: Sub-second production compilation (`tsc -b && vite build`).
 * `npm run lint`: Runs ESLint across TypeScript and TSX source files.
+* `npm test`: Runs fast component unit tests via `node --test` and esbuild.
 * `npm run preview`: Previews the production build bundle locally.
+
+---
+
+## 4. Pre-Classification & Epistemic Lens SPA Invariants
+
+* **Unconditional State Reset on Submission**:
+  - On every new analysis submission (`handleSubmit` / `startAnalysis`), the frontend MUST immediately reset all previous results (`setResults(null)`), active errors (`setError(null)`), and streaming states. Stale video IDs or disclaimers must never leak into subsequent analysis runs.
+* **Force-Override Target Pinning (CRITICAL)**:
+  - When rendering the `#pp-force-analyze-btn` ("⚡ Analyze Anyway") on an ineligible disclaimer, the override handler MUST pin its target to the immutable `analyzedUrl` that generated the disclaimer, NOT the mutable input field state (`url`). This prevents a user who edited the input field from accidentally bypassing pre-classification on a completely different video.
+* **Epistemic Lens Component Guardrails**:
+  - Must visually classify truth frameworks across the 6 canonical theories (`Correspondence`, `Coherence`, `Pragmatic`, `Perspectivism`, `Consensus`, `Deflationary`) using distinct CSS color tokens.
+  - Epistemic summaries must remain strictly descriptive with no normative judgments or bias accusations.
+  - Transcript quote drawers must use accessible collapsible controls (`aria-expanded`, `aria-controls`).
+
+---
+
+## 5. Testing Architecture & TypeScript Isolation
+
+* **Fast Node Native Unit Testing**:
+  - React component markup and contract tests run via `node --test` bundled with `esbuild` and rendered via `react-dom/server` (`renderToStaticMarkup`) for sub-second feedback (<300ms) without heavy test framework overhead.
+* **Browser vs. Node Compiler Scope Separation**:
+  - `tsconfig.app.json` is reserved exclusively for browser client types (`"types": ["vite/client"]`).
+  - Unit test files containing Node imports (`node:test`, `node:assert/strict`) MUST be explicitly excluded in `tsconfig.app.json` via `"exclude": ["src/**/__tests__/*"]` to ensure `npm run build` (`tsc -b && vite build`) compiles with zero Node type leakage.
+
