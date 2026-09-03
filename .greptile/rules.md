@@ -54,10 +54,11 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * The Side Panel must render the `#state-ineligible` disclaimer with category tags, confidence meter, and `[⚡ Analyze Anyway]` force-override action.
   * Epistemic Lens cards in `#state-results` must sanitize all quote evidences and epistemic summary text before DOM injection.
 * **Analysis Concurrency & Override Lifecycle**:
-  * When `forceOverride` replaces an in-flight or recovered request, `client.js` must abort the running controller and await the existing promise's settlement before initiating the new request.
-  * Resumed execution promises in `recoverPersistedRequests()` must be registered into `pendingRequests` and cleaned up in a `finally` block upon settlement.
-  * Background state transitions (`cancelled`, `error`, `complete`) must preserve `requestId` to ensure the side panel can filter out superseded request events.
-  * Side panel generation guards must never launch `CHECK_CACHE` for superseded completions, and analysis start timestamps must be scoped to the active video ID to prevent cross-video cache rejection.
+  * When `forceOverride` replaces an in-flight or recovered request, `client.js` must abort running controllers, clear scheduled retry alarms, track the override in `activeOverrideVideoIds`, and await promise settlement before starting.
+  * Alarm listeners must pre-register `pendingRequests` and `AbortController` instances synchronously before yielding to asynchronous persistence in `executeAnalysisRequest`.
+  * `background.js` must assign non-null `requestId` values and adopt existing in-progress IDs for concurrent non-forced callers to prevent ownership theft.
+  * `background.js` state transitions must enforce strict `currentState.requestId === requestId` matching without `!currentState.requestId` loopholes.
+  * `sidepanel.js` must track `supersededRequestIds`, `completedRequestIds`, and `lastCompletedAnalyzedAt` to reject stale completions after `activeRequestId` has been cleared.
 
 ---
 
