@@ -911,6 +911,60 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(stateResults.style.display).toBe("flex");
     });
 
+    it("should ignore older same-video completion arriving after direct response has cleared activeRequestId", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let checkCacheCalledForStale = false;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          checkCacheCalledForStale = true;
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "Stale data" }],
+            },
+          });
+        }
+        if (message.type === "ANALYZE_VIDEO") {
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "Fresh override result" }],
+            },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. Direct analysis completes and clears activeRequestId
+      await sidepanelModule.startAnalysis("staleVideo11");
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+
+      // 2. An older superseded completion event arrives with an older analyzedAt timestamp
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      expect(messageListener).toBeDefined();
+
+      checkCacheCalledForStale = false;
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "staleVideo11",
+        state: {
+          status: "complete",
+          requestId: "older_req_111",
+          analyzedAt: Date.now() - 50000,
+        },
+      });
+
+      await new Promise((r) => setTimeout(r, 20));
+
+      // CHECK_CACHE should NOT have been launched for the stale completion
+      expect(checkCacheCalledForStale).toBe(false);
+      expect(stateResults.style.display).toBe("flex");
+    });
+
     it("should abort and await recovered execution when force override replaces non-forced persisted request", async () => {
       const client = new PerspectivePrismClient(
         "https://api.perspectiveprism.org",

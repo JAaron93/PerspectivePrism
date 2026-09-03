@@ -50,6 +50,9 @@ let pendingCheckCacheToken = 0;
 let activeRequestId = null;
 let activeAnalysisStartTime = 0;
 let activeAnalysisVideoId = null;
+let lastCompletedAnalyzedAt = 0;
+const supersededRequestIds = new Set();
+const completedRequestIds = new Set();
 let requestCounter = 0;
 
 // DOM Elements
@@ -193,6 +196,9 @@ async function startAnalysis(videoId, options = {}) {
   const requestedVideoId = videoId;
   const analysisToken = ++activeAnalysisToken;
   const requestId = `sp_${Date.now()}_${++requestCounter}`;
+  if (activeRequestId && activeRequestId !== requestId) {
+    supersededRequestIds.add(activeRequestId);
+  }
   activeRequestId = requestId;
   activeAnalysisStartTime = Date.now();
   activeAnalysisVideoId = videoId;
@@ -222,6 +228,8 @@ async function startAnalysis(videoId, options = {}) {
     if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
 
     if (response && response.success && response.data) {
+      completedRequestIds.add(requestId);
+      lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, Date.now());
       if (
         response.data.eligibility &&
         response.data.eligibility.is_analysable === false
@@ -692,6 +700,9 @@ async function checkCurrentTabState() {
       activeRequestId = null;
       activeAnalysisStartTime = 0;
       activeAnalysisVideoId = null;
+      lastCompletedAnalyzedAt = 0;
+      supersededRequestIds.clear();
+      completedRequestIds.clear();
       const container = document.getElementById("skeleton-container") || skeletonContainer;
       if (container) {
         container.innerHTML = "";
@@ -735,7 +746,10 @@ function handleAnalysisState(state) {
       
     case "in_progress": {
       // If this in-progress event belongs to a superseded request, ignore it
-      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+      if (
+        (state.requestId && supersededRequestIds.has(state.requestId)) ||
+        (activeRequestId && state.requestId && state.requestId !== activeRequestId)
+      ) {
         break;
       }
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
@@ -753,21 +767,34 @@ function handleAnalysisState(state) {
     }
       
     case "complete": {
-      // If this completion belongs to a superseded request or finished before active analysis began, ignore it
-      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+      // If this completion belongs to a superseded request, ignore it
+      if (
+        (state.requestId && supersededRequestIds.has(state.requestId)) ||
+        (activeRequestId && state.requestId && state.requestId !== activeRequestId)
+      ) {
         break;
       }
+      // If this completion was already processed and rendered, ignore duplicate event
+      if (state.requestId && completedRequestIds.has(state.requestId)) {
+        break;
+      }
+      // If completion analyzedAt is older than active analysis start or last rendered completion, ignore it
       if (
-        activeAnalysisVideoId === currentVideoId &&
-        activeAnalysisStartTime &&
         state.analyzedAt &&
-        state.analyzedAt < activeAnalysisStartTime
+        ((activeAnalysisVideoId === currentVideoId && activeAnalysisStartTime && state.analyzedAt < activeAnalysisStartTime) ||
+         (lastCompletedAnalyzedAt && state.analyzedAt < lastCompletedAnalyzedAt))
       ) {
         break;
       }
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
       if (isExternal) {
         activeAnalysisToken++;
+      }
+      if (state.requestId) {
+        completedRequestIds.add(state.requestId);
+      }
+      if (state.analyzedAt) {
+        lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, state.analyzedAt);
       }
       if (activeRequestId && state.requestId === activeRequestId) {
         activeRequestId = null;
@@ -920,6 +947,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       activeRequestId = null;
       activeAnalysisStartTime = 0;
       activeAnalysisVideoId = null;
+      lastCompletedAnalyzedAt = 0;
+      supersededRequestIds.clear();
+      completedRequestIds.clear();
     }
     checkCurrentTabState();
   } else if (message.type === "SYNC_PLAYBACK") {
