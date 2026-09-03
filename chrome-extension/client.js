@@ -1436,16 +1436,39 @@ class PerspectivePrismClient {
         console.log(`[PerspectivePrismClient] Alarm fired for ${videoId}`);
         const state = await this.getPersistedRequestState(videoId);
 
-        if (state) {
+        if (state && state.status !== "cancelled") {
+          // If a force override is already in flight for this video, do not execute stale retry
+          const inFlightOptions = this.pendingRequestOptions.get(videoId);
+          if (
+            inFlightOptions &&
+            (inFlightOptions.forceOverride || inFlightOptions.force_override)
+          ) {
+            logger.info(
+              `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override is in flight`,
+            );
+            return;
+          }
+
           // Use state.attemptCount to ensure we are in sync with persistence
-          await this.executeAnalysisRequest(
+          const retryPromise = this.executeAnalysisRequest(
             videoId,
             state.videoUrl,
             state.attemptCount,
             state.options || {},
           );
-          // executeAnalysisRequest handles notification on completion
-        } else {
+          this.pendingRequests.set(videoId, retryPromise);
+          this.pendingRequestOptions.set(videoId, state.options || {});
+          try {
+            await retryPromise;
+          } catch (_e) {
+            // executeAnalysisRequest handles error notification
+          } finally {
+            if (this.pendingRequests.get(videoId) === retryPromise) {
+              this.pendingRequests.delete(videoId);
+              this.pendingRequestOptions.delete(videoId);
+            }
+          }
+        } else if (!state) {
           // Fallback for missing state
           console.error(
             `[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`,

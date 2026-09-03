@@ -1000,5 +1000,109 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
         vi.useRealTimers();
       }
     });
+
+    it("should register alarm retry execution in pendingRequests and clean up on settlement", async () => {
+      let alarmListener;
+      chrome.alarms.onAlarm.addListener.mockImplementation((listener) => {
+        alarmListener = listener;
+      });
+
+      const client = new PerspectivePrismClient(
+        "https://api.perspectiveprism.org",
+        { storageType: "local" },
+      );
+
+      vi.spyOn(client, "getPersistedRequestState").mockResolvedValue({
+        videoId: "retryVid11ch",
+        videoUrl: "https://www.youtube.com/watch?v=retryVid11ch",
+        status: "retrying",
+        attemptCount: 1,
+        options: { forceOverride: false },
+      });
+
+      /** @type {(value?: any) => void} */
+      let retryResolve;
+      const retryPromise = new Promise((resolve) => {
+        retryResolve = resolve;
+      });
+      vi.spyOn(client, "executeAnalysisRequest").mockReturnValue(retryPromise);
+
+      // Trigger alarm
+      const alarmTask = alarmListener({ name: "retry::retryVid11ch::1" });
+      await Promise.resolve();
+
+      // While retry is executing, it is registered in pendingRequests
+      expect(client.pendingRequests.has("retryVid11ch")).toBe(true);
+      expect(client.pendingRequestOptions.get("retryVid11ch")).toEqual({
+        forceOverride: false,
+      });
+
+      // Settle retry
+      retryResolve({ success: true });
+      await alarmTask;
+
+      // After settlement, pendingRequests is cleaned up
+      expect(client.pendingRequests.has("retryVid11ch")).toBe(false);
+      expect(client.pendingRequestOptions.has("retryVid11ch")).toBe(false);
+    });
+
+    it("should allow force override to cancel and await active alarm retry execution", async () => {
+      let alarmListener;
+      chrome.alarms.onAlarm.addListener.mockImplementation((listener) => {
+        alarmListener = listener;
+      });
+
+      const client = new PerspectivePrismClient(
+        "https://api.perspectiveprism.org",
+        { storageType: "local" },
+      );
+
+      vi.spyOn(client, "getPersistedRequestState").mockResolvedValue({
+        videoId: "retryVid11ch",
+        videoUrl: "https://www.youtube.com/watch?v=retryVid11ch",
+        status: "retrying",
+        attemptCount: 1,
+        options: { forceOverride: false },
+      });
+
+      let abortCalled = false;
+      const mockController = {
+        abort: vi.fn(() => {
+          abortCalled = true;
+        }),
+        signal: {},
+      };
+      client.abortControllers.set("retryVid11ch", mockController);
+
+      let retrySettled = false;
+      const retryExecutionPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          retrySettled = true;
+          resolve({ success: false, isCancelled: true });
+        }, 20);
+      });
+      vi.spyOn(client, "executeAnalysisRequest").mockReturnValue(retryExecutionPromise);
+
+      // 1. Alarm fires and starts retry execution
+      alarmListener({ name: "retry::retryVid11ch::1" });
+      await Promise.resolve();
+      expect(client.pendingRequests.has("retryVid11ch")).toBe(true);
+
+      // 2. User selects Analyze Anyway while retry is executing
+      vi.spyOn(client, "makeAnalysisRequest").mockResolvedValue({
+        eligibility: { is_analysable: true },
+        claims: [],
+      });
+
+      // When performAnalysis runs with forceOverride: true, it should cancel and await the active retry
+      const forceTask = client.performAnalysis("retryVid11ch", {
+        forceOverride: true,
+      });
+
+      await forceTask;
+
+      expect(abortCalled).toBe(true);
+      expect(retrySettled).toBe(true);
+    });
   });
 });
