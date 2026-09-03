@@ -15,11 +15,17 @@ This document defines the implementation guidelines, security invariants, testin
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.
 * **Zero-Throttling Capability Standards (ADR 006)**:
-  - Dynamic `thinking_level` routing via `build_agent_generation_config`:
-    - Heavy analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) configure `thinking_level="HIGH"` and `max_output_tokens=65536`.
-    - Lightweight guardrail routers (`PreClassifierService`) configure `thinking_level="LOW"` and `max_output_tokens=2048`.
-  - HTTP timeout: All `generate_content_config` instances configure `types.HttpOptions(timeout=120.0)` via `Settings.GEMINI_HTTP_TIMEOUT` to allow deep thinking loops sufficient runway.
-  - Thought signature preservation: Telemetry and audit processors MUST exempt keys in `EXCLUDED_TELEMETRY_KEYS` from redaction or truncation.
+  - **Mandatory Generation Config Factory**: Every ADK 2.0 `Agent` instance MUST attach a `generate_content_config` created via `build_agent_generation_config(model=..., task_type=..., settings=...)`. Raw `Agent(...)` instantiations without generation configs are strictly prohibited.
+  - **Task-Aware Dynamic `thinking_level` Standards**:
+    - Deep analytical / extraction / evaluation agents (`extractor`, `analysis`, `alethiology`, `judge`): Must resolve to `thinking_level="HIGH"` (`types.ThinkingLevel.HIGH`) to exploit Gemini 3.8 Flash's native recursive reasoning loops.
+    - Micro-tasks / guardrail classifiers (`router`, `classifier`): Must resolve to `thinking_level="LOW"` (`types.ThinkingLevel.LOW`) and `max_output_tokens=2048` to preserve sub-second latency and avoid token inflation.
+  - **Output Ceilings & HTTP Timeout Runway**:
+    - Analytical agents must configure `max_output_tokens=65536` (64K ceiling).
+    - Request HTTP options must configure `timeout=120.0` (`types.HttpOptions(timeout=120.0)` via `Settings.GEMINI_HTTP_TIMEOUT`) to prevent premature cancellation of multi-step internal reasoning trajectories.
+  - **Thought Signature & Thinking Preservation**:
+    - Telemetry processors, audit loggers, and trace sanitizers must exempt keys in `EXCLUDED_TELEMETRY_KEYS` (`thought`, `thoughts`, `thought_tokens`, `thought_signature`, `think`, `reasoning`) from redaction or deletion.
+  - **Lean Prompt Scaffolding**:
+    - Prohibit defensive chain-of-thought instructions ("think step-by-step", forced XML reflection blocks) that duplicate native model reasoning tokens. Agent system prompts must remain strictly focused on their role directives and Pydantic schema constraints.
 
 ---
 
