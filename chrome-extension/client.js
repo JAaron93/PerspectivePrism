@@ -257,6 +257,14 @@ class PerspectivePrismClient {
     }
     const controller = this.abortControllers.get(videoId);
 
+    if (controller?.signal?.aborted) {
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
+
     // Persist state start
     await this.persistRequestState({
       videoId,
