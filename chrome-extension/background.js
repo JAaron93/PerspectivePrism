@@ -443,24 +443,27 @@ async function handleCancelAnalysis(message) {
   }
 
   const videoId = validation.videoId;
-  const requestId = message.requestId || null;
+  const preCancelState = await StateManager.get(videoId);
+  const targetRequestId = message.requestId || preCancelState?.requestId || null;
   
   try {
     const cancelled = await activeClient.cancelAnalysis(videoId);
     
     if (cancelled) {
       const currentState = await StateManager.get(videoId);
-      if (!requestId || !currentState || currentState.requestId === requestId) {
-        // Update state to cancelled
+      if (!currentState || (targetRequestId && currentState.requestId === targetRequestId)) {
+        // Update state to cancelled only if this request still owns the state
         const saved = await setAnalysisState(videoId, {
           status: 'cancelled',
           cancelledAt: Date.now(),
-          requestId: requestId || currentState?.requestId || `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          requestId: targetRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         });
 
         if (!saved) {
            logger.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
         }
+      } else {
+        logger.info(`[Perspective Prism] Superseded cancellation ignored for ${videoId} (active=${currentState?.requestId}, target=${targetRequestId})`);
       }
       
       return { success: true, cancelled: true };
