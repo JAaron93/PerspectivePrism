@@ -19,19 +19,20 @@ Perspective Prism is an AI agent that acts as an automated, multi-perspective fa
 [See detailed architecture](architecture.md)
 
 ![Perspective Prism Architecture](assets/img_1764592936221.png)
-Perspective Prism operates as a pipeline of specialized sub-agents:
+Perspective Prism operates as an end-to-end pipeline of specialized sub-agents:
 
-1.  **Claim Extractor**: Uses an LLM to parse YouTube transcripts and identify distinct, verifiable claims.
-2.  **Evidence Retriever**: Dynamically queries the Google Custom Search API to find external evidence.
-3.  **Analysis Engine**: Synthesizes the claim and retrieved evidence to determine support/refutation and detects bias.
-    *   **AI Engine**: Utilizes Gemini API (`gemini-3.5-flash-lite`) via the `google-genai` SDK and the `google-adk` framework for structured outputs.
-    *   **Reliability Layer**: Features a custom `google-genai` circuit breaker that automatically falls back to `gemini-3.1-flash-lite` during transient API errors (e.g. 429, 500, 503).
-4.  **Truth Profiler**: Aggregates these insights into a user-friendly "Truth Profile".
+1.  **Pre-Classification Guardrail Gate**: Evaluates video title, metadata, and transcript snippet using deterministic regex (<1ms) and a lightweight Gemini classifier agent (`gemini-3.5-flash-lite`). Non-factual content (music, gaming clips, comedy, vlogs) returns early with a structured `ContentEligibilityResult`, saving token quota while empowering users with an accessible `[⚡ Analyze Anyway]` force-override action.
+2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.5-flash-lite`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
+3.  **Evidence Retriever**: Dynamically queries the Google Custom Search API in parallel across four distinct perspectives (Scientific, Journalistic, Partisan Left, Partisan Right).
+4.  **Perspective & Bias Analysis**: Evaluates extracted claims against retrieved evidence, assesses support/refutation stances, and detects emotional manipulation or logical fallacies.
+5.  **Alethiology Engine (Epistemic Lens)**: Assesses the philosophical grounding of each claim across four classical theories of truth (Correspondence, Coherence, Pragmatic, Consensus), extracting exact transcript quotes and synthesizing an epistemic summary.
+6.  **Truth Profiler**: Aggregates perspective stances, bias scores, and epistemic lens analyses into a rich, intuitive "Truth Profile".
 
 ### 🚀 High-Performance Analysis
 Perspective Prism offers:
-- **Enhanced Claim Analysis**: The system supports a configurable claim limit (default: **15 claims**) via the `MAX_CLAIMS_PER_ANALYSIS` setting, allowing flexibility based on video complexity and API constraints.
-- **Extended Transcript Coverage**: Supports transcript processing up to 100k characters, enabling comprehensive analysis of long-form content (lectures, long-form podcasts, and documentaries).
+- **Pre-Classification Quota Protection**: Non-factual videos bypass expensive multi-query evidence retrieval and multi-agent synthesis unless explicitly overridden by the user.
+- **Enhanced Claim Analysis**: Supports a configurable claim limit (default: **15 claims**) via `MAX_CLAIMS_PER_ANALYSIS`, balancing depth with API efficiency.
+- **Extended Transcript Coverage**: Supports transcripts up to 100k characters, enabling deep-dive analysis of long-form content (lectures, podcasts, investigative journalism).
 
 ## 🦾 Essential Tools and Utilities
 
@@ -40,6 +41,14 @@ The Perspective Prism multi-agent system is equipped with custom-built tools des
 ### Input Sanitizer (`input_sanitizer.py`)
 
 A critical security tool that protects against Large Language Model (LLM) prompt injection attacks, backed by a high-performance compiled Rust extension (`prism_sanitizer_rs` integrated via PyO3 and Maturin). Before any user-provided data (YouTube URLs, transcript text, or claims) is interpolated into LLM prompts, the sanitizer performs comprehensive validation. It detects and blocks suspicious patterns like `ignore previous instructions`, `system:`, `<|im_start|>`, and other common injection techniques. The tool employs multiple defense layers: Unicode NFKC normalization to neutralize full-width and homoglyph evasion, high-speed control character detection, regex pattern matching against a blocklist, character escaping, and length enforcement. Additionally, it wraps user data in clearly delimited sections using per-request dynamic cryptographic nonces (`===USER DATA <nonce> START===` and `===USER DATA <nonce> END===`) to neutralize delimiter forgery attacks and optimize Gemini's implicit context caching.
+
+### Content Classifier Service (`content_classifier.py`)
+
+A two-tier pre-classification guardrail gate that assesses whether a video's transcript contains verifiable empirical claims before initiating heavy downstream pipeline operations. The service runs a sub-millisecond deterministic regex fast-path inspecting title, description, and transcript cues for obvious non-factual categories (e.g. music videos, esports gameplay, entertainment sketches). If inconclusive, it invokes a lightweight Vertex AI ADK 2.0 classifier agent (`gemini-3.5-flash-lite`, with circuit-breaker fallback to `gemini-3.1-flash-lite`). Videos classified as ineligible return early with a structured `ContentEligibilityResult` (category, confidence score, user-facing explanation), preventing unnecessary token and search API consumption while preserving user autonomy through a force-override mechanism.
+
+### Alethiology Service (`alethiology_service.py`)
+
+An epistemic analysis engine that evaluates extracted claims against four classical philosophical theories of truth: **Correspondence** (alignment with observable empirical reality), **Coherence** (internal logical consistency within a theoretical model), **Pragmatic** (practical utility and predictive value), and **Consensus** (inter-subjective agreement across scientific or expert communities). Powered by Google ADK 2.0 with strict Gemini structured outputs, the agent outputs primary and secondary theory classifications, an epistemic synthesis summary, and verbatim supporting quotes, elevating the analysis beyond binary true/false verdicts into rich epistemological depth.
 
 ### Agent Evaluator (`evaluate_agents.py`)
 
@@ -71,6 +80,12 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 
 - **Native Chrome Side Panel Integration (`chrome.sidePanel`)**
   - Renders progressive claim streams, stance chips, and deception ratings exclusively in Chrome's native side panel without creating or mounting in-page floating DOM overlays (`#pp-analysis-panel` excised).
+- **Pre-Classifier Ineligibility Disclaimer & Force-Override Gate**
+  - When non-factual content is detected, displays an accessible `#state-ineligible` container with category tags, confidence score meter, explanatory message, and an accessible `[⚡ Analyze Anyway]` force-override button that bypasses pre-classification and pins `forceOverride: true`.
+- **Epistemic Lens Truth Theory Visualization**
+  - Claim cards render an Epistemic Lens card (`.pp-epistemic-lens-card`) featuring primary and secondary philosophical theory chips (Correspondence, Coherence, Pragmatic, Consensus), an epistemic synthesis summary, and an accessible collapsible quote evidence drawer (`.pp-quote-drawer`).
+- **Resilient MV3 Service Worker Concurrency**
+  - Background service worker and client architecture feature generational cache staleness invalidation (`pendingCheckCacheToken`), synchronous ownership clearing upon analysis completion, stale cancellation rejection (`targetRequestId`), and smooth multi-caller waiting on intermediate background retries.
 - **BYOK & Sensitive Data Storage Isolation (`chrome.storage.local`)**
   - Stores all user credentials, backend URL settings, and consent flags exclusively in `chrome.storage.local`, isolating sensitive secrets from `chrome.storage.sync` with automatic one-time upgrade migration.
 - **Service Worker IPC Origin Validation**
@@ -84,11 +99,11 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 - **Content-Hashed Local Storage Caching**
   - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
 - **Comprehensive Quality Assurance & E2E Testing**
-  - **Vitest Unit Test Suite**: Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
+  - **Vitest Unit Test Suite**: 232 Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
   - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
-  - **FastAPI Pytest Backend Suite**: Complete backend test suite covering API endpoints, claim extraction, and reliability circuit breakers (`pytest`).
-- **AI Code Review & Quality Gates (Qodo)**
-  - Automated PR reviews and hard compliance checks configured via [.qodo.yaml](.qodo.yaml) and [pr_compliance_checklist.yaml](pr_compliance_checklist.yaml).
+  - **FastAPI Pytest Backend Suite**: 207 tests covering API endpoints, claim extraction, classifier guardrails, and alethiology agents (`pytest`).
+- **AI Code Review & Quality Gates (Greptile)**
+  - Automated PR reviews and hard architectural compliance checks configured via [.greptile/rules.md](.greptile/rules.md) and [.greptile/config.json](.greptile/config.json).
 - **Chrome Web Store Submission Disclosure**
   - Full metadata, privacy disclosure, CSP compliance, and permission justifications documented in [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md).
 

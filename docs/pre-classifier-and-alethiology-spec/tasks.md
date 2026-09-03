@@ -136,17 +136,17 @@
 
 ## Track 7: Architecture Decision Record & Documentation Sync
 
-- [ ] **T7.1: Author ADR 005 for Pre-Classification Gate and Alethiology Agent**
+- [x] **T7.1: Author ADR 005 for Pre-Classification Gate and Alethiology Agent**
   - **Description**: Create `docs/adr/005-pre-classification-gate-and-alethiology-agent.md` recording the architectural decision, options considered, Vertex AI ADK 2.0 configuration, and epistemic taxonomy rationale.
   - **Dependencies**: T4.1, T5.4
   - **Traceability**: NFR2, NFR3
 
-- [ ] **T7.2: Update System Architecture Documentation**
+- [x] **T7.2: Update System Architecture Documentation**
   - **Description**: Update `architecture.md` and `README.md` to document the new pipeline stages, API contracts, and user guide for the "Epistemic Lens" and "Analyze Anyway" features.
   - **Dependencies**: T7.1
   - **Traceability**: Zero-Drift Invariant
 
-- [ ] **T7.3: Full Integration Smoke Test & Zero-Drift Verification**
+- [x] **T7.3: Full Integration Smoke Test & Zero-Drift Verification**
   - **Description**: Execute the complete backend test suite (`pytest`) and frontend/extension test suites (`npm test`, `npm run test:integration`), verifying 100% pass rate and zero drift between specification artifacts and code.
   - **Dependencies**: T4.2, T5.6, T6.3, T7.2
   - **Traceability**: Zero-Drift Invariant, US5
