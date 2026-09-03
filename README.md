@@ -122,10 +122,10 @@ python .benchmarks/evaluate_agents.py
 * **Weights & Biases Weave Mode (Cloud)**: If Weights & Biases credentials are configured in your environment (e.g., `WANDB_API_KEY`, netrc, or global W&B settings), the script initializes Weave under the project name `"perspective-prism-evals"`. It logs full LLM trace details, latencies, and custom scores using Weave's `Model`, `Dataset`, and `Scorer` APIs.
 * **Local Fallback Mode**: If no W&B credentials are found, the script automatically sets `WEAVE_DISABLED=true` to bypass cloud-logging. It runs a clean local fallback benchmarking loop in your terminal without displaying blocking login prompts, printing detailed per-video results and performance averages.
 
-### Rate-Limit & Concurrency Configuration
-The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
-* **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
-* **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
+### High-Throughput Tier & Concurrency Configuration
+Perspective Prism operates exclusively under **GCP Vertex AI Paid Tier Mode** (`GEMINI_TIER=paid`) under [ADR 003](docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md):
+* **Paid Tier Enterprise Quota**: High concurrency (`tier_max_concurrency=10` or higher) with 300+ RPM quota and zero artificial delays.
+* **Zero-Throttling Generation Standards (ADR 007)**: Primary analytical agents enforce `thinking_level="HIGH"`, 64K token ceilings (`max_output_tokens=65536`), and 120s HTTP timeout runway (`GEMINI_HTTP_TIMEOUT=120.0`).
 
 ### Red-Team Prompt-Injection Suite
 To run the deterministic prompt-injection validation suite offline (zero network calls, <60s execution):
@@ -163,10 +163,10 @@ Since there are no funds allocated to scale this extension further, the extensio
   - Python 3.10 or higher
   - Rust compiler (`cargo`, `rustc` via rustup) & `maturin` for compiling the input sanitizer
   - Node.js 18+ (LTS) or 20+
-- **API Keys**:
-  - **Gemini API Key**: Required for claim extraction and perspective analysis.
-  - **Google Custom Search JSON API Key**: Required for evidence retrieval.
-  - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
+- **Authentication & Cloud Credentials**:
+  - **Google Cloud Application Default Credentials (ADC)**: `gcloud auth application-default login` linked to a billable `GCP_PROJECT` for Vertex AI Gemini 3.8 Flash access (zero API keys).
+  - **Google Custom Search JSON API Key**: Required for evidence retrieval (`GOOGLE_API_KEY`).
+  - **Google Search Engine ID**: A programmable search engine configured to search the entire web or trusted sites (`GOOGLE_CSE_ID`).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
 <a id="setup-installation"></a>
@@ -221,6 +221,12 @@ GCP_LOCATION=global
 GEMINI_TIER=paid
 LLM_MODEL=gemini-3.8-flash
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
+
+# Zero-Throttling Architecture (ADR 007)
+GEMINI_THINKING_LEVEL=high
+GEMINI_MAX_OUTPUT_TOKENS=65536
+GEMINI_HTTP_TIMEOUT=120.0
+GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=false
 ```
 
 Additional configuration:
@@ -365,7 +371,7 @@ npm run test:integration
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
+| **401 Unauthorized** | Missing or expired GCP ADC credentials | Run `gcloud auth application-default login` and ensure `GCP_PROJECT` is set in `.env`. |
 | **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
 | **CORS Error** | Frontend origin not allowed | Distinguish the request origin: For Chrome extension requests, add the extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. For standalone web applications (e.g., React app), add the origin (e.g., `http://localhost:5173`) to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |

@@ -61,6 +61,14 @@ Perspective Prism enforces strict CPU-bound workload isolation under [ADR 001](d
 - **Vectorized Chunking**: Pre-allocates buffer capacity for 100k-character transcripts, eliminating quadratic memory allocations.
 - **Specification Index**: The complete technical blueprint is documented under [`docs/rust-core-engine-spec/`](docs/rust-core-engine-spec/).
 
+### Zero-Throttling Foundation Model Architecture (ADR 007)
+The pipeline is optimized for **Gemini 3.8 Flash** under [ADR 007](docs/adr/007-gemini-38-flash-capability-optimization.md), prioritizing native reasoning depth and output completeness over cost or throttling:
+- **Dynamic `thinking_level` Partitioning**:
+  - **Stage 1 (Pre-Classification Gate)**: Micro-task screening runs with `thinking_level="LOW"` and `max_output_tokens=2048` to preserve sub-second short-circuit latency.
+  - **Stages 2, 4, & 5 (Claim Extraction, Perspective Analysis, Alethiology)**: Deep analytical agents enforce `thinking_level="HIGH"`, unlocking native internal reasoning for decomposing nuanced claims, detecting deception, and synthesizing epistemic truth theories.
+- **Immutable Analytical Floors**: Factory `build_agent_generation_config` strictly guarantees `max_output_tokens >= 65536` (64K ceiling) and `http_timeout >= 120.0` (120s runway) for all analytical tasks, protecting against accidental throttling from blanket environment variables.
+- **Thought Signature & Token Preservation**: Telemetry sanitizers explicitly exclude thinking tokens (`EXCLUDED_TELEMETRY_KEYS`) to preserve multi-turn agent memory continuity and reasoning traces.
+
 ---
 
 ## Analysis Flow & Pipeline Stages

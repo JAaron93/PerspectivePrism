@@ -69,6 +69,38 @@
 - `app/services/alethiology_service.py` — `AlethiologyService._run_agent_with_fallback()`
 - `app/services/analysis_service.py` — `AnalysisService._run_agent_with_fallback()`
 
+### `build_agent_generation_config(model=None, *, task_type=None, settings=None, thinking_level=None, max_output_tokens=None, http_timeout=None) -> types.GenerateContentConfig`
+
+**Purpose:** Canonical factory function for instantiating Google GenAI `GenerateContentConfig` instances with ThinkingConfig, token ceilings, and HTTP timeouts aligned with the Zero-Throttling Architecture (ADR 007). Enforces immutable architectural floors on analytical tasks (`thinking_level="HIGH"`, `max_output_tokens >= 65536`, `http_timeout >= 120.0`), resisting blanket environment downgrades unless `GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=True` is explicitly set.
+
+**Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `model` | `str \| None` | `None` | Gemini model name string (defaults to `gemini-3.8-flash`). |
+| `task_type` | `str \| None` | `None` | Task category (`"extractor"`, `"analysis"`, `"alethiology"`, `"judge"`, `"evaluator"`, `"router"`, `"classifier"`). |
+| `settings` | `Any \| None` | `None` | Application `Settings` instance for environment overrides. |
+| `thinking_level` | `str \| None` | `None` | Explicit thinking level override (`"minimal"`, `"low"`, `"medium"`, `"high"`). |
+| `max_output_tokens` | `int \| None` | `None` | Maximum output token ceiling (analytical tasks enforce $\ge 65536$). |
+| `http_timeout` | `float \| None` | `None` | HTTP timeout in seconds (analytical tasks enforce $\ge 120.0$). |
+
+**Returns:** `types.GenerateContentConfig` configured with `thinking_config` and `http_options`.
+
+**Used by:**
+- `app/services/claim_extractor.py` — `ClaimExtractor.__init__()`
+- `app/services/content_classifier.py` — `PreClassifierService.__init__()`
+- `app/services/analysis_service.py` — `AnalysisService.__init__()`
+- `app/services/alethiology_service.py` — `AlethiologyService.__init__()`
+- `.benchmarks/redteam/judge.py` — `create_llm_judge_agent()`
+
+### `get_gemini_thinking_level(model=None, default=None, *, task_type=None, settings=None) -> str | None`
+
+**Purpose:** Resolves the appropriate thinking level string (`"minimal"`, `"low"`, `"medium"`, `"high"`) for Gemini models. Enforces an immutable floor of `"high"` for analytical task types unless `GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=True`. Bypasses deep thinking for routers and micro-tasks (`"low"`).
+
+**Constants & Classification Sets:**
+- `ANALYTICAL_TASK_TYPES`: `frozenset({"extractor", "analysis", "alethiology", "evaluator", "judge"})`
+- `ROUTER_TASK_TYPES`: `frozenset({"micro_task", "router", "classifier"})`
+- `EXCLUDED_TELEMETRY_KEYS`: `Set[str]` protecting thinking tokens and thought signatures (`"thought"`, `"thought_tokens"`, `"thought_signature"`, `"reasoning"`) from sanitization or logging redaction.
+
 ---
 
 ## Backend: `app/utils/prompt_helpers.py`
