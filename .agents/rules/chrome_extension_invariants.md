@@ -108,3 +108,14 @@ This document defines the implementation guidelines, security invariants, storag
 * **Cross-Video Timestamp Isolation**:
   - `activeAnalysisStartTime` in `sidepanel.js` MUST be paired with `activeAnalysisVideoId` and only checked when `activeAnalysisVideoId === currentVideoId`.
   - On `VIDEO_NAVIGATED`, `YOUTUBE_NAVIGATED`, or tab change, `sidepanel.js` MUST reset `activeRequestId = null`, `activeAnalysisStartTime = 0`, and `activeAnalysisVideoId = null` to prevent timestamp leakage across different videos.
+* **Synchronous Ownership Clearing on Complete**:
+  - In `sidepanel.js`, `activeRequestId`, `activeAnalysisStartTime`, and `activeAnalysisVideoId` MUST be cleared synchronously upon receiving the matching `complete` status event before dispatching `CHECK_CACHE`.
+  - Completed requests MUST NOT retain `activeRequestId` across the asynchronous cache lookup round-trip, as retaining ownership causes incoming progress and completion events from newer externally initiated analyses to be discarded by `(activeRequestId && state.requestId !== activeRequestId)`.
+  - Cache staleness detection during asynchronous cache retrieval MUST rely exclusively on monotonic generational tokens (`pendingCheckCacheToken`) and checking `activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId`.
+* **Intermediate Retry Resolver Attachment**:
+  - In `client.js` `performAnalysis()`, concurrent callers joining an in-flight execution that yields `{ isRetry: true }` MUST attach to `pendingResolvers` to await the terminal settlement broadcast by `notifyCompletion()`, preventing premature resolution during background retries.
+* **Stale Cancellation Target Guard**:
+  - In `background.js` `handleCancelAnalysis()`, the handler MUST capture `targetRequestId = message.requestId || preCancelState?.requestId || null` and verify that `message.requestId` matches `preCancelState.requestId` before calling `activeClient.cancelAnalysis(videoId)`.
+  - State MUST only be transitioned to `cancelled` if `currentState.requestId === targetRequestId`.
+* **Post-Persistence Abort Cleanup**:
+  - In `client.js` `executeAnalysisRequest()`, the controller signal MUST be checked both before and after `await this.persistRequestState()`. If aborted post-persistence, the client MUST call `await this.cleanupPersistedRequest(videoId)` to prevent stranded recovery state in storage.
