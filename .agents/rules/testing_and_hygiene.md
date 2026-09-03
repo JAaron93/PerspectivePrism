@@ -41,6 +41,10 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Git Merge Resolution & Parent Verification**:
   - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit` (or explicit merge commit message).
   - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
+* **Concurrent ADR Branch Renumbering Protocol**:
+  - **Collision Detection**: When resolving merge conflicts against `main`, inspect `docs/adr/` for newly merged ADRs that share the same sequential index as the feature branch's new ADR.
+  - **Renumbering**: If a collision occurs (e.g. both branches introduced `006-*`), renumber the newer feature branch ADR to the next available sequential integer (e.g. `007-*`) using `git mv` to preserve git file tracking.
+  - **Cross-Reference Synchronization**: Update the ADR title heading, `AGENTS.md` Supreme Architecture Invariants, `.agents/rules/` domain rulebooks, and `.greptile/rules.md` references before concluding the merge commit.
 * **Documentation Hygiene & Test Suite Claims**:
   - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
   - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).
