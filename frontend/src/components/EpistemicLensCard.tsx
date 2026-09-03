@@ -1,21 +1,12 @@
 import React, { useState } from 'react';
-import type { AlethiologyAnalysis, TruthTheoryType } from '../types';
+import type { AlethiologyAnalysis } from '../types';
 import { ThinkingComponent } from './ThinkingComponent';
+import { getTheoryColorClass } from '../utils/alethiology';
 
 export interface EpistemicLensCardProps {
   alethiology?: AlethiologyAnalysis | null;
   isStreaming?: boolean;
 }
-
-const getTheoryColorClass = (theory: TruthTheoryType): string => {
-  if (theory.startsWith('Correspondence')) return 'theory-correspondence';
-  if (theory.startsWith('Coherence')) return 'theory-coherence';
-  if (theory.startsWith('Pragmatic')) return 'theory-pragmatic';
-  if (theory.startsWith('Perspectivism')) return 'theory-perspectivism';
-  if (theory.startsWith('Consensus')) return 'theory-consensus';
-  if (theory.startsWith('Deflationary')) return 'theory-deflationary';
-  return 'theory-default';
-};
 
 export const EpistemicLensCard: React.FC<EpistemicLensCardProps> = ({
   alethiology,
