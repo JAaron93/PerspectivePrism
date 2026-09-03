@@ -13,11 +13,17 @@ from app.models.schemas import (
 from app.utils.input_sanitizer import (
     SanitizationError,
     sanitize_input,
-    sanitize_metadata_field,
-    sanitize_category_string,
+    sanitize_video_metadata,
 )
-from app.utils.llm_utils import execute_adk_agent
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.llm_utils import (
+    execute_adk_agent,
+    init_tier_concurrency,
+    execute_agent_with_circuit_breaker,
+)
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    format_classifier_user_data,
+)
 from google.adk.agents import Agent
 from google.genai import errors
 
@@ -217,24 +223,13 @@ OUTPUT:
 class PreClassifierService:
     def __init__(self, model_name: str | None = None, settings: Any = None):
         self.settings = settings or globals().get("settings")
-        provider_info = configure_provider_env(self.settings)
-
+        provider_info, max_concurrent, self._llm_semaphore = init_tier_concurrency(
+            self.settings, service_name="PreClassifierService", configure_fn=configure_provider_env
+        )
         self.gcp_project = provider_info["project"]
         self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
-
-        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
-        try:
-            max_concurrent = max(1, int(max_concurrent_raw))
-        except (ValueError, TypeError):
-            max_concurrent = 4
         self.max_concurrency = max_concurrent
-        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
-        logger.info(
-            "PreClassifierService initialized with GEMINI_TIER=%s (max_concurrency=%d)",
-            self.gemini_tier,
-            self.max_concurrency
-        )
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
         primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
@@ -288,90 +283,16 @@ class PreClassifierService:
         user_prompt: str,
         output_key: str = "pre_classifier_result",
     ) -> Any:
-        use_backup = False
-        is_probe = False
-
-        async with self._cb_lock:
-            if self.cb_open:
-                reset_timeout = getattr(self.settings, "CIRCUIT_BREAKER_RESET_TIMEOUT", 60)
-                if time.time() - self.cb_last_failure_time > reset_timeout:
-                    logger.info("Pre-classifier circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
-                    self.cb_open = False
-                    self.cb_half_open = True
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-            elif self.cb_half_open:
-                if not self.cb_probing:
-                    logger.info("Pre-classifier circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-
-        if use_backup:
-            logger.warning("Pre-classifier circuit breaker OPEN/PROBING. Using backup provider.")
-            try:
-                return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-            except Exception as e:
-                raise PreClassifierServiceError(f"Fallback to backup failed: {e}") from e
-
-        try:
-            result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
-            async with self._cb_lock:
-                if is_probe:
-                    logger.info("Pre-classifier probe request successful. Closing circuit breaker.")
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                    self.cb_failures = 0
-                elif not self.cb_open and not self.cb_half_open and self.cb_failures > 0:
-                    logger.info("Pre-classifier primary provider recovered. Resetting failure count.")
-                    self.cb_failures = 0
-            return result
-
-        except Exception as e:
-            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 502, 503, 504)
-
-            if not is_transient:
-                logger.error(f"Non-transient error in pre-classifier agent: {e}")
-                async with self._cb_lock:
-                    if is_probe:
-                        self.cb_open = True
-                        self.cb_half_open = False
-                        self.cb_probing = False
-                raise e
-
-            current_use_backup = False
-            async with self._cb_lock:
-                self.cb_last_failure_time = time.time()
-                fail_threshold = getattr(self.settings, "CIRCUIT_BREAKER_FAIL_THRESHOLD", 3)
-                if is_probe:
-                    logger.error(f"Pre-classifier probe request FAILED: {e}. Re-opening circuit breaker.")
-                    self.cb_open = True
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                elif not self.cb_open and not self.cb_half_open:
-                    self.cb_failures += 1
-                    logger.error(f"Pre-classifier primary provider failed (Count: {self.cb_failures}): {e}")
-                    if self.cb_failures >= fail_threshold:
-                        self.cb_open = True
-                        logger.critical("Pre-classifier circuit breaker TRIPPED. Switching to backup provider.")
-                current_use_backup = True
-
-            if current_use_backup:
-                logger.warning("Pre-classifier primary failed with transient error. Falling back to backup agent...")
-                try:
-                    return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-                except Exception as backup_err:
-                    if "Budget exhausted" in str(backup_err):
-                        raise backup_err
-                    logger.error(f"Pre-classifier backup provider ALSO failed: {backup_err}")
-                    raise PreClassifierServiceError(
-                        f"Primary and backup providers both failed. Backup error: {backup_err}"
-                    ) from backup_err
-
-            raise e
+        return await execute_agent_with_circuit_breaker(
+            service_state=self,
+            run_direct_fn=self._run_agent_direct,
+            agent_primary=agent_primary,
+            agent_backup=agent_backup,
+            user_prompt=user_prompt,
+            output_key=output_key,
+            service_name="Pre-classifier",
+            error_cls=PreClassifierServiceError,
+        )
 
     async def classify_video(
         self,
@@ -395,14 +316,7 @@ class PreClassifierService:
 
         # 2. Input Sanitization
         try:
-            clean_title = sanitize_metadata_field(metadata.title if metadata else "", "Title")
-            clean_channel = sanitize_metadata_field(metadata.channel_name if metadata else "", "Channel")
-            clean_category = sanitize_category_string(metadata.category_name if metadata else "")
-            clean_desc = sanitize_metadata_field(metadata.description_snippet if metadata else "", "Description", max_length=500)
-            clean_tags = ", ".join([
-                sanitize_metadata_field(tag, "Tag", max_length=100)
-                for tag in (metadata.tags if metadata else [])
-            ])
+            metadata_clean = sanitize_video_metadata(metadata)
             clean_preview = ""
             if transcript_preview and transcript_preview.strip():
                 clean_preview = sanitize_input(
@@ -425,12 +339,7 @@ class PreClassifierService:
 
         # 3. Build Prompt with Static Instructions & Nonce Delimiters
         user_prompt = build_user_data_prompt(
-            f"TITLE: {clean_title}\n"
-            f"CHANNEL: {clean_channel}\n"
-            f"CATEGORY: {clean_category}\n"
-            f"TAGS: {clean_tags}\n"
-            f"DESCRIPTION: {clean_desc}\n"
-            f"TRANSCRIPT PREVIEW:\n{clean_preview if clean_preview else 'NO TRANSCRIPT AVAILABLE'}",
+            format_classifier_user_data(metadata_clean, clean_preview),
             "Please determine if this video is eligible for claim and bias analysis according to the instructions and schema."
         )
 

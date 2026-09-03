@@ -8,7 +8,7 @@ interpolated into LLM prompts, protecting against prompt injection attacks.
 import re
 import secrets
 import unicodedata
-from typing import Optional
+from typing import Optional, Any, Dict, Iterable, List
 
 # Constants for delimited sections
 USER_DATA_START = "===USER DATA START==="
@@ -237,6 +237,65 @@ def sanitize_quote_evidence(quote: str) -> str:
         allow_suspicious_patterns=False,
         allow_control_chars=False
     )
+
+
+def sanitize_quote_evidences(quotes: Optional[Iterable[str]]) -> List[str]:
+    """
+    Iterates over transcript quote evidence strings from the Alethiology agent,
+    applies sanitize_quote_evidence(), and filters out any quotes that fail sanitization.
+
+    Returns:
+        List of sanitized quote evidence strings.
+    """
+    if not quotes:
+        return []
+    clean_quotes = []
+    for quote in quotes:
+        try:
+            clean_quotes.append(sanitize_quote_evidence(quote))
+        except SanitizationError:
+            continue
+    return clean_quotes
+
+
+def sanitize_video_metadata(metadata: Optional[Any]) -> Dict[str, str]:
+    """
+    Sanitizes all string fields within a VideoMetadata object or returns clean empty strings.
+
+    Returns:
+        dict with keys: 'title', 'channel_name', 'category_name', 'description_snippet', 'tags'
+    """
+    if metadata is None:
+        return {
+            "title": "",
+            "channel_name": "",
+            "category_name": "",
+            "description_snippet": "",
+            "tags": "",
+        }
+
+    clean_title = sanitize_metadata_field(getattr(metadata, "title", None) or "", "Title")
+    clean_channel = sanitize_metadata_field(getattr(metadata, "channel_name", None) or "", "Channel")
+    clean_category = sanitize_category_string(getattr(metadata, "category_name", None) or "")
+    clean_desc = sanitize_metadata_field(
+        getattr(metadata, "description_snippet", None) or "",
+        "Description",
+        max_length=500
+    )
+
+    raw_tags = getattr(metadata, "tags", None) or []
+    clean_tags = ", ".join([
+        sanitize_metadata_field(tag, "Tag", max_length=100)
+        for tag in raw_tags
+    ])
+
+    return {
+        "title": clean_title,
+        "channel_name": clean_channel,
+        "category_name": clean_category,
+        "description_snippet": clean_desc,
+        "tags": clean_tags,
+    }
 
 
 def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:

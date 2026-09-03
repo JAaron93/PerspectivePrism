@@ -12,9 +12,13 @@ from app.utils.input_sanitizer import (
     SanitizationError,
     sanitize_claim_text,
     sanitize_context,
-    sanitize_quote_evidence,
+    sanitize_quote_evidences,
 )
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import (
+    execute_adk_agent,
+    init_tier_concurrency,
+    execute_agent_with_circuit_breaker,
+)
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors
@@ -143,24 +147,13 @@ OUTPUT:
 class AlethiologyService:
     def __init__(self, model_name: str | None = None, settings: Any = None):
         self.settings = settings or globals().get("settings")
-        provider_info = configure_provider_env(self.settings)
-
+        provider_info, max_concurrent, self._llm_semaphore = init_tier_concurrency(
+            self.settings, service_name="AlethiologyService", configure_fn=configure_provider_env
+        )
         self.gcp_project = provider_info["project"]
         self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
-
-        max_concurrent_raw = getattr(self.settings, "tier_max_concurrency", 4)
-        try:
-            max_concurrent = max(1, int(max_concurrent_raw))
-        except (ValueError, TypeError):
-            max_concurrent = 4
         self.max_concurrency = max_concurrent
-        self._llm_semaphore = asyncio.Semaphore(max_concurrent)
-        logger.info(
-            "AlethiologyService initialized with GEMINI_TIER=%s (max_concurrency=%d)",
-            self.gemini_tier,
-            self.max_concurrency
-        )
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
         primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
@@ -214,90 +207,16 @@ class AlethiologyService:
         user_prompt: str,
         output_key: str = "alethiology_result",
     ) -> Any:
-        use_backup = False
-        is_probe = False
-
-        async with self._cb_lock:
-            if self.cb_open:
-                reset_timeout = getattr(self.settings, "CIRCUIT_BREAKER_RESET_TIMEOUT", 60)
-                if time.time() - self.cb_last_failure_time > reset_timeout:
-                    logger.info("Alethiology circuit breaker reset timeout expired. Transitioning to HALF-OPEN.")
-                    self.cb_open = False
-                    self.cb_half_open = True
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-            elif self.cb_half_open:
-                if not self.cb_probing:
-                    logger.info("Alethiology circuit breaker HALF-OPEN. Acquiring probe ownership for primary...")
-                    self.cb_probing = True
-                    is_probe = True
-                else:
-                    use_backup = True
-
-        if use_backup:
-            logger.warning("Alethiology circuit breaker OPEN/PROBING. Using backup provider.")
-            try:
-                return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-            except Exception as e:
-                raise AlethiologyServiceError(f"Fallback to backup failed: {e}") from e
-
-        try:
-            result = await self._run_agent_direct(agent_primary, user_prompt, output_key)
-            async with self._cb_lock:
-                if is_probe:
-                    logger.info("Alethiology probe request successful. Closing circuit breaker.")
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                    self.cb_failures = 0
-                elif not self.cb_open and not self.cb_half_open and self.cb_failures > 0:
-                    logger.info("Alethiology primary provider recovered. Resetting failure count.")
-                    self.cb_failures = 0
-            return result
-
-        except Exception as e:
-            is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 502, 503, 504)
-
-            if not is_transient:
-                logger.error(f"Non-transient error in alethiology agent: {e}")
-                async with self._cb_lock:
-                    if is_probe:
-                        self.cb_open = True
-                        self.cb_half_open = False
-                        self.cb_probing = False
-                raise e
-
-            current_use_backup = False
-            async with self._cb_lock:
-                self.cb_last_failure_time = time.time()
-                fail_threshold = getattr(self.settings, "CIRCUIT_BREAKER_FAIL_THRESHOLD", 3)
-                if is_probe:
-                    logger.error(f"Alethiology probe request FAILED: {e}. Re-opening circuit breaker.")
-                    self.cb_open = True
-                    self.cb_half_open = False
-                    self.cb_probing = False
-                elif not self.cb_open and not self.cb_half_open:
-                    self.cb_failures += 1
-                    logger.error(f"Alethiology primary provider failed (Count: {self.cb_failures}): {e}")
-                    if self.cb_failures >= fail_threshold:
-                        self.cb_open = True
-                        logger.critical("Alethiology circuit breaker TRIPPED. Switching to backup provider.")
-                current_use_backup = True
-
-            if current_use_backup:
-                logger.warning("Alethiology primary failed with transient error. Falling back to backup agent...")
-                try:
-                    return await self._run_agent_direct(agent_backup, user_prompt, output_key, is_backup=True)
-                except Exception as backup_err:
-                    if "Budget exhausted" in str(backup_err):
-                        raise backup_err
-                    logger.error(f"Alethiology backup provider ALSO failed: {backup_err}")
-                    raise AlethiologyServiceError(
-                        f"Primary and backup providers both failed. Backup error: {backup_err}"
-                    ) from backup_err
-
-            raise e
+        return await execute_agent_with_circuit_breaker(
+            service_state=self,
+            run_direct_fn=self._run_agent_direct,
+            agent_primary=agent_primary,
+            agent_backup=agent_backup,
+            user_prompt=user_prompt,
+            output_key=output_key,
+            service_name="Alethiology",
+            error_cls=AlethiologyServiceError,
+        )
 
     async def analyze_alethiology(self, claim: Claim) -> Optional[AlethiologyAnalysis]:
         """
@@ -329,12 +248,7 @@ class AlethiologyService:
             )
 
             # Sanitize quote evidences before returning
-            clean_quotes = []
-            for quote in result.quote_evidences:
-                try:
-                    clean_quotes.append(sanitize_quote_evidence(quote))
-                except SanitizationError:
-                    continue
+            clean_quotes = sanitize_quote_evidences(result.quote_evidences)
 
             return AlethiologyAnalysis(
                 primary_theory=result.primary_theory,

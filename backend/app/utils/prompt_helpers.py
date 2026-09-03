@@ -71,3 +71,25 @@ def build_user_data_prompt(
         f"{end_delim}\n"
         f"{instruction}"
     )
+
+
+def format_classifier_user_data(metadata_clean: Dict[str, str], preview: str) -> str:
+    """
+    Formats cleaned metadata dictionary and transcript preview into a standardized
+    user data string block for the Pre-Classification Guardrail Gate agent.
+    """
+    clean_title = metadata_clean.get("title", "")
+    clean_channel = metadata_clean.get("channel_name", "")
+    clean_category = metadata_clean.get("category_name", "")
+    clean_tags = metadata_clean.get("tags", "")
+    clean_desc = metadata_clean.get("description_snippet", "")
+    preview_text = preview.strip() if preview and preview.strip() else "NO TRANSCRIPT AVAILABLE"
+
+    return (
+        f"TITLE: {clean_title}\n"
+        f"CHANNEL: {clean_channel}\n"
+        f"CATEGORY: {clean_category}\n"
+        f"TAGS: {clean_tags}\n"
+        f"DESCRIPTION: {clean_desc}\n"
+        f"TRANSCRIPT PREVIEW:\n{preview_text}"
+    )
