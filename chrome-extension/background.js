@@ -384,6 +384,9 @@ async function handleAnalysisRequest(message) {
           requestId: requestId,
         });
       }
+    } else if (result.isRetry) {
+      // Intermediate retry attempt scheduled in background; preserve in_progress status
+      logger.info(`[Perspective Prism] Retry attempt scheduled for ${videoId} (requestId=${requestId})`);
     } else {
       // Set state to error if this request still owns the state
       const currentState = await StateManager.get(videoId);

@@ -59,6 +59,8 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * `background.js` must assign non-null `requestId` values and adopt existing in-progress IDs for concurrent non-forced callers to prevent ownership theft.
   * `background.js` state transitions must enforce strict `currentState.requestId === requestId` matching without `!currentState.requestId` loopholes.
   * `sidepanel.js` must track `supersededRequestIds`, `completedRequestIds`, and `lastCompletedAnalyzedAt` to reject stale completions after `activeRequestId` has been cleared.
+* **Anti-Oscillation & Review Stability Directive**:
+  * AI Reviewers must not enter recursive micro-edge-case spirals. When a PR diff fulfills a previously requested concurrency or lifecycle guard, do not invent secondary speculative edge cases regarding intermediate retry returns or hypothetical timing gaps that are already governed by timeout and resolver fallbacks.
 
 ---
 

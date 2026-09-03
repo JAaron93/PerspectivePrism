@@ -130,7 +130,24 @@ class PerspectivePrismClient {
         logger.info(
           `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
         );
-        return this.pendingRequests.get(videoId);
+        const existingPromise = this.pendingRequests.get(videoId);
+        const result = await existingPromise;
+        if (result && result.isRetry && !isForceOverride) {
+          return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              this.removeResolver(videoId, resolve);
+              resolve({
+                success: false,
+                error: "Analysis timed out (retrying)",
+                videoId,
+              });
+            }, this.TIMEOUT_MS);
+            const resolvers = this.pendingResolvers.get(videoId) || [];
+            resolvers.push({ resolve, reject, timeoutId });
+            this.pendingResolvers.set(videoId, resolvers);
+          });
+        }
+        return result;
       }
     }
 
@@ -191,6 +208,21 @@ class PerspectivePrismClient {
 
     try {
       const result = await requestPromise;
+      if (result && result.isRetry && !isForceOverride) {
+        return await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            this.removeResolver(videoId, resolve);
+            resolve({
+              success: false,
+              error: "Analysis timed out (retrying)",
+              videoId,
+            });
+          }, this.TIMEOUT_MS);
+          const resolvers = this.pendingResolvers.get(videoId) || [];
+          resolvers.push({ resolve, reject, timeoutId });
+          this.pendingResolvers.set(videoId, resolvers);
+        });
+      }
       return result;
     } finally {
       if (this.pendingRequests.get(videoId) === requestPromise) {
