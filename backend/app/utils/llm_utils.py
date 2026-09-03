@@ -26,6 +26,13 @@ EXCLUDED_TELEMETRY_KEYS: Set[str] = {
     "reasoning",
 }
 
+ANALYTICAL_TASK_TYPES: frozenset[str] = frozenset({
+    "extractor", "analysis", "alethiology", "evaluator", "judge"
+})
+ROUTER_TASK_TYPES: frozenset[str] = frozenset({
+    "micro_task", "router", "classifier"
+})
+
 
 def get_gemini_thinking_level(
     model: Optional[str] = None,
@@ -36,8 +43,20 @@ def get_gemini_thinking_level(
 ) -> Optional[str]:
     """
     Resolves dynamic thinking level for Gemini models based on env, task category, and model capabilities.
+    For analytical tasks ('extractor', 'analysis', 'alethiology', 'judge', 'evaluator'),
+    strictly enforces 'high' to protect reasoning capabilities unless explicitly downgraded via
+    GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=true.
     """
-    # 1. Explicit environment variable override
+    allow_downgrade_env = os.getenv("GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", "").strip().lower() == "true"
+    allow_downgrade_settings = getattr(settings, "GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", False)
+    allow_downgrade = allow_downgrade_env or bool(allow_downgrade_settings)
+
+    # 1. Enforce strict analytical floor: analytical agents must never be throttled below HIGH
+    # unless an explicit downgrade flag is set (e.g. for specialized test fixtures)
+    if task_type in ANALYTICAL_TASK_TYPES and not allow_downgrade:
+        return "high"
+
+    # 2. Explicit environment variable override for non-analytical tasks (or when downgrade allowed)
     env_level = os.getenv("GEMINI_THINKING_LEVEL")
     if env_level and str(env_level).strip():
         return str(env_level).strip().lower()
@@ -45,16 +64,16 @@ def get_gemini_thinking_level(
     if default is not None:
         return default
 
-    # 2. Bypass deep thinking for micro-tasks, routers, and guardrail classifiers
-    if task_type in ("micro_task", "router", "classifier"):
+    # 3. Bypass deep thinking for micro-tasks, routers, and guardrail classifiers
+    if task_type in ROUTER_TASK_TYPES:
         return "low"
 
-    # 3. Settings configuration override if explicitly configured
+    # 4. Settings configuration override if explicitly configured
     settings_level = getattr(settings, "GEMINI_THINKING_LEVEL", None)
     if settings_level and str(settings_level).strip():
         return str(settings_level).strip().lower()
 
-    # 4. Default to HIGH for autonomous agents, deep extraction, analysis, and evaluators
+    # 5. Default to HIGH for autonomous agents, deep extraction, analysis, and evaluators
     if model and ("3.8" in model or "flash" in model.lower()):
         return "high"
 
@@ -73,16 +92,25 @@ def build_agent_generation_config(
     """
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
     thinking levels, expanded output ceilings, and request HTTP timeout options.
+    Enforces mandatory Zero-Throttling floors (65,536 tokens, 120s timeout, HIGH thinking)
+    for analytical tasks unless GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=true is set.
     """
+    allow_downgrade_env = os.getenv("GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", "").strip().lower() == "true"
+    allow_downgrade_settings = getattr(settings, "GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", False)
+    allow_downgrade = allow_downgrade_env or bool(allow_downgrade_settings)
+    is_analytical = task_type in ANALYTICAL_TASK_TYPES
+
     resolved_level_str = thinking_level or get_gemini_thinking_level(
         model=model,
         task_type=task_type,
         settings=settings,
     )
+    if is_analytical and not allow_downgrade:
+        resolved_level_str = "high"
 
     # Determine max output tokens
     if max_output_tokens is None:
-        if task_type in ("micro_task", "router", "classifier"):
+        if task_type in ROUTER_TASK_TYPES:
             max_output_tokens = 2048
         else:
             raw_tokens = getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536)
@@ -91,6 +119,10 @@ def build_agent_generation_config(
             except (ValueError, TypeError):
                 max_output_tokens = 65536
 
+    # Enforce analytical floor for output tokens
+    if is_analytical and not allow_downgrade:
+        max_output_tokens = max(max_output_tokens, 65536)
+
     # Determine HTTP timeout
     if http_timeout is None:
         raw_timeout = getattr(settings, "GEMINI_HTTP_TIMEOUT", 120.0)
@@ -98,6 +130,10 @@ def build_agent_generation_config(
             http_timeout = float(raw_timeout)
         except (ValueError, TypeError):
             http_timeout = 120.0
+
+    # Enforce analytical floor for HTTP timeout
+    if is_analytical and not allow_downgrade:
+        http_timeout = max(http_timeout, 120.0)
 
     http_options = types.HttpOptions(timeout=http_timeout)
 

@@ -59,8 +59,21 @@ class TestGeminiOptimizationSettings:
 class TestDynamicThinkingLevelRouting:
     """Validate dynamic thinking_level resolution across task categories and env flags."""
 
-    def test_environment_override_takes_precedence(self):
-        with patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "medium"}):
+    def test_analytical_floor_resists_blanket_env_downgrade(self):
+        with patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "low"}):
+            # Analytical tasks must strictly resist downgrade and enforce HIGH
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="extractor") == "high"
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="analysis") == "high"
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="alethiology") == "high"
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="judge") == "high"
+            # Router and unclassified tasks properly adopt the env override
+            assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="router") == "low"
+
+    def test_analytical_explicit_downgrade_allowed_when_flagged(self):
+        with patch.dict(os.environ, {
+            "GEMINI_THINKING_LEVEL": "medium",
+            "GEMINI_ALLOW_ANALYTICAL_DOWNGRADE": "true",
+        }):
             assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="extractor") == "medium"
             assert get_gemini_thinking_level(model="gemini-3.8-flash", task_type="router") == "medium"
 
@@ -102,6 +115,44 @@ class TestBuildAgentGenerationConfig:
             assert cfg.thinking_config is not None
             assert cfg.thinking_config.thinking_level == types.ThinkingLevel.LOW
             assert cfg.http_options.timeout == 120.0
+
+    def test_analytical_floors_enforced_against_low_settings(self):
+        low_settings = Settings(
+            _env_file=None,
+            GCP_PROJECT="test-project",
+            GEMINI_MAX_OUTPUT_TOKENS=2048,
+            GEMINI_HTTP_TIMEOUT=15.0,
+            GEMINI_THINKING_LEVEL="low",
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            # Analytical task MUST enforce 65,536 tokens, 120s timeout, and HIGH thinking
+            cfg = build_agent_generation_config(
+                model="gemini-3.8-flash",
+                task_type="extractor",
+                settings=low_settings,
+            )
+            assert cfg.max_output_tokens == 65536
+            assert cfg.http_options.timeout == 120.0
+            assert cfg.thinking_config.thinking_level == types.ThinkingLevel.HIGH
+
+    def test_analytical_floors_overrideable_when_explicitly_flagged(self):
+        low_settings = Settings(
+            _env_file=None,
+            GCP_PROJECT="test-project",
+            GEMINI_MAX_OUTPUT_TOKENS=4096,
+            GEMINI_HTTP_TIMEOUT=45.0,
+            GEMINI_THINKING_LEVEL="low",
+            GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=True,
+        )
+        with patch.dict(os.environ, {"GEMINI_ALLOW_ANALYTICAL_DOWNGRADE": "true"}):
+            cfg = build_agent_generation_config(
+                model="gemini-3.8-flash",
+                task_type="extractor",
+                settings=low_settings,
+            )
+            assert cfg.max_output_tokens == 4096
+            assert cfg.http_options.timeout == 45.0
+            assert cfg.thinking_config.thinking_level == types.ThinkingLevel.LOW
 
     def test_explicit_overrides_in_factory(self):
         cfg = build_agent_generation_config(
