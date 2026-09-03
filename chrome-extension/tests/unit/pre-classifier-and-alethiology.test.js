@@ -854,6 +854,63 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(stateIneligible.style.display).toBe("none");
     });
 
+    it("should accept external analysis events after prior side-panel analysis completes", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "External analysis completed" }],
+            },
+          });
+        }
+        if (message.type === "ANALYZE_VIDEO") {
+          return Promise.resolve({
+            success: true,
+            data: {
+              video_id: message.videoId,
+              claims: [{ claim_text: "First analysis completed" }],
+            },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. First analysis via side panel completes
+      await sidepanelModule.startAnalysis("extVideo11ch");
+      const stateResults = document.getElementById("state-results");
+      expect(stateResults.style.display).toBe("flex");
+
+      // 2. Content script starts a new analysis for the same video with a different requestId
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      expect(messageListener).toBeDefined();
+
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "extVideo11ch",
+        state: { status: "in_progress", requestId: "cs_req_new_789", progress: 40 },
+      });
+
+      // Side panel should transition to loading for the new external analysis
+      const stateLoading = document.getElementById("state-loading");
+      expect(stateLoading.style.display).toBe("flex");
+
+      // 3. Content script analysis completes
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "extVideo11ch",
+        state: { status: "complete", requestId: "cs_req_new_789" },
+      });
+
+      await new Promise((r) => setTimeout(r, 20));
+
+      // Side panel should transition to results
+      expect(stateResults.style.display).toBe("flex");
+    });
+
     it("should abort and await recovered execution when force override replaces non-forced persisted request", async () => {
       const client = new PerspectivePrismClient(
         "https://api.perspectiveprism.org",

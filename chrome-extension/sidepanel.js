@@ -243,6 +243,12 @@ async function startAnalysis(videoId, options = {}) {
     if (errorMessage) {
       errorMessage.textContent = err?.message || "Analysis request failed";
     }
+  } finally {
+    if (activeRequestId === requestId) {
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
+    }
   }
 }
 
@@ -763,6 +769,11 @@ function handleAnalysisState(state) {
       if (isExternal) {
         activeAnalysisToken++;
       }
+      if (activeRequestId && state.requestId === activeRequestId) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
       // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       const thisCacheToken = ++pendingCheckCacheToken;
@@ -804,6 +815,14 @@ function handleAnalysisState(state) {
     }
       
     case "error":
+      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
       showState("error");
       errorMessage.textContent = state.errorMessage || "An error occurred during analysis.";
       break;
@@ -812,6 +831,11 @@ function handleAnalysisState(state) {
       // If the cancellation event belongs to a superseded request, do not abort active analysis or switch to idle
       if (state.requestId && state.requestId !== activeRequestId) {
         break;
+      }
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
       }
       activeAnalysisToken++;
       pendingCheckCacheToken++;
