@@ -11,6 +11,8 @@ from app.core.config import configure_provider_env
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_HTTP_CODES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+
 
 def init_tier_concurrency(
     settings: Any,
@@ -195,7 +197,7 @@ async def execute_agent_with_circuit_breaker(
         return result
 
     except Exception as e:
-        is_transient = isinstance(e, errors.APIError) and e.code in (429, 500, 502, 503, 504)
+        is_transient = isinstance(e, errors.APIError) and e.code in _TRANSIENT_HTTP_CODES
 
         if not is_transient:
             logger.error("Non-transient error in %s agent: %s", service_name.lower(), e)

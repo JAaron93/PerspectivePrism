@@ -80,14 +80,15 @@ def evaluate_deterministic_fast_path(
 
     # 3. Check metadata for political / socio-economic keywords using NFKC normalization
     if metadata:
-        metadata_text_parts = [
-            unicodedata.normalize("NFKC", metadata.title or ""),
-            unicodedata.normalize("NFKC", metadata.channel_name or ""),
-            unicodedata.normalize("NFKC", metadata.description_snippet or ""),
-            " ".join(unicodedata.normalize("NFKC", tag) for tag in (metadata.tags or []))
-        ]
-        combined_metadata = " ".join(metadata_text_parts)
-        if _KEYWORD_PATTERN.search(combined_metadata):
+        if metadata.title and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.title)):
+            return None
+        if metadata.channel_name and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.channel_name)):
+            return None
+        if metadata.tags:
+            for tag in metadata.tags:
+                if tag and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", tag)):
+                    return None
+        if metadata.description_snippet and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.description_snippet)):
             return None
 
     category_label = "Music / Non-Speech Media" if cat_norm == "music" else "Gaming / Non-Speech Media"

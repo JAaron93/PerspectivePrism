@@ -284,10 +284,10 @@ def sanitize_video_metadata(metadata: Optional[Any]) -> Dict[str, str]:
     )
 
     raw_tags = getattr(metadata, "tags", None) or []
-    clean_tags = ", ".join([
+    clean_tags = ", ".join(
         sanitize_metadata_field(tag, "Tag", max_length=100)
         for tag in raw_tags
-    ])
+    )
 
     return {
         "title": clean_title,
