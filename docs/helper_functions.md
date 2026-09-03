@@ -48,7 +48,7 @@
 
 ### `execute_agent_with_circuit_breaker(service_state, run_direct_fn, agent_primary, agent_backup, user_prompt, output_key, service_name, error_cls) -> Any`
 
-**Purpose:** Standardizes circuit breaker state machine transitions (CLOSED → OPEN → HALF-OPEN probe ownership), transient API error detection (codes 429, 500, 502, 503, 504), failure threshold tripping, probe race condition prevention, and automatic fallback to the backup agent.
+**Purpose:** Standardizes circuit breaker state machine transitions (CLOSED → OPEN → HALF-OPEN probe ownership), transient API error detection via module-level constant frozenset `_TRANSIENT_HTTP_CODES` (`{429, 500, 502, 503, 504}` for $O(1)$ set lookup), failure threshold tripping, probe race condition prevention, and automatic fallback to the backup agent.
 
 **Parameters:**
 | Name | Type | Description |
@@ -142,7 +142,7 @@ Iterates over transcript quote evidence strings, applies `sanitize_quote_evidenc
 - `app/services/alethiology_service.py` — `AlethiologyService.analyze_alethiology()`
 
 ### `sanitize_video_metadata(metadata) -> dict[str, str]`
-Extracts and sanitizes all string fields within a `VideoMetadata` object (or returns clean empty strings if None).
+Extracts and sanitizes all string fields within a `VideoMetadata` object (or returns clean empty strings if None). Uses generator expressions for tag joining to eliminate intermediate heap list allocations.
 
 **Returns:**
 Dictionary with keys: `title`, `channel_name`, `category_name`, `description_snippet`, `tags`.
@@ -170,7 +170,7 @@ Extracts a YouTube video ID from standard, embed, short URL, and `/v/` formats. 
 
 ### `getTheoryColorClass(theory: TruthTheoryType) -> string`
 
-**Purpose:** Maps canonical truth theory types (`Correspondence`, `Coherence`, `Pragmatic`, `Perspectivism`, `Consensus`, `Deflationary`) to their corresponding CSS class names for styling badge chips and cards in the UI.
+**Purpose:** Maps canonical truth theory types (`Correspondence`, `Coherence`, `Pragmatic`, `Perspectivism`, `Consensus`, `Deflationary`) to their corresponding CSS class names for styling badge chips and cards in the UI via an $O(1)$ static `THEORY_PREFIX_MAP` monomorphic record lookup.
 
 **Used by:**
 - `frontend/src/components/EpistemicLensCard.tsx`
