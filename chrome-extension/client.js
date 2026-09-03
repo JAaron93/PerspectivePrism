@@ -211,6 +211,20 @@ class PerspectivePrismClient {
    * @param {Object} [options]
    */
   async executeAnalysisRequest(videoId, videoUrl, attempt = 0, options = {}) {
+    const isForce = Boolean(options.forceOverride || options.force_override);
+    if (!isForce && this.activeOverrideVideoIds?.has(videoId)) {
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
+
+    if (!this.abortControllers.has(videoId)) {
+      this.abortControllers.set(videoId, new AbortController());
+    }
+    const controller = this.abortControllers.get(videoId);
+
     // Persist state start
     await this.persistRequestState({
       videoId,
@@ -220,6 +234,14 @@ class PerspectivePrismClient {
       status: "pending",
       options,
     });
+
+    if (controller?.signal?.aborted || (!isForce && this.activeOverrideVideoIds?.has(videoId))) {
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
 
     try {
       const result = await this.makeAnalysisRequest(
@@ -420,7 +442,7 @@ class PerspectivePrismClient {
    * @param {Object} [options]
    */
   async makeAnalysisRequest(videoUrl, videoId, options = {}) {
-    const controller = new AbortController();
+    const controller = this.abortControllers.get(videoId) || new AbortController();
     let isTimeout = false;
 
     // Store abort controller for cancellation
@@ -1486,19 +1508,29 @@ class PerspectivePrismClient {
         }
 
         if (state) {
-          // Use state.attemptCount to ensure we are in sync with persistence
-          const retryPromise = this.executeAnalysisRequest(
-            videoId,
-            state.videoUrl,
-            state.attemptCount,
-            state.options || {},
-          );
+          // Pre-register abort controller and pending promise BEFORE executeAnalysisRequest begins
+          if (!this.abortControllers.has(videoId)) {
+            this.abortControllers.set(videoId, new AbortController());
+          }
+
+          let resolveRetry, rejectRetry;
+          const retryPromise = new Promise((res, rej) => {
+            resolveRetry = res;
+            rejectRetry = rej;
+          });
           this.pendingRequests.set(videoId, retryPromise);
           this.pendingRequestOptions.set(videoId, state.options || {});
+
           try {
-            await retryPromise;
-          } catch (_e) {
-            // executeAnalysisRequest handles error notification
+            const result = await this.executeAnalysisRequest(
+              videoId,
+              state.videoUrl,
+              state.attemptCount,
+              state.options || {},
+            );
+            resolveRetry(result);
+          } catch (e) {
+            rejectRetry(e);
           } finally {
             if (this.pendingRequests.get(videoId) === retryPromise) {
               this.pendingRequests.delete(videoId);

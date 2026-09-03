@@ -321,7 +321,9 @@ async function handleAnalysisRequest(message) {
     metadata: message.metadata || undefined,
   };
 
-  const requestId = message.requestId || null;
+  const requestId =
+    message.requestId ||
+    `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
   // Set state to in_progress
   // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
@@ -343,7 +345,7 @@ async function handleAnalysisRequest(message) {
     if (result.success) {
       // Set state to complete if this request still owns the state
       const currentState = await StateManager.get(videoId);
-      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+      if (!currentState || currentState.requestId === requestId) {
         const completeStateSaved = await setAnalysisState(videoId, {
           status: "complete",
           claimCount: result.data?.claims?.length || 0,
@@ -363,7 +365,7 @@ async function handleAnalysisRequest(message) {
     } else if (result.isCancelled || result.cancelled) {
       // If result was cancelled, preserve or record cancelled status without overwriting with error
       const currentState = await StateManager.get(videoId);
-      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+      if (!currentState || currentState.requestId === requestId) {
         await setAnalysisState(videoId, {
           status: "cancelled",
           cancelledAt: Date.now(),
@@ -373,7 +375,7 @@ async function handleAnalysisRequest(message) {
     } else {
       // Set state to error if this request still owns the state
       const currentState = await StateManager.get(videoId);
-      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+      if (!currentState || currentState.requestId === requestId) {
         await setAnalysisState(videoId, {
           status: "error",
           errorMessage: result.error || "Analysis failed",
@@ -389,7 +391,7 @@ async function handleAnalysisRequest(message) {
   } catch (error) {
     if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
       const currentState = await StateManager.get(videoId);
-      if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+      if (!currentState || currentState.requestId === requestId) {
         await setAnalysisState(videoId, {
           status: "cancelled",
           cancelledAt: Date.now(),
@@ -402,7 +404,7 @@ async function handleAnalysisRequest(message) {
 
     // Set state to error only if this request still owns the state
     const currentState = await StateManager.get(videoId);
-    if (!currentState || !currentState.requestId || currentState.requestId === requestId) {
+    if (!currentState || currentState.requestId === requestId) {
       await setAnalysisState(videoId, {
         status: "error",
         errorMessage: "Analysis failed",
@@ -433,12 +435,12 @@ async function handleCancelAnalysis(message) {
     
     if (cancelled) {
       const currentState = await StateManager.get(videoId);
-      if (!requestId || !currentState || !currentState.requestId || currentState.requestId === requestId) {
+      if (!requestId || !currentState || currentState.requestId === requestId) {
         // Update state to cancelled
         const saved = await setAnalysisState(videoId, {
           status: 'cancelled',
           cancelledAt: Date.now(),
-          requestId: requestId || currentState?.requestId || null,
+          requestId: requestId || currentState?.requestId || `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         });
 
         if (!saved) {
