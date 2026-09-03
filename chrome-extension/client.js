@@ -1419,18 +1419,28 @@ class PerspectivePrismClient {
 
         if (state.status === "pending") {
           // Interrupted during execution, retry immediately
-          const recoveryPromise = this.executeAnalysisRequest(
-            state.videoId,
-            state.videoUrl,
-            state.attemptCount,
-            state.options || {},
-          );
+          if (!this.abortControllers.has(state.videoId)) {
+            this.abortControllers.set(state.videoId, new AbortController());
+          }
+
+          let resolveRecovery, rejectRecovery;
+          const recoveryPromise = new Promise((res, rej) => {
+            resolveRecovery = res;
+            rejectRecovery = rej;
+          });
           this.pendingRequests.set(state.videoId, recoveryPromise);
           this.pendingRequestOptions.set(state.videoId, state.options || {});
+
           try {
-            await recoveryPromise;
-          } catch (_e) {
-            // Error logged and handled in executeAnalysisRequest
+            const result = await this.executeAnalysisRequest(
+              state.videoId,
+              state.videoUrl,
+              state.attemptCount,
+              state.options || {},
+            );
+            resolveRecovery(result);
+          } catch (e) {
+            rejectRecovery(e);
           } finally {
             if (this.pendingRequests.get(state.videoId) === recoveryPromise) {
               this.pendingRequests.delete(state.videoId);

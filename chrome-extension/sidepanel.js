@@ -796,11 +796,6 @@ function handleAnalysisState(state) {
       if (state.analyzedAt) {
         lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, state.analyzedAt);
       }
-      if (activeRequestId && state.requestId === activeRequestId) {
-        activeRequestId = null;
-        activeAnalysisStartTime = 0;
-        activeAnalysisVideoId = null;
-      }
       // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       const thisCacheToken = ++pendingCheckCacheToken;
@@ -815,6 +810,11 @@ function handleAnalysisState(state) {
           pendingCheckCacheToken !== thisCacheToken ||
           (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
+        if (activeRequestId && (!expectedRequestId || activeRequestId === expectedRequestId)) {
+          activeRequestId = null;
+          activeAnalysisStartTime = 0;
+          activeAnalysisVideoId = null;
+        }
         if (response && response.success && response.data) {
           if (
             response.data.eligibility &&
@@ -835,6 +835,11 @@ function handleAnalysisState(state) {
           pendingCheckCacheToken !== thisCacheToken ||
           (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
+        if (activeRequestId && (!expectedRequestId || activeRequestId === expectedRequestId)) {
+          activeRequestId = null;
+          activeAnalysisStartTime = 0;
+          activeAnalysisVideoId = null;
+        }
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
       });
