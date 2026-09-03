@@ -802,6 +802,64 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(stateIneligible.style.display).toBe("none");
     });
 
+    it("should admit a newer external analysis with different requestId while previous completion CHECK_CACHE is in-flight", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+
+      let resolveCheckCache;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "CHECK_CACHE") {
+          return new Promise((resolve) => {
+            resolveCheckCache = () =>
+              resolve({
+                success: true,
+                data: {
+                  video_id: message.videoId,
+                  eligibility: {
+                    is_analysable: false,
+                    confidence_score: 0.95,
+                    detected_category: "Music",
+                    disclaimer_title: "Old Cache Result",
+                    disclaimer_message: "Should be discarded",
+                  },
+                  claims: [],
+                },
+              });
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      // 1. Side panel analysis for video A starts and completes
+      await sidepanelModule.startAnalysis("videoA11char");
+      const messageListener = chrome.runtime.onMessage.addListener.mock.calls[0]?.[0];
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoA11char",
+        state: { status: "complete", requestId: "sp_req_first" },
+      });
+
+      // 2. While CHECK_CACHE for sp_req_first is in-flight, content script starts newer analysis with a different requestId
+      messageListener({
+        type: "ANALYSIS_STATE_CHANGED",
+        videoId: "videoA11char",
+        state: { status: "in_progress", requestId: "ext_req_newer", submessage: "Newer external analysis..." },
+      });
+
+      const stateLoading = document.getElementById("state-loading");
+      expect(stateLoading.style.display).toBe("flex");
+      const submessage = document.getElementById("loading-submessage");
+      expect(submessage.textContent).toBe("Newer external analysis...");
+
+      // 3. The older CHECK_CACHE resolves late
+      if (resolveCheckCache) resolveCheckCache();
+      await new Promise((r) => setTimeout(r, 10));
+
+      // 4. Stale cache disclaimer must be discarded; newer loading state must remain intact
+      expect(stateLoading.style.display).toBe("flex");
+      const stateIneligible = document.getElementById("state-ineligible");
+      expect(stateIneligible.style.display).toBe("none");
+    });
+
     it("should ignore superseded completion and not launch CHECK_CACHE or overwrite active analysis", async () => {
       sidepanelModule = await import("../../sidepanel.js");
 

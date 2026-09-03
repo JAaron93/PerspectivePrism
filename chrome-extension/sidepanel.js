@@ -802,10 +802,15 @@ function handleAnalysisState(state) {
       if (state.analyzedAt) {
         lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, state.analyzedAt);
       }
+      const expectedRequestId = state.requestId || activeRequestId;
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
       // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
       const thisCacheToken = ++pendingCheckCacheToken;
-      const expectedRequestId = state.requestId || activeRequestId;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
         videoId: requestedVideoId
@@ -816,11 +821,6 @@ function handleAnalysisState(state) {
           pendingCheckCacheToken !== thisCacheToken ||
           (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
-        if (activeRequestId && (!expectedRequestId || activeRequestId === expectedRequestId)) {
-          activeRequestId = null;
-          activeAnalysisStartTime = 0;
-          activeAnalysisVideoId = null;
-        }
         if (response && response.success && response.data) {
           if (
             response.data.eligibility &&
@@ -841,11 +841,6 @@ function handleAnalysisState(state) {
           pendingCheckCacheToken !== thisCacheToken ||
           (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
         ) return;
-        if (activeRequestId && (!expectedRequestId || activeRequestId === expectedRequestId)) {
-          activeRequestId = null;
-          activeAnalysisStartTime = 0;
-          activeAnalysisVideoId = null;
-        }
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
       });
