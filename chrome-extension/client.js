@@ -276,6 +276,7 @@ class PerspectivePrismClient {
     });
 
     if (controller?.signal?.aborted || (!isForce && this.activeOverrideVideoIds?.has(videoId))) {
+      await this.cleanupPersistedRequest(videoId);
       return {
         success: false,
         error: "Analysis cancelled",

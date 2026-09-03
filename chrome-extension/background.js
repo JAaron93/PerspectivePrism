@@ -448,6 +448,13 @@ async function handleCancelAnalysis(message) {
   const videoId = validation.videoId;
   const preCancelState = await StateManager.get(videoId);
   const targetRequestId = message.requestId || preCancelState?.requestId || null;
+
+  // If a specific requestId was requested for cancellation and does not match the active state,
+  // ignore it to prevent aborting a newer owner's controller
+  if (message.requestId && preCancelState?.requestId && preCancelState.requestId !== message.requestId) {
+    logger.info(`[Perspective Prism] Ignoring stale cancellation for ${videoId} (active=${preCancelState.requestId}, target=${message.requestId})`);
+    return { success: true, cancelled: false, superseded: true };
+  }
   
   try {
     const cancelled = await activeClient.cancelAnalysis(videoId);

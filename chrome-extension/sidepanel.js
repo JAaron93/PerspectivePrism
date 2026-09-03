@@ -239,6 +239,9 @@ async function startAnalysis(videoId, options = {}) {
         showState("results");
         renderResults(response.data);
       }
+    } else if (response && response.isRetry) {
+      // Intermediate retry: analysis is actively being retried in background; maintain loading UI
+      loadingSubmessage.textContent = "Retrying analysis...";
     } else {
       showState("error");
       if (errorMessage) {

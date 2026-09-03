@@ -1,5 +1,5 @@
 {
-  "strictness": 2,
+  "strictness": 1,
   "commentTypes": ["logic", "syntax"],
   "triggerOnUpdates": true,
   "ignorePatterns": "dist/**\nnode_modules/**\ncoverage/**\nbackend/venv/**\n**/*.lock\n**/*.sqlite*",
