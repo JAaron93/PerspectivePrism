@@ -4,27 +4,32 @@
 
 ```mermaid
 graph TD
-    User[User] -->|Interacts with| Client[Frontend (React/Vite)]
+    User[User] -->|Interacts with| Client[Frontend (React 19 / Vite)]
     User -->|Views YouTube| ExtUI["Chrome Extension Side Panel (sidepanel.html)"]
     
     subgraph Chrome Extension (MV3)
         ExtUI -->|Message Channel| SW[Service Worker (background.js)]
-        SW <-->|Cache Read/Write| Storage[chrome.storage.local]
+        SW <-->|Content Hash Cache| Storage[chrome.storage.local]
     end
 
     Client -->|HTTP/JSON| API[Backend API (FastAPI)]
     SW -->|HTTPS / Job Polling| API
     
-    subgraph Backend Services
-        API -->|Uses| CE[Claim Extractor]
-        API -->|Uses| ER[Evidence Retriever]
-        API -->|Uses| AS[Analysis Service]
+    subgraph Backend Pipeline
+        API -->|Stage 1: Pre-Classification| PC[Content Classifier Service]
+        API -->|Stage 2: Claim Extraction| CE[Claim Extractor]
+        API -->|Stage 3: Evidence Retrieval| ER[Evidence Retriever]
+        API -->|Stage 4: Perspective & Bias| AS[Analysis Service]
+        API -->|Stage 5: Epistemic Lens| AL[Alethiology Service]
     end
     
-    subgraph External APIs
+    subgraph External Services & Foundation Models
+        PC -->|Fast Regex & Prompt| Vertex[GCP Vertex AI Gemini 3.x]
         CE -->|Fetches| YT[YouTube Transcript API]
-        ER -->|Queries| GCS[Google Custom Search API]
-        AS -->|Prompts| Vertex[GCP Vertex AI Gemini API]
+        CE -->|Structured Extraction| Vertex
+        ER -->|Multi-Perspective Queries| GCS[Google Custom Search API]
+        AS -->|Stance & Deception Analysis| Vertex
+        AL -->|Epistemic Truth Theories| Vertex
     end
     
     style User fill:#f9f,stroke:#333,stroke-width:2px
@@ -33,64 +38,143 @@ graph TD
     style SW fill:#dfd,stroke:#333,stroke-width:1px
     style Storage fill:#ffd,stroke:#333,stroke-width:1px
     style API fill:#bfb,stroke:#333,stroke-width:2px
+    style PC fill:#ffe,stroke:#333,stroke-width:1px
     style CE fill:#dfd,stroke:#333,stroke-width:1px
     style ER fill:#dfd,stroke:#333,stroke-width:1px
     style AS fill:#dfd,stroke:#333,stroke-width:1px
+    style AL fill:#eef,stroke:#333,stroke-width:1px
 ```
 
-## Analysis Flow
+---
+
+## Analysis Flow & Pipeline Stages
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant FE as Frontend
+    participant Client as Client (Side Panel / SPA)
     participant BE as Backend API
+    participant PC as Pre-Classifier Service
     participant CE as Claim Extractor
     participant ER as Evidence Retriever
     participant AS as Analysis Service
-    participant EXT as External APIs (Google Search/Gemini)
+    participant AL as Alethiology Service
+    participant EXT as External APIs (Search / Vertex AI)
 
-    User->>FE: Enter YouTube URL & Click Analyze
-    FE->>BE: POST /analyze {url}
+    User->>Client: Submit YouTube URL (or click "Analyze Anyway")
+    Client->>BE: POST /analyze/jobs { url, force_override, metadata }
     activate BE
     
-    Note over BE: 1. Extraction Phase
-    BE->>CE: extract_video_id(url)
-    CE-->>BE: video_id
-    BE->>CE: get_transcript(video_id)
-    CE->>EXT: Fetch Transcript
-    EXT-->>CE: transcript
-    CE-->>BE: transcript
-    
-    BE->>CE: extract_claims(transcript)
-    CE->>EXT: LLM Extract Claims
-    EXT-->>CE: claims_list
-    CE-->>BE: claims
-    
-    Note over BE: 2. Analysis Phase (Per Claim)
+    Note over BE,PC: Stage 1: Pre-Classification Guardrail Gate
+    alt force_override is true
+        BE->>BE: Skip classification (force_override=True)
+    else force_override is false
+        BE->>PC: classify_video(video_id, title, snippet)
+        PC->>PC: Check deterministic regex fast-path (<1ms)
+        alt Inconclusive
+            PC->>EXT: Gemini ADK Classifier Agent
+            EXT-->>PC: ContentEligibilityResult
+        end
+        PC-->>BE: ContentEligibilityResult
+        
+        opt is_analysable is false
+            BE-->>Client: Early Return { status: "complete", eligibility: { is_analysable: false, ... } }
+            Note over Client: Displays Ineligible Disclaimer & [⚡ Analyze Anyway]
+        end
+    end
+
+    Note over BE,CE: Stage 2: Claim Extraction
+    BE->>CE: extract_claims(video_id)
+    CE->>EXT: YouTube Transcript API
+    EXT-->>CE: Raw Transcript
+    CE->>EXT: Gemini ADK ExtractorAgent (Structured Outputs)
+    EXT-->>CE: Extracted Claims List
+    CE-->>BE: List of Claims
+
+    Note over BE,AL: Stage 3, 4 & 5: Evidence Retrieval, Perspectives, Bias, & Epistemic Analysis
     loop For each claim
-        par Retrieve Evidence
-            BE->>ER: retrieve_evidence(claim, perspectives)
-            ER->>EXT: Google Search (Scientific, Journalistic, etc.)
-            EXT-->>ER: search_results
-            ER-->>BE: evidence_dict
-        and Analyze Perspectives
-            BE->>AS: analyze_perspective(claim, evidence)
-            AS->>EXT: LLM Analyze Stance & Confidence
-            EXT-->>AS: perspective_analysis
-            AS-->>BE: perspective_result
+        BE->>ER: retrieve_evidence(claim, perspectives)
+        ER->>EXT: Google Custom Search (Scientific, Journalistic, Partisan)
+        EXT-->>ER: Search Snippets & Sources
+        ER-->>BE: Evidence Dict
+
+        par Multi-Perspective Analysis
+            BE->>AS: analyze_perspective(claim, perspective, evidence)
+            AS->>EXT: Gemini ADK Perspective Agent
+            EXT-->>AS: Perspective Analysis Results
+            AS-->>BE: Perspective Ratings
+        and Bias & Deception Analysis
+            BE->>AS: analyze_bias_and_deception(claim)
+            AS->>EXT: Gemini ADK Bias Agent
+            EXT-->>AS: Bias & Deception Ratings
+            AS-->>BE: Bias Results
+        and Alethiology (Epistemic Lens)
+            BE->>AL: analyze_alethiology(claim)
+            AL->>EXT: Gemini ADK Alethiology Agent
+            EXT-->>AL: AlethiologyAnalysis (Theories, Summary, Quote Evidences)
+            AL-->>BE: Epistemic Lens Analysis
         end
         
-        BE->>AS: analyze_bias_and_deception(claim)
-        AS->>EXT: LLM Analyze Bias
-        EXT-->>AS: bias_analysis
-        AS-->>BE: bias_result
-        
-        BE->>BE: Construct Truth Profile
+        BE->>BE: Assemble Truth Profile (Perspectives + Bias + Alethiology)
     end
     
-    BE-->>FE: AnalysisResponse (Truth Profiles)
+    BE-->>Client: AnalysisResponse (Truth Profiles + Eligibility)
     deactivate BE
     
-    FE->>User: Display Results
+    Client->>User: Render Epistemic Lens Cards & Claim Stances
 ```
+
+---
+
+## Data Schemas & API Contracts
+
+### 1. Job Submission (`POST /analyze/jobs`)
+```json
+{
+  "url": "https://www.youtube.com/watch?v=abcdefghijk",
+  "force_override": false,
+  "metadata": {
+    "title": "Video Title",
+    "channel_name": "Channel Name",
+    "category_id": "25",
+    "category_name": "News & Politics",
+    "tags": ["news", "politics"],
+    "description_snippet": "First 250 characters of description"
+  }
+}
+```
+
+### 2. Content Eligibility Schema (`ContentEligibilityResult`)
+```json
+{
+  "is_analysable": false,
+  "confidence_score": 0.95,
+  "detected_category": "Music",
+  "disclaimer_title": "Content Not Analysable",
+  "disclaimer_message": "This video appears to be musical or entertainment content lacking factual empirical claims.",
+  "key_topics_found": [
+    "music video",
+    "lyrics"
+  ]
+}
+```
+
+### 3. Alethiology Schema (`AlethiologyAnalysis`)
+```json
+{
+  "primary_theory": "Correspondence (Empirical)",
+  "secondary_theory": "Coherence (Systemic Narrative)",
+  "epistemic_summary": "The claim relies primarily on empirical observation and sensor measurement, supported by structural consistency with thermodynamic models.",
+  "quote_evidences": [
+    "Measurements recorded by the orbital probe confirmed a 1.2% variance."
+  ]
+}
+```
+
+### 4. Client Integration Models
+* **Chrome Extension Side Panel**:
+  * `#state-ineligible`: Displays category chip, confidence gauge, explanatory disclaimer text, and accessible `[⚡ Analyze Anyway]` button.
+  * `.pp-epistemic-lens-card`: Displays primary/secondary theory badges, an epistemic synthesis paragraph, and an expandable evidence drawer (`.pp-quote-drawer`).
+* **React Frontend SPA**:
+  * `EligibilityDisclaimer.tsx`: Renders the guardrail warning with force-override triggering.
+  * `EpistemicLensCard.tsx`: Renders the philosophical truth theory breakdown.

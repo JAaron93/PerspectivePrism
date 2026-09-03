@@ -32,6 +32,12 @@ npm run build
 ```
 Executes `tsc -b && vite build`. Production bundles are emitted to `dist/`.
 
+### Testing
+```bash
+npm test
+```
+Executes component unit tests (`components.test.tsx`) asserting disclaimer rendering, force-override actions, and epistemic lens quote expansion.
+
 ### Linting
 ```bash
 npm run lint
@@ -52,7 +58,12 @@ frontend/
 ├── public/              # Static assets
 ├── src/
 │   ├── assets/          # SVG and icon assets
-│   ├── components/      # React UI components (ThinkingComponent, etc.)
+│   ├── components/      # React UI components
+│   │   ├── EligibilityDisclaimer.tsx  # Guardrail disclaimer & [⚡ Analyze Anyway]
+│   │   ├── EpistemicLensCard.tsx      # Epistemic truth theories & quote accordion
+│   │   ├── ThinkingComponent.tsx      # Loading & processing stream status
+│   │   └── __tests__/                 # Component unit tests
+│   ├── types/           # Shared TypeScript interfaces (Alethiology, Eligibility, etc.)
 │   ├── utils/           # Utility functions (time formatting, etc.)
 │   ├── App.tsx          # Main application component
 │   ├── App.css          # Application layout styles

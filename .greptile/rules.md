@@ -63,7 +63,10 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Alarm listeners must pre-register `pendingRequests` and `AbortController` instances synchronously before yielding to asynchronous persistence in `executeAnalysisRequest`.
   * `background.js` must assign non-null `requestId` values and adopt existing in-progress IDs for concurrent non-forced callers to prevent ownership theft.
   * `background.js` state transitions must enforce strict `currentState.requestId === requestId` matching without `!currentState.requestId` loopholes.
+  * `background.js` must verify `message.requestId === preCancelState.requestId` before aborting active controllers on cancel requests.
   * `sidepanel.js` must track `supersededRequestIds`, `completedRequestIds`, and `lastCompletedAnalyzedAt` to reject stale completions after `activeRequestId` has been cleared.
+  * `sidepanel.js` must clear `activeRequestId` synchronously upon receiving `complete` events to ensure newer externally initiated analyses are admitted immediately. Cache lookup staleness must be guarded via `pendingCheckCacheToken` rather than retaining completed request ownership across asynchronous lookups.
+  * In `client.js`, callers joining in-flight retries (`isRetry: true`) must attach to `pendingResolvers` to await terminal completion.
 * **Anti-Oscillation & Review Stability Directive**:
   * AI Reviewers must not enter recursive micro-edge-case spirals. When a PR diff fulfills a previously requested concurrency or lifecycle guard, do not invent secondary speculative edge cases regarding intermediate retry returns or hypothetical timing gaps that are already governed by timeout and resolver fallbacks.
 
