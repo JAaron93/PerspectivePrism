@@ -42,19 +42,19 @@ We implemented centralized thinking level resolution (`get_gemini_thinking_level
 ### 5. Red-Team Evaluator & Benchmarks Optimization
 * `.benchmarks/redteam/judge.py`: Upgraded `create_llm_judge_agent` default model to `gemini-3.8-flash` with `thinking_level="HIGH"`, `max_output_tokens=65536`, and `120s` timeout. The LLM judge now applies deep reasoning to detect obfuscated prompt injections and delimiter forgery.
 
-### 6. Immutable Analytical Floor Enforcement & Test Escape Hatch
-* To eliminate the risk of accidental production throttling, `build_agent_generation_config` and `get_gemini_thinking_level` enforce strict architectural floors for all tasks in `ANALYTICAL_TASK_TYPES` (`extractor`, `analysis`, `alethiology`, `judge`, `evaluator`):
+### 6. Non-Bypassable Analytical Floor Enforcement
+* To eliminate any possibility of accidental production throttling or degraded reasoning, `build_agent_generation_config` and `get_gemini_thinking_level` enforce strictly non-bypassable architectural floors for all tasks in `ANALYTICAL_TASK_TYPES` (`extractor`, `analysis`, `alethiology`, `judge`, `evaluator`):
   - `max_output_tokens = max(configured_tokens, 65536)`
   - `http_timeout = max(configured_timeout, 120.0)`
   - `thinking_level = "high"`
 * Blanket environment variables (`GEMINI_THINKING_LEVEL=low`) and loose settings apply exclusively to non-analytical tasks (`ROUTER_TASK_TYPES`: `router`, `classifier`, `micro_task`).
-* An explicit guard flag (`GEMINI_ALLOW_ANALYTICAL_DOWNGRADE: bool = False`) must be set to `True` for specialized test fixtures to intentionally evaluate reduced limits.
+* Analytical agents can never be downgraded through configuration or environment variables, guaranteeing complete adherence to the repository's Zero-Throttling Supreme Architecture Invariant.
 
 ---
 
 ## Consequences & Invariants
 
 * **Model Invariant**: All primary analytical agents utilize `gemini-3.8-flash` with `thinking_level="HIGH"`, `max_output_tokens=65536`, and `http_timeout=120.0`.
-* **Architectural Floor Protection**: Analytical agents cannot be downgraded by general configuration without the explicit `GEMINI_ALLOW_ANALYTICAL_DOWNGRADE` escape hatch.
+* **Architectural Floor Protection**: Analytical agents cannot be downgraded by any general or specific configuration, eliminating degradation risks across all environments.
 * **Throughput & Concurrency**: Vertex AI paid tier provides 300+ RPM high-throughput quota. Long thinking calls are non-blocking and managed within existing `tier_max_concurrency` semaphore bounds.
 * **Backward Compatibility**: `gemini-3.1-flash-lite` backup circuit-breaker fallbacks remain preserved and receive model-adapted `generate_content_config` instances.

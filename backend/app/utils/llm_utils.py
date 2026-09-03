@@ -44,19 +44,13 @@ def get_gemini_thinking_level(
     """
     Resolves dynamic thinking level for Gemini models based on env, task category, and model capabilities.
     For analytical tasks ('extractor', 'analysis', 'alethiology', 'judge', 'evaluator'),
-    strictly enforces 'high' to protect reasoning capabilities unless explicitly downgraded via
-    GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=true.
+    strictly and unconditionally enforces 'high' to protect reasoning capabilities per AGENTS.md.
     """
-    allow_downgrade_env = os.getenv("GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", "").strip().lower() == "true"
-    allow_downgrade_settings = getattr(settings, "GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", False)
-    allow_downgrade = allow_downgrade_env or bool(allow_downgrade_settings)
-
-    # 1. Enforce strict analytical floor: analytical agents must never be throttled below HIGH
-    # unless an explicit downgrade flag is set (e.g. for specialized test fixtures)
-    if task_type in ANALYTICAL_TASK_TYPES and not allow_downgrade:
+    # 1. Enforce strict, non-bypassable analytical floor: analytical agents must never be throttled below HIGH
+    if task_type in ANALYTICAL_TASK_TYPES:
         return "high"
 
-    # 2. Explicit environment variable override for non-analytical tasks (or when downgrade allowed)
+    # 2. Explicit environment variable override for non-analytical tasks
     env_level = os.getenv("GEMINI_THINKING_LEVEL")
     if env_level and str(env_level).strip():
         return str(env_level).strip().lower()
@@ -92,12 +86,9 @@ def build_agent_generation_config(
     """
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
     thinking levels, expanded output ceilings, and request HTTP timeout options.
-    Enforces mandatory Zero-Throttling floors (65,536 tokens, 120s timeout, HIGH thinking)
-    for analytical tasks unless GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=true is set.
+    Enforces mandatory, non-bypassable Zero-Throttling floors (65,536 tokens, 120s timeout, HIGH thinking)
+    for analytical tasks ('extractor', 'analysis', 'alethiology', 'judge', 'evaluator') per AGENTS.md.
     """
-    allow_downgrade_env = os.getenv("GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", "").strip().lower() == "true"
-    allow_downgrade_settings = getattr(settings, "GEMINI_ALLOW_ANALYTICAL_DOWNGRADE", False)
-    allow_downgrade = allow_downgrade_env or bool(allow_downgrade_settings)
     is_analytical = task_type in ANALYTICAL_TASK_TYPES
 
     resolved_level_str = thinking_level or get_gemini_thinking_level(
@@ -105,7 +96,7 @@ def build_agent_generation_config(
         task_type=task_type,
         settings=settings,
     )
-    if is_analytical and not allow_downgrade:
+    if is_analytical:
         resolved_level_str = "high"
 
     # Determine max output tokens
@@ -119,8 +110,8 @@ def build_agent_generation_config(
             except (ValueError, TypeError):
                 max_output_tokens = 65536
 
-    # Enforce analytical floor for output tokens
-    if is_analytical and not allow_downgrade:
+    # Enforce non-bypassable analytical floor for output tokens (64K ceiling)
+    if is_analytical:
         max_output_tokens = max(max_output_tokens, 65536)
 
     # Determine HTTP timeout
@@ -131,8 +122,8 @@ def build_agent_generation_config(
         except (ValueError, TypeError):
             http_timeout = 120.0
 
-    # Enforce analytical floor for HTTP timeout
-    if is_analytical and not allow_downgrade:
+    # Enforce non-bypassable analytical floor for HTTP timeout (120s runway)
+    if is_analytical:
         http_timeout = max(http_timeout, 120.0)
 
     http_options = types.HttpOptions(timeout=http_timeout)

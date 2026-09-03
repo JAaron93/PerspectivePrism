@@ -71,7 +71,7 @@
 
 ### `build_agent_generation_config(model=None, *, task_type=None, settings=None, thinking_level=None, max_output_tokens=None, http_timeout=None) -> types.GenerateContentConfig`
 
-**Purpose:** Canonical factory function for instantiating Google GenAI `GenerateContentConfig` instances with ThinkingConfig, token ceilings, and HTTP timeouts aligned with the Zero-Throttling Architecture (ADR 007). Enforces immutable architectural floors on analytical tasks (`thinking_level="HIGH"`, `max_output_tokens >= 65536`, `http_timeout >= 120.0`), resisting blanket environment downgrades unless `GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=True` is explicitly set.
+**Purpose:** Canonical factory function for instantiating Google GenAI `GenerateContentConfig` instances with ThinkingConfig, token ceilings, and HTTP timeouts aligned with the Zero-Throttling Architecture (ADR 007). Enforces strictly non-bypassable, immutable architectural floors on analytical tasks (`thinking_level="HIGH"`, `max_output_tokens >= 65536`, `http_timeout >= 120.0`), guaranteeing that analytical agents cannot be throttled or downgraded by any environment variables or configuration settings per AGENTS.md.
 
 **Parameters:**
 | Name | Type | Default | Description |
@@ -79,7 +79,7 @@
 | `model` | `str \| None` | `None` | Gemini model name string (defaults to `gemini-3.8-flash`). |
 | `task_type` | `str \| None` | `None` | Task category (`"extractor"`, `"analysis"`, `"alethiology"`, `"judge"`, `"evaluator"`, `"router"`, `"classifier"`). |
 | `settings` | `Any \| None` | `None` | Application `Settings` instance for environment overrides. |
-| `thinking_level` | `str \| None` | `None` | Explicit thinking level override (`"minimal"`, `"low"`, `"medium"`, `"high"`). |
+| `thinking_level` | `str \| None` | `None` | Explicit thinking level override (`"minimal"`, `"low"`, `"medium"`, `"high"`). Analytical tasks strictly enforce `"high"`. |
 | `max_output_tokens` | `int \| None` | `None` | Maximum output token ceiling (analytical tasks enforce $\ge 65536$). |
 | `http_timeout` | `float \| None` | `None` | HTTP timeout in seconds (analytical tasks enforce $\ge 120.0$). |
 
@@ -94,7 +94,7 @@
 
 ### `get_gemini_thinking_level(model=None, default=None, *, task_type=None, settings=None) -> str | None`
 
-**Purpose:** Resolves the appropriate thinking level string (`"minimal"`, `"low"`, `"medium"`, `"high"`) for Gemini models. Enforces an immutable floor of `"high"` for analytical task types unless `GEMINI_ALLOW_ANALYTICAL_DOWNGRADE=True`. Bypasses deep thinking for routers and micro-tasks (`"low"`).
+**Purpose:** Resolves the appropriate thinking level string (`"minimal"`, `"low"`, `"medium"`, `"high"`) for Gemini models. Enforces an unconditional, non-bypassable floor of `"high"` for analytical task types. Bypasses deep thinking for routers and micro-tasks (`"low"`).
 
 **Constants & Classification Sets:**
 - `ANALYTICAL_TASK_TYPES`: `frozenset({"extractor", "analysis", "alethiology", "evaluator", "judge"})`

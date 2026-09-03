@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     GEMINI_THINKING_LEVEL: str = "high"
     GEMINI_MAX_OUTPUT_TOKENS: int = 65536
     GEMINI_HTTP_TIMEOUT: float = 120.0
-    GEMINI_ALLOW_ANALYTICAL_DOWNGRADE: bool = False
     
     # Backup / Fallback Configuration
     BACKUP_LLM_MODEL: str = "gemini-3.1-flash-lite"
