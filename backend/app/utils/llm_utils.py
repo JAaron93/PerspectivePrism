@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Optional
+import os
+from typing import Any, Optional, Set
 from google.adk.agents import Agent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -7,6 +8,107 @@ from google.genai import types
 from google.genai import errors
 
 logger = logging.getLogger(__name__)
+
+# Telemetry and trace sanitization exclusion set: thinking tokens & signatures must never be redacted
+EXCLUDED_TELEMETRY_KEYS: Set[str] = {
+    "tokens_used",
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "thought",
+    "thoughts",
+    "thought_tokens",
+    "thought_signature",
+    "think",
+    "reasoning",
+}
+
+
+def get_gemini_thinking_level(
+    model: Optional[str] = None,
+    default: Optional[str] = None,
+    *,
+    task_type: Optional[str] = None,
+    settings: Optional[Any] = None,
+) -> Optional[str]:
+    """
+    Resolves dynamic thinking level for Gemini models based on env, task category, and model capabilities.
+    """
+    # 1. Explicit environment variable override
+    env_level = os.getenv("GEMINI_THINKING_LEVEL")
+    if env_level and str(env_level).strip():
+        return str(env_level).strip().lower()
+
+    if default is not None:
+        return default
+
+    # 2. Bypass deep thinking for micro-tasks, routers, and guardrail classifiers
+    if task_type in ("micro_task", "router", "classifier"):
+        return "low"
+
+    # 3. Settings configuration override if explicitly configured
+    settings_level = getattr(settings, "GEMINI_THINKING_LEVEL", None)
+    if settings_level and str(settings_level).strip():
+        return str(settings_level).strip().lower()
+
+    # 4. Default to HIGH for autonomous agents, deep extraction, analysis, and evaluators
+    if model and ("3.8" in model or "flash" in model.lower()):
+        return "high"
+
+    return None
+
+
+def build_agent_generation_config(
+    model: Optional[str] = None,
+    *,
+    task_type: Optional[str] = None,
+    settings: Optional[Any] = None,
+    thinking_level: Optional[str] = None,
+    max_output_tokens: Optional[int] = None,
+    http_timeout: Optional[float] = None,
+) -> types.GenerateContentConfig:
+    """
+    Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
+    thinking levels, expanded output ceilings, and request HTTP timeout options.
+    """
+    resolved_level_str = thinking_level or get_gemini_thinking_level(
+        model=model,
+        task_type=task_type,
+        settings=settings,
+    )
+
+    # Determine max output tokens
+    if max_output_tokens is None:
+        if task_type in ("micro_task", "router", "classifier"):
+            max_output_tokens = 2048
+        else:
+            raw_tokens = getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 65536)
+            try:
+                max_output_tokens = int(raw_tokens)
+            except (ValueError, TypeError):
+                max_output_tokens = 65536
+
+    # Determine HTTP timeout
+    if http_timeout is None:
+        raw_timeout = getattr(settings, "GEMINI_HTTP_TIMEOUT", 120.0)
+        try:
+            http_timeout = float(raw_timeout)
+        except (ValueError, TypeError):
+            http_timeout = 120.0
+
+    http_options = types.HttpOptions(timeout=http_timeout)
+
+    thinking_config = None
+    if resolved_level_str:
+        lvl_enum = getattr(types.ThinkingLevel, resolved_level_str.upper(), types.ThinkingLevel.HIGH)
+        thinking_config = types.ThinkingConfig(thinking_level=lvl_enum)
+
+    return types.GenerateContentConfig(
+        thinking_config=thinking_config,
+        max_output_tokens=max_output_tokens,
+        http_options=http_options,
+    )
+
 
 
 

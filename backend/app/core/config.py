@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Perspective Prism MVP"
     LLM_MODEL: str = "gemini-3.8-flash"
     
+    # Gemini 3.8 Flash Capability Optimization Settings
+    GEMINI_THINKING_LEVEL: str = "high"
+    GEMINI_MAX_OUTPUT_TOKENS: int = 65536
+    GEMINI_HTTP_TIMEOUT: float = 120.0
+    
     # Backup / Fallback Configuration
     BACKUP_LLM_MODEL: str = "gemini-3.1-flash-lite"
     
@@ -139,6 +144,34 @@ class Settings(BaseSettings):
         if tier != "paid":
             raise ValueError(f"GEMINI_TIER must be 'paid' for GCP Vertex AI Mode, got '{v}'")
         return tier
+
+    @field_validator("GEMINI_THINKING_LEVEL", mode="after")
+    @classmethod
+    def validate_thinking_level(cls, v: str) -> str:
+        level = (v or "").strip().lower()
+        if level not in {"minimal", "low", "medium", "high"}:
+            raise ValueError(
+                f"GEMINI_THINKING_LEVEL must be one of 'minimal', 'low', 'medium', 'high', got '{v}'"
+            )
+        return level
+
+    @field_validator("GEMINI_MAX_OUTPUT_TOKENS", mode="after")
+    @classmethod
+    def validate_max_output_tokens(cls, v: int) -> int:
+        if v < 1024:
+            raise ValueError(
+                f"GEMINI_MAX_OUTPUT_TOKENS must be at least 1024, got {v}"
+            )
+        return v
+
+    @field_validator("GEMINI_HTTP_TIMEOUT", mode="after")
+    @classmethod
+    def validate_http_timeout(cls, v: float) -> float:
+        if v < 10.0:
+            raise ValueError(
+                f"GEMINI_HTTP_TIMEOUT must be at least 10.0 seconds, got {v}"
+            )
+        return v
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

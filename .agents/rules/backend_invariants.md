@@ -14,6 +14,12 @@ This document defines the implementation guidelines, security invariants, testin
 * **Strict Non-Blocking Async I/O**:
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.
+* **Zero-Throttling Capability Standards (ADR 006)**:
+  - Dynamic `thinking_level` routing via `build_agent_generation_config`:
+    - Heavy analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) configure `thinking_level="HIGH"` and `max_output_tokens=65536`.
+    - Lightweight guardrail routers (`PreClassifierService`) configure `thinking_level="LOW"` and `max_output_tokens=2048`.
+  - HTTP timeout: All `generate_content_config` instances configure `types.HttpOptions(timeout=120.0)` via `Settings.GEMINI_HTTP_TIMEOUT` to allow deep thinking loops sufficient runway.
+  - Thought signature preservation: Telemetry and audit processors MUST exempt keys in `EXCLUDED_TELEMETRY_KEYS` from redaction or truncation.
 
 ---
 

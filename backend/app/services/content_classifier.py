@@ -16,7 +16,7 @@ from app.utils.input_sanitizer import (
     sanitize_metadata_field,
     sanitize_category_string,
 )
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors
@@ -247,6 +247,11 @@ class PreClassifierService:
             instruction=PRE_CLASSIFIER_SYSTEM_PROMPT,
             output_schema=ContentEligibilityResult,
             output_key="pre_classifier_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="router",
+                settings=self.settings,
+            ),
         )
 
         self.pre_classifier_agent_backup = Agent(
@@ -255,6 +260,11 @@ class PreClassifierService:
             instruction=PRE_CLASSIFIER_SYSTEM_PROMPT,
             output_schema=ContentEligibilityResult,
             output_key="pre_classifier_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="router",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State
@@ -474,3 +484,7 @@ class PreClassifierService:
                 disclaimer_message="",
                 key_topics_found=[]
             )
+
+
+ContentClassifierService = PreClassifierService
+

@@ -21,7 +21,7 @@ from app.utils.input_sanitizer import (
     sanitize_evidence_text,
     sanitize_perspective_value,
 )
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors
@@ -75,6 +75,11 @@ class AnalysisService:
             ),
             output_schema=PerspectiveAnalysisLLMOutput,
             output_key="perspective_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.perspective_agent_backup = Agent(
@@ -90,6 +95,11 @@ class AnalysisService:
             ),
             output_schema=PerspectiveAnalysisLLMOutput,
             output_key="perspective_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.bias_agent_primary = Agent(
@@ -109,6 +119,11 @@ class AnalysisService:
             ),
             output_schema=BiasAnalysis,
             output_key="bias_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.bias_agent_backup = Agent(
@@ -128,6 +143,11 @@ class AnalysisService:
             ),
             output_schema=BiasAnalysis,
             output_key="bias_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State

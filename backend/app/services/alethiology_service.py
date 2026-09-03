@@ -14,7 +14,7 @@ from app.utils.input_sanitizer import (
     sanitize_context,
     sanitize_quote_evidence,
 )
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from google.genai import errors
@@ -173,6 +173,11 @@ class AlethiologyService:
             instruction=ALETHIOLOGY_SYSTEM_PROMPT,
             output_schema=AlethiologyAnalysis,
             output_key="alethiology_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="alethiology",
+                settings=self.settings,
+            ),
         )
 
         self.alethiology_agent_backup = Agent(
@@ -181,6 +186,11 @@ class AlethiologyService:
             instruction=ALETHIOLOGY_SYSTEM_PROMPT,
             output_schema=AlethiologyAnalysis,
             output_key="alethiology_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="alethiology",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State
