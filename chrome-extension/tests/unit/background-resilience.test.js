@@ -206,5 +206,58 @@ describe("Service Worker Resilience & Side Panel Triggering (Track 2)", () => {
         expect.objectContaining({ status: "cancelled" }),
       );
     });
+
+    it("should not overwrite active state when superseded request completes", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: true,
+        data: { claims: [] },
+      });
+
+      // Current state belongs to newer requestId req-new-456
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "req-new-456",
+      });
+
+      // Old request finishes with requestId req-old-123
+      await handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "req-old-123" });
+
+      // Must NOT have set status to complete for req-old-123
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "complete", requestId: "req-old-123" }),
+      );
+    });
+
+    it("should not overwrite active state when superseded request throws non-abort error", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockRejectedValue(new Error("Network disconnect"));
+
+      // Current state belongs to newer requestId req-new-456
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "req-new-456",
+      });
+
+      // Old request fails with requestId req-old-123
+      await expect(
+        handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "req-old-123" })
+      ).rejects.toThrow("Network disconnect");
+
+      // Must NOT have set status to error for req-old-123
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "error", requestId: "req-old-123" }),
+      );
+    });
   });
 });
