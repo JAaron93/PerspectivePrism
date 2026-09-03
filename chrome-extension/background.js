@@ -334,8 +334,13 @@ async function handleAnalysisRequest(message) {
     if (existingState.requestId) {
       requestId = existingState.requestId;
     } else {
-      existingState.requestId = requestId;
-      await StateManager.set(videoId, existingState);
+      const latestState = await StateManager.get(videoId);
+      if (latestState?.requestId) {
+        requestId = latestState.requestId;
+      } else {
+        existingState.requestId = requestId;
+        await StateManager.set(videoId, existingState);
+      }
     }
   } else {
     // Set state to in_progress
