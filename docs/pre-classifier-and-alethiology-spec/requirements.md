@@ -20,7 +20,7 @@
   2. The YouTube category is non-analytical (`Music`, `Gaming`), AND
   3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
   If the video lacks captions but metadata suggests political discourse (e.g., `"[AMV] Election 2024"` or `"Gaming Stream - Talking Supreme Court"`), the request MUST NOT be fast-path rejected; it MUST proceed to the `PreClassifierAgent` to evaluate metadata and generate a context-aware disclaimer explaining caption absence rather than falsely asserting 1.0 confidence of non-political content.
-- **FR3 - ADK 2.0 Guardrail Agent**: The system MUST implement a dedicated ADK 2.0 `PreClassifierAgent` configured with `gemini-3.5-flash-lite` (and `gemini-3.1-flash-lite` circuit-breaker backup) in GCP Vertex AI mode enforcing the `ContentEligibilityResult` structured output schema.
+- **FR3 - ADK 2.0 Guardrail Agent**: The system MUST implement a dedicated ADK 2.0 `PreClassifierAgent` configured with `gemini-3.8-flash` (and `gemini-3.1-flash-lite` circuit-breaker backup) in GCP Vertex AI mode enforcing the `ContentEligibilityResult` structured output schema.
 - **FR4 - Conservative Ambiguity Threshold**: If the agent returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST treat the classification as ambiguous and automatically default to allowing full analysis (`is_analysable = True`).
 - **FR5 - Edge-Case Prompt Calibration**: The agent system prompt MUST include few-shot calibration handling:
   - *Political Satire & Parody*: Classified as `is_analysable = True`.
@@ -71,7 +71,7 @@
   - Side panel skeleton cards MUST render within $< 50\text{ms}$ of video navigation.
 - **NFR2 - Strict Vendor Lock-In & Async I/O**:
   - All LLM agents MUST use Google ADK 2.0 (`google-adk>=2.4.0`) and Google GenAI SDK (`google-genai>=2.9.0`) in GCP Vertex AI mode (`GEMINI_TIER=paid`).
-  - Primary model: `gemini-3.5-flash-lite`; backup model: `gemini-3.1-flash-lite`.
+  - Primary model: `gemini-3.8-flash`; backup model: `gemini-3.1-flash-lite`.
   - All network I/O MUST use non-blocking `async`/`await` patterns.
 - **NFR3 - Security & Storage Isolation**:
   - Sensitive API keys, BYOK settings, and cache data MUST reside exclusively in `chrome.storage.local`.

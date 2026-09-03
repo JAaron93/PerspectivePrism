@@ -24,7 +24,7 @@ graph TD
     end
     
     subgraph External Services & Foundation Models
-        PC -->|Fast Regex & Prompt| Vertex[GCP Vertex AI Gemini 3.x]
+        PC -->|Fast Regex & Prompt| Vertex[GCP Vertex AI Gemini 3.8 Flash]
         CE -->|Fetches| YT[YouTube Transcript API]
         CE -->|Structured Extraction| Vertex
         ER -->|Multi-Perspective Queries| GCS[Google Custom Search API]

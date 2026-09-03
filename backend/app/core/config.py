@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     PROJECT_NAME: str = "Perspective Prism MVP"
-    LLM_MODEL: str = "gemini-3.5-flash-lite"
+    LLM_MODEL: str = "gemini-3.8-flash"
     
     # Backup / Fallback Configuration
     BACKUP_LLM_MODEL: str = "gemini-3.1-flash-lite"

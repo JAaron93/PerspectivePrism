@@ -163,7 +163,7 @@ class AlethiologyService:
         )
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
-        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
 
         self.backup_client = True if backup_model else None
 

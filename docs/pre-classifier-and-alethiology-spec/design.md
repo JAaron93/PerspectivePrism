@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Problem Context
 
-Perspective Prism is an intelligent YouTube video analysis platform running a multi-agent pipeline orchestrated with **Google ADK 2.0** and **Gemini 3.x Flash Lite** (in GCP Vertex AI mode). Currently, the pipeline directly triggers full transcript extraction, multi-perspective Google Custom Search queries (Scientific, Journalistic, Partisan Left, Partisan Right), stance evaluations, and bias/deception scoring on any submitted YouTube URL.
+Perspective Prism is an intelligent YouTube video analysis platform running a multi-agent pipeline orchestrated with **Google ADK 2.0** and **Gemini 3.8 Flash** (in GCP Vertex AI mode). Currently, the pipeline directly triggers full transcript extraction, multi-perspective Google Custom Search queries (Scientific, Journalistic, Partisan Left, Partisan Right), stance evaluations, and bias/deception scoring on any submitted YouTube URL.
 
 This introduces two distinct architectural opportunities:
 1. **Inefficient Processing on Non-Analytical Videos**: Submitting music videos, anime music videos (AMVs), video game speedruns, fashion runway shows, cooking demos, or ASMR streams to the deep political and factual claim extraction pipeline wastes API tokens, adds unnecessary latency, and risks forcing LLMs to hallucinate political or factual claims where none exist.
@@ -34,7 +34,7 @@ flowchart TD
         F -- No --> G{"Deterministic Pre-Filter:\nMissing Transcript AND\nCategory in (Music, Gaming) AND\nMetadata Lacks Political Signals?"}
         G -- Yes --> H["Early Exit: Return Ineligible Payload\n(Confidence: 1.0, is_analysable: False)"]
         G -- No --> I["Fetch Transcript Preview (~100 lines)"]
-        I --> J["ADK 2.0 PreClassifierAgent\n(gemini-3.5-flash-lite structured output)"]
+        I --> J["ADK 2.0 PreClassifierAgent\n(gemini-3.8-flash structured output)"]
         J --> K{"is_analysable == False\nAND\nconfidence >= 0.70?"}
         K -- Yes --> H
         K -- No (Eligible / Ambiguous) --> L
@@ -100,7 +100,7 @@ To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious n
 
 #### 3.1.3 ADK 2.0 Pre-Classifier Agent Specification
 - **Agent Name**: `pre_classifier_agent_primary` (with fallback to `pre_classifier_agent_backup`).
-- **Model**: `gemini-3.5-flash-lite` (Vertex AI mode), fallback to `gemini-3.1-flash-lite`.
+- **Model**: `gemini-3.8-flash` (Vertex AI mode), fallback to `gemini-3.1-flash-lite`.
 - **Structured Output Schema**: `ContentEligibilityResult` (Pydantic model).
 - **Conservative Threshold Rule**: If `is_analysable == False` but `confidence_score < 0.70`, the system treats the result as ambiguous and defaults to **allowing analysis** (`is_analysable = True`).
 

@@ -1,7 +1,7 @@
 # LLM-Based Claim Extraction - Implementation Walkthrough
 
 > [!WARNING]
-> **Deprecated Implementation Details**: This walkthrough describes an early iteration of the system that used the `openai.AsyncOpenAI` SDK and GPT-3.5-turbo directly. The project has since been modernized to use **Google Agent Development Kit (ADK) 2.0** and the **Gemini API** (`gemini-3.5-flash`). For current architectural details, please refer to the `.kiro/specs/adk2_modernization/design.md` specification.
+> **Deprecated Implementation Details**: This walkthrough describes an early iteration of the system that used the `openai.AsyncOpenAI` SDK and GPT-3.5-turbo directly. The project has since been modernized to use **Google Agent Development Kit (ADK) 2.0** and the **Gemini API** (`gemini-3.8-flash`). For current architectural details, please refer to the `.kiro/specs/adk2_modernization/design.md` specification.
 
 ## Overview
 

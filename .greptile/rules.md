@@ -94,7 +94,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Google AI Studio API key mode (`GEMINI_API_KEY`, `LLM_API_KEY`) and free-tier rate-limit throttling are permanently removed. Flag any PR introducing AI Studio key fallbacks or free-tier rate-limiting.
   * `.env.example` must contain `GCP_PROJECT=` with clear GCP billing usage comments and no committed AI Studio keys.
 * **Primary & Backup Models**:
-  * Exclusively use Gemini 3.x series models: **`gemini-3.5-flash-lite`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
+  * Exclusively use Gemini 3.x series models: **`gemini-3.8-flash`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
   * Exclusively use **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`). Deprecated SDKs (`openai`, `AsyncOpenAI`, legacy `google-generativeai`) are prohibited.
 * **Strict Async Non-Blocking I/O**:
   * All network operations (LLM model calls, Google Custom Search, transcript retrieval) must use non-blocking `async`/`await`.

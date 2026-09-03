@@ -20,7 +20,7 @@ We have decided to integrate a **Pre-Classification Guardrail Gate** and an **Al
 ### 1. Two-Tier Content Eligibility Classifier (`ContentClassifierService`)
 Before claim extraction begins, the backend evaluates the video's transcript and metadata:
 * **Tier 1 (Deterministic Fast-Path)**: Evaluates video title, description, and transcript snippet against high-confidence regex patterns for obvious non-factual categories (e.g., official music videos, gameplay walkthroughs) in `<1ms`.
-* **Tier 2 (Vertex AI ADK 2.0 Classifier Agent)**: If the deterministic check is inconclusive, a lightweight agent (`gemini-3.5-flash-lite`, with circuit-breaker fallback to `gemini-3.1-flash-lite`) classifies content eligibility into a structured `ContentEligibilityResult`:
+* **Tier 2 (Vertex AI ADK 2.0 Classifier Agent)**: If the deterministic check is inconclusive, a lightweight agent (`gemini-3.8-flash`, with circuit-breaker fallback to `gemini-3.1-flash-lite`) classifies content eligibility into a structured `ContentEligibilityResult`:
   * `is_analysable`: Boolean flag indicating whether the video contains verifiable claims.
   * `confidence_score`: Float between 0.0 and 1.0.
   * `detected_category`: Classified genre (`News & Politics`, `Science & Technology`, `Music`, `Gaming`, `Entertainment`, `Vlog`, etc.).
@@ -63,7 +63,7 @@ The agent outputs a structured `AlethiologyAnalysis` object containing:
 ## Rationale & Invariants
 
 1. **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-   Both `ContentClassifierService` and `AlethiologyService` strictly use `google-genai` and `google-adk` in GCP Vertex AI mode (`GCP_PROJECT`, `GEMINI_TIER=paid`, `gemini-3.5-flash-lite` primary model).
+   Both `ContentClassifierService` and `AlethiologyService` strictly use `google-genai` and `google-adk` in GCP Vertex AI mode (`GCP_PROJECT`, `GEMINI_TIER=paid`, `gemini-3.8-flash` primary model).
 2. **Strict Async I/O**:
    All model invocations and network requests utilize non-blocking `client.aio.models` or `asyncio.to_thread`.
 3. **Zero-Build Vanilla JavaScript Invariant (ADR 004)**:

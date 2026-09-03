@@ -20,7 +20,7 @@ def dummy_settings():
     settings.GCP_LOCATION = "us-central1"
     settings.GEMINI_TIER = "paid"
     settings.tier_max_concurrency = 4
-    settings.LLM_MODEL = "gemini-3.5-flash-lite"
+    settings.LLM_MODEL = "gemini-3.8-flash"
     settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
     settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
     settings.CIRCUIT_BREAKER_RESET_TIMEOUT = 60
@@ -47,7 +47,7 @@ class TestAlethiologyServiceInitialization:
         assert alethiology_service.max_concurrency == 4
 
         # Primary and backup agents
-        assert alethiology_service.alethiology_agent_primary.model == "gemini-3.5-flash-lite"
+        assert alethiology_service.alethiology_agent_primary.model == "gemini-3.8-flash"
         assert alethiology_service.alethiology_agent_backup.model == "gemini-3.1-flash-lite"
         assert alethiology_service.alethiology_agent_primary.output_schema == AlethiologyAnalysis
 

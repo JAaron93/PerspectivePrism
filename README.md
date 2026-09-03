@@ -21,8 +21,8 @@ Perspective Prism is an AI agent that acts as an automated, multi-perspective fa
 ![Perspective Prism Architecture](assets/img_1764592936221.png)
 Perspective Prism operates as an end-to-end pipeline of specialized sub-agents:
 
-1.  **Pre-Classification Guardrail Gate**: Evaluates video title, metadata, and transcript snippet using deterministic regex (<1ms) and a lightweight Gemini classifier agent (`gemini-3.5-flash-lite`). Non-factual content (music, gaming clips, comedy, vlogs) returns early with a structured `ContentEligibilityResult`, saving token quota while empowering users with an accessible `[⚡ Analyze Anyway]` force-override action.
-2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.5-flash-lite`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
+1.  **Pre-Classification Guardrail Gate**: Evaluates video title, metadata, and transcript snippet using deterministic regex (<1ms) and a lightweight Gemini classifier agent (`gemini-3.8-flash`). Non-factual content (music, gaming clips, comedy, vlogs) returns early with a structured `ContentEligibilityResult`, saving token quota while empowering users with an accessible `[⚡ Analyze Anyway]` force-override action.
+2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.8-flash`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
 3.  **Evidence Retriever**: Dynamically queries the Google Custom Search API in parallel across four distinct perspectives (Scientific, Journalistic, Partisan Left, Partisan Right).
 4.  **Perspective & Bias Analysis**: Evaluates extracted claims against retrieved evidence, assesses support/refutation stances, and detects emotional manipulation or logical fallacies.
 5.  **Alethiology Engine (Epistemic Lens)**: Assesses the philosophical grounding of each claim across six canonical theories of truth (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), extracting exact transcript quote evidences and synthesizing an epistemic summary.
@@ -44,7 +44,7 @@ A critical security tool that protects against Large Language Model (LLM) prompt
 
 ### Content Classifier Service (`content_classifier.py`)
 
-A two-tier pre-classification guardrail gate that assesses whether a video's transcript contains verifiable empirical claims before initiating heavy downstream pipeline operations. The service runs a sub-millisecond deterministic regex fast-path inspecting title, description, and transcript cues for obvious non-factual categories (e.g. music videos, esports gameplay, entertainment sketches). If inconclusive, it invokes a lightweight Vertex AI ADK 2.0 classifier agent (`gemini-3.5-flash-lite`, with circuit-breaker fallback to `gemini-3.1-flash-lite`). Videos classified as ineligible return early with a structured `ContentEligibilityResult` (category, confidence score, user-facing explanation), preventing unnecessary token and search API consumption while preserving user autonomy through a force-override mechanism.
+A two-tier pre-classification guardrail gate that assesses whether a video's transcript contains verifiable empirical claims before initiating heavy downstream pipeline operations. The service runs a sub-millisecond deterministic regex fast-path inspecting title, description, and transcript cues for obvious non-factual categories (e.g. music videos, esports gameplay, entertainment sketches). If inconclusive, it invokes a lightweight Vertex AI ADK 2.0 classifier agent (`gemini-3.8-flash`, with circuit-breaker fallback to `gemini-3.1-flash-lite`). Videos classified as ineligible return early with a structured `ContentEligibilityResult` (category, confidence score, user-facing explanation), preventing unnecessary token and search API consumption while preserving user autonomy through a force-override mechanism.
 
 ### Alethiology Service (`alethiology_service.py`)
 
@@ -149,7 +149,7 @@ Since there are no funds allocated to scale this extension further, the extensio
 - **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
 - **AI/LLM**:
     - **Framework**: Agent Development Kit (ADK) 2.x
-    - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
+    - **Primary**: Gemini API (`gemini-3.8-flash` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
 - **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
@@ -219,7 +219,7 @@ Configure `.env` with your project ID:
 GCP_PROJECT=your_gcp_project_id_here
 GCP_LOCATION=global
 GEMINI_TIER=paid
-LLM_MODEL=gemini-3.5-flash-lite
+LLM_MODEL=gemini-3.8-flash
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
 ```
 
@@ -237,7 +237,7 @@ For production backend deployments:
 Audit your local environment setup and high-throughput quota using the diagnostic scripts:
 
 ```bash
-# Verify ADC setup, project linkage, and Gemini 3.5 connectivity
+# Verify ADC setup, project linkage, and Gemini 3.8 connectivity
 python3 verify_environment.py
 
 # Run mocked parallel burst test (20 concurrent requests) to verify tier limits

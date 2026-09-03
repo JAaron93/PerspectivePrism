@@ -74,7 +74,7 @@ async def verify_environment() -> bool:
     try:
         client = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
 
-        model_name = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
+        model_name = os.getenv("LLM_MODEL", "gemini-3.8-flash")
         response = await client.aio.models.generate_content(
             model=model_name,
             contents="Respond with 'VERIFIED_OK' if connectivity is operational.",

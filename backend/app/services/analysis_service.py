@@ -55,7 +55,7 @@ class AnalysisService:
         logger.info("AnalysisService initialized with GEMINI_TIER=%s (max_concurrency=%d)", self.gemini_tier, self.max_concurrency)
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
-        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
 
         # Expose backup_client for health check compatibility
         self.backup_client = True if backup_model else None

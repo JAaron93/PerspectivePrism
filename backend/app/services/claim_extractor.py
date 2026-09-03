@@ -39,7 +39,7 @@ class ClaimExtractor:
 
         self.agent = Agent(
             name="extractor_agent",
-            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
+            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash"),
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
