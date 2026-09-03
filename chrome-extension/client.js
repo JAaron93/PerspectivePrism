@@ -9,6 +9,7 @@ class PerspectivePrismClient {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
     this.pendingRequests = new Map(); // In-memory deduplication
     this.pendingRequestOptions = new Map(); // In-memory options tracking for override deduplication
+    this.activeOverrideVideoIds = new Set(); // Video IDs undergoing force override replacement
     this.abortControllers = new Map(); // Map<videoId, AbortController> for cancellation
     this.MAX_RETRIES = 2;
     this.RETRY_DELAYS = [2000, 4000]; // Exponential backoff: 2s, 4s
@@ -91,6 +92,10 @@ class PerspectivePrismClient {
     const isForceOverride = Boolean(
       options.forceOverride || options.force_override,
     );
+
+    if (isForceOverride) {
+      this.activeOverrideVideoIds.add(videoId);
+    }
 
     // 1. Check Cache (skip if forceOverride is requested)
     if (!isForceOverride) {
@@ -191,6 +196,9 @@ class PerspectivePrismClient {
       if (this.pendingRequests.get(videoId) === requestPromise) {
         this.pendingRequests.delete(videoId);
         this.pendingRequestOptions.delete(videoId);
+      }
+      if (isForceOverride) {
+        this.activeOverrideVideoIds.delete(videoId);
       }
     }
   }
@@ -301,6 +309,15 @@ class PerspectivePrismClient {
    * @returns {Promise<boolean>} - True if request was cancelled, false if no request found
    */
   async cancelAnalysis(videoId) {
+    // Clear any pending retry alarms for this video
+    for (let attempt = 1; attempt <= this.MAX_RETRIES + 1; attempt++) {
+      try {
+        await chrome.alarms.clear(`retry::${videoId}::${attempt}`);
+      } catch (_e) {
+        // Ignore alarm clearing error
+      }
+    }
+
     const controller = this.abortControllers.get(videoId);
     let wasCancelled = false;
     if (controller) {
@@ -316,7 +333,10 @@ class PerspectivePrismClient {
       this.pendingRequests.delete(videoId);
       wasCancelled = true;
     }
-    this.pendingRequestOptions.delete(videoId);
+    // Only delete pendingRequestOptions if no force override is actively replacing it
+    if (!this.activeOverrideVideoIds?.has(videoId)) {
+      this.pendingRequestOptions.delete(videoId);
+    }
 
     // Clean up persisted state and await completion so it doesn't race forced replacement
     try {
@@ -512,13 +532,14 @@ class PerspectivePrismClient {
     // Query tabs that match YouTube patterns (we have host permissions for these)
     chrome.tabs.query({ url: "*://*.youtube.com/*" }, (tabs) => {
       for (const tab of tabs) {
-        chrome.tabs
-          .sendMessage(tab.id, {
-            type: "ANALYSIS_PROGRESS",
-            videoId,
-            payload: progressData,
-          })
-          .catch(() => {});
+        const sendMsg = chrome.tabs.sendMessage(tab.id, {
+          type: "ANALYSIS_PROGRESS",
+          videoId,
+          payload: progressData,
+        });
+        if (sendMsg && typeof sendMsg.catch === "function") {
+          sendMsg.catch(() => {});
+        }
       }
     });
   }
@@ -1434,21 +1455,37 @@ class PerspectivePrismClient {
         const alarmAttempt = parseInt(parts[2], 10);
 
         console.log(`[PerspectivePrismClient] Alarm fired for ${videoId}`);
+
+        // Immediate check: if force override is active or in flight, suppress immediately
+        const initialOptions = this.pendingRequestOptions.get(videoId);
+        if (
+          this.activeOverrideVideoIds?.has(videoId) ||
+          (initialOptions &&
+            (initialOptions.forceOverride || initialOptions.force_override))
+        ) {
+          logger.info(
+            `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override is in flight`,
+          );
+          return;
+        }
+
         const state = await this.getPersistedRequestState(videoId);
 
-        if (state && state.status !== "cancelled") {
-          // If a force override is already in flight for this video, do not execute stale retry
-          const inFlightOptions = this.pendingRequestOptions.get(videoId);
-          if (
-            inFlightOptions &&
-            (inFlightOptions.forceOverride || inFlightOptions.force_override)
-          ) {
-            logger.info(
-              `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override is in flight`,
-            );
-            return;
-          }
+        // Re-check after async read: if force override started while reading state or state is cancelled, suppress
+        const currentOptions = this.pendingRequestOptions.get(videoId);
+        if (
+          this.activeOverrideVideoIds?.has(videoId) ||
+          (currentOptions &&
+            (currentOptions.forceOverride || currentOptions.force_override)) ||
+          state?.status === "cancelled"
+        ) {
+          logger.info(
+            `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override started during state retrieval`,
+          );
+          return;
+        }
 
+        if (state) {
           // Use state.attemptCount to ensure we are in sync with persistence
           const retryPromise = this.executeAnalysisRequest(
             videoId,
@@ -1468,7 +1505,7 @@ class PerspectivePrismClient {
               this.pendingRequestOptions.delete(videoId);
             }
           }
-        } else if (!state) {
+        } else {
           // Fallback for missing state
           console.error(
             `[PerspectivePrismClient] Alarm fired for ${videoId} but no persisted state found. Alarm attempt: ${alarmAttempt}`,

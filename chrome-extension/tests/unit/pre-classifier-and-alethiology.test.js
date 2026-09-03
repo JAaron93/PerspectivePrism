@@ -1104,5 +1104,37 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
       expect(abortCalled).toBe(true);
       expect(retrySettled).toBe(true);
     });
+
+    it("should suppress retry alarm if force override started before or during alarm execution", async () => {
+      let alarmListener;
+      chrome.alarms.onAlarm.addListener.mockImplementation((listener) => {
+        alarmListener = listener;
+      });
+
+      const client = new PerspectivePrismClient(
+        "https://api.perspectiveprism.org",
+        { storageType: "local" },
+      );
+
+      vi.spyOn(client, "getPersistedRequestState").mockResolvedValue({
+        videoId: "retryVid11ch",
+        videoUrl: "https://www.youtube.com/watch?v=retryVid11ch",
+        status: "retrying",
+        attemptCount: 1,
+        options: { forceOverride: false },
+      });
+
+      const executeSpy = vi.spyOn(client, "executeAnalysisRequest");
+
+      // Mark override active for this video
+      client.activeOverrideVideoIds.add("retryVid11ch");
+
+      // Alarm fires
+      await alarmListener({ name: "retry::retryVid11ch::1" });
+
+      // executeAnalysisRequest should NOT be called
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(client.pendingRequests.has("retryVid11ch")).toBe(false);
+    });
   });
 });
