@@ -94,8 +94,14 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Google AI Studio API key mode (`GEMINI_API_KEY`, `LLM_API_KEY`) and free-tier rate-limit throttling are permanently removed. Flag any PR introducing AI Studio key fallbacks or free-tier rate-limiting.
   * `.env.example` must contain `GCP_PROJECT=` with clear GCP billing usage comments and no committed AI Studio keys.
 * **Primary & Backup Models**:
-  * Exclusively use Gemini 3.x series models: **`gemini-3.5-flash-lite`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
+  * Exclusively use Gemini 3.x series models: **`gemini-3.8-flash`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
   * Exclusively use **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`). Deprecated SDKs (`openai`, `AsyncOpenAI`, legacy `google-generativeai`) are prohibited.
+* **Gemini 3.8 Flash Model Optimization & Zero-Throttling Invariants (ADR 007)**:
+  * **Mandatory Generation Config Factory**: Flag any ADK 2.0 `Agent(...)` instantiation that fails to attach `generate_content_config` built via `build_agent_generation_config(model=..., task_type=..., settings=...)`.
+  * **Task-Aware Thinking Level Resolution**: Verify that analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) configure `thinking_level="HIGH"`, while lightweight guardrail routers (`PreClassifierService`) configure `thinking_level="LOW"` and `max_output_tokens=2048`.
+  * **Output Ceilings & HTTP Timeout Runway**: Analytical agents must enforce `max_output_tokens=65536` (64K ceiling) and `timeout=120.0` HTTP options (`types.HttpOptions(timeout=120.0)` via `GEMINI_HTTP_TIMEOUT`). Flag any hardcoded output limits below 64K or aggressive timeouts (<120s) on reasoning loops.
+  * **Thought Signature & Thinking Preservation**: Flag any code, sanitizer, serializer, or logger that strips, redacts, or drops keys in `EXCLUDED_TELEMETRY_KEYS` (`thought`, `thoughts`, `thought_tokens`, `thought_signature`, `think`, `reasoning`).
+  * **Lean Prompt Scaffolding**: Flag artificial chain-of-thought directives ("think step-by-step", forced XML reflection blocks) that duplicate internal model reasoning tokens.
 * **Strict Async Non-Blocking I/O**:
   * All network operations (LLM model calls, Google Custom Search, transcript retrieval) must use non-blocking `async`/`await`.
   * LLM calls must use `client.aio` and I/O tasks must use `async def` or `asyncio.to_thread`.

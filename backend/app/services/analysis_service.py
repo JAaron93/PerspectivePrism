@@ -25,6 +25,7 @@ from app.utils.llm_utils import (
     execute_adk_agent,
     init_tier_concurrency,
     execute_agent_with_circuit_breaker,
+    build_agent_generation_config,
 )
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
@@ -50,7 +51,7 @@ class AnalysisService:
         self.max_concurrency = max_concurrent
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
-        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
 
         # Expose backup_client for health check compatibility
         self.backup_client = True if backup_model else None
@@ -70,6 +71,11 @@ class AnalysisService:
             ),
             output_schema=PerspectiveAnalysisLLMOutput,
             output_key="perspective_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.perspective_agent_backup = Agent(
@@ -85,6 +91,11 @@ class AnalysisService:
             ),
             output_schema=PerspectiveAnalysisLLMOutput,
             output_key="perspective_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.bias_agent_primary = Agent(
@@ -104,6 +115,11 @@ class AnalysisService:
             ),
             output_schema=BiasAnalysis,
             output_key="bias_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         self.bias_agent_backup = Agent(
@@ -123,6 +139,11 @@ class AnalysisService:
             ),
             output_schema=BiasAnalysis,
             output_key="bias_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="analysis",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State

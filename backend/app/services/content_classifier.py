@@ -19,6 +19,7 @@ from app.utils.llm_utils import (
     execute_adk_agent,
     init_tier_concurrency,
     execute_agent_with_circuit_breaker,
+    build_agent_generation_config,
 )
 from app.utils.prompt_helpers import (
     build_user_data_prompt,
@@ -233,7 +234,7 @@ class PreClassifierService:
         self.max_concurrency = max_concurrent
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
-        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
 
         self.backup_client = True if backup_model else None
 
@@ -243,6 +244,11 @@ class PreClassifierService:
             instruction=PRE_CLASSIFIER_SYSTEM_PROMPT,
             output_schema=ContentEligibilityResult,
             output_key="pre_classifier_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="router",
+                settings=self.settings,
+            ),
         )
 
         self.pre_classifier_agent_backup = Agent(
@@ -251,6 +257,11 @@ class PreClassifierService:
             instruction=PRE_CLASSIFIER_SYSTEM_PROMPT,
             output_schema=ContentEligibilityResult,
             output_key="pre_classifier_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="router",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State
@@ -384,3 +395,7 @@ class PreClassifierService:
                 disclaimer_message="",
                 key_topics_found=[]
             )
+
+
+ContentClassifierService = PreClassifierService
+

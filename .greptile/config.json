@@ -3,5 +3,5 @@
   "commentTypes": ["logic", "syntax"],
   "triggerOnUpdates": true,
   "ignorePatterns": "dist/**\nnode_modules/**\ncoverage/**\nbackend/venv/**\n**/*.lock\n**/*.sqlite*",
-  "instructions": "Review code against Perspective Prism's architectural invariants: Python/FastAPI/ADK 2.0 Vertex AI backend with Rust PyO3 sanitizer, React 19 / TypeScript 7.0 frontend, and zero-build vanilla JS Chrome Extension with Manifest V3 security. Focus strictly on logic bugs, security boundaries, performance, and solo-developer maintainability."
+  "instructions": "Review code against Perspective Prism's architectural invariants: Python/FastAPI/ADK 2.0 Vertex AI backend with Rust PyO3 sanitizer, React 19 / TypeScript 7.0 frontend, zero-build vanilla JS Chrome Extension with Manifest V3 security, and Gemini 3.8 Flash Zero-Throttling model optimization (dynamic thinking levels, 64K token ceilings, 120s timeouts, thought signature preservation). Focus strictly on logic bugs, security boundaries, performance, and solo-developer maintainability."
 }

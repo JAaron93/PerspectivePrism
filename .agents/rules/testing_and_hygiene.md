@@ -16,6 +16,8 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Review Comment Evaluation Protocol (Valid vs. By-Design Edge Cases)**:
   - **Valid Metadata Omissions**: If an automated review agent identifies that an ingested signal (e.g. `channel_name`) was omitted from a multi-field filter condition, treat it as valid and apply cascading updates (`design.md` -> `requirements.md` -> `tasks.md`).
   - **By-Design Zero-Caption Edge Cases**: If a review comment flags that captionless media with non-political metadata bypasses LLM calibration, treat it as by-design: transcript-based analysis cannot run without text or audio, and the user-facing `[⚡ Analyze Anyway]` (Force Override) button is the designated architectural mechanism for manual bypass.
+* **ADK Agent Generation Config Verification**:
+  - Any test verifying an ADK 2.0 `Agent` instance must assert that `agent.generate_content_config` is present, `thinking_level` conforms to the task routing standard (`HIGH` for analytical agents, `LOW` for routers), and `max_output_tokens` meets ceiling requirements (65,536 for analytical, 2,048 for routers). Never allow untested bare `Agent(...)` instantiations in services or test fixtures.
 
 ---
 
@@ -39,6 +41,10 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Git Merge Resolution & Parent Verification**:
   - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit` (or explicit merge commit message).
   - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
+* **Concurrent ADR Branch Renumbering Protocol**:
+  - **Collision Detection**: When resolving merge conflicts against `main`, inspect `docs/adr/` for newly merged ADRs that share the same sequential index as the feature branch's new ADR.
+  - **Renumbering**: If a collision occurs (e.g. both branches introduced `006-*`), renumber the newer feature branch ADR to the next available sequential integer (e.g. `007-*`) using `git mv` to preserve git file tracking.
+  - **Cross-Reference Synchronization**: Update the ADR title heading, `AGENTS.md` Supreme Architecture Invariants, `.agents/rules/` domain rulebooks, and `.greptile/rules.md` references before concluding the merge commit.
 * **Documentation Hygiene & Test Suite Claims**:
   - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
   - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).

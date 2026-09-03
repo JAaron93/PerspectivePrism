@@ -17,7 +17,7 @@ class TestAnalysisServiceInitialization:
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "us-central1"
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
             mock_settings.tier_max_concurrency = 10
@@ -27,7 +27,7 @@ class TestAnalysisServiceInitialization:
             assert service.perspective_agent_primary is not None
             assert service.gcp_project == "my-gcp-project"
             assert service.gcp_location == "us-central1"
-            assert service.perspective_agent_primary.model == "gemini-3.5-flash-lite"
+            assert service.perspective_agent_primary.model == "gemini-3.8-flash"
 
     def test_initialization_without_gcp_project_fails(self):
         """Should raise ValueError when GCP_PROJECT is missing."""
@@ -35,7 +35,7 @@ class TestAnalysisServiceInitialization:
             mock_settings.effective_gcp_project = ""
             mock_settings.GCP_PROJECT = ""
             mock_settings.GOOGLE_CLOUD_PROJECT = ""
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
 
@@ -65,7 +65,7 @@ class TestAnalysisServiceInitialization:
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "global"
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
             mock_settings.tier_max_concurrency = 10
@@ -80,7 +80,7 @@ class TestAnalysisServiceInitialization:
         with patch.dict("os.environ", {"GEMINI_API_KEY": "stale-key-123", "LLM_API_KEY": "stale-key-456"}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "global"
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
             mock_settings.tier_max_concurrency = 10
@@ -96,7 +96,7 @@ class TestAnalysisServiceInitialization:
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "global"
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
             mock_settings.tier_max_concurrency = 10
@@ -113,7 +113,7 @@ class TestAnalysisServiceInitialization:
         with patch.dict("os.environ", {}, clear=True), patch("app.services.analysis_service.settings") as mock_settings:
             mock_settings.effective_gcp_project = "my-gcp-project"
             mock_settings.GCP_LOCATION = "global"
-            mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+            mock_settings.LLM_MODEL = "gemini-3.8-flash"
             mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
             mock_settings.GEMINI_TIER = "paid"
             mock_settings.tier_max_concurrency = 2

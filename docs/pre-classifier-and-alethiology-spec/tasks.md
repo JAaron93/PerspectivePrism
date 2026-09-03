@@ -27,7 +27,7 @@
   - **Traceability**: FR2, NFR1
 
 - [x] **T2.2: Implement ADK 2.0 Pre-Classifier Agent & Edge-Case Few-Shot Prompt**
-  - **Description**: In `backend/app/services/content_classifier.py`, define `PreClassifierService` using Google ADK 2.0 `Agent` configured with `gemini-3.5-flash-lite` (primary) and `gemini-3.1-flash-lite` (backup) in Vertex AI mode with `output_schema=ContentEligibilityResult`. Include few-shot prompt calibrations for satire, political AMVs, documentaries in Education/Tech, and news-adjacent gaming commentary. Implement conservative thresholding (`confidence < 0.70` defaults to `is_analysable = True`).
+  - **Description**: In `backend/app/services/content_classifier.py`, define `PreClassifierService` using Google ADK 2.0 `Agent` configured with `gemini-3.8-flash` (primary) and `gemini-3.1-flash-lite` (backup) in Vertex AI mode with `output_schema=ContentEligibilityResult`. Include few-shot prompt calibrations for satire, political AMVs, documentaries in Education/Tech, and news-adjacent gaming commentary. Implement conservative thresholding (`confidence < 0.70` defaults to `is_analysable = True`).
   - **Dependencies**: T1.1, T2.1
   - **Traceability**: FR3, FR4, FR5, NFR2
 

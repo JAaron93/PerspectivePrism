@@ -18,6 +18,7 @@ from app.utils.llm_utils import (
     execute_adk_agent,
     init_tier_concurrency,
     execute_agent_with_circuit_breaker,
+    build_agent_generation_config,
 )
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
@@ -156,7 +157,7 @@ class AlethiologyService:
         self.max_concurrency = max_concurrent
 
         backup_model = getattr(self.settings, "BACKUP_LLM_MODEL", "gemini-3.1-flash-lite")
-        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+        primary_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
 
         self.backup_client = True if backup_model else None
 
@@ -166,6 +167,11 @@ class AlethiologyService:
             instruction=ALETHIOLOGY_SYSTEM_PROMPT,
             output_schema=AlethiologyAnalysis,
             output_key="alethiology_result",
+            generate_content_config=build_agent_generation_config(
+                model=primary_model,
+                task_type="alethiology",
+                settings=self.settings,
+            ),
         )
 
         self.alethiology_agent_backup = Agent(
@@ -174,6 +180,11 @@ class AlethiologyService:
             instruction=ALETHIOLOGY_SYSTEM_PROMPT,
             output_schema=AlethiologyAnalysis,
             output_key="alethiology_result",
+            generate_content_config=build_agent_generation_config(
+                model=backup_model,
+                task_type="alethiology",
+                settings=self.settings,
+            ),
         )
 
         # Circuit Breaker State

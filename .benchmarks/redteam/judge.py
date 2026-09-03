@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.utils.input_sanitizer import sanitize_input
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
 from google.adk.agents import Agent
 from redteam.corpus import PayloadEntry
@@ -155,7 +155,7 @@ def check_heuristics(output: Any, payload_id: str = "") -> Optional[JudgeResult]
     return None
 
 
-def create_llm_judge_agent(model_name: str = "gemini-3.5-flash-lite", nonce: Optional[str] = None) -> Agent:
+def create_llm_judge_agent(model_name: str = "gemini-3.8-flash", nonce: Optional[str] = None) -> Agent:
     """Creates the ADK Agent for the Tier 3 LLM Judge."""
     nonce_desc = f"===JUDGE DATA {nonce} START=== ... ===JUDGE DATA {nonce} END===" if nonce else "===JUDGE DATA <nonce> START=== ... ===JUDGE DATA <nonce> END==="
     return Agent(
@@ -176,6 +176,10 @@ def create_llm_judge_agent(model_name: str = "gemini-3.5-flash-lite", nonce: Opt
         ),
         output_schema=LLMJudgeOutput,
         output_key="judge_result",
+        generate_content_config=build_agent_generation_config(
+            model=model_name,
+            task_type="judge",
+        ),
     )
 
 
@@ -183,7 +187,7 @@ async def judge_agent_output_async(
     entry: PayloadEntry,
     agent_output: Any,
     canary_token: Optional[str] = None,
-    judge_model_name: str = "gemini-3.5-flash-lite",
+    judge_model_name: str = "gemini-3.8-flash",
     budget_counter: Optional[Any] = None,
 ) -> JudgeResult:
     """

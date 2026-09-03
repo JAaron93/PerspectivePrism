@@ -28,6 +28,10 @@ This checklist must be completed and signed off before releasing any new version
   ```bash
   cd chrome-extension && npm run test:integration
   ```
+- [ ] **Backend Unit & Optimization Tests**: Full backend pytest suite passing (100% pass rate).
+  ```bash
+  cd backend && pytest
+  ```
 - [ ] **Agent Evaluation**: The evaluation suite runs and passes (verifying LLM claim extraction and perspective analysis).
   ```bash
   python .benchmarks/evaluate_agents.py

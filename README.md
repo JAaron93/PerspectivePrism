@@ -21,8 +21,8 @@ Perspective Prism is an AI agent that acts as an automated, multi-perspective fa
 ![Perspective Prism Architecture](assets/img_1764592936221.png)
 Perspective Prism operates as an end-to-end pipeline of specialized sub-agents:
 
-1.  **Pre-Classification Guardrail Gate**: Evaluates video title, metadata, and transcript snippet using deterministic regex (<1ms) and a lightweight Gemini classifier agent (`gemini-3.5-flash-lite`). Non-factual content (music, gaming clips, comedy, vlogs) returns early with a structured `ContentEligibilityResult`, saving token quota while empowering users with an accessible `[⚡ Analyze Anyway]` force-override action.
-2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.5-flash-lite`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
+1.  **Pre-Classification Guardrail Gate**: Evaluates video title, metadata, and transcript snippet using deterministic regex (<1ms) and a lightweight Gemini classifier agent (`gemini-3.8-flash`). Non-factual content (music, gaming clips, comedy, vlogs) returns early with a structured `ContentEligibilityResult`, saving token quota while empowering users with an accessible `[⚡ Analyze Anyway]` force-override action.
+2.  **Claim Extractor**: Uses Google ADK 2.0 structured outputs (`gemini-3.8-flash`) to parse YouTube transcripts and identify distinct, verifiable claims with accurate timestamps.
 3.  **Evidence Retriever**: Dynamically queries the Google Custom Search API in parallel across four distinct perspectives (Scientific, Journalistic, Partisan Left, Partisan Right).
 4.  **Perspective & Bias Analysis**: Evaluates extracted claims against retrieved evidence, assesses support/refutation stances, and detects emotional manipulation or logical fallacies.
 5.  **Alethiology Engine (Epistemic Lens)**: Assesses the philosophical grounding of each claim across six canonical theories of truth (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), extracting exact transcript quote evidences and synthesizing an epistemic summary.
@@ -44,7 +44,7 @@ A critical security tool that protects against Large Language Model (LLM) prompt
 
 ### Content Classifier Service (`content_classifier.py`)
 
-A two-tier pre-classification guardrail gate that assesses whether a video's transcript contains verifiable empirical claims before initiating heavy downstream pipeline operations. The service runs a sub-millisecond deterministic fast-path inspecting title, channel, description, and transcript cues for obvious non-factual categories (e.g. music videos, esports gameplay, entertainment sketches) using boundary-aware keyword matching (and upcoming compiled Aho-Corasick DFA pattern matching under [ADR 006](docs/adr/006-rust-native-core-engine.md)). If inconclusive, it invokes a lightweight Vertex AI ADK 2.0 classifier agent (`gemini-3.5-flash-lite`, with circuit-breaker fallback to `gemini-3.1-flash-lite`). Videos classified as ineligible return early with a structured `ContentEligibilityResult` (category, confidence score, user-facing explanation), preventing unnecessary token and search API consumption while preserving user autonomy through a force-override mechanism.
+A two-tier pre-classification guardrail gate that assesses whether a video's transcript contains verifiable empirical claims before initiating heavy downstream pipeline operations. The service runs a sub-millisecond deterministic fast-path inspecting title, channel, description, and transcript cues for obvious non-factual categories (e.g. music videos, esports gameplay, entertainment sketches) using boundary-aware keyword matching (and upcoming compiled Aho-Corasick DFA pattern matching under [ADR 006](docs/adr/006-rust-native-core-engine.md)). If inconclusive, it invokes a lightweight Vertex AI ADK 2.0 classifier agent (`gemini-3.8-flash`, with circuit-breaker fallback to `gemini-3.1-flash-lite`). Videos classified as ineligible return early with a structured `ContentEligibilityResult` (category, confidence score, user-facing explanation), preventing unnecessary token and search API consumption while preserving user autonomy through a force-override mechanism.
 
 ### Alethiology Service (`alethiology_service.py`)
 
@@ -122,10 +122,10 @@ python .benchmarks/evaluate_agents.py
 * **Weights & Biases Weave Mode (Cloud)**: If Weights & Biases credentials are configured in your environment (e.g., `WANDB_API_KEY`, netrc, or global W&B settings), the script initializes Weave under the project name `"perspective-prism-evals"`. It logs full LLM trace details, latencies, and custom scores using Weave's `Model`, `Dataset`, and `Scorer` APIs.
 * **Local Fallback Mode**: If no W&B credentials are found, the script automatically sets `WEAVE_DISABLED=true` to bypass cloud-logging. It runs a clean local fallback benchmarking loop in your terminal without displaying blocking login prompts, printing detailed per-video results and performance averages.
 
-### Rate-Limit & Concurrency Configuration
-The suite checks your Gemini API Tier via the `GEMINI_TIER` environment variable:
-* **`GEMINI_TIER=free` (Default)**: Concurrency is restricted (`WEAVE_PARALLELISM=1`) and artificial sleep delays are injected to respect the Gemini free-tier 15 RPM rate limits.
-* **`GEMINI_TIER=paid`**: Concurrency is optimized (`WEAVE_PARALLELISM=10`) for rapid evaluation execution.
+### High-Throughput Tier & Concurrency Configuration
+Perspective Prism operates exclusively under **GCP Vertex AI Paid Tier Mode** (`GEMINI_TIER=paid`) under [ADR 003](docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md):
+* **Paid Tier Enterprise Quota**: High concurrency (`tier_max_concurrency=10` or higher) with 300+ RPM quota and zero artificial delays.
+* **Zero-Throttling Generation Standards (ADR 007)**: Primary analytical agents enforce `thinking_level="HIGH"`, 64K token ceilings (`max_output_tokens=65536`), and 120s HTTP timeout runway (`GEMINI_HTTP_TIMEOUT=120.0`).
 
 ### Red-Team Prompt-Injection Suite
 To run the deterministic prompt-injection validation suite offline (zero network calls, <60s execution):
@@ -149,7 +149,7 @@ Since there are no funds allocated to scale this extension further, the extensio
 - **Backend**: FastAPI, Python 3.13, Rust (`prism_sanitizer_rs` PyO3 extension)
 - **AI/LLM**:
     - **Framework**: Agent Development Kit (ADK) 2.x
-    - **Primary**: Gemini API (`gemini-3.5-flash-lite` via `google-genai` SDK)
+    - **Primary**: Gemini API (`gemini-3.8-flash` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
 - **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
@@ -163,10 +163,10 @@ Since there are no funds allocated to scale this extension further, the extensio
   - Python 3.10 or higher
   - Rust compiler (`cargo`, `rustc` via rustup) & `maturin` for compiling the input sanitizer
   - Node.js 18+ (LTS) or 20+
-- **API Keys**:
-  - **Gemini API Key**: Required for claim extraction and perspective analysis.
-  - **Google Custom Search JSON API Key**: Required for evidence retrieval.
-  - **Google Search Engine ID**: A programmable search engine configured to search the entire web (or specific trusted sites).
+- **Authentication & Cloud Credentials**:
+  - **Google Cloud Application Default Credentials (ADC)**: `gcloud auth application-default login` linked to a billable `GCP_PROJECT` for Vertex AI Gemini 3.8 Flash access (zero API keys).
+  - **Google Custom Search JSON API Key**: Required for evidence retrieval (`GOOGLE_API_KEY`).
+  - **Google Search Engine ID**: A programmable search engine configured to search the entire web or trusted sites (`GOOGLE_CSE_ID`).
 - **Browser**: Google Chrome, Brave, or Microsoft Edge (for the extension).
 
 <a id="setup-installation"></a>
@@ -219,8 +219,13 @@ Configure `.env` with your project ID:
 GCP_PROJECT=your_gcp_project_id_here
 GCP_LOCATION=global
 GEMINI_TIER=paid
-LLM_MODEL=gemini-3.5-flash-lite
+LLM_MODEL=gemini-3.8-flash
 BACKUP_LLM_MODEL=gemini-3.1-flash-lite
+
+# Zero-Throttling Architecture (ADR 007)
+GEMINI_THINKING_LEVEL=high
+GEMINI_MAX_OUTPUT_TOKENS=65536
+GEMINI_HTTP_TIMEOUT=120.0
 ```
 
 Additional configuration:
@@ -237,7 +242,7 @@ For production backend deployments:
 Audit your local environment setup and high-throughput quota using the diagnostic scripts:
 
 ```bash
-# Verify ADC setup, project linkage, and Gemini 3.5 connectivity
+# Verify ADC setup, project linkage, and Gemini 3.8 connectivity
 python3 verify_environment.py
 
 # Run mocked parallel burst test (20 concurrent requests) to verify tier limits
@@ -365,7 +370,7 @@ npm run test:integration
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **401 Unauthorized** | Missing or invalid Gemini API Key | Check `.env` file. Ensure `GEMINI_API_KEY` is set and valid. |
+| **401 Unauthorized** | Missing or expired GCP ADC credentials | Run `gcloud auth application-default login` and ensure `GCP_PROJECT` is set in `.env`. |
 | **429 Too Many Requests** | LLM/Google API quota exceeded | Check your API usage limits in the respective provider dashboards. |
 | **500 Internal Server Error** | Unexpected backend crash | Check the terminal output where `uvicorn` is running for stack traces. |
 | **CORS Error** | Frontend origin not allowed | Distinguish the request origin: For Chrome extension requests, add the extension ID to `CHROME_EXTENSION_IDS` in `.env` or `config.py`. For standalone web applications (e.g., React app), add the origin (e.g., `http://localhost:5173`) to `BACKEND_CORS_ORIGINS` in `.env` or `config.py`. |

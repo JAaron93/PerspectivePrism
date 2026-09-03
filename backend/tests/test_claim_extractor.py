@@ -11,7 +11,7 @@ async def test_claim_extraction_with_mocked_llm():
         mock_settings.effective_gcp_project = "my-gcp-project"
         mock_settings.GCP_LOCATION = "global"
         mock_settings.GEMINI_TIER = "paid"
-        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+        mock_settings.LLM_MODEL = "gemini-3.8-flash"
 
         extractor = ClaimExtractor(settings=mock_settings)
 
@@ -71,7 +71,7 @@ async def test_claim_extraction_llm_error_handling():
         mock_settings.effective_gcp_project = "my-gcp-project"
         mock_settings.GCP_LOCATION = "global"
         mock_settings.GEMINI_TIER = "paid"
-        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+        mock_settings.LLM_MODEL = "gemini-3.8-flash"
 
         extractor = ClaimExtractor(settings=mock_settings)
 
@@ -117,7 +117,7 @@ async def test_claim_extraction_multiple_claims():
         mock_settings.effective_gcp_project = "my-gcp-project"
         mock_settings.GCP_LOCATION = "global"
         mock_settings.GEMINI_TIER = "paid"
-        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+        mock_settings.LLM_MODEL = "gemini-3.8-flash"
 
         extractor = ClaimExtractor(settings=mock_settings)
 
@@ -175,7 +175,7 @@ async def test_get_transcript_execution():
         mock_settings.effective_gcp_project = "my-gcp-project"
         mock_settings.GCP_LOCATION = "global"
         mock_settings.GEMINI_TIER = "paid"
-        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+        mock_settings.LLM_MODEL = "gemini-3.8-flash"
 
         extractor = ClaimExtractor(settings=mock_settings)
 

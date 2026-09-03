@@ -6,7 +6,7 @@ from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import sanitize_input, SanitizationError
 from app.utils.video_utils import extract_video_id
-from app.utils.llm_utils import execute_adk_agent
+from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -37,9 +37,10 @@ class ClaimExtractor:
         self.gcp_location = provider_info["location"]
         self.gemini_tier = provider_info["tier"]
 
+        chosen_model = model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.8-flash")
         self.agent = Agent(
             name="extractor_agent",
-            model=model_name or getattr(self.settings, "LLM_MODEL", "gemini-3.5-flash-lite"),
+            model=chosen_model,
             instruction=(
                 "You are an expert content analyst. Your task is to analyze the video transcript "
                 "provided in the USER DATA section and extract the key claims made by the speaker.\n\n"
@@ -54,6 +55,11 @@ class ClaimExtractor:
             ),
             output_schema=ClaimsOutput,
             output_key="claims_result",
+            generate_content_config=build_agent_generation_config(
+                model=chosen_model,
+                task_type="extractor",
+                settings=self.settings,
+            ),
         )
 
     def extract_video_id(self, url: str) -> str:

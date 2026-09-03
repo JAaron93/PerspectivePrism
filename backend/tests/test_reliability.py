@@ -13,7 +13,7 @@ def analysis_service_mock():
         mock_settings.effective_gcp_project = "my-gcp-project"
         mock_settings.GCP_PROJECT = "my-gcp-project"
         mock_settings.GCP_LOCATION = "global"
-        mock_settings.LLM_MODEL = "gemini-3.5-flash-lite"
+        mock_settings.LLM_MODEL = "gemini-3.8-flash"
         mock_settings.BACKUP_LLM_MODEL = "gemini-3.1-flash-lite"
         mock_settings.CIRCUIT_BREAKER_FAIL_THRESHOLD = 3
         mock_settings.CIRCUIT_BREAKER_RESET_TIMEOUT = 10

@@ -70,7 +70,7 @@ async def run_smoke_test(video_url: str):
         print(f"Sanitization Error: {e}")
         return
         
-    model_name = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
+    model_name = os.getenv("LLM_MODEL", "gemini-3.8-flash")
     print(f"Counting tokens for model {model_name}...")
     # Use SDK's asynchronous client.aio surface to avoid blocking
     response = await client.aio.models.count_tokens(

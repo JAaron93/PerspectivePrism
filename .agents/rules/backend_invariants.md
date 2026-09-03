@@ -9,11 +9,23 @@ This document defines the implementation guidelines, security invariants, testin
 * **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
   - Exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
   - Provider & auth mode: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM paid quota). AI Studio API keys and free tier throttles are permanently removed.
-  - Allowed models: Gemini 3.x series models only (`gemini-3.5-flash-lite` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
+  - Allowed models: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
   - Forbidden SDKs: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently forbidden.
 * **Strict Non-Blocking Async I/O**:
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.
+* **Zero-Throttling Capability Standards (ADR 007)**:
+  - **Mandatory Generation Config Factory**: Every ADK 2.0 `Agent` instance MUST attach a `generate_content_config` created via `build_agent_generation_config(model=..., task_type=..., settings=...)`. Raw `Agent(...)` instantiations without generation configs are strictly prohibited.
+  - **Task-Aware Dynamic `thinking_level` Standards**:
+    - Deep analytical / extraction / evaluation agents (`extractor`, `analysis`, `alethiology`, `judge`): Must resolve to `thinking_level="HIGH"` (`types.ThinkingLevel.HIGH`) to exploit Gemini 3.8 Flash's native recursive reasoning loops.
+    - Micro-tasks / guardrail classifiers (`router`, `classifier`): Must resolve to `thinking_level="LOW"` (`types.ThinkingLevel.LOW`) and `max_output_tokens=2048` to preserve sub-second latency and avoid token inflation.
+  - **Output Ceilings & HTTP Timeout Runway**:
+    - Analytical agents must configure `max_output_tokens=65536` (64K ceiling).
+    - Request HTTP options must configure `timeout=120.0` (`types.HttpOptions(timeout=120.0)` via `Settings.GEMINI_HTTP_TIMEOUT`) to prevent premature cancellation of multi-step internal reasoning trajectories.
+  - **Thought Signature & Thinking Preservation**:
+    - Telemetry processors, audit loggers, and trace sanitizers must exempt keys in `EXCLUDED_TELEMETRY_KEYS` (`thought`, `thoughts`, `thought_tokens`, `thought_signature`, `think`, `reasoning`) from redaction or deletion.
+  - **Lean Prompt Scaffolding**:
+    - Prohibit defensive chain-of-thought instructions ("think step-by-step", forced XML reflection blocks) that duplicate native model reasoning tokens. Agent system prompts must remain strictly focused on their role directives and Pydantic schema constraints.
 
 ---
 
@@ -72,7 +84,7 @@ This document defines the implementation guidelines, security invariants, testin
 * **Live Red-Team Probe & Budget Accounting**: Live injection probe runs (`run_live_probe_payload`, `run_live_probe_corpus`) MUST enforce atomic budget token consumption on *every* individual provider request (primary agents, `AnalysisService` backup model fallbacks, and Tier 3 Agent-as-a-Judge calls) using a `ContextVar`-scoped `BudgetCounter`. Service fallback paths MUST halt without issuing unbudgeted secondary calls when the cap is exhausted.
 * **Single-Attempt Probe Scoping**: Live probe execution MUST scope single-attempt constraints (`max_attempts=1`) strictly to active probe budget contexts, preserving standard retry configurations (`max_attempts=2`) for normal non-probe application traffic.
 * **Canary Attribution & Agent Isolation**: Live probe runs MUST inject per-task canary tokens via cloned `Agent` instances (`_clone_agent_with_canary`) rather than mutating shared service instances in-place, preventing canary accumulation and attribution cross-contamination across sequential or concurrent executions.
-* **Agent-as-a-Judge Adversarial Isolation**: When using `gemini-3.5-flash-lite` as a Tier 3 Agent-as-a-Judge evaluator, candidate attack text and output MUST be sanitized, delimiter markers escaped, wrapped in per-request random nonce delimiters (`===JUDGE DATA <nonce> START/END===`), and the judge system instruction MUST explicitly bind the specific nonce and declare candidate directives strictly inert.
+* **Agent-as-a-Judge Adversarial Isolation**: When using `gemini-3.8-flash` as a Tier 3 Agent-as-a-Judge evaluator, candidate attack text and output MUST be sanitized, delimiter markers escaped, wrapped in per-request random nonce delimiters (`===JUDGE DATA <nonce> START/END===`), and the judge system instruction MUST explicitly bind the specific nonce and declare candidate directives strictly inert.
 * **Dynamic Nonce Prompt Delimiters**: `build_user_data_prompt()` and `wrap_user_data()` MUST wrap untrusted user data in per-request cryptographic random nonces (`===USER DATA <nonce> START===` / `===USER DATA <nonce> END===`), rendering embedded static delimiter forgeries inert and preventing prompt breakouts.
 * **Unicode NFKC Normalization**: `sanitize_input()` MUST apply `unicodedata.normalize("NFKC", text)` prior to regex pattern and control character matching to collapse full-width Latin, circled/enclosed characters, and compatibility homoglyphs to ASCII before denylist evaluation.
 * **Red-Team Report Confidentiality & Baseline Omission Tracking**: Red-team reports (`redteam-report.json`, `redteam-report.md`) MUST reference corpus-relative payload IDs only with zero raw payload text. Baseline diff comparisons (`diff_against_baseline`) MUST treat removed/omitted baselined payloads as regressions to prevent silent security test coverage loss. Baseline updates MUST be strictly explicit (`--update-baseline`).
