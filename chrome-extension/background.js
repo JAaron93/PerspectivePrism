@@ -316,55 +316,127 @@ async function handleAnalysisRequest(message) {
   }
 
   const videoId = validation.videoId;
+  const options = {
+    forceOverride: Boolean(message.forceOverride || message.force_override),
+    metadata: message.metadata || undefined,
+  };
 
-  // Set state to in_progress
-  // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
-  const stateSaved = await setAnalysisState(videoId, {
-    status: "in_progress",
-    progress: 0,
-  });
+  const isForce = Boolean(options.forceOverride);
+  const existingState = await StateManager.get(videoId);
 
-  if (!stateSaved) {
-    logger.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
-    throw new Error("Failed to initialize analysis state. Please try again.");
+  let requestId =
+    message.requestId ||
+    `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+  // If an analysis is already in progress and this is not a force override,
+  // adopt the existing requestId so concurrent requests do not steal ownership from active analysis
+  if (existingState && existingState.status === "in_progress" && !isForce) {
+    if (existingState.requestId) {
+      requestId = existingState.requestId;
+    } else {
+      const latestState = await StateManager.get(videoId);
+      if (latestState?.requestId) {
+        requestId = latestState.requestId;
+      } else {
+        existingState.requestId = requestId;
+        await StateManager.set(videoId, existingState);
+      }
+    }
+  } else {
+    // Set state to in_progress
+    // CRITICAL: Ensure state is saved before starting analysis to prevent UI desync
+    const stateSaved = await setAnalysisState(videoId, {
+      status: "in_progress",
+      progress: 0,
+      requestId: requestId,
+      forceOverride: isForce,
+    });
+
+    if (!stateSaved) {
+      logger.error(`[Perspective Prism] Critical: Failed to save initial state for ${videoId}. Aborting analysis.`);
+      throw new Error("Failed to initialize analysis state. Please try again.");
+    }
   }
 
   try {
     // Start analysis
-    const result = await activeClient.analyzeVideo(videoId);
+    const result = await activeClient.analyzeVideo(videoId, options);
 
     if (result.success) {
-      // Set state to complete
-      const completeStateSaved = await setAnalysisState(videoId, {
-        status: "complete",
-        claimCount: result.data?.claims?.length || 0,
-        isCached: result.fromCache || false,
-        analyzedAt: Date.now(),
-      });
-      
-      if (!completeStateSaved) {
-         logger.warn(`[Perspective Prism] Failed to save completion state for ${videoId}. UI may not update.`);
-         // We don't throw here because we already have the result, but it's bad.
+      // Set state to complete if this request still owns the state
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || currentState.requestId === requestId) {
+        const completeStateSaved = await setAnalysisState(videoId, {
+          status: "complete",
+          claimCount: result.data?.claims?.length || 0,
+          isCached: result.fromCache || false,
+          analyzedAt: Date.now(),
+          eligibility: result.data?.eligibility || null,
+          requestId: requestId,
+        });
+        
+        if (!completeStateSaved) {
+           logger.warn(`[Perspective Prism] Failed to save completion state for ${videoId}. UI may not update.`);
+           // We don't throw here because we already have the result, but it's bad.
+        }
+      } else {
+        logger.info(`[Perspective Prism] Superseded completion ignored for ${videoId} (active=${currentState.requestId}, old=${requestId})`);
       }
+    } else if (result.isCancelled || result.cancelled) {
+      // If result was cancelled, preserve or record cancelled status without overwriting with error
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || currentState.requestId === requestId) {
+        await setAnalysisState(videoId, {
+          status: "cancelled",
+          cancelledAt: Date.now(),
+          requestId: requestId,
+        });
+      }
+    } else if (result.isRetry) {
+      // Intermediate retry attempt scheduled in background; preserve in_progress status
+      logger.info(`[Perspective Prism] Retry attempt scheduled for ${videoId} (requestId=${requestId})`);
     } else {
-      // Set state to error
-      await setAnalysisState(videoId, {
-        status: "error",
-        errorMessage: result.error || "Analysis failed",
-        errorDetails: "",
-      });
+      // Set state to error if this request still owns the state
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || currentState.requestId === requestId) {
+        await setAnalysisState(videoId, {
+          status: "error",
+          errorMessage: result.error || "Analysis failed",
+          errorDetails: "",
+          requestId: requestId,
+        });
+      } else {
+        logger.info(`[Perspective Prism] Superseded error ignored for ${videoId} (active=${currentState.requestId}, old=${requestId})`);
+      }
     }
 
     return result;
   } catch (error) {
+    if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || currentState.requestId === requestId) {
+        await setAnalysisState(videoId, {
+          status: "cancelled",
+          cancelledAt: Date.now(),
+          requestId: requestId,
+        });
+      }
+      return { success: false, error: "Analysis cancelled", isCancelled: true };
+    }
     logger.error("Analysis request failed:", error);
 
-    // Set state to error
-    await setAnalysisState(videoId, {
-      status: "error",
-      errorMessage: "Analysis failed",
-      errorDetails: error.message,
-    });
+    // Set state to error only if this request still owns the state
+    const currentState = await StateManager.get(videoId);
+    if (!currentState || currentState.requestId === requestId) {
+      await setAnalysisState(videoId, {
+        status: "error",
+        errorMessage: "Analysis failed",
+        errorDetails: error.message,
+        requestId: requestId,
+      });
+    } else {
+      logger.info(`[Perspective Prism] Superseded exception error ignored for ${videoId} (active=${currentState.requestId}, old=${requestId})`);
+    }
 
     throw error;
   }
@@ -379,19 +451,34 @@ async function handleCancelAnalysis(message) {
   }
 
   const videoId = validation.videoId;
+  const preCancelState = await StateManager.get(videoId);
+  const targetRequestId = message.requestId || preCancelState?.requestId || null;
+
+  // If a specific requestId was requested for cancellation and does not match the active state,
+  // ignore it to prevent aborting a newer owner's controller
+  if (message.requestId && preCancelState?.requestId && preCancelState.requestId !== message.requestId) {
+    logger.info(`[Perspective Prism] Ignoring stale cancellation for ${videoId} (active=${preCancelState.requestId}, target=${message.requestId})`);
+    return { success: true, cancelled: false, superseded: true };
+  }
   
   try {
-    const cancelled = activeClient.cancelAnalysis(videoId);
+    const cancelled = await activeClient.cancelAnalysis(videoId);
     
     if (cancelled) {
-      // Update state to cancelled
-      const saved = await setAnalysisState(videoId, {
-        status: 'cancelled',
-        cancelledAt: Date.now()
-      });
+      const currentState = await StateManager.get(videoId);
+      if (!currentState || (targetRequestId && currentState.requestId === targetRequestId)) {
+        // Update state to cancelled only if this request still owns the state
+        const saved = await setAnalysisState(videoId, {
+          status: 'cancelled',
+          cancelledAt: Date.now(),
+          requestId: targetRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        });
 
-      if (!saved) {
-         logger.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
+        if (!saved) {
+           logger.warn(`[Perspective Prism] Failed to save cancelled state for ${videoId}`);
+        }
+      } else {
+        logger.info(`[Perspective Prism] Superseded cancellation ignored for ${videoId} (active=${currentState?.requestId}, target=${targetRequestId})`);
       }
       
       return { success: true, cancelled: true };

@@ -68,3 +68,43 @@ This document defines the implementation guidelines, security invariants, storag
 * **Idempotent Service Worker Promise Getters**: Lazy initialization getters (`getClient()`) must return the cached Promise reference (`clientPromise`) directly to preserve promise identity during Service Worker wake-up.
 * **Pre-Classification Disclaimer State**: When the backend returns an ineligible result (`eligibility.is_analysable === false`), the Side Panel MUST render `#state-ineligible` with category tags, confidence meter, and a prominent `[⚡ Analyze Anyway]` force-override button.
 * **Epistemic Lens UI Component**: In `#state-results`, each claim card MUST render the interactive Epistemic Lens badge (primary/secondary theory chips), neutral summary, and collapsible quote accordion, ensuring all text content is sanitized prior to DOM insertion.
+
+---
+
+## 5. Analysis Concurrency, Override Replacement & Generation Invariants
+
+* **Forced Override Replacement Protocol**:
+  - When initiating an analysis with `forceOverride: true` (e.g., user clicks "⚡ Analyze Anyway") while an ordinary analysis is in flight or persisted:
+    1. The client MUST abort the active `AbortController` via `cancelAnalysis(videoId)`.
+    2. The client MUST clean up persisted request state and notify/clear pending resolvers.
+    3. If an in-flight execution promise exists in `pendingRequests`, the client MUST explicitly `await` its settlement (catching rejections) before starting the forced analysis.
+* **Service Worker Recovery Promise Lifecycle**:
+  - In `recoverPersistedRequests()`, resumed execution promises MUST be registered into `this.pendingRequests` and `this.pendingRequestOptions`.
+  - All registered recovery promises MUST be wrapped in a `try...finally` block that removes the promise from `pendingRequests` upon settlement, preventing memory leaks and ensuring subsequent ordinary requests do not deduplicate against stale settled promises.
+* **Request Ownership & Superseded Event Filtering**:
+  - Unique `requestId` values MUST be generated for analysis requests and propagated through all background state transitions (`in_progress`, `complete`, `cancelled`, `error`).
+  - `sidepanel.js` MUST ignore `in_progress`, `complete`, and `cancelled` broadcast events if `state.requestId` is present and does not match `activeRequestId`.
+* **Stale Completion & Cache Token Guard**:
+  - `sidepanel.js` MUST NOT initiate `CHECK_CACHE` lookups for superseded completion events. Mismatched completions must break immediately without advancing `pendingCheckCacheToken` to prevent older results from validating themselves over newer active requests.
+* **Active Override Alarm Suppression & Alarm Clearing**:
+  - `cancelAnalysis(videoId)` MUST immediately clear scheduled alarms for that video (`chrome.alarms.clear(...)`).
+  - `PerspectivePrismClient` MUST maintain an in-memory `activeOverrideVideoIds` Set tracking active overrides from the start of `performAnalysis` through completion.
+  - The alarm listener MUST inspect `activeOverrideVideoIds` both before and after reading persisted state to suppress ordinary retries from running during override replacement windows.
+* **Synchronous Pre-Registration for Alarm Retries**:
+  - In `setupAlarmListener()`, the alarm retry execution promise wrapper and `AbortController` MUST be inserted into `this.pendingRequests`, `this.abortControllers`, and `this.pendingRequestOptions` *synchronously before* calling `this.executeAnalysisRequest()`.
+  - `executeAnalysisRequest()` MUST check `signal.aborted` and `activeOverrideVideoIds` both before and after `await this.persistRequestState()` to abort cleanly before network dispatch.
+  - `makeAnalysisRequest()` MUST reuse any pre-registered `AbortController` rather than overwriting it.
+* **Strict Non-Null Request Ownership**:
+  - `background.js` MUST guarantee unique, non-null `requestId` fallback generation for any request lacking one.
+  - Background state transition guards MUST strictly require `!currentState || currentState.requestId === requestId`, forbidding `!currentState.requestId` fallback matching that allows unowned requests to overwrite active state.
+* **In-Progress Ownership Stealing Prevention**:
+  - In `background.js` `handleAnalysisRequest`, if an analysis is already `in_progress` and an incoming request is non-forced (`!options.forceOverride`), it MUST adopt `existingState.requestId` without overwriting `in_progress` storage state.
+* **Side Panel Request ID & Timestamp Tracking Sets**:
+  - `sidepanel.js` MUST maintain `supersededRequestIds` (`Set`), `completedRequestIds` (`Set`), and `lastCompletedAnalyzedAt` (`number`).
+  - When replacing an active request in `startAnalysis`, the old `activeRequestId` MUST be added to `supersededRequestIds`.
+  - Upon rendering or receiving a completion, the request ID MUST be recorded in `completedRequestIds` and `lastCompletedAnalyzedAt` updated.
+  - `handleAnalysisState` MUST discard `complete` events whose `requestId` is present in `supersededRequestIds` or `completedRequestIds`, or whose `analyzedAt < lastCompletedAnalyzedAt`.
+  - Tab and video navigation handlers MUST clear `supersededRequestIds`, `completedRequestIds`, and reset `lastCompletedAnalyzedAt = 0`.
+* **Cross-Video Timestamp Isolation**:
+  - `activeAnalysisStartTime` in `sidepanel.js` MUST be paired with `activeAnalysisVideoId` and only checked when `activeAnalysisVideoId === currentVideoId`.
+  - On `VIDEO_NAVIGATED`, `YOUTUBE_NAVIGATED`, or tab change, `sidepanel.js` MUST reset `activeRequestId = null`, `activeAnalysisStartTime = 0`, and `activeAnalysisVideoId = null` to prevent timestamp leakage across different videos.

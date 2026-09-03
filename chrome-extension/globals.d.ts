@@ -51,8 +51,61 @@ interface Window {
   DEFAULT_CONFIG?: any;
   renderOptimisticSkeletons?: any;
   checkCurrentTabState?: any;
+  renderIneligibleDisclaimer?: any;
+  startAnalysis?: any;
   DOMPurify?: any;
+  PerspectivePrismClient?: any;
+  ValidationError?: any;
+  HttpError?: any;
+  TimeoutError?: any;
 }
+
+type TruthTheoryType =
+  | "Correspondence (Empirical)"
+  | "Coherence (Systemic Narrative)"
+  | "Pragmatic (Practical Utility)"
+  | "Perspectivism (Lived Experience)"
+  | "Consensus (Institutional Agreement)"
+  | "Deflationary (Rhetorical Endorsement)";
+
+interface VideoMetadata {
+  title: string;
+  channel_name: string;
+  category_id?: string;
+  category_name?: string;
+  tags?: string[];
+  description_snippet?: string;
+}
+
+interface ContentEligibilityResult {
+  is_analysable: boolean;
+  confidence_score: number;
+  detected_category: string;
+  disclaimer_title: string;
+  disclaimer_message: string;
+  key_topics_found: string[];
+}
+
+interface AlethiologyAnalysis {
+  primary_theory: TruthTheoryType;
+  secondary_theory?: TruthTheoryType | null;
+  epistemic_summary: string;
+  quote_evidences: string[];
+}
+
+interface ClientTruthProfile {
+  overall_assessment: string;
+  perspectives: Record<string, any>;
+  bias_indicators: any;
+  alethiology?: AlethiologyAnalysis;
+}
+
+declare var PerspectivePrismClient: any;
+declare var ValidationError: any;
+declare var HttpError: any;
+declare var TimeoutError: any;
+declare var startAnalysis: any;
+declare var renderIneligibleDisclaimer: any;
 
 declare var QuotaManager: any;
 declare var MetricsTracker: any;

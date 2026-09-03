@@ -58,6 +58,14 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **Pre-Classification & Epistemic Lens UI**:
   * The Side Panel must render the `#state-ineligible` disclaimer with category tags, confidence meter, and `[⚡ Analyze Anyway]` force-override action.
   * Epistemic Lens cards in `#state-results` must sanitize all quote evidences and epistemic summary text before DOM injection.
+* **Analysis Concurrency & Override Lifecycle**:
+  * When `forceOverride` replaces an in-flight or recovered request, `client.js` must abort running controllers, clear scheduled retry alarms, track the override in `activeOverrideVideoIds`, and await promise settlement before starting.
+  * Alarm listeners must pre-register `pendingRequests` and `AbortController` instances synchronously before yielding to asynchronous persistence in `executeAnalysisRequest`.
+  * `background.js` must assign non-null `requestId` values and adopt existing in-progress IDs for concurrent non-forced callers to prevent ownership theft.
+  * `background.js` state transitions must enforce strict `currentState.requestId === requestId` matching without `!currentState.requestId` loopholes.
+  * `sidepanel.js` must track `supersededRequestIds`, `completedRequestIds`, and `lastCompletedAnalyzedAt` to reject stale completions after `activeRequestId` has been cleared.
+* **Anti-Oscillation & Review Stability Directive**:
+  * AI Reviewers must not enter recursive micro-edge-case spirals. When a PR diff fulfills a previously requested concurrency or lifecycle guard, do not invent secondary speculative edge cases regarding intermediate retry returns or hypothetical timing gaps that are already governed by timeout and resolver fallbacks.
 
 ---
 

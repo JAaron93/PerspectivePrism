@@ -8,6 +8,8 @@ class PerspectivePrismClient {
   constructor(baseUrl, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
     this.pendingRequests = new Map(); // In-memory deduplication
+    this.pendingRequestOptions = new Map(); // In-memory options tracking for override deduplication
+    this.activeOverrideVideoIds = new Set(); // Video IDs undergoing force override replacement
     this.abortControllers = new Map(); // Map<videoId, AbortController> for cancellation
     this.MAX_RETRIES = 2;
     this.RETRY_DELAYS = [2000, 4000]; // Exponential backoff: 2s, 4s
@@ -47,9 +49,10 @@ class PerspectivePrismClient {
   /**
    * Analyze a video by its ID.
    * @param {string} videoId - The YouTube video ID.
+   * @param {Object} [options] - Analysis options (e.g. forceOverride, metadata).
    * @returns {Promise<Object>} - The analysis result.
    */
-  async analyzeVideo(videoId) {
+  async analyzeVideo(videoId, options = {}) {
     // Validation
     if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
       return { success: false, error: "Invalid video ID format" };
@@ -62,7 +65,7 @@ class PerspectivePrismClient {
           `[PerspectivePrismClient] Recovery in progress, queueing request for ${videoId}`,
         );
         return new Promise((resolve, reject) => {
-          this.requestQueue.push({ videoId, resolve, reject });
+          this.requestQueue.push({ videoId, options, resolve, reject });
         });
       } else {
         logger.warn(
@@ -77,63 +80,158 @@ class PerspectivePrismClient {
       }
     }
 
-    return this.performAnalysis(videoId);
+    return this.performAnalysis(videoId, options);
   }
 
   /**
    * Internal method to perform analysis logic (extracted from analyzeVideo)
    * @param {string} videoId
+   * @param {Object} [options]
    */
-  async performAnalysis(videoId) {
-    // 1. Check Cache
-    const cachedResult = await this.checkCache(videoId);
-    if (cachedResult) {
-      logger.info(`[PerspectivePrismClient] Cache hit for ${videoId}`);
-      return { success: true, data: cachedResult, cached: true };
+  async performAnalysis(videoId, options = {}) {
+    const isForceOverride = Boolean(
+      options.forceOverride || options.force_override,
+    );
+
+    if (isForceOverride) {
+      this.activeOverrideVideoIds.add(videoId);
+    }
+
+    // 1. Check Cache (skip if forceOverride is requested)
+    if (!isForceOverride) {
+      const cachedResult = await this.checkCache(videoId);
+      if (cachedResult) {
+        logger.info(`[PerspectivePrismClient] Cache hit for ${videoId}`);
+        return { success: true, data: cachedResult, cached: true };
+      }
     }
 
     // Deduplication (In-memory)
     if (this.pendingRequests.has(videoId)) {
-      logger.info(
-        `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
+      const inFlightOptions = this.pendingRequestOptions.get(videoId) || {};
+      const inFlightIsForce = Boolean(
+        inFlightOptions.forceOverride || inFlightOptions.force_override,
       );
-      return this.pendingRequests.get(videoId);
+
+      if (isForceOverride && !inFlightIsForce) {
+        logger.info(
+          `[PerspectivePrismClient] Cancelling non-forced in-flight request for ${videoId} to start force override`,
+        );
+        const oldPromise = this.pendingRequests.get(videoId);
+        await this.cancelAnalysis(videoId);
+        if (oldPromise) {
+          try {
+            await oldPromise;
+          } catch (_e) {
+            // Expected cancellation rejection
+          }
+        }
+      } else {
+        logger.info(
+          `[PerspectivePrismClient] Returning existing promise for ${videoId}`,
+        );
+        const existingPromise = this.pendingRequests.get(videoId);
+        const result = await existingPromise;
+        if (result && result.isRetry && !isForceOverride) {
+          return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              this.removeResolver(videoId, resolve);
+              resolve({
+                success: false,
+                error: "Analysis timed out (retrying)",
+                videoId,
+              });
+            }, this.TIMEOUT_MS);
+            const resolvers = this.pendingResolvers.get(videoId) || [];
+            resolvers.push({ resolve, reject, timeoutId });
+            this.pendingResolvers.set(videoId, resolvers);
+          });
+        }
+        return result;
+      }
     }
 
     // Deduplication (Persistent)
     const persistedState = await this.getPersistedRequestState(videoId);
     if (persistedState && persistedState.status !== "completed") {
-      logger.info(
-        `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,
+      const persistedIsForce = Boolean(
+        persistedState.options?.forceOverride ||
+          persistedState.options?.force_override,
       );
-      return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          this.removeResolver(videoId, resolve);
-          // Resolve with error instead of rejecting to match API contract
-          resolve({
-            success: false,
-            error: "Analysis timed out (persisted)",
-            videoId,
-          });
-        }, this.TIMEOUT_MS);
 
-        const resolvers = this.pendingResolvers.get(videoId) || [];
-        resolvers.push({ resolve, reject, timeoutId });
-        this.pendingResolvers.set(videoId, resolvers);
-      });
+      if (isForceOverride && !persistedIsForce) {
+        logger.info(
+          `[PerspectivePrismClient] Cancelling non-forced persisted/recovered request for ${videoId} to start force override`,
+        );
+        const prevRequestPromise = this.pendingRequests.get(videoId);
+        await this.cancelAnalysis(videoId);
+        if (prevRequestPromise) {
+          try {
+            await prevRequestPromise;
+          } catch (_e) {
+            // Ignore cancellation/abort rejections
+          }
+        }
+      } else {
+        logger.info(
+          `[PerspectivePrismClient] Attaching to persisted request for ${videoId}`,
+        );
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            this.removeResolver(videoId, resolve);
+            // Resolve with error instead of rejecting to match API contract
+            resolve({
+              success: false,
+              error: "Analysis timed out (persisted)",
+              videoId,
+            });
+          }, this.TIMEOUT_MS);
+
+          const resolvers = this.pendingResolvers.get(videoId) || [];
+          resolvers.push({ resolve, reject, timeoutId });
+          this.pendingResolvers.set(videoId, resolvers);
+        });
+      }
     }
 
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     // Create a promise for this request
-    const requestPromise = this.executeAnalysisRequest(videoId, videoUrl);
+    const requestPromise = this.executeAnalysisRequest(
+      videoId,
+      videoUrl,
+      0,
+      options,
+    );
     this.pendingRequests.set(videoId, requestPromise);
+    this.pendingRequestOptions.set(videoId, options);
 
     try {
       const result = await requestPromise;
+      if (result && result.isRetry && !isForceOverride) {
+        return await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            this.removeResolver(videoId, resolve);
+            resolve({
+              success: false,
+              error: "Analysis timed out (retrying)",
+              videoId,
+            });
+          }, this.TIMEOUT_MS);
+          const resolvers = this.pendingResolvers.get(videoId) || [];
+          resolvers.push({ resolve, reject, timeoutId });
+          this.pendingResolvers.set(videoId, resolvers);
+        });
+      }
       return result;
     } finally {
-      this.pendingRequests.delete(videoId);
+      if (this.pendingRequests.get(videoId) === requestPromise) {
+        this.pendingRequests.delete(videoId);
+        this.pendingRequestOptions.delete(videoId);
+      }
+      if (isForceOverride) {
+        this.activeOverrideVideoIds.delete(videoId);
+      }
     }
   }
 
@@ -142,8 +240,31 @@ class PerspectivePrismClient {
    * @param {string} videoId
    * @param {string} videoUrl
    * @param {number} attempt
+   * @param {Object} [options]
    */
-  async executeAnalysisRequest(videoId, videoUrl, attempt = 0) {
+  async executeAnalysisRequest(videoId, videoUrl, attempt = 0, options = {}) {
+    const isForce = Boolean(options.forceOverride || options.force_override);
+    if (!isForce && this.activeOverrideVideoIds?.has(videoId)) {
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
+
+    if (!this.abortControllers.has(videoId)) {
+      this.abortControllers.set(videoId, new AbortController());
+    }
+    const controller = this.abortControllers.get(videoId);
+
+    if (controller?.signal?.aborted) {
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
+
     // Persist state start
     await this.persistRequestState({
       videoId,
@@ -151,10 +272,24 @@ class PerspectivePrismClient {
       startTime: Date.now(),
       attemptCount: attempt,
       status: "pending",
+      options,
     });
 
+    if (controller?.signal?.aborted || (!isForce && this.activeOverrideVideoIds?.has(videoId))) {
+      await this.cleanupPersistedRequest(videoId);
+      return {
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      };
+    }
+
     try {
-      const result = await this.makeAnalysisRequest(videoUrl, videoId);
+      const result = await this.makeAnalysisRequest(
+        videoUrl,
+        videoId,
+        options,
+      );
 
       // Success
       await this.cleanupPersistedRequest(videoId);
@@ -174,6 +309,16 @@ class PerspectivePrismClient {
       this.notifyCompletion(videoId, successResult);
       return successResult;
     } catch (error) {
+      // If cancelled or aborted, do not schedule retries or log error
+      // @ts-ignore
+      if (error.name === "AbortError" || error.isCancelled || error.message?.includes("cancelled") || error.message?.includes("aborted")) {
+        return {
+          success: false,
+          error: "Analysis cancelled",
+          isCancelled: true,
+        };
+      }
+
       this.logError(
         `Analysis failed for ${videoId} (attempt ${attempt})`,
         error,
@@ -188,15 +333,11 @@ class PerspectivePrismClient {
         await this.persistRequestState({
           videoId,
           videoUrl,
-          startTime: Date.now(), // Keep original start time? Maybe better to track original.
-          // For simplicity, let's update timestamp to now for the "last activity"
-          // but we should probably keep the original start time if we want to timeout the whole thing.
-          // Let's stick to the plan: store startTime.
-          // We need to fetch the original start time if we want to preserve it,
-          // or just pass it through. For now, let's just update the attempt count.
+          startTime: Date.now(),
           attemptCount: attempt + 1,
           lastError: error.message,
           status: "retrying",
+          options,
         });
 
         // Schedule alarm with safe naming
@@ -228,59 +369,128 @@ class PerspectivePrismClient {
   /**
    * Cancel an in-flight analysis request
    * @param {string} videoId - The video ID to cancel
-   * @returns {boolean} - True if request was cancelled, false if no request found
+   * @returns {Promise<boolean>} - True if request was cancelled, false if no request found
    */
-  cancelAnalysis(videoId) {
+  async cancelAnalysis(videoId) {
+    // Clear any pending retry alarms for this video
+    for (let attempt = 1; attempt <= this.MAX_RETRIES + 1; attempt++) {
+      try {
+        await chrome.alarms.clear(`retry::${videoId}::${attempt}`);
+      } catch (_e) {
+        // Ignore alarm clearing error
+      }
+    }
+
     const controller = this.abortControllers.get(videoId);
+    let wasCancelled = false;
     if (controller) {
       console.log(
         `[PerspectivePrismClient] Cancelling analysis for ${videoId}`,
       );
       controller.abort();
       this.abortControllers.delete(videoId);
-
-      // Clean up pending request
-      this.pendingRequests.delete(videoId);
-
-      // Clean up persisted state
-      this.cleanupPersistedRequest(videoId).catch((err) =>
-        console.error(
-          `[PerspectivePrismClient] Failed to cleanup after cancel:`,
-          err,
-        ),
-      );
-
-      // Notify any waiting resolvers
-      const resolvers = this.pendingResolvers.get(videoId);
-      if (resolvers) {
-        resolvers.forEach(({ resolve, timeoutId }) => {
-          clearTimeout(timeoutId);
-          resolve({
-            success: false,
-            error: "Analysis cancelled by user",
-            cancelled: true,
-          });
-        });
-        this.pendingResolvers.delete(videoId);
-      }
-
-      return true;
+      wasCancelled = true;
     }
-    return false;
+
+    if (this.pendingRequests.has(videoId)) {
+      this.pendingRequests.delete(videoId);
+      wasCancelled = true;
+    }
+    // Only delete pendingRequestOptions if no force override is actively replacing it
+    if (!this.activeOverrideVideoIds?.has(videoId)) {
+      this.pendingRequestOptions.delete(videoId);
+    }
+
+    // Clean up persisted state and await completion so it doesn't race forced replacement
+    try {
+      const persistedState = await this.getPersistedRequestState(videoId);
+      if (persistedState) {
+        wasCancelled = true;
+      }
+      await this.cleanupPersistedRequest(videoId);
+    } catch (err) {
+      console.error(
+        `[PerspectivePrismClient] Failed to cleanup after cancel:`,
+        err,
+      );
+    }
+
+    // Notify any waiting resolvers
+    const resolvers = this.pendingResolvers.get(videoId);
+    if (resolvers && resolvers.length > 0) {
+      wasCancelled = true;
+      resolvers.forEach(({ resolve, timeoutId }) => {
+        clearTimeout(timeoutId);
+        resolve({
+          success: false,
+          error: "Analysis cancelled by user",
+          cancelled: true,
+        });
+      });
+      this.pendingResolvers.delete(videoId);
+    }
+
+    return wasCancelled;
+  }
+
+  /**
+   * Create an analysis job on the backend.
+   * @param {string} videoUrl - Full YouTube video URL.
+   * @param {Object} [options] - Options including forceOverride, metadata, and signal.
+   * @returns {Promise<Object>} Backend job response object with job_id.
+   */
+  async createAnalysisJob(videoUrl, options = {}) {
+    const requestBody = {
+      url: videoUrl,
+      force_override: Boolean(options.forceOverride || options.force_override),
+    };
+
+    if (options.metadata) {
+      requestBody.metadata = options.metadata;
+    }
+
+    const response = await fetch(`${this.baseUrl}/analyze/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      throw new HttpError(response.status, response.statusText);
+    }
+
+    const jobData = await response.json();
+    const jobId = jobData.job_id;
+
+    // Validate job_id is present before polling
+    if (!jobId || typeof jobId !== "string" || jobId.trim() === "") {
+      console.error(
+        `[PerspectivePrismClient] Backend returned invalid job_id (type: ${typeof jobId})`,
+      );
+      throw new ValidationError("Backend returned invalid job_id");
+    }
+
+    return jobData;
   }
 
   /**
    * Make the actual HTTP request using the async job API.
    * @param {string} videoUrl
    * @param {string} videoId
+   * @param {Object} [options]
    */
-  async makeAnalysisRequest(videoUrl, videoId) {
-    const controller = new AbortController();
+  async makeAnalysisRequest(videoUrl, videoId, options = {}) {
+    const controller = this.abortControllers.get(videoId) || new AbortController();
+    let isTimeout = false;
 
     // Store abort controller for cancellation
     this.abortControllers.set(videoId, controller);
 
     const timeoutId = setTimeout(() => {
+      isTimeout = true;
       controller.abort();
     }, this.TIMEOUT_MS);
 
@@ -302,29 +512,11 @@ class PerspectivePrismClient {
     try {
       // 1. Submit Job
       console.log(`[PerspectivePrismClient] Submitting job for ${videoId}`);
-      const jobResponse = await fetch(`${this.baseUrl}/analyze/jobs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: videoUrl }), // Backend expects 'url', not 'video_url'
+      const jobData = await this.createAnalysisJob(videoUrl, {
+        ...options,
         signal: controller.signal,
       });
-
-      if (!jobResponse.ok) {
-        throw new HttpError(jobResponse.status, jobResponse.statusText);
-      }
-
-      const jobData = await jobResponse.json();
       const jobId = jobData.job_id;
-
-      // Validate job_id is present before polling
-      if (!jobId || typeof jobId !== "string" || jobId.trim() === "") {
-        console.error(
-          `[PerspectivePrismClient] Backend returned invalid job_id (type: ${typeof jobId})`,
-        );
-        throw new ValidationError("Backend returned invalid job_id");
-      }
 
       console.log(`[PerspectivePrismClient] Job submitted: ${jobId}`);
 
@@ -334,15 +526,24 @@ class PerspectivePrismClient {
       this.validateAnalysisData(result);
       return result;
     } catch (error) {
-      if (error.name === "AbortError") {
-        throw new TimeoutError("Analysis request timed out");
+      if (error.name === "AbortError" || controller.signal.aborted) {
+        if (isTimeout) {
+          throw new TimeoutError("Analysis request timed out");
+        }
+        const cancelErr = new Error("Analysis cancelled");
+        cancelErr.name = "AbortError";
+        // @ts-ignore
+        cancelErr.isCancelled = true;
+        throw cancelErr;
       }
       throw error;
     } finally {
       clearTimeout(timeoutId);
       progressTimers.forEach((t) => clearTimeout(t));
-      // Clean up abort controller
-      this.abortControllers.delete(videoId);
+      // Clean up abort controller only if this controller is still current
+      if (this.abortControllers.get(videoId) === controller) {
+        this.abortControllers.delete(videoId);
+      }
     }
   }
 
@@ -394,20 +595,28 @@ class PerspectivePrismClient {
     // Query tabs that match YouTube patterns (we have host permissions for these)
     chrome.tabs.query({ url: "*://*.youtube.com/*" }, (tabs) => {
       for (const tab of tabs) {
-        chrome.tabs
-          .sendMessage(tab.id, {
-            type: "ANALYSIS_PROGRESS",
-            videoId,
-            payload: progressData,
-          })
-          .catch(() => {});
+        const sendMsg = chrome.tabs.sendMessage(tab.id, {
+          type: "ANALYSIS_PROGRESS",
+          videoId,
+          payload: progressData,
+        });
+        if (sendMsg && typeof sendMsg.catch === "function") {
+          sendMsg.catch(() => {});
+        }
       }
     });
   }
 
   shouldRetryError(error) {
-    // Don't retry validation errors
-    if (error instanceof ValidationError) {
+    // Don't retry validation errors or cancellations
+    if (
+      error instanceof ValidationError ||
+      error.name === "AbortError" ||
+      // @ts-ignore
+      error.isCancelled ||
+      error.message?.includes("cancelled") ||
+      error.message?.includes("aborted")
+    ) {
       return false;
     }
 
@@ -1219,11 +1428,34 @@ class PerspectivePrismClient {
 
         if (state.status === "pending") {
           // Interrupted during execution, retry immediately
-          await this.executeAnalysisRequest(
-            state.videoId,
-            state.videoUrl,
-            state.attemptCount,
-          );
+          if (!this.abortControllers.has(state.videoId)) {
+            this.abortControllers.set(state.videoId, new AbortController());
+          }
+
+          let resolveRecovery, rejectRecovery;
+          const recoveryPromise = new Promise((res, rej) => {
+            resolveRecovery = res;
+            rejectRecovery = rej;
+          });
+          this.pendingRequests.set(state.videoId, recoveryPromise);
+          this.pendingRequestOptions.set(state.videoId, state.options || {});
+
+          try {
+            const result = await this.executeAnalysisRequest(
+              state.videoId,
+              state.videoUrl,
+              state.attemptCount,
+              state.options || {},
+            );
+            resolveRecovery(result);
+          } catch (e) {
+            rejectRecovery(e);
+          } finally {
+            if (this.pendingRequests.get(state.videoId) === recoveryPromise) {
+              this.pendingRequests.delete(state.videoId);
+              this.pendingRequestOptions.delete(state.videoId);
+            }
+          }
         } else if (state.status === "retrying") {
           // Check if alarm exists
           const nextAttempt = state.attemptCount + 1; // Assuming stored attempt is the last failed one
@@ -1236,13 +1468,25 @@ class PerspectivePrismClient {
             console.warn(
               `[PerspectivePrismClient] Missing alarm for ${state.videoId}, rescheduling immediately`,
             );
-            // If alarm is missing, we should probably just execute it now or schedule it.
-            // Let's execute it now to be safe and simple.
-            await this.executeAnalysisRequest(
+            // If alarm is missing, execute it now to be safe and simple.
+            const recoveryPromise = this.executeAnalysisRequest(
               state.videoId,
               state.videoUrl,
               state.attemptCount,
+              state.options || {},
             );
+            this.pendingRequests.set(state.videoId, recoveryPromise);
+            this.pendingRequestOptions.set(state.videoId, state.options || {});
+            try {
+              await recoveryPromise;
+            } catch (_e) {
+              // Error logged and handled in executeAnalysisRequest
+            } finally {
+              if (this.pendingRequests.get(state.videoId) === recoveryPromise) {
+                this.pendingRequests.delete(state.videoId);
+                this.pendingRequestOptions.delete(state.videoId);
+              }
+            }
           }
         }
       }
@@ -1262,9 +1506,9 @@ class PerspectivePrismClient {
 
     // Process queue
     while (this.requestQueue.length > 0) {
-      const { videoId, resolve, reject } = this.requestQueue.shift();
+      const { videoId, options, resolve, reject } = this.requestQueue.shift();
       try {
-        const result = await this.performAnalysis(videoId);
+        const result = await this.performAnalysis(videoId, options || {});
         resolve(result);
       } catch (error) {
         reject(error);
@@ -1284,16 +1528,66 @@ class PerspectivePrismClient {
         const alarmAttempt = parseInt(parts[2], 10);
 
         console.log(`[PerspectivePrismClient] Alarm fired for ${videoId}`);
+
+        // Immediate check: if force override is active or in flight, suppress immediately
+        const initialOptions = this.pendingRequestOptions.get(videoId);
+        if (
+          this.activeOverrideVideoIds?.has(videoId) ||
+          (initialOptions &&
+            (initialOptions.forceOverride || initialOptions.force_override))
+        ) {
+          logger.info(
+            `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override is in flight`,
+          );
+          return;
+        }
+
         const state = await this.getPersistedRequestState(videoId);
 
-        if (state) {
-          // Use state.attemptCount to ensure we are in sync with persistence
-          await this.executeAnalysisRequest(
-            videoId,
-            state.videoUrl,
-            state.attemptCount,
+        // Re-check after async read: if force override started while reading state or state is cancelled, suppress
+        const currentOptions = this.pendingRequestOptions.get(videoId);
+        if (
+          this.activeOverrideVideoIds?.has(videoId) ||
+          (currentOptions &&
+            (currentOptions.forceOverride || currentOptions.force_override)) ||
+          state?.status === "cancelled"
+        ) {
+          logger.info(
+            `[PerspectivePrismClient] Suppressing retry alarm for ${videoId} as force override started during state retrieval`,
           );
-          // executeAnalysisRequest handles notification on completion
+          return;
+        }
+
+        if (state) {
+          // Pre-register abort controller and pending promise BEFORE executeAnalysisRequest begins
+          if (!this.abortControllers.has(videoId)) {
+            this.abortControllers.set(videoId, new AbortController());
+          }
+
+          let resolveRetry, rejectRetry;
+          const retryPromise = new Promise((res, rej) => {
+            resolveRetry = res;
+            rejectRetry = rej;
+          });
+          this.pendingRequests.set(videoId, retryPromise);
+          this.pendingRequestOptions.set(videoId, state.options || {});
+
+          try {
+            const result = await this.executeAnalysisRequest(
+              videoId,
+              state.videoUrl,
+              state.attemptCount,
+              state.options || {},
+            );
+            resolveRetry(result);
+          } catch (e) {
+            rejectRetry(e);
+          } finally {
+            if (this.pendingRequests.get(videoId) === retryPromise) {
+              this.pendingRequests.delete(videoId);
+              this.pendingRequestOptions.delete(videoId);
+            }
+          }
         } else {
           // Fallback for missing state
           console.error(
@@ -1370,10 +1664,59 @@ class PerspectivePrismClient {
       throw new ValidationError("Missing or invalid metadata.analyzed_at");
     }
 
+    // Validate eligibility if present
+    if (data.eligibility !== undefined && data.eligibility !== null) {
+      if (typeof data.eligibility !== "object") {
+        throw new ValidationError("eligibility must be an object");
+      }
+      const el = data.eligibility;
+      if (typeof el.is_analysable !== "boolean") {
+        throw new ValidationError("eligibility.is_analysable must be a boolean");
+      }
+      if (
+        typeof el.confidence_score !== "number" ||
+        el.confidence_score < 0 ||
+        el.confidence_score > 1
+      ) {
+        throw new ValidationError(
+          "eligibility.confidence_score must be a number between 0 and 1",
+        );
+      }
+      if (typeof el.detected_category !== "string") {
+        throw new ValidationError(
+          "eligibility.detected_category must be a string",
+        );
+      }
+      if (typeof el.disclaimer_title !== "string") {
+        throw new ValidationError(
+          "eligibility.disclaimer_title must be a string",
+        );
+      }
+      if (typeof el.disclaimer_message !== "string") {
+        throw new ValidationError(
+          "eligibility.disclaimer_message must be a string",
+        );
+      }
+      if (!Array.isArray(el.key_topics_found)) {
+        throw new ValidationError(
+          "eligibility.key_topics_found must be an array",
+        );
+      }
+    }
+
     // Validate claims
     if (!Array.isArray(data.claims)) {
       throw new ValidationError("claims must be an array");
     }
+
+    const CANONICAL_TRUTH_THEORIES = new Set([
+      "Correspondence (Empirical)",
+      "Coherence (Systemic Narrative)",
+      "Pragmatic (Practical Utility)",
+      "Perspectivism (Lived Experience)",
+      "Consensus (Institutional Agreement)",
+      "Deflationary (Rhetorical Endorsement)",
+    ]);
 
     data.claims.forEach((claim, index) => {
       if (typeof claim.claim_text !== "string") {
@@ -1419,10 +1762,52 @@ class PerspectivePrismClient {
           `Claim at index ${index} invalid emotional_manipulation array`,
         );
       }
-      if (typeof bi.deception_score !== "number") {
+      if (
+        bi.deception_score !== undefined &&
+        bi.deception_score !== null &&
+        typeof bi.deception_score !== "number"
+      ) {
         throw new ValidationError(
           `Claim at index ${index} invalid deception_score`,
         );
+      }
+
+      // Validate alethiology if present
+      if (tp.alethiology !== undefined && tp.alethiology !== null) {
+        if (typeof tp.alethiology !== "object") {
+          throw new ValidationError(
+            `Claim at index ${index} alethiology must be an object`,
+          );
+        }
+        const ale = tp.alethiology;
+        if (
+          typeof ale.primary_theory !== "string" ||
+          !CANONICAL_TRUTH_THEORIES.has(ale.primary_theory)
+        ) {
+          throw new ValidationError(
+            `Claim at index ${index} invalid primary_theory in alethiology`,
+          );
+        }
+        if (ale.secondary_theory !== undefined && ale.secondary_theory !== null) {
+          if (
+            typeof ale.secondary_theory !== "string" ||
+            !CANONICAL_TRUTH_THEORIES.has(ale.secondary_theory)
+          ) {
+            throw new ValidationError(
+              `Claim at index ${index} invalid secondary_theory in alethiology`,
+            );
+          }
+        }
+        if (typeof ale.epistemic_summary !== "string") {
+          throw new ValidationError(
+            `Claim at index ${index} missing epistemic_summary in alethiology`,
+          );
+        }
+        if (!Array.isArray(ale.quote_evidences)) {
+          throw new ValidationError(
+            `Claim at index ${index} quote_evidences must be an array`,
+          );
+        }
       }
     });
 

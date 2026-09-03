@@ -45,12 +45,27 @@ let currentVideoId = null;
 let currentTabId = null;
 let lastSequence = -1;
 let currentGenerationId = null;
+let activeAnalysisToken = 0;
+let pendingCheckCacheToken = 0;
+let activeRequestId = null;
+let activeAnalysisStartTime = 0;
+let activeAnalysisVideoId = null;
+let lastCompletedAnalyzedAt = 0;
+const supersededRequestIds = new Set();
+const completedRequestIds = new Set();
+let requestCounter = 0;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
 const stateLoading = document.getElementById("state-loading");
 const stateError = document.getElementById("state-error");
 const stateResults = document.getElementById("state-results");
+const stateIneligible = document.getElementById("state-ineligible");
+
+const disclaimerTitle = document.getElementById("disclaimer-title");
+const disclaimerCategoryBadge = document.getElementById("disclaimer-category-badge");
+const disclaimerMessage = document.getElementById("disclaimer-message");
+const forceAnalyzeBtn = document.getElementById("pp-force-analyze-btn");
 
 const loadingTitle = document.getElementById("loading-title");
 const loadingSubmessage = document.getElementById("loading-submessage");
@@ -138,17 +153,133 @@ function showState(stateName) {
   if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
   if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
   if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
+  if (stateIneligible) stateIneligible.style.display = stateName === "ineligible" ? "flex" : "none";
+}
+
+/**
+ * Render ineligible disclaimer state (Pre-Classifier Guardrail Gate)
+ * @param {Object} eligibility - ContentEligibilityResult object from backend
+ */
+function renderIneligibleDisclaimer(eligibility) {
+  if (!eligibility) return;
+  showState("ineligible");
+
+  if (disclaimerTitle) {
+    disclaimerTitle.textContent = sanitizeText(
+      eligibility.disclaimer_title || "Analysis Skipped",
+    );
+  }
+
+  if (disclaimerCategoryBadge) {
+    const confidencePct = Math.round(
+      (eligibility.confidence_score !== undefined ? eligibility.confidence_score : 0) * 100,
+    );
+    const categoryText = sanitizeText(eligibility.detected_category || "Non-Political Media");
+    disclaimerCategoryBadge.textContent = `${categoryText} • ${confidencePct}% Match`;
+  }
+
+  if (disclaimerMessage) {
+    disclaimerMessage.textContent = sanitizeText(
+      eligibility.disclaimer_message ||
+        "This video appears to be non-political content and does not contain verifiable policy claims.",
+    );
+  }
+}
+
+/**
+ * Start or retry analysis for a given video ID with options
+ * @param {string} videoId
+ * @param {Object} [options]
+ */
+async function startAnalysis(videoId, options = {}) {
+  if (!videoId) return;
+  const requestedVideoId = videoId;
+  const analysisToken = ++activeAnalysisToken;
+  const requestId = `sp_${Date.now()}_${++requestCounter}`;
+  if (activeRequestId && activeRequestId !== requestId) {
+    supersededRequestIds.add(activeRequestId);
+  }
+  activeRequestId = requestId;
+  activeAnalysisStartTime = Date.now();
+  activeAnalysisVideoId = videoId;
+  currentVideoId = videoId;
+  showState("loading");
+  renderOptimisticSkeletons(true);
+
+  if (loadingSubmessage) {
+    loadingSubmessage.textContent = "Analyzing video...";
+  }
+  if (progressBarFill) {
+    progressBarFill.style.width = "0%";
+    progressBarFill.setAttribute("aria-valuenow", "0");
+  }
+
+  pendingCheckCacheToken++;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "ANALYZE_VIDEO",
+      videoId: videoId,
+      forceOverride: Boolean(options.forceOverride || options.force_override),
+      metadata: options.metadata,
+      requestId: requestId,
+    });
+
+    // Discard if navigation has changed the active video OR if a newer analysis was triggered
+    if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
+
+    if (response && response.success && response.data) {
+      completedRequestIds.add(requestId);
+      lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, Date.now());
+      if (
+        response.data.eligibility &&
+        response.data.eligibility.is_analysable === false
+      ) {
+        renderIneligibleDisclaimer(response.data.eligibility);
+      } else {
+        showState("results");
+        renderResults(response.data);
+      }
+    } else if (response && response.isRetry) {
+      // Intermediate retry: analysis is actively being retried in background; maintain loading UI
+      loadingSubmessage.textContent = "Retrying analysis...";
+    } else {
+      showState("error");
+      if (errorMessage) {
+        errorMessage.textContent = response?.error || "Analysis failed";
+      }
+    }
+  } catch (err) {
+    if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
+    showState("error");
+    if (errorMessage) {
+      errorMessage.textContent = err?.message || "Analysis request failed";
+    }
+  } finally {
+    if (activeRequestId === requestId) {
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
+    }
+  }
 }
 
 if (typeof window !== "undefined") {
   window.showState = showState;
   window.renderOptimisticSkeletons = renderOptimisticSkeletons;
   window.checkCurrentTabState = checkCurrentTabState;
+  window.renderIneligibleDisclaimer = renderIneligibleDisclaimer;
+  window.startAnalysis = startAnalysis;
 }
 
 // Render analysis results
 function renderResults(data) {
   if (!data) return;
+
+  // If result is ineligible, show disclaimer instead of results
+  if (data.eligibility && data.eligibility.is_analysable === false) {
+    renderIneligibleDisclaimer(data.eligibility);
+    return;
+  }
 
   // Render overall assessment
   const assessment = sanitizeText(data.overall_assessment || "Unverified");
@@ -351,6 +482,86 @@ function renderResults(data) {
         body.appendChild(scoreRow);
       }
 
+      // 5. Epistemic Lens (Alethiology Specialist Analysis - T5.4)
+      const alethiology = claim.truth_profile?.alethiology;
+      if (alethiology && alethiology.primary_theory) {
+        const lensCard = document.createElement("div");
+        lensCard.className = "epistemic-lens-card";
+
+        const chipsContainer = document.createElement("div");
+        chipsContainer.className = "epistemic-chips";
+
+        const primaryChip = document.createElement("span");
+        primaryChip.className = "epistemic-chip epistemic-chip-primary";
+        primaryChip.textContent = `🔭 Epistemic Lens: ${sanitizeText(alethiology.primary_theory)}`;
+        chipsContainer.appendChild(primaryChip);
+
+        if (alethiology.secondary_theory) {
+          const secondaryChip = document.createElement("span");
+          secondaryChip.className = "epistemic-chip epistemic-chip-secondary";
+          secondaryChip.textContent = `🕸️ Supporting: ${sanitizeText(alethiology.secondary_theory)}`;
+          chipsContainer.appendChild(secondaryChip);
+        }
+
+        lensCard.appendChild(chipsContainer);
+
+        if (alethiology.epistemic_summary) {
+          const summaryP = document.createElement("p");
+          summaryP.className = "epistemic-summary";
+          summaryP.textContent = sanitizeText(alethiology.epistemic_summary);
+          lensCard.appendChild(summaryP);
+        }
+
+        if (
+          Array.isArray(alethiology.quote_evidences) &&
+          alethiology.quote_evidences.length > 0
+        ) {
+          const quoteToggle = document.createElement("button");
+          quoteToggle.type = "button";
+          quoteToggle.className = "epistemic-quote-toggle";
+          quoteToggle.setAttribute("role", "button");
+          quoteToggle.setAttribute("aria-expanded", "false");
+          quoteToggle.innerHTML = `<span class="quote-toggle-icon">▶</span> Quotes & Evidences (${alethiology.quote_evidences.length})`;
+
+          const quotesContent = document.createElement("div");
+          quotesContent.className = "epistemic-quotes-content";
+          quotesContent.style.display = "none";
+
+          alethiology.quote_evidences.forEach((quoteText) => {
+            const quoteEl = document.createElement("blockquote");
+            quoteEl.className = "epistemic-quote";
+            quoteEl.textContent = `"${sanitizeText(quoteText)}"`;
+            quotesContent.appendChild(quoteEl);
+          });
+
+          const toggleQuotes = (e) => {
+            e.stopPropagation();
+            const isCollapsed = quotesContent.style.display === "none";
+            quotesContent.style.display = isCollapsed ? "block" : "none";
+            quoteToggle.setAttribute("aria-expanded", String(isCollapsed));
+            const icon = /** @type {HTMLElement|null} */ (
+              quoteToggle.querySelector(".quote-toggle-icon")
+            );
+            if (icon) {
+              icon.style.transform = isCollapsed ? "rotate(90deg)" : "rotate(0deg)";
+            }
+          };
+
+          quoteToggle.addEventListener("click", toggleQuotes);
+          quoteToggle.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleQuotes(e);
+            }
+          });
+
+          lensCard.appendChild(quoteToggle);
+          lensCard.appendChild(quotesContent);
+        }
+
+        body.appendChild(lensCard);
+      }
+
       claimCard.appendChild(body);
 
       // Toggle expanded state on header click and keyboard activation.
@@ -485,8 +696,16 @@ async function checkCurrentTabState() {
     }
     
     if (tabId !== currentTabId || videoId !== currentVideoId) {
+      activeAnalysisToken++;
+      pendingCheckCacheToken++;
       currentGenerationId = null;
       lastSequence = -1;
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
+      lastCompletedAnalyzedAt = 0;
+      supersededRequestIds.clear();
+      completedRequestIds.clear();
       const container = document.getElementById("skeleton-container") || skeletonContainer;
       if (container) {
         container.innerHTML = "";
@@ -528,7 +747,22 @@ function handleAnalysisState(state) {
       showState("idle");
       break;
       
-    case "in_progress":
+    case "in_progress": {
+      // If this in-progress event belongs to a superseded request, ignore it
+      if (
+        (state.requestId && supersededRequestIds.has(state.requestId)) ||
+        (activeRequestId && state.requestId && state.requestId !== activeRequestId)
+      ) {
+        break;
+      }
+      const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
+      if (isExternal) {
+        activeAnalysisToken++;
+        if (state.requestId) {
+          activeRequestId = state.requestId;
+        }
+      }
+      pendingCheckCacheToken++;
       showState("loading");
       renderOptimisticSkeletons();
       loadingSubmessage.textContent = state.submessage || "Analyzing video...";
@@ -536,38 +770,111 @@ function handleAnalysisState(state) {
       progressBarFill.style.width = `${progressVal}%`;
       progressBarFill.setAttribute("aria-valuenow", progressVal);
       break;
+    }
       
-    case "complete":
-      showState("results");
-      // Capture the video ID synchronously so we can detect stale responses.
+    case "complete": {
+      // If this completion belongs to a superseded request, ignore it
+      if (
+        (state.requestId && supersededRequestIds.has(state.requestId)) ||
+        (activeRequestId && state.requestId && state.requestId !== activeRequestId)
+      ) {
+        break;
+      }
+      // If this completion was already processed and rendered, ignore duplicate event
+      if (state.requestId && completedRequestIds.has(state.requestId)) {
+        break;
+      }
+      // If completion analyzedAt is older than active analysis start or last rendered completion, ignore it
+      if (
+        state.analyzedAt &&
+        ((activeAnalysisVideoId === currentVideoId && activeAnalysisStartTime && state.analyzedAt < activeAnalysisStartTime) ||
+         (lastCompletedAnalyzedAt && state.analyzedAt < lastCompletedAnalyzedAt))
+      ) {
+        break;
+      }
+      const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
+      if (isExternal) {
+        activeAnalysisToken++;
+      }
+      if (state.requestId) {
+        completedRequestIds.add(state.requestId);
+      }
+      if (state.analyzedAt) {
+        lastCompletedAnalyzedAt = Math.max(lastCompletedAnalyzedAt, state.analyzedAt);
+      }
+      const expectedRequestId = state.requestId || activeRequestId;
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
+      // Capture the video ID and cache generation synchronously so we can detect stale responses.
       const requestedVideoId = currentVideoId;
+      const thisCacheToken = ++pendingCheckCacheToken;
       chrome.runtime.sendMessage({
         type: "CHECK_CACHE",
         videoId: requestedVideoId
       }).then((response) => {
-        // Discard the response if navigation has already changed the active video.
-        if (currentVideoId !== requestedVideoId) return;
+        // Discard the response if navigation or a newer cache/analysis generation occurred.
+        if (
+          currentVideoId !== requestedVideoId ||
+          pendingCheckCacheToken !== thisCacheToken ||
+          (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
+        ) return;
         if (response && response.success && response.data) {
-          renderResults(response.data);
+          if (
+            response.data.eligibility &&
+            response.data.eligibility.is_analysable === false
+          ) {
+            renderIneligibleDisclaimer(response.data.eligibility);
+          } else {
+            showState("results");
+            renderResults(response.data);
+          }
         } else {
           showState("error");
           errorMessage.textContent = "Failed to load analysis results.";
         }
       }).catch(() => {
-        if (currentVideoId !== requestedVideoId) return;
+        if (
+          currentVideoId !== requestedVideoId ||
+          pendingCheckCacheToken !== thisCacheToken ||
+          (activeRequestId && expectedRequestId && activeRequestId !== expectedRequestId)
+        ) return;
         showState("error");
         errorMessage.textContent = "Failed to load analysis results.";
       });
       break;
+    }
       
     case "error":
+      if (activeRequestId && state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
       showState("error");
       errorMessage.textContent = state.errorMessage || "An error occurred during analysis.";
       break;
       
-    case "cancelled":
+    case "cancelled": {
+      // If the cancellation event belongs to a superseded request, do not abort active analysis or switch to idle
+      if (state.requestId && state.requestId !== activeRequestId) {
+        break;
+      }
+      if (activeRequestId && (!state.requestId || state.requestId === activeRequestId)) {
+        activeRequestId = null;
+        activeAnalysisStartTime = 0;
+        activeAnalysisVideoId = null;
+      }
+      activeAnalysisToken++;
+      pendingCheckCacheToken++;
       showState("idle");
       break;
+    }
   }
 }
 
@@ -638,9 +945,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === "VIDEO_NAVIGATED" || message.type === "YOUTUBE_NAVIGATED") {
     if (message.videoId && message.videoId !== currentVideoId) {
+      activeAnalysisToken++;
+      pendingCheckCacheToken++;
       currentVideoId = message.videoId;
       currentGenerationId = null;
       lastSequence = -1;
+      activeRequestId = null;
+      activeAnalysisStartTime = 0;
+      activeAnalysisVideoId = null;
+      lastCompletedAnalyzedAt = 0;
+      supersededRequestIds.clear();
+      completedRequestIds.clear();
     }
     checkCurrentTabState();
   } else if (message.type === "SYNC_PLAYBACK") {
@@ -681,14 +996,20 @@ if (cancelBtn) {
   });
 }
 
+// Force Analyze button ("⚡ Analyze Anyway" override)
+if (forceAnalyzeBtn) {
+  forceAnalyzeBtn.addEventListener("click", () => {
+    if (currentVideoId) {
+      startAnalysis(currentVideoId, { forceOverride: true });
+    }
+  });
+}
+
 // Retry analysis button
 if (retryBtn) {
   retryBtn.addEventListener("click", () => {
     if (currentVideoId) {
-      chrome.runtime.sendMessage({
-        type: "ANALYZE_VIDEO",
-        videoId: currentVideoId
-      }).catch(() => {});
+      startAnalysis(currentVideoId);
     }
   });
 }
@@ -718,4 +1039,11 @@ if (typeof document !== "undefined") {
   }
 }
 
-export { sanitizeText, sanitizeUrl, renderResults };
+export {
+  sanitizeText,
+  sanitizeUrl,
+  renderResults,
+  renderIneligibleDisclaimer,
+  startAnalysis,
+  checkCurrentTabState,
+};

@@ -161,4 +161,137 @@ describe("Service Worker Resilience & Side Panel Triggering (Track 2)", () => {
       expect(results[1]).toHaveProperty("success", true);
     });
   });
+
+  describe("Analysis Cancellation (handleCancelAnalysis)", () => {
+    it("should await async cancelAnalysis and report failure if no analysis was active", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleCancelAnalysis, getClient } = backgroundModule;
+
+      const client = await getClient();
+      vi.spyOn(client, "cancelAnalysis").mockResolvedValue(false);
+
+      await expect(
+        handleCancelAnalysis({ videoId: "abcdefghijk" })
+      ).rejects.toThrow("No active analysis found for this video");
+    });
+
+    it("should await async cancelAnalysis and report success when analysis is active", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleCancelAnalysis, getClient } = backgroundModule;
+
+      const client = await getClient();
+      vi.spyOn(client, "cancelAnalysis").mockResolvedValue(true);
+
+      const res = await handleCancelAnalysis({ videoId: "abcdefghijk" });
+      expect(res).toEqual({ success: true, cancelled: true });
+    });
+
+    it("should preserve cancelled status when analysis returns cancelled result", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: false,
+        error: "Analysis cancelled",
+        isCancelled: true,
+      });
+
+      const res = await handleAnalysisRequest({ videoId: "abcdefghijk" });
+      expect(res.isCancelled).toBe(true);
+
+      expect(setSpy).toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "cancelled" }),
+      );
+    });
+
+    it("should not overwrite active state when superseded request completes", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: true,
+        data: { claims: [] },
+      });
+
+      // Current state belongs to newer requestId req-new-456
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "req-new-456",
+      });
+
+      // Old request finishes with requestId req-old-123
+      await handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "req-old-123" });
+
+      // Must NOT have set status to complete for req-old-123
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "complete", requestId: "req-old-123" }),
+      );
+    });
+
+    it("should not overwrite active state when superseded request throws non-abort error", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockRejectedValue(new Error("Network disconnect"));
+
+      // Current state belongs to newer requestId req-new-456
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "req-new-456",
+      });
+
+      // Old request fails with requestId req-old-123
+      await expect(
+        handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "req-old-123" })
+      ).rejects.toThrow("Network disconnect");
+
+      // Must NOT have set status to error for req-old-123
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "error", requestId: "req-old-123" }),
+      );
+    });
+
+    it("should preserve in-progress requestId ownership when concurrent non-forced request arrives", async () => {
+      backgroundModule = await import("../../background.js");
+      const { handleAnalysisRequest, getClient, StateManager } = backgroundModule;
+
+      const setSpy = vi.spyOn(StateManager, "set");
+      const client = await getClient();
+      vi.spyOn(client, "analyzeVideo").mockResolvedValue({
+        success: true,
+        data: { claims: [] },
+      });
+
+      // Existing state belongs to side-panel forced request
+      vi.spyOn(StateManager, "get").mockResolvedValue({
+        status: "in_progress",
+        requestId: "sp-forced-123",
+        forceOverride: true,
+      });
+
+      // Concurrent content-script request arrives without force override
+      await handleAnalysisRequest({ videoId: "abcdefghijk", requestId: "cs-concurrent-456" });
+
+      // Must NOT overwrite initial state with cs-concurrent-456 in_progress write
+      expect(setSpy).not.toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "in_progress", requestId: "cs-concurrent-456" }),
+      );
+
+      // Must complete with sp-forced-123 ownership preserved
+      expect(setSpy).toHaveBeenCalledWith(
+        "abcdefghijk",
+        expect.objectContaining({ status: "complete", requestId: "sp-forced-123" }),
+      );
+    });
+  });
 });
