@@ -333,6 +333,9 @@ async function handleAnalysisRequest(message) {
   if (existingState && existingState.status === "in_progress" && !isForce) {
     if (existingState.requestId) {
       requestId = existingState.requestId;
+    } else {
+      existingState.requestId = requestId;
+      await StateManager.set(videoId, existingState);
     }
   } else {
     // Set state to in_progress

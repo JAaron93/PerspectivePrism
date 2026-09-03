@@ -755,6 +755,9 @@ function handleAnalysisState(state) {
       const isExternal = Boolean(!state.requestId || state.requestId !== activeRequestId);
       if (isExternal) {
         activeAnalysisToken++;
+        if (state.requestId) {
+          activeRequestId = state.requestId;
+        }
       }
       pendingCheckCacheToken++;
       showState("loading");
