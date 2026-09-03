@@ -16,6 +16,7 @@ This specification details the design for expanding `prism_sanitizer_rs` into a 
 - **Candidate A: Full-Pipeline Unified Sanitizer**: A single-pass Rust function `sanitize_input()` performing NFKC normalization, control-character validation, suspicious pattern detection, character escaping, and backslash-aware ellipsis truncation in a single FFI crossing.
 - **Candidate B: Aho-Corasick Multi-Pattern Classifier**: A compiled Aho-Corasick Deterministic Finite Automaton (DFA) matching 65+ keywords simultaneously in \(O(N)\) time across raw UTF-8 bytes.
 - **Candidate C: Native Transcript Segment Processor**: A vectorized transcript formatter calculating capacity upfront, assembling `[MM:SS] text\n` timestamp lines, sanitizing text, and truncating at 100,000 characters in a single memory allocation.
+- **Candidate D: Prompt Nonce & Delimiter Isolation Guard**: An inline delimiter verification and prompt builder that detects forged delimiter tokens (`===USER DATA`) and assembles nonced prompt blocks with zero quadratic string concatenation.
 
 ---
 
@@ -27,12 +28,14 @@ flowchart TD
         A["Incoming YouTube Request / Transcript / Metadata"] --> B["app/utils/input_sanitizer.py"]
         A --> C["app/services/content_classifier.py"]
         A --> D["app/services/claim_extractor.py"]
+        A --> H["app/utils/prompt_helpers.py"]
     end
 
     subgraph FFIBoundary ["Single-Crossing PyO3 FFI Boundary"]
         B -- "Single Call: sanitize_input(&str, max_len, allow_suspicious, allow_control)" --> E["prism_sanitizer_rs::sanitize_input"]
         C -- "Single Call: contains_political_keywords(&str)" --> F["prism_sanitizer_rs::contains_political_keywords"]
         D -- "Single Call: format_and_sanitize_transcript(segments, max_len)" --> G["prism_sanitizer_rs::format_and_sanitize_transcript"]
+        H -- "Single Call: build_user_data_prompt(data, instruction, nonce)" --> I["prism_sanitizer_rs::build_user_data_prompt"]
     end
 
     subgraph RustEngine ["Rust Native Core Engine (prism_sanitizer_rs)"]
@@ -52,6 +55,12 @@ flowchart TD
             G --> C1["Calculate Buffer Capacity (Exact Pre-allocation)"]
             C1 --> C2["Vectorized Timestamp Formatting [MM:SS]"]
             C2 --> C3["Inline Sanitization & 100k Character Bound"]
+        end
+
+        subgraph CandidateD ["Candidate D: Prompt Nonce & Delimiter Guard"]
+            I --> D1["Delimiter Forgery Scan (===USER DATA detection)"]
+            D1 --> D2["Crypto Hex Nonce Generation & Validation"]
+            D2 --> D3["Zero-Allocation Contiguous Prompt Assembly"]
         end
     end
 
@@ -200,8 +209,46 @@ pub fn format_and_sanitize_transcript(
    - Compute `seconds = (start % 60.0).floor() as u32`.
    - Append formatted line `[{minutes:02}:{seconds:02}] {escaped_text}\n`.
    - If buffer exceeds `max_length`, break early and append `"\n...[TRUNCATED]..."`.
-3. **Integrated Sanitization**:
-   Runs control character checks and suspicious pattern checks without creating intermediate Python string objects.
+### Component 4: Candidate D — Prompt Nonce & Delimiter Isolation Guard
+
+#### Current Inefficiency & Vulnerability
+In `app/utils/prompt_helpers.py` and `app/utils/input_sanitizer.py`, untrusted content is wrapped using dynamic nonces:
+```python
+start_delim = f"===USER DATA {nonce} START==="
+end_delim = f"===USER DATA {nonce} END==="
+return f"{start_delim}\n{content_block}\n{end_delim}\n{instruction}"
+```
+In Python:
+1. `secrets.token_hex(4)` allocates temporary nonce strings.
+2. Multiple intermediate strings are allocated during prompt formatting.
+3. Checking for adversarial delimiter forgery (e.g. `===USER DATA` or matching active closing delimiters embedded inside the payload) requires an extra Python substring scan over the payload.
+
+#### Rust Design
+Expose in `prism_sanitizer_rs`:
+```rust
+#[pyfunction]
+#[pyo3(signature = (data, instruction, nonce=None))]
+pub fn build_user_data_prompt(
+    data: &str,
+    instruction: &str,
+    nonce: Option<&str>,
+) -> PyResult<String>
+
+#[pyfunction]
+pub fn contains_delimiter_forgery(text: &str, nonce: Option<&str>) -> bool
+```
+
+#### Execution Logic
+1. **Nonce Generation & Buffer Sizing**:
+   - If `nonce` is `None`, generate an 8-character random hex nonce.
+   - If `nonce == Some("")`, use static delimiters (`===USER DATA START===`, `===USER DATA END===`).
+   - Otherwise, use the specified nonce.
+2. **Pre-allocated Buffer Assembly**:
+   - Pre-allocate a single contiguous `String` buffer of exact capacity:
+     $$\text{Capacity} = \text{data.len()} + \text{instruction.len()} + \text{start\_delim.len()} + \text{end\_delim.len()} + 4$$
+   - Assemble `"{start_delim}\n{data}\n{end_delim}\n{instruction}"` with zero intermediate string copies.
+3. **Delimiter Forgery Detection**:
+   - Scan untrusted text for unescaped `===USER DATA` sequences or matching closing delimiter tags that could allow prompt breakout.
 
 ---
 
@@ -227,8 +274,8 @@ To adhere strictly to the `/rust-rewrite-optimize` and `/spec-creator` guardrail
 
 ## 5. Architectural Invariants
 
-1. **The 90/10 Non-Greedy Rule**:
-   Only utility and pure CPU functions live in Rust. All async I/O, Google ADK agents, and FastAPI life-cycle management remain in Python.
+1. **The 90/10 Non-Greedy Rule (95/5 Actual)**:
+   Only utility and pure CPU functions live in Rust. All async I/O, Google ADK agents, and FastAPI life-cycle management remain in Python. Across Candidates A, B, C, and D, the Rust native surface replaces ~145 Python LOC out of ~2,870 Python LOC (approx. 5.0% of the backend), keeping 95% of the codebase in Python.
 2. **Zero Linker Errors on `cargo test`**:
    Feature-gate `pyo3/extension-module` in `Cargo.toml` so native Rust unit tests run with `cargo test --no-default-features`.
 3. **Safe Fallback**:

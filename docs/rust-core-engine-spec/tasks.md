@@ -14,11 +14,13 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 │   │                                                                    │
 │   ├──> Track 3: Candidate B — Aho-Corasick Fast-Path Classifier (FR-2) │
 │   │                                                                    │
-│   └──> Track 4: Candidate C — Native Transcript Processor (FR-3)      │
-│                                                                        │
-│ All Tracks (2, 3, 4) ────────────────────────────────────────────────> │
+│   ├──> Track 4: Candidate C — Native Transcript Processor (FR-3)      │
 │   │                                                                    │
-│   └──> Track 5: End-to-End Benchmarking, Full Suite & ADR             │
+│   └──> Track 5: Candidate D — Prompt Nonce & Delimiter Guard (FR-4)    │
+│                                                                        │
+│ All Tracks (2, 3, 4, 5) ─────────────────────────────────────────────> │
+│   │                                                                    │
+│   └──> Track 6: End-to-End Benchmarking, Full Suite & ADR             │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -151,29 +153,60 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 
 ---
 
-## Track 5: End-to-End Benchmarking, Full Suite & Documentation
+## Track 5: Candidate D — Prompt Nonce & Delimiter Isolation Guard
 
-### Task 5.1: Build Native Extension & Run Comprehensive Test Suites
+> [!TIP]
+> **PARALLEL EXECUTION**: Can be implemented in parallel with Tracks 2, 3, and 4 once Track 1 is complete.
+
+### Task 5.1: Write Rust Unit Tests for `contains_delimiter_forgery` & `build_user_data_prompt` (TDD)
+- **Description**: Add unit tests in Rust covering detection of `===USER DATA` in untrusted payloads, active closing delimiter collisions, and prompt assembly across custom, empty, and auto-generated nonces.
+- **Traceability**: `US-4`, `FR-4.1`, `FR-4.2`, `FR-4.3`
+- **Dependencies**: Track 1
+- **Acceptance Criteria**:
+  - Unit tests written and failing prior to implementation in `prism_sanitizer_rs`.
+- **Status**: `[STATUS: PENDING]`
+
+### Task 5.2: Implement Delimiter Check & Prompt Builder in Rust
+- **Description**: Implement `contains_delimiter_forgery` and `build_user_data_prompt` in `prism_sanitizer_rs` with contiguous memory pre-allocation and secure hex nonce generation.
+- **Traceability**: `FR-4.1`, `FR-4.2`, `FR-4.3`
+- **Dependencies**: Task 5.1
+- **Acceptance Criteria**:
+  - `cargo test --no-default-features` passes for delimiter and prompt builder tests.
+- **Status**: `[STATUS: PENDING]`
+
+### Task 5.3: Integrate Native Prompt Wrapping into `prompt_helpers.py`
+- **Description**: Update `build_user_data_prompt()` and `wrap_user_data()` in `backend/app/utils/prompt_helpers.py` and `backend/app/utils/input_sanitizer.py` to delegate to `prism_sanitizer_rs`, maintaining pure-Python fallback.
+- **Traceability**: `FR-4.4`
+- **Dependencies**: Task 5.2
+- **Acceptance Criteria**:
+  - `pytest tests/test_dry_spec_helpers.py tests/test_redteam_probe.py` passes 100% green.
+- **Status**: `[STATUS: PENDING]`
+
+---
+
+## Track 6: End-to-End Benchmarking, Full Suite & Documentation
+
+### Task 6.1: Build Native Extension & Run Comprehensive Test Suites
 - **Description**: Compile the updated `prism_sanitizer_rs` in editable mode with toolchain binary on PATH and run the complete backend, extension, and frontend test suites.
 - **Traceability**: `NFR-1`, `NFR-3`
-- **Dependencies**: Tracks 2, 3, 4
+- **Dependencies**: Tracks 2, 3, 4, 5
 - **Acceptance Criteria**:
   - Full pytest suite (all 219+ tests) passes 100% green.
   - Extension Vitest suite passes 100% green.
 - **Status**: `[STATUS: PENDING]`
 
-### Task 5.2: Create Micro-Benchmark Script & Measure Latency Speedups
+### Task 6.2: Create Micro-Benchmark Script & Measure Latency Speedups
 - **Description**: Create a benchmark script in `.benchmarks/` evaluating latency on 10k, 50k, and 100k character inputs comparing Python baseline vs native Rust execution.
 - **Traceability**: `NFR-1`
-- **Dependencies**: Task 5.1
+- **Dependencies**: Task 6.1
 - **Acceptance Criteria**:
   - Demonstrates >75% latency reduction on 100k character sanitization and sub-millisecond transcript processing.
 - **Status**: `[STATUS: PENDING]`
 
-### Task 5.3: Update Centralized Documentation & Record Architecture Decision (ADR 006)
+### Task 6.3: Update Centralized Documentation & Record Architecture Decision (ADR 006)
 - **Description**: Update `docs/helper_functions.md` with new native functions and document the architectural design as `docs/adr/006-rust-native-core-engine.md`.
 - **Traceability**: Architecture Governance
-- **Dependencies**: Task 5.2
+- **Dependencies**: Task 6.2
 - **Acceptance Criteria**:
   - `docs/helper_functions.md` reflects unified functions.
   - `docs/adr/006-rust-native-core-engine.md` committed.
