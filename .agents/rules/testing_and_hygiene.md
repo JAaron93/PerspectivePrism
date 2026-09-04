@@ -22,6 +22,10 @@ This document defines repository-wide test execution standards, test fixture dis
   - When copying or rsyncing a virtual environment `bin/` directory between git worktrees to optimize dependency installation, script entrypoints (`pytest`, `maturin`, `pip`, `uvicorn`) retain hardcoded absolute shebang paths pointing to the source worktree.
   - Running `pytest` directly will silently invoke the source worktree's Python interpreter and site-packages, ignoring locally compiled native extensions in the current worktree.
   - Always execute test suites via `python -m pytest` or rewrite shebang lines in `backend/venv/bin/*` to point to the current worktree's local virtual environment binary.
+* **Evaluation Dataset & Fixture Invariants**:
+  - **Runtime Enum Fidelity**: All evaluation datasets and golden fixtures MUST use exact canonical string values matching the codebase's Pydantic/Enum models (e.g. `PerspectiveType` requiring `"Partisan (Left)"` and `"Partisan (Right)"` rather than conversational shorthand `"Partisan Left"` / `"Partisan Right"`). Unit tests for fixtures MUST assert direct enum instantiation (`PerspectiveType(item["perspective"])`).
+  - **Transcript Timing Structure**: Evaluation fixtures targeting transcript-consuming services (`ClaimExtractor`) MUST include structured `segments: [{"text": str, "start": float, "duration": float}]` capable of directly instantiating runtime `Transcript` and `TranscriptSegment` objects without synthetic patching.
+  - **Temporal Overlap Alignment**: Every annotated gold claim's `[timestamp_start, timestamp_end]` interval MUST explicitly overlap with the spoken segment interval(s) where that claim occurs. Dataset test suites MUST programmatically assert non-empty segment overlap for all annotated claims to prevent temporal scoring drift.
 
 ---
 
