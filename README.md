@@ -109,7 +109,7 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 
 ## 📊 Agent Evaluation
 
-We include a comprehensive evaluation suite integrated with **Weights & Biases Weave** to track agent performance, latency, and extraction quality across a curated set of test videos containing verifiable claims.
+We include a comprehensive evaluation suite to track agent performance, latency, and extraction quality across a curated set of test videos containing verifiable claims. Standardized on 100% cloud-native Google Cloud Vertex AI mode and zero third-party SaaS tokens.
 
 ### Running the Evaluation
 To run the evaluation, execute the benchmark script:
@@ -118,9 +118,10 @@ To run the evaluation, execute the benchmark script:
 python .benchmarks/evaluate_agents.py
 ```
 
-### Modes of Operation
-* **Weights & Biases Weave Mode (Cloud)**: If Weights & Biases credentials are configured in your environment (e.g., `WANDB_API_KEY`, netrc, or global W&B settings), the script initializes Weave under the project name `"perspective-prism-evals"`. It logs full LLM trace details, latencies, and custom scores using Weave's `Model`, `Dataset`, and `Scorer` APIs.
-* **Local Fallback Mode**: If no W&B credentials are found, the script automatically sets `WEAVE_DISABLED=true` to bypass cloud-logging. It runs a clean local fallback benchmarking loop in your terminal without displaying blocking login prompts, printing detailed per-video results and performance averages.
+### Metrics & Scorer Breakdown
+* **Pipeline Success Scorer**: Verifies that end-to-end claim extraction, evidence retrieval, and perspective analysis complete without unhandled exceptions.
+* **Claims Yield Scorer**: Asserts that the extraction pipeline isolates at least one verifiable factual claim from the video transcript.
+* **Latency Compliance Scorer**: Measures execution time against the 60-second analytical runway threshold.
 
 ### High-Throughput Tier & Concurrency Configuration
 Perspective Prism operates exclusively under **GCP Vertex AI Paid Tier Mode** (`GEMINI_TIER=paid`) under [ADR 003](docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md):

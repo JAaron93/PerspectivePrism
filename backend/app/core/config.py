@@ -228,6 +228,7 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
     gcp_location = raw_loc.strip() if isinstance(raw_loc, str) and raw_loc.strip() else "global"
 
     if not gcp_project:
+        os.environ.pop("GOOGLE_GENAI_USE_ENTERPRISE", None)
         os.environ.pop("GOOGLE_GENAI_USE_VERTEXAI", None)
         os.environ.pop("GCP_PROJECT", None)
         os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
@@ -240,6 +241,7 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
             "Please set GCP_PROJECT in your .env file. Example: GCP_PROJECT=my-gcp-project-id"
         )
 
+    os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "true"
     os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
     os.environ["GCP_PROJECT"] = gcp_project
     os.environ["GCP_LOCATION"] = gcp_location

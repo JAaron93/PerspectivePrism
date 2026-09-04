@@ -14,6 +14,7 @@ from google.genai import errors
 @pytest.fixture
 def dummy_settings():
     settings = MagicMock()
+    settings.GOOGLE_GENAI_USE_ENTERPRISE = True
     settings.GOOGLE_GENAI_USE_VERTEXAI = True
     settings.GCP_PROJECT = "test-project"
     settings.GCP_LOCATION = "us-central1"
