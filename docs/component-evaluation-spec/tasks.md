@@ -131,6 +131,6 @@
   - **Traceability**: FR21
 
 - [ ] **T6.3: Register Pytest Markers & End-to-End Suite Verification**
-  - **Description**: Update `backend/pytest.ini` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets.
+  - **Description**: Update the `[tool.pytest.ini_options]` section in `backend/pyproject.toml` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets.
   - **Dependencies**: T1.1-T1.5, T4.2-T4.4, T5.1, T6.1
   - **Traceability**: FR20, FR21, US1, US2, US3
