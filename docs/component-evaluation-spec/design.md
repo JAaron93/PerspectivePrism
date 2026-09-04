@@ -11,10 +11,10 @@ Previously, evaluation considerations focused on holistic end-to-end (E2E) pipel
 3. **Combinatorial Cost & Quota Saturation**: Running a single 15-minute video E2E executes $\sim 63$ LLM calls and $40$ external search queries. Running 50 benchmark videos burns $>3,100$ LLM calls and external API quotas, making continuous integration testing unviable.
 4. **Metric Heterogeneity**: Every agent in the pipeline serves a distinct cognitive role requiring specialized rubrics (e.g., F1 boundary detection for pre-classification, timestamp IoU for extraction, groundedness/faithfulness for stance, and descriptive neutrality for alethiology).
 
-### 1.2 The Solution: Component-Level Agent-as-a-Judge Architecture
-This specification designs a **Component-Level Evaluation Suite** utilizing a dual-engine architecture:
-- **GCP Vertex AI Gen AI Evaluation Engine (`vertexai.preview.evaluation` / `EvalTask`)**: Powers quantitative, deterministic, reference-based pointwise and trajectory metrics.
-- **Google Antigravity SDK (`google.antigravity`) Agent-as-a-Judge**: Implements autonomous, rubric-calibrated evaluation agents that execute qualitative analysis (faithfulness, epistemic neutrality, deception calibration) replacing naive single-prompt LLM-as-a-Judge patterns.
+### 1.2 The Solution: Declared-Stack Agent-as-a-Judge Evaluation Architecture
+This specification designs a **Component-Level Evaluation Suite** built 100% on the repository's declared backend architecture (**Google ADK 2.0** and **Google GenAI SDK** in GCP Vertex AI mode):
+- **Google ADK 2.0 (`google.adk.agents.Agent`) Agent-as-a-Judge**: Autonomous, rubric-calibrated evaluation agents that execute qualitative analysis (faithfulness, epistemic neutrality, deception calibration) replacing naive single-prompt LLM judges, validated via structured Pydantic schemas.
+- **Google GenAI SDK (`google-genai`) Evaluation Runners**: Native async Vertex AI runners executing deterministic quantitative benchmarks (F1-score, accuracy, timestamp IoU, and position-flipped pairwise model comparisons).
 - **Google Cloud Trace & OpenTelemetry**: 100% cloud-native telemetry capturing GenAI spans, token usage, and cost tracking with zero third-party SaaS dependencies.
 
 ---
@@ -32,36 +32,36 @@ flowchart TD
         D6["Alethiology Golden Dataset\n(6 Canonical Epistemic Frameworks)"]
     end
 
-    subgraph Level2 ["Level 2: Dual Evaluation Engines"]
-        subgraph EngineVertex ["GCP Vertex AI Gen AI Evaluation Engine (EvalTask)"]
-            V1["Pointwise Reference Metrics\n(Exact Match, F1, ROUGE, BLEU)"]
-            V2["Trajectory Metrics\n(Tool Sequence, Precision, Recall)"]
-            V3["Pairwise Comparison\n(A/B Model Benchmark with Flipping)"]
+    subgraph Level2 ["Level 2: Declared-Stack Evaluation Engines"]
+        subgraph EngineQuantitative ["Quantitative Evaluation Runners (Google GenAI SDK / Vertex AI)"]
+            V1["Pointwise Reference Metrics\n(Exact Match, F1, Precision, Recall)"]
+            V2["Timestamp Alignment\n(Intersection-over-Union IoU)"]
+            V3["Pairwise Comparison\n(A/B Model Benchmark with Position-Flipping)"]
         end
         
-        subgraph EngineAntigravity ["Google Antigravity SDK (Agent-as-a-Judge)"]
-            A1["Extraction Recall & Verifiability Judge"]
-            A2["Perspective Faithfulness & Groundedness Judge"]
-            A3["Deception Score Calibration Judge"]
-            A4["Alethiology Epistemic Neutrality Judge"]
+        subgraph EngineADK ["Google ADK 2.0 Agent-as-a-Judge"]
+            A1["Extraction Recall & Verifiability Judge Agent"]
+            A2["Perspective Faithfulness & Groundedness Judge Agent"]
+            A3["Deception Score Calibration Judge Agent"]
+            A4["Alethiology Epistemic Neutrality Judge Agent"]
         end
     end
 
     subgraph Level3 ["Level 3: Observability & Cloud Reporting"]
         O1["OpenTelemetry GenAI Semantic Spans"]
         O2["Google Cloud Trace (ADC Native)"]
-        O3["Benchmark Evaluation Reports\n(Markdown, JSON, HTML Rollups)"]
+        O3["Benchmark Evaluation Reports\n(Markdown, JSON Rollups)"]
     end
 
-    D1 --> EngineVertex
+    D1 --> EngineQuantitative
     D2 --> A1
-    D3 --> EngineVertex
+    D3 --> EngineQuantitative
     D4 --> A2
     D5 --> A3
     D6 --> A4
 
-    EngineVertex --> O1
-    EngineAntigravity --> O1
+    EngineQuantitative --> O1
+    EngineADK --> O1
     O1 --> O2
     O1 --> O3
 ```
@@ -74,13 +74,13 @@ Each component in the Perspective Prism pipeline has an isolated input/output ev
 
 | Pipeline Stage | Evaluated Component | Input Contract | Target Output Schema | Evaluation Engine & Strategy | Primary Metrics & Criteria |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Stage 1: Gate** | `PreClassifierService` | `VideoMetadata`, transcript preview | `ContentEligibilityResult` | **Vertex AI `EvalTask`** (Pointwise) | **F1-Score, Classification Accuracy** across edge cases (satire, political AMVs, gaming commentary vs speedruns), deterministic fast-path trigger rate. |
-| **Stage 2: Extraction** | `ClaimExtractor` (`extractor_agent`) | Sanitized transcript text | `ClaimsOutput` | **Antigravity SDK Judge** + Pointwise IoU | **Claim Recall**, **Verifiability Precision**, **Timestamp IoU Alignment**, Prompt Injection Canary containment. |
-| **Stage 3: Retrieval** | `EvidenceRetriever` | Claim text + context | Multi-perspective search results | **Vertex AI `EvalTask`** | **Precision@K**, **Perspective Balance/Coverage** (non-empty results for Scientific, Journalistic, Left, Right), Domain Authority. |
-| **Stage 4a: Stance** | `AnalysisService` (`perspective_agent`) | Claim text + retrieved evidence | `PerspectiveAnalysisLLMOutput` | **Antigravity SDK Judge** (`PerspectiveFaithfulnessRubric`) | **Faithfulness / Groundedness** (adherence to provided evidence without external hallucinations), **Stance Accuracy** (`SUPPORTS`, `REFUTES`, `AMBIGUOUS`). |
-| **Stage 4b: Bias** | `AnalysisService` (`bias_agent`) | Claim text + surrounding context | `BiasAnalysis` | **Antigravity SDK Judge** + Numerical MSE | **Deception Score Calibration** (MAE against expert gold standard), Framing/Sourcing Bias detection accuracy. |
-| **Stage 5: Epistemology** | `AlethiologyService` (`alethiology_agent`) | Claim text + transcript excerpt | `AlethiologyAnalysis` | **Antigravity SDK Judge** (`AlethiologyEpistemicRubric`) | **6-Theory Categorical Accuracy** (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), **Strict Descriptive Neutrality Score** (1-5 scale). |
-| **Stage 6: Synthesis** | Multi-Agent Truth Aggregator | Merged perspective & bias results | `ClientTruthProfile` | **Vertex AI `EvalTask`** (Rule-based) | **Truth Profile Consistency** (e.g. unanimous refutation never produces `Likely True`), Deception threshold filtering. |
+| **Stage 1: Gate** | `PreClassifierService` | `VideoMetadata`, transcript preview | `ContentEligibilityResult` | **Native Quantitative Runner** (Pointwise) | **F1-Score, Classification Accuracy** across edge cases (satire, political AMVs, gaming commentary vs speedruns), deterministic fast-path trigger rate. |
+| **Stage 2: Extraction** | `ClaimExtractor` (`extractor_agent`) | Sanitized transcript text | `ClaimsOutput` | **ADK 2.0 Judge Agent** + Timestamp IoU | **Claim Recall**, **Verifiability Precision**, **Timestamp IoU Alignment**, Prompt Injection Canary containment. |
+| **Stage 3: Retrieval** | `EvidenceRetriever` | Claim text + context | Multi-perspective search results | **Native Quantitative Runner** | **Precision@K**, **Perspective Balance/Coverage** (non-empty results for Scientific, Journalistic, Left, Right), Domain Authority. |
+| **Stage 4a: Stance** | `AnalysisService` (`perspective_agent`) | Claim text + retrieved evidence | `PerspectiveAnalysisLLMOutput` | **ADK 2.0 Judge Agent** (`PerspectiveFaithfulnessRubric`) | **Faithfulness / Groundedness** (adherence to provided evidence without external hallucinations), **Stance Accuracy** (`SUPPORTS`, `REFUTES`, `AMBIGUOUS`). |
+| **Stage 4b: Bias** | `AnalysisService` (`bias_agent`) | Claim text + surrounding context | `BiasAnalysis` | **ADK 2.0 Judge Agent** + Numerical MSE | **Deception Score Calibration** (MAE against expert gold standard), Framing/Sourcing Bias detection accuracy. |
+| **Stage 5: Epistemology** | `AlethiologyService` (`alethiology_agent`) | Claim text + transcript excerpt | `AlethiologyAnalysis` | **ADK 2.0 Judge Agent** (`AlethiologyEpistemicRubric`) | **6-Theory Categorical Accuracy** (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary), **Strict Descriptive Neutrality Score** (1-5 scale). |
+| **Stage 6: Synthesis** | Multi-Agent Truth Aggregator | Merged perspective & bias results | `ClientTruthProfile` | **Deterministic Rule Evaluator** | **Truth Profile Consistency** (e.g. unanimous refutation never produces `Likely True`), Deception threshold filtering. |
 
 ---
 
@@ -94,7 +94,7 @@ The Pre-Classification Gate screens incoming videos to prevent non-analytical co
 sequenceDiagram
     participant Harness as Eval Harness
     participant Gate as PreClassifierService
-    participant Judge as Vertex AI EvalTask
+    participant Runner as Quantitative Runner
 
     Harness->>Gate: classify_video(golden_metadata, transcript_preview)
     Gate->>Gate: Evaluate deterministic regex fast-path
@@ -102,8 +102,8 @@ sequenceDiagram
         Gate->>Gate: ADK 2.0 PreClassifierAgent (Vertex AI)
     end
     Gate-->>Harness: ContentEligibilityResult
-    Harness->>Judge: Compare against ground_truth (is_analysable, category)
-    Judge-->>Harness: F1-Score, Confusion Matrix, Latency
+    Harness->>Runner: Compare against ground_truth (is_analysable, category)
+    Runner-->>Harness: F1-Score, Confusion Matrix, Latency
 ```
 
 #### Evaluation Metrics & Assertions:
@@ -117,11 +117,11 @@ sequenceDiagram
 
 ---
 
-### 4.2 Stage 2: Claim Extractor Agent Evaluation (Antigravity Agent-as-a-Judge)
+### 4.2 Stage 2: Claim Extractor Agent Evaluation (ADK 2.0 Agent-as-a-Judge)
 
 The `ExtractorAgent` extracts verifiable assertions with timestamps. Evaluation requires semantic alignment beyond exact string matching.
 
-#### Antigravity Judge Specification:
+#### ADK Judge Specification:
 ```python
 class ClaimExtractionRecallRubric(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -136,10 +136,10 @@ class ClaimExtractionRecallRubric(BaseModel):
     reasoning_justification: str = Field(min_length=20, description="Explanation of claim matching.")
 ```
 
-#### Antigravity Judge Agent Configuration:
-- Model: `gemini-3.5-flash-lite` (or `gemini-3.8-flash` in High reasoning mode)
-- Mode: Google Antigravity SDK `Agent(config=LocalAgentConfig(vertex=True, project=..., location=..., agent_behavior=types.AgentBehavior.AUTONOMOUS))`
-- Prompt Protection: Zero-trust XML boundary `<transcript_input>`, `<extracted_claims>`, and `<reference_claims>` with pre-sanitization of instruction-override keywords.
+#### ADK Judge Agent Pattern:
+- Model: `gemini-3.5-flash-lite` (or `gemini-3.1-flash-lite` circuit-breaker backup)
+- Framework: `google.adk.agents.Agent` orchestrated via `execute_adk_agent(agent, user_prompt, output_key, output_schema=ClaimExtractionRecallRubric)` in GCP Vertex AI mode.
+- Prompt Protection: Zero-trust XML boundary `<transcript_input>`, `<extracted_claims>`, and `<reference_claims>` with dynamic nonce wrapping and pre-sanitization of instruction-override keywords.
 
 ---
 
@@ -150,7 +150,7 @@ The `PerspectiveAgent` determines whether a specific ideological or epistemic pe
 #### The Faithfulness Danger:
 LLMs frequently suffer from prior knowledge leakage: if a claim is commonly known to be true, the model may mark `SUPPORTS` even if the provided evidence snippet is empty, irrelevant, or refuting.
 
-#### Antigravity Faithfulness Judge Specification:
+#### ADK Faithfulness Judge Specification:
 ```python
 class PerspectiveFaithfulnessRubric(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -199,7 +199,7 @@ The `AlethiologyService` classifies arguments into 6 epistemic frameworks:
 #### The Epistemic Neutrality Invariant:
 The agent must describe *how* truth is constructed without declaring a theory "invalid", "irrational", or "delusional" (e.g. conspiracy theories operate under `Coherence`, not "crazy").
 
-#### Antigravity Epistemic Neutrality Judge:
+#### ADK Epistemic Neutrality Judge:
 ```python
 class AlethiologyEvaluationRubric(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -229,13 +229,13 @@ All eval inputs must pass through dedicated pre-sanitization before reaching jud
    # Regex matches directives attempting to force judge ratings
    re.sub(r'(?i)\b(assign|give|set|rate|award|score|force|yield|return)\b.*?\b(maximum|highest|perfect|5|10|top|best)\b', '[REDACTED_SCORING_DIRECTIVE]', text)
    ```
-3. **XML Structural Sandboxing**: All inputs are wrapped in explicitly isolated XML containers:
+3. **Dynamic Nonce Sandboxing**: Wrap untrusted evaluation inputs in cryptographic per-request nonces:
    ```markdown
-   <evaluation_target>
+   ===JUDGE DATA <nonce> START===
    <untrusted_model_output>
    {output_text}
    </untrusted_model_output>
-   </evaluation_target>
+   ===JUDGE DATA <nonce> END===
    ```
 
 ### 5.2 Heuristic Fallback Isolation
@@ -249,7 +249,7 @@ When running batch benchmarks:
 
 ### 6.1 OpenTelemetry GenAI Semantic Conventions
 All evaluation operations emit structured OpenTelemetry spans directly exported to **Google Cloud Trace**:
-- `gen_ai.system`: `"gemini"`
+- `gen_ai.system`: `"vertex_ai"`
 - `gen_ai.request.model`: `"gemini-3.5-flash-lite"`
 - `gen_ai.evaluation.metric_name`: `"faithfulness"` | `"claim_recall"` | `"epistemic_neutrality"`
 - `gen_ai.evaluation.score`: float
