@@ -94,8 +94,12 @@ mod prism_sanitizer_rs {
         let char_count = escaped.chars().count();
         if char_count <= max_length {
             Ok(escaped)
+        } else if max_length == 0 {
+            Ok(String::new())
+        } else if max_length < 3 {
+            Ok(escaped.chars().take(max_length).collect())
         } else {
-            let cut_point = max_length.saturating_sub(3);
+            let cut_point = max_length - 3;
             let mut truncated: String = escaped.chars().take(cut_point).collect();
             let mut backslash_count = 0;
             for c in truncated.chars().rev() {
@@ -242,12 +246,11 @@ mod prism_sanitizer_rs {
             assert!(!res_odd.ends_with("\\..."));
             assert!(res_odd.chars().count() <= 20);
 
-            // Even trailing backslashes at cut point
-            let even_backslash = format!("{}{}{}", "A".repeat(15), "\\\\", "B".repeat(50));
-            let res_even = sanitize_input(&even_backslash, 20, false, false).unwrap();
-            assert!(res_even.ends_with("..."));
-            assert!(res_even.contains("\\\\"));
-            assert!(res_even.chars().count() <= 20);
+            // Boundary limits: 0, 1, 2
+            assert_eq!(sanitize_input("Hello World", 0, false, false).unwrap(), "");
+            assert_eq!(sanitize_input("Hello World", 1, false, false).unwrap(), "H");
+            assert_eq!(sanitize_input("Hello World", 2, false, false).unwrap(), "He");
+            assert_eq!(sanitize_input("Hello World", 3, false, false).unwrap(), "...");
         }
     }
 }

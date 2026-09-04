@@ -561,4 +561,34 @@ class TestUnifiedSanitizerAndFallback:
                 s.sanitize_input(text, max_len, field_name=field)
             assert expected_err in str(exc_py.value)
 
+    def test_max_length_boundary_limits_parity(self, monkeypatch):
+        """Verify boundary max_length (0, 1, 2, 3) produces identical results in Rust and fallback."""
+        import app.utils.input_sanitizer as s
+
+        text = "Hello World"
+        for max_len in [0, 1, 2, 3, 5]:
+            monkeypatch.setattr(s, "HAS_RUST_SANITIZER", True)
+            res_rust = s.sanitize_input(text, max_len)
+
+            monkeypatch.setattr(s, "HAS_RUST_SANITIZER", False)
+            res_py = s.sanitize_input(text, max_len)
+
+            assert res_rust == res_py, f"Mismatch at max_length={max_len}: {res_rust} != {res_py}"
+
+        assert s.sanitize_input(text, 0) == ""
+        assert s.sanitize_input(text, 1) == "H"
+        assert s.sanitize_input(text, 2) == "He"
+        assert s.sanitize_input(text, 3) == "..."
+
+    def test_negative_max_length_rejected(self, monkeypatch):
+        """Verify negative max_length is rejected with SanitizationError in both Rust and fallback."""
+        import app.utils.input_sanitizer as s
+
+        for rust_active in (True, False):
+            monkeypatch.setattr(s, "HAS_RUST_SANITIZER", rust_active)
+            with pytest.raises(s.SanitizationError) as exc:
+                s.sanitize_input("Hello", -1, field_name="TestField")
+            assert "TestField max_length must be non-negative" in str(exc.value)
+
+
 

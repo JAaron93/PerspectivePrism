@@ -103,6 +103,10 @@ def truncate_text(text: str, max_length: int) -> str:
     """
     if len(text) <= max_length:
         return text
+    if max_length <= 0:
+        return ""
+    if max_length < 3:
+        return text[:max_length]
     
     # Calculate the cut point
     cut_point = max_length - 3
@@ -149,6 +153,8 @@ def sanitize_input(
     """
     if not isinstance(text, str):
         raise SanitizationError(f"{field_name} must be a string")
+    if not isinstance(max_length, int) or max_length < 0:
+        raise SanitizationError(f"{field_name} max_length must be non-negative")
     
     if HAS_RUST_SANITIZER:
         try:
