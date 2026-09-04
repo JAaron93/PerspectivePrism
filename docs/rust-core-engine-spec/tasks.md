@@ -102,7 +102,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Track 1
 - **Acceptance Criteria**:
   - Unit tests written and failing prior to implementation.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 3.2: Implement Aho-Corasick Automaton in Rust
 - **Description**: Implement `static POLITICAL_AUTOMA: Lazy<AhoCorasick>` compiling the 65+ political keywords with `ascii_case_insensitive(true)` and expose `contains_political_keywords(&str) -> bool`.
@@ -110,7 +110,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 3.1
 - **Acceptance Criteria**:
   - `cargo test --no-default-features` passes for keyword matching tests.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 3.3: Integrate Rust Keyword Filter in `content_classifier.py`
 - **Description**: Refactor `evaluate_deterministic_fast_path` in `backend/app/services/content_classifier.py` to delegate keyword checking to `prism_sanitizer_rs.contains_political_keywords()` across `title`, `channel_name`, `tags`, and `description_snippet`.
@@ -118,7 +118,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 3.2
 - **Acceptance Criteria**:
   - `pytest tests/test_content_classifier.py` passes 100% green.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ---
 
@@ -133,7 +133,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Track 1
 - **Acceptance Criteria**:
   - Unit tests written and failing prior to implementation.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 4.2: Implement `format_and_sanitize_transcript` in Rust
 - **Description**: Implement `format_and_sanitize_transcript(segments: Vec<(f64, &str)>, max_length: usize) -> PyResult<String>` with pre-allocated buffer capacity and in-place timestamp formatting.
@@ -141,7 +141,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 4.1, Track 2 (utilizes unified sanitization logic)
 - **Acceptance Criteria**:
   - `cargo test --no-default-features` passes for transcript formatting.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 4.3: Integrate Native Transcript Formatting into `ClaimExtractor`
 - **Description**: Update `ClaimExtractor.extract_claims()` in `backend/app/services/claim_extractor.py` to format and sanitize transcript segments via `prism_sanitizer_rs.format_and_sanitize_transcript()`, with fallback to existing Python logic.
@@ -149,7 +149,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 4.2
 - **Acceptance Criteria**:
   - `pytest tests/test_claim_extractor.py` passes 100% green.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ---
 

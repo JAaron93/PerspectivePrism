@@ -1,5 +1,8 @@
 # ADR 006: Expansion of Rust Native Core Engine (Unified Sanitizer, Aho-Corasick Fast-Path, Transcript Processor, and Delimiter Guard)
 
+## Status
+Accepted (Tracks 1–4 Implemented; Tracks 5–6 Pending)
+
 ## Context
 Perspective Prism processes long-form YouTube video transcripts (up to 100,000 characters) and multi-field video metadata through a multi-perspective analysis pipeline. Under ADR 001, a compiled Rust extension (`prism_sanitizer_rs`) was introduced via PyO3 to handle low-level security string checks (`contains_control_characters`, `contains_suspicious_patterns`, and `escape_special_characters`).
 

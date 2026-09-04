@@ -382,3 +382,70 @@ async def test_pre_classifier_half_open_probe_ownership(pre_classifier_service):
         backup_calls = [c for c in call_records if c[0] == "pre_classifier_agent_backup"]
         assert len(primary_calls) == 1
         assert len(backup_calls) == 1
+
+
+# ============================================================================
+# Track 3: Candidate B — Rust Aho-Corasick & Python Fallback Parity Tests
+# ============================================================================
+
+@pytest.mark.parametrize("sample,expected", [
+    ("The president addressed the nation.", True),
+    ("Upcoming presidential election in November", True),
+    ("The Senate passed the new bill", True),
+    ("Supreme Court issues historic ruling", True),
+    ("Voters head to the ballot box", True),
+    ("Debate over corporate taxes and tariff policy", True),
+    ("anti-war protest downtown", True),
+    ("Super Mario 64 16-Star Speedrun in 14:52", False),
+    ("Lofi Hip Hop Radio - Beats to Relax/Study to", False),
+    ("Relaxing Piano Music for Sleep", False),
+    ("Fast run on real hardware.", False),
+    ("Modern software engineering practices", False),
+    ("Enjoy a warm cup of coffee", False),
+    ("General taxpayer information", False),
+    ("Gaming Stream Ｅｌｅｃｔｉｏｎ ２０２４ Discussion", True),
+    ("Debate with ſenator on tax reform", True),
+    ("ſenator", True),
+    ("Discussing Politİcs", True),
+    ("Politıcs in modern media", True),
+    ("xsupreme court", True),
+    ("non-political debate", True),
+    ("nonpolitical debate", False),
+    ("unpolitical activist", True),
+    ("pre-election analysis", True),
+    ("", False),
+])
+def test_political_keywords_rust_and_fallback_parity(sample, expected):
+    """Verify that both Rust Aho-Corasick and Python regex produce identical results."""
+    from app.services.content_classifier import check_political_keywords
+
+    with patch("app.services.content_classifier.HAS_RUST_CLASSIFIER", True):
+        res_rust = check_political_keywords(sample)
+
+    with patch("app.services.content_classifier.HAS_RUST_CLASSIFIER", False):
+        res_py = check_political_keywords(sample)
+
+    assert res_rust == expected, f"Rust classifier gave {res_rust} for '{sample}'"
+    assert res_py == expected, f"Python fallback gave {res_py} for '{sample}'"
+    assert res_rust == res_py, f"Divergence on '{sample}': rust={res_rust}, py={res_py}"
+
+
+def test_fast_path_with_rust_classifier_disabled():
+    """Verify evaluate_deterministic_fast_path functions identically when Rust classifier is disabled."""
+    metadata = VideoMetadata(
+        title="Super Mario 64 16-Star Speedrun in 14:52",
+        channel_name="SpeedyRunner",
+        category_name="Gaming",
+        tags=["mario", "speedrun", "n64"],
+        description_snippet="Fast run on real hardware."
+    )
+    with patch("app.services.content_classifier.HAS_RUST_CLASSIFIER", False):
+        result = evaluate_deterministic_fast_path(
+            category_name="Gaming",
+            transcript_preview=None,
+            metadata=metadata
+        )
+        assert result is not None
+        assert result.is_analysable is False
+        assert result.confidence_score == 1.0
+

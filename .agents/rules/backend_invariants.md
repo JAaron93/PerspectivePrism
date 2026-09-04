@@ -50,6 +50,18 @@ This document defines the implementation guidelines, security invariants, testin
 * **Sanitizer Boundary Limit & Fallback Parity**:
   - `sanitize_input()` MUST explicitly validate that `isinstance(max_length, int) and max_length >= 0`, raising `SanitizationError(f"{field_name} max_length must be non-negative")` prior to FFI crossing to prevent PyO3 unsigned conversion `TypeError`s.
   - Both native Rust and Python fallback implementations MUST handle boundary lengths `< 3` identically: return `""` when `max_length == 0`, and slice `text[:max_length]` directly without ellipsis when `0 < max_length < 3`. Ellipsis truncation (`max_length - 3` + `"..."`) applies strictly when `max_length >= 3`.
+* **PyO3 Sequence Parameter Deserialization**:
+  - When exposing PyO3 `#[pyfunction]` signatures accepting lists of tuples (such as transcript segments `[(timestamp, text)]`), use `Vec<(f64, String)>` instead of `Vec<(f64, &str)>`. In PyO3, `&str` references temporary Python string buffers across iterations that fail `FromPyObject<'py>` lifetime bounds.
+* **Transcript Truncation & Escaping Order Parity**:
+  - Both native Rust and Python fallback implementations of `format_and_sanitize_transcript` MUST adhere to the exact same order of operations:
+    1. Validate control characters and prompt injection patterns across all segments upfront.
+    2. Escape special characters (`\`, `"`, `'`, `{`, `}`) per segment.
+    3. Format lines with timestamp alignment (`[{minutes:02}:{seconds:02}] {escaped_text}\n`).
+    4. Track cumulative length against `max_length`. When exceeding `max_length`:
+       - If `max_length >= suffix_len` (19 characters for `\n...[TRUNCATED]...`), truncate the accumulated escaped string to `max_length - suffix_len`.
+       - Strip odd trailing backslashes at the cut point (`backslash_count % 2 == 1`) to avoid escaping the first character of the truncation marker.
+       - Append `\n...[TRUNCATED]...`.
+    5. The Python fallback must NEVER truncate unescaped text before escaping, as downstream character escaping expands the prompt and produces divergent prompt inputs and LLM claims between runtimes.
 
 ---
 
@@ -110,6 +122,17 @@ This document defines the implementation guidelines, security invariants, testin
 * **Conservative Ambiguity Fallback**: If the `PreClassifierAgent` returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST automatically default to allowing analysis (`is_analysable = True`).
 * **Force Override Bypass**: When `VideoRequest.force_override == True`, the Pre-Classification Gate MUST be completely bypassed.
 * **Unicode NFKC Keyword Normalization**: Prior to evaluating any deterministic fast-path keyword filter or metadata regex denylist, all metadata fields (`title`, `channel_name`, `description_snippet`, `tags`) and category strings MUST undergo Unicode NFKC normalization (`unicodedata.normalize("NFKC", text)`) to collapse full-width Latin (e.g. `Ｅｌｅｃｔｉｏｎ`), circled characters, and compatibility homoglyphs before regex scanning.
+* **Aho-Corasick Overlapping Keyword Matching & Word Boundary Isolation**:
+  - When compiling Aho-Corasick automata for keyword filtering with word-boundary isolation (e.g. `contains_political_keywords`), MUST use `MatchKind::Standard` and `find_overlapping_iter()`, validating word boundaries (`!c.is_alphanumeric() && c != '_'`) on each candidate match.
+  - `MatchKind::LeftmostLongest` or standard `find_iter()` MUST NOT be used: leftmost-longest matching eagerly consumes the outer candidate (e.g. `"supreme court"` in `"xsupreme court"`), skips nested keywords, and causes false negatives when the outer candidate fails boundary checks.
+* **Python `re.IGNORECASE` Unicode Folding Parity in Rust**:
+  - Standard Rust `to_lowercase()` does NOT map certain non-ASCII Unicode codepoints that Python regex folds to ASCII under `re.IGNORECASE`.
+  - Prior to matching against ASCII keywords, Rust engines MUST perform NFKC normalization and explicitly map:
+    - `\u{017F}` (Latin small letter long s, `'ſ'`) $\to$ `'s'` (e.g. `"ſenator"`)
+    - `\u{0130}` (Latin capital letter I with dot above, `'İ'`) $\to$ `'i'` (e.g. `"Politİcs"`)
+    - `\u{0131}` (Latin small letter dotless i, `'ı'`) $\to$ `'i'` (e.g. `"Politıcs"`)
+    - `\u{212A}` (Kelvin sign, `'K'`) $\to$ `'k'`
+    to maintain 100% classification parity with Python's `re.compile(..., re.IGNORECASE)`.
 * **Transcript Retrieval Error Isolation (No Caption Absence Masking)**: In background job processing and pre-classification orchestration, pipelines MUST strictly differentiate genuine caption unavailability (`TranscriptsDisabled`, `NoTranscriptFound`, `TranscriptUnavailableError`) from transient network, rate-limit, or provider retrieval failures (`TranscriptRetrievalError`, `HTTPError`, `RequestBlocked`). Transient errors MUST fail the job with the underlying error cause and MUST NEVER be masked as empty transcripts triggering non-speech deterministic early-exit disclaimers.
 
 ---
