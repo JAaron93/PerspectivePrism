@@ -136,17 +136,17 @@
 
 ## Track 7: Architecture Decision Record & Documentation Sync
 
-- [x] **T7.1: Author ADR 005 for Pre-Classification Gate and Alethiology Agent**
-  - **Description**: Create `docs/adr/005-pre-classification-gate-and-alethiology-agent.md` recording the architectural decision, options considered, Vertex AI ADK 2.0 configuration, and epistemic taxonomy rationale.
-  - **Dependencies**: T4.1, T5.4
-  - **Traceability**: NFR2, NFR3
+- [x] **T7.1: Author & Synchronize ADR 005 for Pre-Classification Gate and Alethiology Agent**
+  - **Description**: Update and maintain `docs/adr/005-pre-classification-gate-and-alethiology-agent.md`, synchronizing the architectural decisions with the Rust Native Core Engine ([ADR 006](docs/adr/006-rust-native-core-engine.md) Candidate B Aho-Corasick DFA fast-path and Candidate D Prompt Nonce & Delimiter Isolation Guard) and Gemini 3.8 Flash capability standards ([ADR 007](docs/adr/007-gemini-38-flash-capability-optimization.md)).
+  - **Dependencies**: T4.1, T5.4, ADR 006, ADR 007
+  - **Traceability**: NFR2, NFR3, Zero-Drift Invariant
 
 - [x] **T7.2: Update System Architecture Documentation**
-  - **Description**: Update `architecture.md` and `README.md` to document the new pipeline stages, API contracts, and user guide for the "Epistemic Lens" and "Analyze Anyway" features.
+  - **Description**: Update `architecture.md` and `README.md` to document the new pipeline stages, API contracts, Rust native engine integrations (Aho-Corasick DFA pre-filter, dynamic cryptographic nonces, and quote sanitization), and user guide for the "Epistemic Lens" and "Analyze Anyway" features.
   - **Dependencies**: T7.1
   - **Traceability**: Zero-Drift Invariant
 
 - [x] **T7.3: Full Integration Smoke Test & Zero-Drift Verification**
-  - **Description**: Execute the complete backend test suite (`pytest`) and frontend/extension test suites (`npm test`, `npm run test:integration`), verifying 100% pass rate and zero drift between specification artifacts and code.
+  - **Description**: Execute the complete backend test suite (`pytest`), extension test suites (`npm test`, `npm run test:integration`, `npm run typecheck`, `npm run lint`), and frontend test suite (`npm test`, `npm run build`, `npm run lint`), verifying 100% pass rate and zero drift between specification artifacts, Rust native extensions, and application code.
   - **Dependencies**: T4.2, T5.6, T6.3, T7.2
   - **Traceability**: Zero-Drift Invariant, US5

@@ -31,7 +31,7 @@ flowchart TD
     subgraph Gate ["Pre-Classification Guardrail Gate"]
         E --> F{"force_override == True?"}
         F -- Yes --> L["Fetch Full Transcript (ClaimExtractor)"]
-        F -- No --> G{"Deterministic Pre-Filter:\nMissing Transcript AND\nCategory in (Music, Gaming) AND\nMetadata Lacks Political Signals?"}
+        F -- No --> G{"Deterministic Pre-Filter (Rust Aho-Corasick DFA <50µs):\nMissing Transcript AND\nCategory in (Music, Gaming) AND\nMetadata Lacks Political Signals?"}
         G -- Yes --> H["Early Exit: Return Ineligible Payload\n(Confidence: 1.0, is_analysable: False)"]
         G -- No --> I["Fetch Transcript Preview (~100 lines)"]
         I --> J["ADK 2.0 PreClassifierAgent\n(gemini-3.8-flash structured output)"]
@@ -80,11 +80,13 @@ The classifier synthesizes two distinct signal streams:
    - First 50–100 lines of spoken transcript (empty string `""` if no captions exist).
 
 #### 3.1.2 Fast Deterministic Pre-Filter (Zero-Token Early Exit)
-To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious non-analytical content while guarding against premature false rejections:
+To avoid unnecessary LLM calls and achieve sub-millisecond response times (<50µs) for obvious non-analytical content while guarding against premature false rejections:
 - **Condition for Deterministic Exit**:
   1. `transcript is None or transcript.strip() == ""` (no speech captions available), **AND**
   2. The YouTube Category is explicitly `Music` or `Gaming`, **AND**
-  3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains **NO** political, electoral, policy, or socio-economic keywords (e.g., does not contain words like *election*, *debate*, *ruling*, *senator*, *policy*, *strike*, *court*, *war*, *economy*).
+  3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains **NO** political, electoral, policy, or socio-economic keywords.
+- **Rust Aho-Corasick DFA Integration (ADR 006 Candidate B)**:
+  Keyword evaluation is executed by `check_political_keywords()` using compiled Aho-Corasick DFA pattern matching (`contains_political_keywords` via `prism_sanitizer_rs`). It simultaneously searches 65+ political, electoral, and policy terms across raw UTF-8 bytes with linear time complexity $O(N)$ and zero backtracking in **<50µs** (8.7x speedup over Python regex), with pure-Python regex fallback for portability.
 - When all three conditions match, the service immediately short-circuits with:
   ```json
   {
@@ -102,6 +104,8 @@ To avoid unnecessary LLM calls and achieve sub-10ms response times for obvious n
 - **Agent Name**: `pre_classifier_agent_primary` (with fallback to `pre_classifier_agent_backup`).
 - **Model**: `gemini-3.8-flash` (Vertex AI mode), fallback to `gemini-3.1-flash-lite`.
 - **Structured Output Schema**: `ContentEligibilityResult` (Pydantic model).
+- **Zero-Throttling Capability Standards (ADR 007)**: Micro-task router executes with `thinking_level="LOW"` and `max_output_tokens=2048` to preserve sub-second short-circuit latency.
+- **Prompt Isolation Guard (ADR 006 Candidate D)**: Formats metadata and transcript previews via `prism_sanitizer_rs.build_user_data_prompt` using cryptographic dynamic nonces (`===USER DATA <nonce> START===`) and inlining `contains_delimiter_forgery` to neutralize delimiter injection attacks.
 - **Conservative Threshold Rule**: If `is_analysable == False` but `confidence_score < 0.70`, the system treats the result as ambiguous and defaults to **allowing analysis** (`is_analysable = True`).
 
 #### 3.1.4 Critical Edge-Case Prompt Calibration
@@ -135,6 +139,10 @@ The agent classifies statements against the following mutually exclusive philoso
 
 #### 3.2.3 Concurrency & Pipeline Placement
 The Alethiology Agent executes **in parallel** (`asyncio.gather`) alongside `PerspectiveAnalysis` and `BiasAnalysis` for each extracted claim (or at the video transcript level), adding **0ms net wall-clock overhead** to the backend analysis pipeline.
+
+#### 3.2.4 Zero-Throttling & Cryptographic Prompt Nonce Isolation
+- **Gemini 3.8 Capability Optimization (ADR 007)**: As a core analytical service, `AlethiologyService` executes with `thinking_level="HIGH"` (`types.ThinkingLevel.HIGH`), `max_output_tokens=65536` (64K ceiling), and 120s HTTP timeout (`types.HttpOptions(timeout=120.0)`).
+- **Candidate D Delimiter Guard (ADR 006)**: Prompt assembly utilizes `prism_sanitizer_rs.build_user_data_prompt` with dynamic cryptographic nonces (`===USER DATA <nonce> START===` / `===USER DATA <nonce> END===`) to neutralize prompt injection attacks. Before dispatch, inputs and quotes are scanned with `contains_delimiter_forgery` to neutralize active closing delimiter forgery.
 
 ---
 
