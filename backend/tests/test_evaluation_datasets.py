@@ -95,6 +95,28 @@ def test_claim_extractor_golden_dataset_structure_and_bounds():
         )
         assert len(item["gold_claims"]) > 0, f"Case {idx} has empty gold_claims"
 
+        assert "segments" in item and isinstance(item["segments"], list), (
+            f"Case {idx} missing 'segments' list"
+        )
+        assert len(item["segments"]) > 0, f"Case {idx} has empty segments"
+        for s_idx, seg in enumerate(item["segments"]):
+            assert "text" in seg and seg["text"], f"Case {idx} segment {s_idx} missing text"
+            assert "start" in seg and isinstance(seg["start"], (int, float)), (
+                f"Case {idx} segment {s_idx} missing numeric start"
+            )
+            assert "duration" in seg and isinstance(seg["duration"], (int, float)), (
+                f"Case {idx} segment {s_idx} missing numeric duration"
+            )
+            assert seg["duration"] >= 0, f"Case {idx} segment {s_idx} negative duration"
+
+        from app.models.schemas import Transcript, TranscriptSegment
+        transcript_obj = Transcript(
+            video_id=item["video_id"],
+            segments=[TranscriptSegment(**s) for s in item["segments"]],
+            full_text=item["transcript_text"]
+        )
+        assert len(transcript_obj.segments) == len(item["segments"])
+
         for c_idx, claim in enumerate(item["gold_claims"]):
             assert "id" in claim and claim["id"], f"Case {idx} claim {c_idx} missing 'id'"
             assert "text" in claim and len(claim["text"]) > 5, f"Case {idx} claim {c_idx} text too short"
@@ -115,6 +137,8 @@ def test_claim_extractor_golden_dataset_structure_and_bounds():
 
 def test_perspective_stance_golden_dataset_structure_and_bounds():
     """T1.4: Validate perspective_stance_golden.json exists, has >=40 cases, all 4 perspectives, and valid stances."""
+    from app.models.schemas import PerspectiveType
+
     dataset_path = DATASETS_DIR / "perspective_stance_golden.json"
     assert dataset_path.exists(), f"Dataset file does not exist: {dataset_path}"
 
@@ -132,6 +156,8 @@ def test_perspective_stance_golden_dataset_structure_and_bounds():
         assert "id" in item and item["id"], f"Case {idx} missing 'id'"
         assert "claim_text" in item and len(item["claim_text"]) > 5, f"Case {idx} invalid claim_text"
         assert "perspective" in item and item["perspective"], f"Case {idx} missing perspective"
+        # Validate that perspective maps directly to PerspectiveType enum
+        assert PerspectiveType(item["perspective"]), f"Case {idx} invalid PerspectiveType: {item['perspective']}"
         perspectives_found.add(item["perspective"])
 
         assert "frozen_search_snippets" in item and isinstance(item["frozen_search_snippets"], list), (
@@ -150,7 +176,7 @@ def test_perspective_stance_golden_dataset_structure_and_bounds():
         if item["is_hallucination_bait"]:
             hallucination_baits += 1
 
-    expected_perspectives = {"Scientific", "Journalistic", "Partisan Left", "Partisan Right"}
+    expected_perspectives = {"Scientific", "Journalistic", "Partisan (Left)", "Partisan (Right)"}
     assert perspectives_found == expected_perspectives, (
         f"Perspectives mismatch. Expected {expected_perspectives}, got {perspectives_found}"
     )

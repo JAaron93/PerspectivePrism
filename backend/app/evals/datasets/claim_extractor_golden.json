@@ -25,6 +25,28 @@
         "timestamp_end": 41.0,
         "context": "Analysis of emissions reductions attributable to grid battery deployment."
       }
+    ],
+    "segments": [
+      {
+        "text": "Good evening everyone. Tonight we are examining renewable integration into regional grids.",
+        "start": 0.0,
+        "duration": 11.5
+      },
+      {
+        "text": "In California, utility-scale solar generation provided sixty-eight percent of total daytime electricity demand on peak days in spring 2024.",
+        "start": 12.0,
+        "duration": 9.5
+      },
+      {
+        "text": "However, battery storage additions have surged dramatically, reaching ten thousand megawatts of operational capacity by August 2024.",
+        "start": 22.0,
+        "duration": 8.0
+      },
+      {
+        "text": "This rapid deployment reduced evening peaker plant fossil gas emissions by thirty-one percent compared to the prior year.",
+        "start": 30.5,
+        "duration": 10.5
+      }
     ]
   },
   {
@@ -52,6 +74,23 @@
         "timestamp_start": 26.5,
         "timestamp_end": 37.0,
         "context": "Comparing pharmaceutical operational expenditures between marketing and research."
+      }
+    ],
+    "segments": [
+      {
+        "text": "A common talking point is that developing a novel prescription medication costs over two point six billion dollars.",
+        "start": 0.0,
+        "duration": 4.5
+      },
+      {
+        "text": "This estimate stems from the Tufts Center study, but independent academic reviews by JAMA Internal Medicine found median research and development expenditure for newly approved oncology drugs was approximately six hundred and forty-eight million dollars.",
+        "start": 5.0,
+        "duration": 9.2
+      },
+      {
+        "text": "Furthermore, nine out of the top ten pharmaceutical manufacturers spent more money on marketing and sales than on clinical research in 2022.",
+        "start": 14.5,
+        "duration": 11.5
       }
     ]
   },
@@ -81,6 +120,23 @@
         "timestamp_end": 31.0,
         "context": "Commodity price trends for battery raw materials following mining capacity increases."
       }
+    ],
+    "segments": [
+      {
+        "text": "Global battery electric vehicle registrations reached fourteen million units in 2023, representing eighteen percent of all light-duty vehicle sales worldwide.",
+        "start": 0.0,
+        "duration": 3.8
+      },
+      {
+        "text": "Chinese automotive brands accounted for nearly sixty percent of all global electric car sales.",
+        "start": 4.0,
+        "duration": 10.0
+      },
+      {
+        "text": "As a consequence, lithium hydroxide spot prices collapsed by eighty percent from their late 2022 highs due to substantial mining oversupply across Australia and South America.",
+        "start": 14.5,
+        "duration": 6.5
+      }
     ]
   },
   {
@@ -108,6 +164,23 @@
         "timestamp_start": 22.5,
         "timestamp_end": 33.0,
         "context": "Concentration of cutting-edge semiconductor node manufacturing."
+      }
+    ],
+    "segments": [
+      {
+        "text": "Under the 2022 BIS export control directives, advanced semiconductor logic fabs producing nodes at sixteen or fourteen nanometers FinFET or below are barred from importing American equipment without license.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "Despite these restrictions, SMIC manufactured seven nanometer processors utilizing existing DUV immersion scanners.",
+        "start": 3.0,
+        "duration": 11.5
+      },
+      {
+        "text": "Global foundries in Taiwan, South Korea, and the US still produce more than ninety percent of sub-five nanometer advanced chips.",
+        "start": 15.0,
+        "duration": 7.0
       }
     ]
   },
@@ -137,6 +210,23 @@
         "timestamp_end": 32.0,
         "context": "Ten-year baseline projection of mandatory federal spending allocations."
       }
+    ],
+    "segments": [
+      {
+        "text": "The Congressional Budget Office announced that net interest payments on the federal debt surpassed eight hundred and ninety billion dollars in fiscal year 2024.",
+        "start": 0.0,
+        "duration": 4.2
+      },
+      {
+        "text": "For the first time in modern budgetary history, federal interest payments exceeded the total national defense budget.",
+        "start": 4.5,
+        "duration": 8.5
+      },
+      {
+        "text": "By 2034, mandatory entitlement spending and debt service are projected to consume seventy-nine cents of every federal tax dollar collected.",
+        "start": 13.5,
+        "duration": 8.5
+      }
     ]
   },
   {
@@ -164,6 +254,23 @@
         "timestamp_start": 20.5,
         "timestamp_end": 28.0,
         "context": "Corporate launch cadence targets submitted to the FAA."
+      }
+    ],
+    "segments": [
+      {
+        "text": "During Integrated Flight Test 5, the Super Heavy booster achieved a successful mechanical catch on the launch tower chopstick arms at Starbase Boca Chica.",
+        "start": 0.0,
+        "duration": 2.2
+      },
+      {
+        "text": "The Super Heavy booster stands seventy-one meters tall and is powered by thirty-three Raptor 2 methane-oxygen engines generating over sixteen million pounds of thrust.",
+        "start": 2.5,
+        "duration": 8.5
+      },
+      {
+        "text": "SpaceX plans to conduct twenty-five orbital flight test missions in 2025.",
+        "start": 11.5,
+        "duration": 8.5
       }
     ]
   },
@@ -193,6 +300,23 @@
         "timestamp_end": 11.5,
         "context": "Patient cohort size in the prospective New England Journal of Medicine microplastics study."
       }
+    ],
+    "segments": [
+      {
+        "text": "A clinical study published in the New England Journal of Medicine examined two hundred and fifty-seven patients undergoing surgery for asymptomatic carotid artery disease.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "Microplastics and nanoplastics, primarily polyethylene and polyvinyl chloride, were detected in the arterial plaque of fifty-eight percent of patients.",
+        "start": 3.0,
+        "duration": 8.5
+      },
+      {
+        "text": "Patients with detectable plastics had a four-point-five-fold greater risk of stroke, myocardial infarction, or all-cause mortality over a thirty-four month follow-up period.",
+        "start": 12.0,
+        "duration": 11.0
+      }
     ]
   },
   {
@@ -220,6 +344,18 @@
         "timestamp_start": 4.5,
         "timestamp_end": 8.0,
         "context": "Geographic location of the terminated NuScale modular reactor demonstration site."
+      }
+    ],
+    "segments": [
+      {
+        "text": "NuScale Power terminated its flagship Carbon Free Power Project in Utah in November 2023 after projected levelized cost of electricity estimates rose from fifty-eight dollars per megawatt-hour to eighty-nine dollars per megawatt-hour.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "The cost escalation was driven primarily by a fifty-three percent increase in the price of fabricated steel and high interest rate financing.",
+        "start": 3.0,
+        "duration": 13.5
       }
     ]
   },
@@ -249,6 +385,18 @@
         "timestamp_end": 19.0,
         "context": "Regulatory mechanism of the June 2024 presidential border proclamation."
       }
+    ],
+    "segments": [
+      {
+        "text": "U.S. Customs and Border Protection recorded two point four seven million encounters along the southwest land border in fiscal year 2023.",
+        "start": 0.0,
+        "duration": 3.2
+      },
+      {
+        "text": "Following executive actions enacted in June 2024 that suspended asylum claims during high-volume periods, daily encounters dropped by fifty-five percent within sixty days, falling to the lowest levels recorded since September 2020.",
+        "start": 3.5,
+        "duration": 8.5
+      }
     ]
   },
   {
@@ -269,6 +417,18 @@
         "timestamp_start": 14.5,
         "timestamp_end": 24.0,
         "context": "EPRI study estimates on AI and cloud workload grid demand."
+      }
+    ],
+    "segments": [
+      {
+        "text": "The International Energy Agency projects that global data center electricity consumption will double from four hundred and sixty terawatt-hours in 2022 to more than one thousand terawatt-hours by 2026.",
+        "start": 0.0,
+        "duration": 3.8
+      },
+      {
+        "text": "In the United States, data centers are forecasted to consume nine percent of total domestic power generation by 2030, driven predominantly by LLM training clusters and continuous inference workloads.",
+        "start": 4.0,
+        "duration": 10.0
       }
     ]
   },
@@ -291,6 +451,18 @@
         "timestamp_end": 24.5,
         "context": "Quantifying child poverty demographics following legislative sunset."
       }
+    ],
+    "segments": [
+      {
+        "text": "According to Columbia University's Center on Poverty and Social Policy, the expiration of the expanded federal Child Tax Credit in January 2022 caused the monthly child poverty rate to jump from twelve point one percent to seventeen percent in a single month.",
+        "start": 0.0,
+        "duration": 4.8
+      },
+      {
+        "text": "This policy shift pushed an estimated three point seven million children back below the poverty line.",
+        "start": 5.0,
+        "duration": 11.0
+      }
     ]
   },
   {
@@ -311,6 +483,18 @@
         "timestamp_start": 12.0,
         "timestamp_end": 21.0,
         "context": "Federal Reserve flow of funds and credit exposure across commercial banks."
+      }
+    ],
+    "segments": [
+      {
+        "text": "National office vacancy rates in the United States hit an all-time high of nineteen point eight percent in the first quarter of 2024 according to Moody's Analytics.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "Small and regional banks with less than two hundred and fifty billion dollars in assets hold sixty-seven percent of all commercial real estate loans outstanding, creating vulnerability to loan refinancings at current interest rates.",
+        "start": 3.0,
+        "duration": 8.5
       }
     ]
   },
@@ -333,6 +517,18 @@
         "timestamp_end": 25.0,
         "context": "Coral Reef Watch satellite monitoring and global bleaching status."
       }
+    ],
+    "segments": [
+      {
+        "text": "NOAA scientists confirmed that global sea surface temperatures broke daily records for four hundred and twenty consecutive days between March 2023 and May 2024.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "As a result, the National Oceanic and Atmospheric Administration declared the fourth global coral bleaching event on record, affecting more than sixty-five percent of the world's reef areas across fifty-four countries.",
+        "start": 3.0,
+        "duration": 10.5
+      }
     ]
   },
   {
@@ -354,6 +550,18 @@
         "timestamp_end": 23.0,
         "context": "FAA regulatory inspection findings following the Alaska Airlines incident."
       }
+    ],
+    "segments": [
+      {
+        "text": "The National Transportation Safety Board's preliminary report on the Alaska Airlines Flight 1282 blowout determined that four retaining bolts required to secure the mid-cabin door plug were missing before the aircraft departed Boeing's Renton facility.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "Subsequent Federal Aviation Administration audits discovered multiple non-compliance issues in Spirit AeroSystems' fuselage manufacturing processes.",
+        "start": 3.0,
+        "duration": 11.0
+      }
     ]
   },
   {
@@ -374,6 +582,18 @@
         "timestamp_start": 15.5,
         "timestamp_end": 26.5,
         "context": "Cardiovascular risk reduction outcomes in non-diabetic patients."
+      }
+    ],
+    "segments": [
+      {
+        "text": "Results from the STEP 1 trial demonstrated that semaglutide administered at 2.4 mg weekly produced a mean weight reduction of fourteen point nine percent over sixty-eight weeks, compared to two point four percent in the placebo group.",
+        "start": 0.0,
+        "duration": 3.8
+      },
+      {
+        "text": "In the SELECT cardiovascular outcomes trial, semaglutide reduced the composite incidence of major adverse cardiovascular events by twenty percent in overweight adults with established cardiovascular disease.",
+        "start": 4.0,
+        "duration": 11.0
       }
     ]
   },
@@ -402,6 +622,23 @@
         "timestamp_start": 24.0,
         "timestamp_end": 31.0,
         "context": "Hardware architecture specifications of the Sycamore processor array."
+      }
+    ],
+    "segments": [
+      {
+        "text": "Researchers at Google Quantum AI demonstrated that expanding surface code distance from distance-3 to distance-5 reduced quantum logical error rates from two point nine percent to one point four percent per cycle.",
+        "start": 0.0,
+        "duration": 2.8
+      },
+      {
+        "text": "This represented the first physical demonstration where adding physical qubits improved rather than degraded logical qubit fidelity.",
+        "start": 3.0,
+        "duration": 11.0
+      },
+      {
+        "text": "The Sycamore superconducting processor utilized seventy-two physical qubits for the experiment.",
+        "start": 14.5,
+        "duration": 9.0
       }
     ]
   }

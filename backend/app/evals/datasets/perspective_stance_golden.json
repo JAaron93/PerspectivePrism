@@ -242,7 +242,7 @@
   {
     "id": "ps-021",
     "claim_text": "Universal public healthcare single-payer systems reduce aggregate national health spending by eliminating corporate administrative waste.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Jacobin: Studies show Medicare for All would save hundreds of billions annually by slashing private insurance overhead and monopolistic billing.",
       "In These Times: Single-payer eliminates insurance company bureaucracy and exorbitant executive salaries while guaranteeing coverage for all."
@@ -254,7 +254,7 @@
   {
     "id": "ps-022",
     "claim_text": "Corporate profit gouging and market concentration were the primary drivers of post-pandemic inflation rather than wage increases.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Economic Policy Institute: Corporate profits accounted for over half of price increases between mid-2020 and late-2021, compared to historical averages of 13 percent.",
       "The American Prospect: Monopoly pricing power allowed food and energy conglomerates to hike prices far beyond input cost inflation."
@@ -266,7 +266,7 @@
   {
     "id": "ps-023",
     "claim_text": "Expanding police department budgets directly eliminates structural poverty and educational disparities in urban communities.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "The Nation: Pouring billions into militarized policing drains vital resources from schools, affordable housing, and mental health crisis response.",
       "Mother Jones: Decades of law enforcement expansion have failed to address root socio-economic causes of community distress."
@@ -278,7 +278,7 @@
   {
     "id": "ps-024",
     "claim_text": "Private equity acquisitions in healthcare and nursing homes lead to reduced staffing and worse patient outcomes.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Dissent Magazine: Private equity firms asset-strip community hospitals and lay off nurses to service leveraged buyout debt, endangering patients.",
       "Center for Economic and Policy Research: Mortality rates and patient infections increased following private equity buyouts of nursing facilities."
@@ -290,7 +290,7 @@
   {
     "id": "ps-025",
     "claim_text": "Wealth taxes on billionaires above 50 million dollars violate the constitutional equal protection clause according to a secret Brookings consensus.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Tax Justice Network: Wealth taxes in Latin America and Europe generated valuable revenue for public infrastructure.",
       "Common Dreams: Progressive tax reform coalition calls for an ultra-millionaire asset tax to fund public transit and universal childcare."
@@ -302,7 +302,7 @@
   {
     "id": "ps-026",
     "claim_text": "Labor union membership expansion is essential for rebuilding the American middle class and reducing income inequality.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "AFL-CIO Policy Brief: Union workers earn 18 percent higher median wages and enjoy superior health benefits compared to non-union peers.",
       "Labor Notes: Worker organizing in automotive and manufacturing sectors has historically compressed the wage gap between executives and frontline labor."
@@ -314,7 +314,7 @@
   {
     "id": "ps-027",
     "claim_text": "Right-to-work legislation protects worker freedom and increases state-level wage growth.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Economic Policy Institute: So-called right-to-work laws undermine collective bargaining and lower average wages by 3.2 percent for all workers.",
       "In These Times: Right-to-work is a corporate-backed strategy to defund unions and strip workplace safety protections."
@@ -326,7 +326,7 @@
   {
     "id": "ps-028",
     "claim_text": "Federal student debt cancellation provides immediate economic stimulus and narrows racial wealth disparities.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Roosevelt Institute: Eliminating student debt unburdens disproportionately affected Black and Latino borrowers and frees capital for homeownership.",
       "The Intercept: Student loan cancellation provides restorative economic justice for young families crushed by credential inflation."
@@ -338,7 +338,7 @@
   {
     "id": "ps-029",
     "claim_text": "School voucher programs enhance public school quality by fostering healthy free-market competition.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Rethinking Schools: Voucher schemes siphon vital tax revenue away from public classrooms into unaccountable private and religious academies.",
       "NEA Today: Vouchers worsen segregation and leave high-needs public school students with fewer resources and larger classes."
@@ -350,7 +350,7 @@
   {
     "id": "ps-030",
     "claim_text": "The Green New Deal transitions the electrical grid to 100% renewables while creating millions of unionized green energy jobs.",
-    "perspective": "Partisan Left",
+    "perspective": "Partisan (Left)",
     "frozen_search_snippets": [
       "Sunrise Movement: The Green New Deal pairs aggressive decarbonization with federal job guarantees and prevailing-wage apprenticeships.",
       "The Progressive: Public investments in solar, wind, and high-speed rail establish an equitable industrial transition."
@@ -362,7 +362,7 @@
   {
     "id": "ps-031",
     "claim_text": "Cutting the federal corporate income tax rate stimulates domestic capital investment and creates sustainable jobs.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Heritage Foundation: Lowering corporate tax rates spurs business investment, encourages repatriation of offshore profits, and raises worker wages.",
       "Tax Foundation: Competitive corporate rates boost long-term GDP growth and capital accumulation in domestic manufacturing."
@@ -374,7 +374,7 @@
   {
     "id": "ps-032",
     "claim_text": "Universal school choice and education savings accounts empower parents and improve educational outcomes.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "National Review: Education savings accounts put parents back in control, breaking up union-dominated public school monopolies.",
       "Manhattan Institute: Expanding school vouchers introduces accountability and provides low-income families escape routes from failing districts."
@@ -386,7 +386,7 @@
   {
     "id": "ps-033",
     "claim_text": "High federal deficit spending and multi-trillion dollar legislative stimulus packages are the chief causes of consumer price inflation.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Wall Street Journal Editorial Board: Excess federal spending injected trillions of artificial dollars chasing constrained goods, triggering runaway inflation.",
       "American Enterprise Institute: Fiscal stimulus directly overheated demand while disincentivizing workforce participation."
@@ -398,7 +398,7 @@
   {
     "id": "ps-034",
     "claim_text": "Government rent control mandates reduce housing availability and discourage private development of new apartment units.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Cato Institute: Rent control acts as a price ceiling that shrinks the supply of rental housing and accelerates building decay.",
       "Foundation for Economic Education: Empirical evidence demonstrates that capping rents leads to rationing, reduced maintenance, and housing shortages."
@@ -410,7 +410,7 @@
   {
     "id": "ps-035",
     "claim_text": "Federal energy regulatory agencies signed executive decrees shutting down all US coal-fired power plants within 24 hours.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Washington Examiner: Power grid operators warn that premature retirement of baseload thermal plants threatens electric reliability during winter peaks.",
       "Daily Wire: Energy experts criticize green subsidies while highlighting fossil fuel capacity factors."
@@ -422,7 +422,7 @@
   {
     "id": "ps-036",
     "claim_text": "Strict border enforcement and physical barrier construction are necessary components of national sovereignty and security.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Fox News: Border security experts reiterate that sovereign nations must maintain physical barriers and enforce immigration statutes.",
       "Center for Immigration Studies: Unchecked migration strains municipal services, school districts, and local law enforcement budgets."
@@ -434,7 +434,7 @@
   {
     "id": "ps-037",
     "claim_text": "Imposing universal wealth taxes is an efficient, easily administrable way to raise federal revenue without distorting capital markets.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Wall Street Journal Op-Ed: European wealth taxes were overwhelmingly repealed because valuation disputes and capital flight caused net revenue losses.",
       "Hoover Institution: Taxing unrealized assets creates devastating administrative complexity and penalizes entrepreneurial risk-taking."
@@ -446,7 +446,7 @@
   {
     "id": "ps-038",
     "claim_text": "Deregulating oil and natural gas leasing on federal lands lowers consumer energy costs and strengthens American geopolitical leverage.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "American Petroleum Institute: Expanding domestic exploration reduces reliance on foreign adversaries and dampens fuel prices.",
       "Texas Public Policy Foundation: Energy abundance powered by domestic drilling delivers affordable electricity and economic growth."
@@ -458,7 +458,7 @@
   {
     "id": "ps-039",
     "claim_text": "The Dodd-Frank Act's regulatory compliance costs disproportionately harmed community and regional banks compared to Wall Street mega-banks.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Mercatus Center: Dodd-Frank imposed immense compliance overhead that accelerated consolidation and diminished community banking presence.",
       "Federalist Society Review: Smaller financial institutions lack the legal scale to absorb complex CFPB compliance rules, harming small town lending."
@@ -470,7 +470,7 @@
   {
     "id": "ps-040",
     "claim_text": "Federal courts have issued orders abolishing the Federal Reserve System and restoring the gold standard as legal currency.",
-    "perspective": "Partisan Right",
+    "perspective": "Partisan (Right)",
     "frozen_search_snippets": [
       "Reason Magazine: Libertarian scholars debate fractional reserve banking and sound money alternatives to fiat currency.",
       "Mises Institute: Commentary on central banking monetary expansion and historical gold standard stability."
