@@ -1,0 +1,482 @@
+[
+  {
+    "id": "ps-001",
+    "claim_text": "Atmospheric carbon dioxide concentrations exceeded 425 parts per million in May 2024 at Mauna Loa Observatory.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "NOAA Global Monitoring Laboratory: May 2024 monthly average CO2 at Mauna Loa reached 426.90 ppm, an increase of 2.9 ppm over May 2023.",
+      "Scripps Institution of Oceanography confirms peak monthly mean of 426.7 ppm recorded at the Mauna Loa atmospheric baseline station."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Both NOAA and Scripps baseline station measurements corroborate monthly averages above 426 ppm.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-002",
+    "claim_text": "Consuming organic produce completely prevents the onset of all forms of cardiovascular disease.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "American Heart Association systematic review: Diets high in whole fruits and vegetables correlate with lower heart risk, but no evidence shows organic certification eliminates cardiovascular disease.",
+      "Cochrane meta-analysis finds insufficient evidence to claim health superiority or complete disease prevention from organic vs conventional produce."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Systematic reviews explicitly state that organic produce does not eliminate cardiovascular risk.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-003",
+    "claim_text": "Quantum dot displays emit radiation that alters human brainwave frequencies during standard usage.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "Quantum dots are semiconductor nanocrystals used in LED backlights to emit precise wavelengths of visible light (red and green).",
+      "Display Daily overview: Quantum dot televisions operate entirely within the visible optical spectrum between 400 and 700 nm without ionizing or neural radiation."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Displays operate in the visible electromagnetic spectrum and lack any physical mechanism to alter brainwaves.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-004",
+    "claim_text": "Intermittent fasting produces superior weight loss compared to continuous caloric restriction when calories are matched.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "New England Journal of Medicine randomized trial of 139 patients found no significant difference in weight loss between time-restricted eating and daily calorie restriction.",
+      "Annals of Internal Medicine meta-analysis finds intermittent fasting is effective for weight reduction, but outcomes are statistically equivalent to isocaloric standard diets."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Clinical trials show equivalent outcomes between caloric restriction and time-restricted feeding when total calories match.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-005",
+    "claim_text": "Superconducting materials functioning at ambient room temperature and pressure have been replicated and verified across multiple independent physics labs.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "Nature News: Multiple international teams attempting to replicate the LK-99 lead-apatite compound found it to be a ferromagnet and semiconductor, not a room-temperature superconductor.",
+      "Condensed Matter Physics arXiv repository reports zero verified room-temperature superconductivity in ambient replication attempts."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Global replication attempts confirmed LK-99 was not a room-temperature superconductor.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-006",
+    "claim_text": "mRNA vaccines train the immune system to produce antibodies by introducing viral spike protein blueprints without containing live virus.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "CDC Scientific Brief: mRNA vaccines use synthetic messenger RNA encased in lipid nanoparticles instructing ribosomes to transiently express the SARS-CoV-2 spike glycoprotein.",
+      "Nature Reviews Immunology: The mRNA degradation occurs within days, leaving plasma B-cells and memory T-cells primed without introducing live viral replication."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Established immunological consensus demonstrates non-replicating mRNA blueprints trigger antibody production.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-007",
+    "claim_text": "High doses of Vitamin D supplementation reduce respiratory infection incidence in deficient individuals.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "BMJ systematic review and meta-analysis of 25 randomized trials found Vitamin D supplementation reduced acute respiratory tract infection risk, primarily in participants with baseline 25(OH)D levels below 25 nmol/L.",
+      "Lancet Diabetes & Endocrinology confirms protective benefit against respiratory infections is concentrated in individuals with severe baseline deficiency."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Meta-analyses demonstrate a statistically significant risk reduction specifically for vitamin D deficient cohorts.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-008",
+    "claim_text": "Low-dose red light therapy completely reverses human male pattern androgenetic alopecia in all clinical stages.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "Dermatology Times: Low-level laser therapy (LLLT) showed modest increases in terminal hair density for Norwood stage II and III patients.",
+      "Journal of Cosmetic and Laser Therapy: Evidence for advanced Norwood VI and VII baldness reversal remains inconclusive with high variability."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "Modest improvements are seen in early stages, but claims of complete reversal across all stages are unproven and ambiguous.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-009",
+    "claim_text": "The asteroid Bennu contains amino acids and water-bearing clay minerals sampled by NASA's OSIRIS-REx mission.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "NASA Johnson Space Center initial sample analysis confirms Bennu material contains abundant carbon and nitrogen, including essential organic compounds.",
+      "Meteoritics & Planetary Science: Analysis of pristine grains returned by OSIRIS-REx revealed uracil, branched amino acids, and hydrated phyllosilicates."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Direct laboratory sample analyses from the returned capsule confirm amino acids and hydrated minerals.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-010",
+    "claim_text": "Sub-atomic tachyonic particles were observed traveling at 300 times the speed of light in CERN's SPS accelerator tunnel in 2024.",
+    "perspective": "Scientific",
+    "frozen_search_snippets": [
+      "CERN press bulletin: The Super Proton Synchrotron (SPS) completed fixed-target beam operations for NA62 and COMPASS with standard proton beams.",
+      "Physics World: Review of particle tracking sensors and timing systems at CERN beamlines."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The search snippets describe normal CERN proton beam operations and contain zero evidence of tachyonic particle detection.",
+    "is_hallucination_bait": true
+  },
+  {
+    "id": "ps-011",
+    "claim_text": "The Federal Trade Commission filed an antitrust lawsuit accusing Amazon of illegally maintaining monopoly power in online retail.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Associated Press: The FTC and 17 state attorneys general filed a landmark antitrust lawsuit against Amazon, alleging anticompetitive practices that inflate prices and degrade merchant quality.",
+      "Reuters: FTC Chair Lina Khan filed the lawsuit in federal court in Seattle, targeting Amazon's anti-discounting measures and fulfillment requirements."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Major news agencies report the official filing of the joint FTC and state attorneys general antitrust lawsuit.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-012",
+    "claim_text": "The United States unemployment rate dropped to an unprecedented zero percent in 2024.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Bureau of Labor Statistics Employment Situation: The unemployment rate fluctuated between 3.7% and 4.3% throughout 2024.",
+      "Wall Street Journal economic survey: Economists observe natural frictional unemployment persists around 4%."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Official BLS employment statistics document unemployment ranging between 3.7% and 4.3%, contradicting zero percent.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-013",
+    "claim_text": "The European Union implemented the Digital Markets Act designating six major tech companies as digital gatekeepers.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "BBC News: The European Commission named Alphabet, Amazon, Apple, ByteDance, Meta, and Microsoft as gatekeepers under the Digital Markets Act.",
+      "Financial Times: Tech giants face strict interoperability obligations and self-preferencing bans as DMA enforcement commences."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Financial and international reporting confirms the designation of six tech gatekeepers under EU law.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-014",
+    "claim_text": "The Boeing Starliner spacecraft was forced to return from the ISS uncrewed due to thruster anomalies and helium leaks.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Washington Post: NASA announced astronauts Butch Wilmore and Suni Williams will return on a SpaceX Dragon, sending Boeing Starliner home uncrewed.",
+      "New York Times: NASA leadership concluded that thruster degradation posed unacceptable risks for crewed reentry."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Major journalistic sources confirm NASA decided to land Starliner autonomously without crew.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-015",
+    "claim_text": "Every single member of the United Nations Security Council voted in favor of the treaty regulating artificial general intelligence in Geneva.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "UN News: Security Council holds high-level debate on risks and opportunities of artificial intelligence in international peace and security.",
+      "Swissinfo: Geneva hosts AI for Good Global Summit organized by ITU focusing on standards and ethical principles."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The snippets describe debates and summits, but contain no record of any signed binding Security Council treaty on AGI.",
+    "is_hallucination_bait": true
+  },
+  {
+    "id": "ps-016",
+    "claim_text": "The Francis Scott Key Bridge in Baltimore collapsed after being struck by the container ship Dali.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "CNN: The container ship Dali lost electrical power and collided with a support pier of the Francis Scott Key Bridge, causing the main span to collapse.",
+      "Baltimore Sun: NTSB investigators examine electrical breaker failures on the cargo vessel Dali following the catastrophic bridge strike."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "News reports and NTSB filings document the Dali collision and subsequent bridge collapse.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-017",
+    "claim_text": "The Japanese Yen reached parity with the US Dollar at one yen per dollar in 2024.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Bloomberg Markets: The yen traded near multi-decade lows of 150 to 160 per US dollar before Bank of Japan interventions.",
+      "Nikkei Asia: Currency strategists analyze the impact of yen weakness on domestic import costs."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "The exchange rate hovered between 150 and 160 yen per dollar, directly refuting a 1:1 parity claim.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-018",
+    "claim_text": "A confidential settlement was reached between the Department of Justice and major commercial airlines over alleged pilot shortages.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Aviation Week: Major carriers expand regional academy partnerships to recruit commercial aviators.",
+      "Federal Register: FAA updates flight hour certifications for commercial pilot licensing."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The snippets discuss training academies and FAA rules, with no mention of any DOJ settlement.",
+    "is_hallucination_bait": true
+  },
+  {
+    "id": "ps-019",
+    "claim_text": "The US Department of Justice filed a civil antitrust suit against Live Nation Entertainment and Ticketmaster.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "NPR: The DOJ, alongside 30 state attorneys general, sued Live Nation Entertainment alleging unlawful monopolization of the live entertainment industry.",
+      "Politico: Attorney General Merrick Garland accused Ticketmaster of locking up venues through exclusive ticketing contracts."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Reporting from multiple news agencies confirms the DOJ and 30 states filed the antitrust action.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-020",
+    "claim_text": "The Panama Canal suspended all maritime vessel transits indefinitely due to complete reservoir desiccation.",
+    "perspective": "Journalistic",
+    "frozen_search_snippets": [
+      "Reuters: The Panama Canal Authority restricted daily transits from 36 to 24 ships due to severe drought before recovering with seasonal rains.",
+      "Maritime Executive: Lake Gatun water levels stabilized, allowing draft limits to be raised back to normal operational parameters."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Transits were restricted during the drought but never indefinitely suspended or shut down.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-021",
+    "claim_text": "Universal public healthcare single-payer systems reduce aggregate national health spending by eliminating corporate administrative waste.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Jacobin: Studies show Medicare for All would save hundreds of billions annually by slashing private insurance overhead and monopolistic billing.",
+      "In These Times: Single-payer eliminates insurance company bureaucracy and exorbitant executive salaries while guaranteeing coverage for all."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Progressive analysis argues single-payer structures achieve savings through reduced administrative overhead.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-022",
+    "claim_text": "Corporate profit gouging and market concentration were the primary drivers of post-pandemic inflation rather than wage increases.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Economic Policy Institute: Corporate profits accounted for over half of price increases between mid-2020 and late-2021, compared to historical averages of 13 percent.",
+      "The American Prospect: Monopoly pricing power allowed food and energy conglomerates to hike prices far beyond input cost inflation."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Left-leaning economic policy outlets cite profit-share data demonstrating corporate markups as the root of inflation.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-023",
+    "claim_text": "Expanding police department budgets directly eliminates structural poverty and educational disparities in urban communities.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "The Nation: Pouring billions into militarized policing drains vital resources from schools, affordable housing, and mental health crisis response.",
+      "Mother Jones: Decades of law enforcement expansion have failed to address root socio-economic causes of community distress."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Progressive perspectives view increased policing budgets as detrimental to funding structural social services.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-024",
+    "claim_text": "Private equity acquisitions in healthcare and nursing homes lead to reduced staffing and worse patient outcomes.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Dissent Magazine: Private equity firms asset-strip community hospitals and lay off nurses to service leveraged buyout debt, endangering patients.",
+      "Center for Economic and Policy Research: Mortality rates and patient infections increased following private equity buyouts of nursing facilities."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Progressive researchers and commentators document negative clinical outcomes resulting from private equity cost-cutting.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-025",
+    "claim_text": "Wealth taxes on billionaires above 50 million dollars violate the constitutional equal protection clause according to a secret Brookings consensus.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Tax Justice Network: Wealth taxes in Latin America and Europe generated valuable revenue for public infrastructure.",
+      "Common Dreams: Progressive tax reform coalition calls for an ultra-millionaire asset tax to fund public transit and universal childcare."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The snippets advocate for wealth taxes but provide no information regarding constitutional violations or a secret Brookings consensus.",
+    "is_hallucination_bait": true
+  },
+  {
+    "id": "ps-026",
+    "claim_text": "Labor union membership expansion is essential for rebuilding the American middle class and reducing income inequality.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "AFL-CIO Policy Brief: Union workers earn 18 percent higher median wages and enjoy superior health benefits compared to non-union peers.",
+      "Labor Notes: Worker organizing in automotive and manufacturing sectors has historically compressed the wage gap between executives and frontline labor."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Left-leaning and union publications strongly endorse collective bargaining as foundational for middle-class prosperity.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-027",
+    "claim_text": "Right-to-work legislation protects worker freedom and increases state-level wage growth.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Economic Policy Institute: So-called right-to-work laws undermine collective bargaining and lower average wages by 3.2 percent for all workers.",
+      "In These Times: Right-to-work is a corporate-backed strategy to defund unions and strip workplace safety protections."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Progressive analysis opposes right-to-work laws, identifying them as corporate measures that diminish worker wages.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-028",
+    "claim_text": "Federal student debt cancellation provides immediate economic stimulus and narrows racial wealth disparities.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Roosevelt Institute: Eliminating student debt unburdens disproportionately affected Black and Latino borrowers and frees capital for homeownership.",
+      "The Intercept: Student loan cancellation provides restorative economic justice for young families crushed by credential inflation."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Progressive think tanks and media argue student loan relief stimulates the economy and reduces systemic wealth gaps.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-029",
+    "claim_text": "School voucher programs enhance public school quality by fostering healthy free-market competition.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Rethinking Schools: Voucher schemes siphon vital tax revenue away from public classrooms into unaccountable private and religious academies.",
+      "NEA Today: Vouchers worsen segregation and leave high-needs public school students with fewer resources and larger classes."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Progressive and public education sources argue vouchers defund public institutions and exacerbate inequality.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-030",
+    "claim_text": "The Green New Deal transitions the electrical grid to 100% renewables while creating millions of unionized green energy jobs.",
+    "perspective": "Partisan Left",
+    "frozen_search_snippets": [
+      "Sunrise Movement: The Green New Deal pairs aggressive decarbonization with federal job guarantees and prevailing-wage apprenticeships.",
+      "The Progressive: Public investments in solar, wind, and high-speed rail establish an equitable industrial transition."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Left-leaning environmental and labor advocates frame the Green New Deal as both climate solution and job generator.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-031",
+    "claim_text": "Cutting the federal corporate income tax rate stimulates domestic capital investment and creates sustainable jobs.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Heritage Foundation: Lowering corporate tax rates spurs business investment, encourages repatriation of offshore profits, and raises worker wages.",
+      "Tax Foundation: Competitive corporate rates boost long-term GDP growth and capital accumulation in domestic manufacturing."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Conservative economic policy institutions argue lower corporate tax rates stimulate private investment and economic expansion.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-032",
+    "claim_text": "Universal school choice and education savings accounts empower parents and improve educational outcomes.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "National Review: Education savings accounts put parents back in control, breaking up union-dominated public school monopolies.",
+      "Manhattan Institute: Expanding school vouchers introduces accountability and provides low-income families escape routes from failing districts."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Conservative publications emphasize parental rights and free-market competition in education.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-033",
+    "claim_text": "High federal deficit spending and multi-trillion dollar legislative stimulus packages are the chief causes of consumer price inflation.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Wall Street Journal Editorial Board: Excess federal spending injected trillions of artificial dollars chasing constrained goods, triggering runaway inflation.",
+      "American Enterprise Institute: Fiscal stimulus directly overheated demand while disincentivizing workforce participation."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Right-leaning commentators and economists identify fiscal expansion and stimulus as primary drivers of inflation.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-034",
+    "claim_text": "Government rent control mandates reduce housing availability and discourage private development of new apartment units.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Cato Institute: Rent control acts as a price ceiling that shrinks the supply of rental housing and accelerates building decay.",
+      "Foundation for Economic Education: Empirical evidence demonstrates that capping rents leads to rationing, reduced maintenance, and housing shortages."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Free-market conservative think tanks argue price controls suppress housing supply and market incentives.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-035",
+    "claim_text": "Federal energy regulatory agencies signed executive decrees shutting down all US coal-fired power plants within 24 hours.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Washington Examiner: Power grid operators warn that premature retirement of baseload thermal plants threatens electric reliability during winter peaks.",
+      "Daily Wire: Energy experts criticize green subsidies while highlighting fossil fuel capacity factors."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The snippets express concern over baseload plant retirements, but contain no record of an immediate 24-hour shutdown order.",
+    "is_hallucination_bait": true
+  },
+  {
+    "id": "ps-036",
+    "claim_text": "Strict border enforcement and physical barrier construction are necessary components of national sovereignty and security.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Fox News: Border security experts reiterate that sovereign nations must maintain physical barriers and enforce immigration statutes.",
+      "Center for Immigration Studies: Unchecked migration strains municipal services, school districts, and local law enforcement budgets."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Conservative perspectives view strong border walls and statutory enforcement as imperative for sovereignty.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-037",
+    "claim_text": "Imposing universal wealth taxes is an efficient, easily administrable way to raise federal revenue without distorting capital markets.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Wall Street Journal Op-Ed: European wealth taxes were overwhelmingly repealed because valuation disputes and capital flight caused net revenue losses.",
+      "Hoover Institution: Taxing unrealized assets creates devastating administrative complexity and penalizes entrepreneurial risk-taking."
+    ],
+    "gold_stance": "REFUTES",
+    "grounding_rationale": "Right-leaning analysts argue wealth taxes trigger capital flight, distortions, and severe administrative inefficiency.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-038",
+    "claim_text": "Deregulating oil and natural gas leasing on federal lands lowers consumer energy costs and strengthens American geopolitical leverage.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "American Petroleum Institute: Expanding domestic exploration reduces reliance on foreign adversaries and dampens fuel prices.",
+      "Texas Public Policy Foundation: Energy abundance powered by domestic drilling delivers affordable electricity and economic growth."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Conservative energy policy advocates argue domestic production reduces consumer costs and geopolitical vulnerability.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-039",
+    "claim_text": "The Dodd-Frank Act's regulatory compliance costs disproportionately harmed community and regional banks compared to Wall Street mega-banks.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Mercatus Center: Dodd-Frank imposed immense compliance overhead that accelerated consolidation and diminished community banking presence.",
+      "Federalist Society Review: Smaller financial institutions lack the legal scale to absorb complex CFPB compliance rules, harming small town lending."
+    ],
+    "gold_stance": "SUPPORTS",
+    "grounding_rationale": "Conservative policy centers argue complex financial regulations inadvertently entrench large banks at the expense of small institutions.",
+    "is_hallucination_bait": false
+  },
+  {
+    "id": "ps-040",
+    "claim_text": "Federal courts have issued orders abolishing the Federal Reserve System and restoring the gold standard as legal currency.",
+    "perspective": "Partisan Right",
+    "frozen_search_snippets": [
+      "Reason Magazine: Libertarian scholars debate fractional reserve banking and sound money alternatives to fiat currency.",
+      "Mises Institute: Commentary on central banking monetary expansion and historical gold standard stability."
+    ],
+    "gold_stance": "AMBIGUOUS",
+    "grounding_rationale": "The snippets discuss monetary philosophy and gold standard theory, with zero evidence of any judicial abolition of the Fed.",
+    "is_hallucination_bait": true
+  }
+]

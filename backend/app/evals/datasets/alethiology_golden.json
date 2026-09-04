@@ -1,0 +1,398 @@
+[
+  {
+    "id": "aleth-001",
+    "claim_text": "The boiling point of pure water at one standard atmosphere of pressure is exactly 100 degrees Celsius.",
+    "context_excerpt": "A physical chemistry lecture explaining thermodynamic state variables and calibrated thermometer measurements.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": "Consensus (Institutional Agreement)",
+    "epistemic_summary": "Truth is established by direct correspondence between the proposition and empirical physical observation.",
+    "quote_evidences": [
+      "Laboratory mercury and platinum resistance thermometers measure phase transition at precisely 100 degrees C at 101.325 kPa."
+    ]
+  },
+  {
+    "id": "aleth-002",
+    "claim_text": "The speed of light in a vacuum is 299,792,458 meters per second.",
+    "context_excerpt": "An optics handbook describing laser interferometry experiments verifying universal constants.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": null,
+    "epistemic_summary": "Direct measurement and physical constants establish factual truth grounded in empirical reality.",
+    "quote_evidences": [
+      "Cavity resonance and laser frequency combs confirm the invariant photon propagation speed in vacuum."
+    ]
+  },
+  {
+    "id": "aleth-003",
+    "claim_text": "The James Webb Space Telescope detected redshifted Lyman-alpha emissions from galaxy JADES-GS-z14-0.",
+    "context_excerpt": "An astrophysics paper detailing near-infrared spectrograph grating observations of deep field cosmic origins.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": null,
+    "epistemic_summary": "Observational instrumentation data directly corroborates the spatial proposition.",
+    "quote_evidences": [
+      "Spectrometric photon detector readouts identify the distinct Lyman break at redshift z=14.32."
+    ]
+  },
+  {
+    "id": "aleth-004",
+    "claim_text": "DNA polymerase III synthesizes nascent leading strands strictly in the 5-prime to 3-prime direction.",
+    "context_excerpt": "A molecular biology textbook detailing crystal structure mechanics and phosphodiester bond formation.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": null,
+    "epistemic_summary": "Biochemical structural assays and X-ray crystallography demonstrate physical molecular mechanisms.",
+    "quote_evidences": [
+      "Radiolabeled nucleotide tracking reveals that hydroxyl attack occurs exclusively at the 3-prime terminal carbon."
+    ]
+  },
+  {
+    "id": "aleth-005",
+    "claim_text": "Seismic P-waves travel through the Earth's liquid outer core while S-waves are refracted and attenuated.",
+    "context_excerpt": "A geophysics treatise on planetary seismology and core-mantle boundary shadow zones.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": null,
+    "epistemic_summary": "Empirical seismograph recordings across global stations match physical fluid shear mechanics.",
+    "quote_evidences": [
+      "Global seismic stations record the comprehensive disappearance of transverse shear waves at angular distances greater than 104 degrees."
+    ]
+  },
+  {
+    "id": "aleth-006",
+    "claim_text": "The half-life of Carbon-14 is 5,730 years plus or minus 40 years.",
+    "context_excerpt": "An archaeological dating manual detailing mass spectrometry of radioactive beta decay in organic specimens.",
+    "primary_theory": "Correspondence (Empirical)",
+    "secondary_theory": null,
+    "epistemic_summary": "Physical radiometric decay observations establish direct correspondence with atomic decay formulas.",
+    "quote_evidences": [
+      "Accelerator mass spectrometry counts remaining C-14 atoms against calibrated dendrochronology rings."
+    ]
+  },
+  {
+    "id": "aleth-007",
+    "claim_text": "In standard set theory with the Zermelo-Fraenkel axioms and the Axiom of Choice, the Banach-Tarski paradox necessarily holds.",
+    "context_excerpt": "A mathematical logic lecture examining non-measurable sets and decomposition theorems.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth is established strictly by deductive coherence and non-contradiction within an axiomatic formal framework.",
+    "quote_evidences": [
+      "Given the acceptance of ZFC, the decomposition of a unit ball into five disjoint pieces is a logically inescapable deductive consequence."
+    ]
+  },
+  {
+    "id": "aleth-008",
+    "claim_text": "Under classical Marxist historical materialism, the economic base inevitably determines the legal and cultural superstructure.",
+    "context_excerpt": "A political philosophy seminar analyzing Das Kapital and ideological reproduction in capitalist states.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": null,
+    "epistemic_summary": "Validity is derived from total systemic alignment with the internal dialectical architecture of the theory.",
+    "quote_evidences": [
+      "The relations of production form the indispensable foundation upon which rises legal and political superstructures."
+    ]
+  },
+  {
+    "id": "aleth-009",
+    "claim_text": "Within Austrian business cycle theory, artificially suppressed interest rates invariably cause capital malinvestment.",
+    "context_excerpt": "An economic treatise comparing monetary transmission mechanisms and capital structure distortions.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": null,
+    "epistemic_summary": "The claim derives validity from deductive coherence within praxeological axioms rather than empirical econometric sampling.",
+    "quote_evidences": [
+      "When central banks lower the interest rate below the natural rate, entrepreneurial calculations systematically misallocate capital into longer production stages."
+    ]
+  },
+  {
+    "id": "aleth-010",
+    "claim_text": "In Spinoza's metaphysical system, God and Nature are identical substance with infinite attributes.",
+    "context_excerpt": "A scholarly commentary on Spinoza's Ethics demonstrated in geometrical order.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth follows from geometric deductive proofs from definitions and axioms without requiring empirical verification.",
+    "quote_evidences": [
+      "By God I understand a being absolutely infinite; except God, no substance can be or be conceived (Ethics, Prop. 14)."
+    ]
+  },
+  {
+    "id": "aleth-011",
+    "claim_text": "In Keynesian macroeconomic models, aggregate demand falling below potential GDP necessarily produces recessionary output gaps.",
+    "context_excerpt": "A macroeconomic textbook explaining the IS-LM framework and multiplier dynamics.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": "Pragmatic (Practical Utility)",
+    "epistemic_summary": "Internal consistency across the interconnected equations and accounting identities defines systemic validity.",
+    "quote_evidences": [
+      "The paradox of thrift demonstrates that collective attempts to increase savings reduce equilibrium income within the closed accounting loop."
+    ]
+  },
+  {
+    "id": "aleth-012",
+    "claim_text": "According to the legal doctrine of originalism, constitutional provisions must be interpreted strictly according to their public meaning at the time of enactment.",
+    "context_excerpt": "A jurisprudence review article comparing original public meaning jurisprudence with the living constitution doctrine.",
+    "primary_theory": "Coherence (Systemic Narrative)",
+    "secondary_theory": null,
+    "epistemic_summary": "The proposition's validity stems from adherence to an internal coherent theory of statutory interpretation.",
+    "quote_evidences": [
+      "Constitutional fidelity requires that judges treat the written text as fixing legal meaning at the historical ratification baseline."
+    ]
+  },
+  {
+    "id": "aleth-013",
+    "claim_text": "Newtonian classical mechanics is true for designing civil engineering bridges and skyscraper trusses.",
+    "context_excerpt": "A structural engineering seminar explaining why relativistic quantum mechanics is discarded in civil construction.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": "Correspondence (Empirical)",
+    "epistemic_summary": "The theory is deemed true and adopted because it successfully works and delivers reliable, predictable structural stability.",
+    "quote_evidences": [
+      "In civil design, classical statics calculations yield perfectly safe suspension spans while avoiding computational overhead."
+    ]
+  },
+  {
+    "id": "aleth-014",
+    "claim_text": "Belief in personal free will is true because it fosters moral accountability and positive psychosocial outcomes.",
+    "context_excerpt": "A pragmatist essay reflecting William James's 'Will to Believe' doctrine in psychological ethics.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth is evaluated by the experiential, moral, and functional consequences of adopting the belief.",
+    "quote_evidences": [
+      "My first act of free will shall be to believe in free will; its cash-value in human conduct is moral agency and responsibility."
+    ]
+  },
+  {
+    "id": "aleth-015",
+    "claim_text": "Agile Scrum sprint cycles are the right operational model because they accelerate product shipping speed and reduce rework.",
+    "context_excerpt": "A software engineering management case study evaluating organizational delivery cadences.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth and correctness are defined by tangible functional utility and organizational performance.",
+    "quote_evidences": [
+      "Two-week iterative sprint retrospectives reduced ticket resolution latency by 42% across sixteen engineering squads."
+    ]
+  },
+  {
+    "id": "aleth-016",
+    "claim_text": "Double-entry bookkeeping is the correct method for maintaining corporate accounts because it prevents unrecorded ledger imbalances.",
+    "context_excerpt": "A financial accounting handbook explaining the foundational mechanics of debit and credit balancing.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": null,
+    "epistemic_summary": "The method is true in practice because it reliably prevents fraud and operational errors in commercial transactions.",
+    "quote_evidences": [
+      "The pragmatic verification of double-entry bookkeeping lies in its immediate detection of single-leg posting errors."
+    ]
+  },
+  {
+    "id": "aleth-017",
+    "claim_text": "Fluoridating municipal drinking water is sound public policy because it dramatically decreases childhood dental caries.",
+    "context_excerpt": "A municipal public health review on cost-benefit analysis of preventative civic interventions.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": "Consensus (Institutional Agreement)",
+    "epistemic_summary": "Truth is established by measurable epidemiological efficacy and tangible utilitarian health improvements.",
+    "quote_evidences": [
+      "Every dollar invested in community water fluoridation yields thirty-eight dollars in avoided restorative dental expenditures."
+    ]
+  },
+  {
+    "id": "aleth-018",
+    "claim_text": "Cognitive behavioral therapy is valid because reframing automatic negative thoughts reduces clinical depression symptoms.",
+    "context_excerpt": "A clinical psychiatry paper reviewing outcome metrics across randomized psychological interventions.",
+    "primary_theory": "Pragmatic (Practical Utility)",
+    "secondary_theory": null,
+    "epistemic_summary": "Efficacy in restoring functional mental health serves as the ultimate criterion of truth.",
+    "quote_evidences": [
+      "The validity of cognitive reframing is confirmed by significant reductions in Hamilton Depression Rating Scale scores."
+    ]
+  },
+  {
+    "id": "aleth-019",
+    "claim_text": "For low-income tenants facing gentrification, new luxury developments mean displacement and loss of community belonging.",
+    "context_excerpt": "An urban sociology ethnography capturing qualitative interviews in an urban redevelopment district.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth is situated within and illuminated by the phenomenological standpoint and lived reality of marginalized residents.",
+    "quote_evidences": [
+      "Long-term residents recount how escalating rents and storefront turnover dismantled social safety nets they relied upon for thirty years."
+    ]
+  },
+  {
+    "id": "aleth-020",
+    "claim_text": "Chronic pain is a subjective reality that only the individual patient can genuinely know and articulate.",
+    "context_excerpt": "A medical humanities paper discussing pain scales, patient testimony, and clinical skepticism.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Epistemic authority resides primarily in first-person experiential awareness rather than external diagnostic imaging.",
+    "quote_evidences": [
+      "Pain is whatever the experiencing person says it is, existing whenever they say it does, immune to total third-person observation."
+    ]
+  },
+  {
+    "id": "aleth-021",
+    "claim_text": "From the perspective of pastoral nomadic communities, national borders are arbitrary colonial impositions that disrupt seasonal grazing.",
+    "context_excerpt": "An anthropological study of transhumant pastoralists across the Sahel corridor.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Validity is grounded in historical indigenous mobility and situated cultural standpoints.",
+    "quote_evidences": [
+      "The elders explain that our livestock follow rainfall and watercourses; the border exists only on paper in distant ministries."
+    ]
+  },
+  {
+    "id": "aleth-022",
+    "claim_text": "For neurodivergent workers, open-plan office acoustics are physically overwhelming sensory environments that prevent focus.",
+    "context_excerpt": "A workplace ergonomics study documenting neurodivergent cognitive load and workplace design.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth claims are grounded in distinct neurological vantage points and phenomenological sensory processing.",
+    "quote_evidences": [
+      "Autistic employees describe fluorescent hums and unpredictable auditory chatter as causing rapid sensory exhaustion."
+    ]
+  },
+  {
+    "id": "aleth-023",
+    "claim_text": "The feeling of deep grief over the loss of a parent reveals an existential truth about the fragility of human love.",
+    "context_excerpt": "A literary memoir reflecting on mourning, memory, and personal identity.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth emerges from deeply subjective emotional and introspective lived encounters.",
+    "quote_evidences": [
+      "In the stillness of grief, one discovers an undeniable emotional reality that no analytical equation can comprehend."
+    ]
+  },
+  {
+    "id": "aleth-024",
+    "claim_text": "Working frontline night shifts during a pandemic reveals structural hospital vulnerabilities invisible to daytime executives.",
+    "context_excerpt": "A narrative analysis of registered nurse shift logs during peak emergency room surges.",
+    "primary_theory": "Perspectivism (Lived Experience)",
+    "secondary_theory": null,
+    "epistemic_summary": "Standpoint epistemology privileges the frontline worker's vantage point as uniquely revealing systemic realities.",
+    "quote_evidences": [
+      "At 3 AM when central supply runs out of PPE, you see the true operational fragility that never appears in corporate dashboards."
+    ]
+  },
+  {
+    "id": "aleth-025",
+    "claim_text": "Anthropogenic greenhouse gas emissions are the dominant cause of observed global warming since the mid-20th century.",
+    "context_excerpt": "The Intergovernmental Panel on Climate Change (IPCC) Sixth Assessment Synthesis Report.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": "Correspondence (Empirical)",
+    "epistemic_summary": "Truth is certified through exhaustive institutional deliberation, peer review, and collective expert consensus across academies.",
+    "quote_evidences": [
+      "It is unequivocal that human influence has warmed the atmosphere, ocean, and land, endorsed by thousands of scientific authors and 195 member governments."
+    ]
+  },
+  {
+    "id": "aleth-026",
+    "claim_text": "The Diagnostic and Statistical Manual of Mental Disorders (DSM-5-TR) classifies Major Depressive Disorder under code 296.xx.",
+    "context_excerpt": "A clinical psychology licensing guide detailing psychiatric taxonomy standards.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": null,
+    "epistemic_summary": "Diagnostic criteria derive validity from professional consensus established by the American Psychiatric Association task force.",
+    "quote_evidences": [
+      "Classification boundaries reflect multi-year committee deliberations and formal diagnostic votes across psychiatric specialty boards."
+    ]
+  },
+  {
+    "id": "aleth-027",
+    "claim_text": "The International Astronomical Union reclassified Pluto as a dwarf planet in Resolution B5.",
+    "context_excerpt": "An astronomy history review covering the 2006 Prague IAU General Assembly.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": null,
+    "epistemic_summary": "The ontological status of Pluto is determined by formal democratic vote among credentialed members of the governing astronomical body.",
+    "quote_evidences": [
+      "Following floor debate, astronomers voted that a planet must clear the neighborhood around its orbit, which Pluto does not satisfy."
+    ]
+  },
+  {
+    "id": "aleth-028",
+    "claim_text": "Standard SI units define the kilogram in terms of the Planck constant rather than a physical prototype cylinder.",
+    "context_excerpt": "A BIPM treaty document detailing the 26th General Conference on Weights and Measures.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": "Correspondence (Empirical)",
+    "epistemic_summary": "Metrological truth is an international institutional pact ratified by national measurement institutes.",
+    "quote_evidences": [
+      "Delegates unanimously voted to retire the International Prototype Kilogram in favor of fixing Planck's constant at 6.62607015e-34 J s."
+    ]
+  },
+  {
+    "id": "aleth-029",
+    "claim_text": "The Geneva Conventions establish international humanitarian protections for prisoners of war and non-combatants.",
+    "context_excerpt": "An international law treatise analyzing treaties and customary norms of armed conflict.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": null,
+    "epistemic_summary": "Legal validity is established by universal sovereign state ratification and intersubjective treaty obligations.",
+    "quote_evidences": [
+      "Universal state ratification of the 1949 conventions binds nations to humane treatment standards as peremptory norms of international law."
+    ]
+  },
+  {
+    "id": "aleth-030",
+    "claim_text": "The Federal Reserve's 2 percent annual inflation target is the benchmark for price stability.",
+    "context_excerpt": "An overview of modern central banking inflation targeting frameworks.",
+    "primary_theory": "Consensus (Institutional Agreement)",
+    "secondary_theory": "Pragmatic (Practical Utility)",
+    "epistemic_summary": "The numerical benchmark is an institutional convention established by central bankers rather than a natural physical law.",
+    "quote_evidences": [
+      "The Federal Open Market Committee codified 2 percent as the explicit consensus target in its 2012 Statement on Longer-Run Goals."
+    ]
+  },
+  {
+    "id": "aleth-031",
+    "claim_text": "To state that 'snow is white is true' is simply an elaborate way of saying that snow is white.",
+    "context_excerpt": "A philosophical seminar on Frank Ramsey and Paul Horwich's deflationary theory of truth.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": null,
+    "epistemic_summary": "The predicate 'is true' has no substantive metaphysical property and functions merely as a grammatical device of agreement.",
+    "quote_evidences": [
+      "Asserting that a proposition is true adds nothing beyond making the bare assertion itself."
+    ]
+  },
+  {
+    "id": "aleth-032",
+    "claim_text": "When the speaker declares 'What she said was the absolute truth!', they are merely expressing full solidarity with her statement.",
+    "context_excerpt": "A linguistic pragmatics paper analyzing performative utterances and endorsement markers in political discourse.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": null,
+    "epistemic_summary": "The truth label operates as a performative stamp of endorsement or rhetorical applause rather than a metaphysical attribution.",
+    "quote_evidences": [
+      "Saying 'That's true!' is functionally equivalent to nodding vigorously or uttering 'I wholeheartedly agree!'"
+    ]
+  },
+  {
+    "id": "aleth-033",
+    "claim_text": "Truth is not a mysterious cosmic property; calling an argument true is just a shorthand device for blind assent.",
+    "context_excerpt": "An essay on semantic minimalism and redundancy theories of truth.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": null,
+    "epistemic_summary": "The concept of truth is deflated to a linguistic device for indirect quotation and generalization.",
+    "quote_evidences": [
+      "We say 'Everything the witness said is true' because listing all fifty witness statements sequentially would be computationally prohibitive."
+    ]
+  },
+  {
+    "id": "aleth-034",
+    "claim_text": "The phrase 'It is undeniable truth that our team worked hard' is pure rhetorical emphasis meaning 'Our team worked hard.'",
+    "context_excerpt": "A rhetoric handbook on intensifiers, pleonasms, and persuasive framing in corporate presentations.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": null,
+    "epistemic_summary": "Truth-predicates in this context act strictly as rhetorical amplifiers to persuade listeners.",
+    "quote_evidences": [
+      "Prefacing a remark with 'It is true that' serves as an affective amplifier rather than a descriptor of an ontological property."
+    ]
+  },
+  {
+    "id": "aleth-035",
+    "claim_text": "The saying 'Speak your truth' is a modern idiom encouraging people to voice their personal convictions with conviction.",
+    "context_excerpt": "A cultural linguistics commentary on contemporary idiom shifts and popular vernacular.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": "Perspectivism (Lived Experience)",
+    "epistemic_summary": "The word 'truth' is deflated into a rhetorical synonym for speaking honestly and expressing oneself.",
+    "quote_evidences": [
+      "In conversational usage, 'your truth' functions not as an epistemological stance, but as a rallying cry for assertive self-expression."
+    ]
+  },
+  {
+    "id": "aleth-036",
+    "claim_text": "Saying 'Gold is malleable is true' possesses the exact same cognitive and truth-conditional content as 'Gold is malleable.'",
+    "context_excerpt": "A philosophical monograph on T-schema equivalence and disquotational theories.",
+    "primary_theory": "Deflationary (Rhetorical Endorsement)",
+    "secondary_theory": null,
+    "epistemic_summary": "Disquotation eliminates the truth predicate entirely without any loss of propositional meaning.",
+    "quote_evidences": [
+      "According to disquotationalism, the equivalence scheme 'P is true if and only if P' exhausts the entire content of the truth predicate."
+    ]
+  }
+]
