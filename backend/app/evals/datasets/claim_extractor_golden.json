@@ -1,0 +1,640 @@
+[
+  {
+    "video_id": "vid_ce_001",
+    "title": "Renewable Energy Transition and Grid Stability",
+    "transcript_text": "In California, utility-scale solar generation provided sixty-eight percent of total daytime electricity demand on peak days in spring 2024. However, battery storage additions have surged dramatically, reaching ten thousand megawatts of operational capacity by August 2024. This rapid deployment reduced evening peaker plant fossil gas emissions by thirty-one percent compared to the prior year.",
+    "segments": [
+      {
+        "text": "In California, utility-scale solar generation provided sixty-eight percent of total daytime electricity demand on peak days in spring 2024.",
+        "start": 0.0,
+        "duration": 10.0
+      },
+      {
+        "text": "However, battery storage additions have surged dramatically, reaching ten thousand megawatts of operational capacity by August 2024.",
+        "start": 10.0,
+        "duration": 10.0
+      },
+      {
+        "text": "This rapid deployment reduced evening peaker plant fossil gas emissions by thirty-one percent compared to the prior year.",
+        "start": 20.0,
+        "duration": 10.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_001_1",
+        "text": "In California, utility-scale solar generation provided sixty-eight percent of total daytime electricity demand on peak days in spring 2024.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 10.0,
+        "context": "Discussion of daytime solar generation peak metrics in California during spring 2024."
+      },
+      {
+        "id": "claim_001_2",
+        "text": "Battery storage additions reached ten thousand megawatts of operational capacity by August 2024 in California.",
+        "timestamp_start": 10.0,
+        "timestamp_end": 20.0,
+        "context": "Contextualizing CAISO battery storage capacity additions through late summer 2024."
+      },
+      {
+        "id": "claim_001_3",
+        "text": "The rapid deployment of battery storage reduced evening peaker plant fossil gas emissions by thirty-one percent compared to the prior year.",
+        "timestamp_start": 20.0,
+        "timestamp_end": 30.0,
+        "context": "Analysis of emissions reductions attributable to grid battery deployment."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_002",
+    "title": "Pharmaceutical R&D Costs and Drug Pricing",
+    "transcript_text": "The Tufts Center study estimated that developing a novel prescription medication costs over two point six billion dollars. Independent academic reviews by JAMA Internal Medicine found median research and development expenditure for newly approved oncology drugs was approximately six hundred and forty-eight million dollars. Furthermore, nine out of the top ten pharmaceutical manufacturers spent more money on marketing and sales than on clinical research in 2022.",
+    "segments": [
+      {
+        "text": "The Tufts Center study estimated that developing a novel prescription medication costs over two point six billion dollars.",
+        "start": 0.0,
+        "duration": 10.0
+      },
+      {
+        "text": "Independent academic reviews by JAMA Internal Medicine found median research and development expenditure for newly approved oncology drugs was approximately six hundred and forty-eight million dollars.",
+        "start": 10.0,
+        "duration": 12.0
+      },
+      {
+        "text": "Furthermore, nine out of the top ten pharmaceutical manufacturers spent more money on marketing and sales than on clinical research in 2022.",
+        "start": 22.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_002_1",
+        "text": "The Tufts Center estimated that developing a novel prescription medication costs over 2.6 billion dollars.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 10.0,
+        "context": "Evaluating historical baseline estimates for pharmaceutical R&D costs."
+      },
+      {
+        "id": "claim_002_2",
+        "text": "JAMA Internal Medicine found median research and development expenditure for newly approved oncology drugs was approximately 648 million dollars.",
+        "timestamp_start": 10.0,
+        "timestamp_end": 22.0,
+        "context": "Comparing alternative academic econometric findings on cancer drug development costs."
+      },
+      {
+        "id": "claim_002_3",
+        "text": "Nine out of the top ten pharmaceutical manufacturers spent more money on marketing and sales than on clinical research in 2022.",
+        "timestamp_start": 22.0,
+        "timestamp_end": 34.0,
+        "context": "Comparing pharmaceutical operational expenditures between marketing and research."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_003",
+    "title": "Global Electric Vehicle Sales and Lithium Demand",
+    "transcript_text": "Global battery electric vehicle registrations reached fourteen million units in 2023, representing eighteen percent of all light-duty vehicle sales worldwide. Chinese automotive brands accounted for nearly sixty percent of all global electric car sales in 2023. As a consequence, lithium hydroxide spot prices collapsed by eighty percent from their late 2022 highs due to substantial mining oversupply across Australia and South America.",
+    "segments": [
+      {
+        "text": "Global battery electric vehicle registrations reached fourteen million units in 2023, representing eighteen percent of all light-duty vehicle sales worldwide.",
+        "start": 0.0,
+        "duration": 12.0
+      },
+      {
+        "text": "Chinese automotive brands accounted for nearly sixty percent of all global electric car sales in 2023.",
+        "start": 12.0,
+        "duration": 10.0
+      },
+      {
+        "text": "As a consequence, lithium hydroxide spot prices collapsed by eighty percent from their late 2022 highs due to substantial mining oversupply across Australia and South America.",
+        "start": 22.0,
+        "duration": 13.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_003_1",
+        "text": "Global battery electric vehicle registrations reached 14 million units in 2023, representing 18 percent of all light-duty vehicle sales.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 12.0,
+        "context": "Annual international EV sales statistics according to the International Energy Agency."
+      },
+      {
+        "id": "claim_003_2",
+        "text": "Chinese automotive manufacturers accounted for nearly sixty percent of all global electric car sales in 2023.",
+        "timestamp_start": 12.0,
+        "timestamp_end": 22.0,
+        "context": "Market share breakdown of electric vehicle production by region."
+      },
+      {
+        "id": "claim_003_3",
+        "text": "Lithium hydroxide spot prices dropped by eighty percent from their late 2022 peak levels.",
+        "timestamp_start": 22.0,
+        "timestamp_end": 35.0,
+        "context": "Commodity price trends for battery raw materials following mining capacity increases."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_004",
+    "title": "Semiconductor Manufacturing and Export Controls",
+    "transcript_text": "Under the 2022 BIS export control directives, advanced semiconductor logic fabs producing nodes at sixteen or fourteen nanometers FinFET or below are barred from importing American equipment without license. Despite these restrictions, SMIC manufactured seven nanometer processors utilizing existing DUV immersion scanners. Global foundries in Taiwan, South Korea, and the US still produce more than ninety percent of sub-five nanometer advanced chips.",
+    "segments": [
+      {
+        "text": "Under the 2022 BIS export control directives, advanced semiconductor logic fabs producing nodes at sixteen or fourteen nanometers FinFET or below are barred from importing American equipment without license.",
+        "start": 0.0,
+        "duration": 14.0
+      },
+      {
+        "text": "Despite these restrictions, SMIC manufactured seven nanometer processors utilizing existing DUV immersion scanners.",
+        "start": 14.0,
+        "duration": 10.0
+      },
+      {
+        "text": "Global foundries in Taiwan, South Korea, and the US still produce more than ninety percent of sub-five nanometer advanced chips.",
+        "start": 24.0,
+        "duration": 11.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_004_1",
+        "text": "BIS export control rules restrict logic fabs producing chips at 16 or 14 nanometers FinFET or below from importing US equipment without licenses.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 14.0,
+        "context": "US Department of Commerce regulatory boundaries on semiconductor fabrication tools."
+      },
+      {
+        "id": "claim_004_2",
+        "text": "SMIC manufactured seven-nanometer chips using existing DUV immersion photolithography systems.",
+        "timestamp_start": 14.0,
+        "timestamp_end": 24.0,
+        "context": "Assessment of domestic fabrication capabilities in China under export constraints."
+      },
+      {
+        "id": "claim_004_3",
+        "text": "Foundries in Taiwan, South Korea, and the United States manufacture over ninety percent of sub-5 nanometer chips.",
+        "timestamp_start": 24.0,
+        "timestamp_end": 35.0,
+        "context": "Concentration of cutting-edge semiconductor node manufacturing."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_005",
+    "title": "US Federal Debt and Net Interest Outlays",
+    "transcript_text": "The Congressional Budget Office announced that net interest payments on the federal debt surpassed eight hundred and ninety billion dollars in fiscal year 2024. For the first time in modern budgetary history, federal interest payments exceeded the total national defense budget in fiscal year 2024. By 2034, mandatory entitlement spending and debt service are projected to consume seventy-nine cents of every federal tax dollar collected.",
+    "segments": [
+      {
+        "text": "The Congressional Budget Office announced that net interest payments on the federal debt surpassed eight hundred and ninety billion dollars in fiscal year 2024.",
+        "start": 0.0,
+        "duration": 12.0
+      },
+      {
+        "text": "For the first time in modern budgetary history, federal interest payments exceeded the total national defense budget in fiscal year 2024.",
+        "start": 12.0,
+        "duration": 10.0
+      },
+      {
+        "text": "By 2034, mandatory entitlement spending and debt service are projected to consume seventy-nine cents of every federal tax dollar collected.",
+        "start": 22.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_005_1",
+        "text": "Net interest payments on the US federal debt exceeded 890 billion dollars in fiscal year 2024.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 12.0,
+        "context": "CBO budget analysis for fiscal year 2024 debt obligations."
+      },
+      {
+        "id": "claim_005_2",
+        "text": "Federal interest payments on the debt exceeded total annual national defense spending in fiscal year 2024.",
+        "timestamp_start": 12.0,
+        "timestamp_end": 22.0,
+        "context": "Comparative budgetary milestones between defense and sovereign debt interest."
+      },
+      {
+        "id": "claim_005_3",
+        "text": "Mandatory spending and net interest are projected to absorb 79 percent of all federal revenue by 2034.",
+        "timestamp_start": 22.0,
+        "timestamp_end": 34.0,
+        "context": "Ten-year baseline projection of mandatory federal spending allocations."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_006",
+    "title": "SpaceX Starship Reusability and Launch Cadence",
+    "transcript_text": "During Integrated Flight Test 5, the Super Heavy booster achieved a successful mechanical catch on the launch tower chopstick arms at Starbase Boca Chica. The Super Heavy booster stands seventy-one meters tall and is powered by thirty-three Raptor 2 methane-oxygen engines generating over sixteen million pounds of thrust. SpaceX plans to conduct twenty-five orbital flight test missions in 2025.",
+    "segments": [
+      {
+        "text": "During Integrated Flight Test 5, the Super Heavy booster achieved a successful mechanical catch on the launch tower chopstick arms at Starbase Boca Chica.",
+        "start": 0.0,
+        "duration": 12.0
+      },
+      {
+        "text": "The Super Heavy booster stands seventy-one meters tall and is powered by thirty-three Raptor 2 methane-oxygen engines generating over sixteen million pounds of thrust.",
+        "start": 12.0,
+        "duration": 12.0
+      },
+      {
+        "text": "SpaceX plans to conduct twenty-five orbital flight test missions in 2025.",
+        "start": 24.0,
+        "duration": 8.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_006_1",
+        "text": "The Super Heavy booster was successfully caught by mechanical launch tower arms during Flight Test 5.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 12.0,
+        "context": "Engineering achievements during the Starship IFT-5 demonstration."
+      },
+      {
+        "id": "claim_006_2",
+        "text": "The Super Heavy booster is powered by thirty-three Raptor engines delivering over sixteen million pounds of thrust.",
+        "timestamp_start": 12.0,
+        "timestamp_end": 24.0,
+        "context": "Propulsion and mechanical specifications of the Starship first stage."
+      },
+      {
+        "id": "claim_006_3",
+        "text": "SpaceX aims to execute twenty-five Starship orbital test launches during the 2025 calendar year.",
+        "timestamp_start": 24.0,
+        "timestamp_end": 32.0,
+        "context": "Corporate launch cadence targets submitted to the FAA."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_007",
+    "title": "Microplastics in Human Vascular Plaques",
+    "transcript_text": "A clinical study published in the New England Journal of Medicine examined two hundred and fifty-seven patients undergoing surgery for asymptomatic carotid artery disease. Microplastics and nanoplastics, primarily polyethylene and polyvinyl chloride, were detected in the arterial plaque of fifty-eight percent of patients. Patients with detectable plastics had a four-point-five-fold greater risk of stroke, myocardial infarction, or all-cause mortality over a thirty-four month follow-up period.",
+    "segments": [
+      {
+        "text": "A clinical study published in the New England Journal of Medicine examined two hundred and fifty-seven patients undergoing surgery for asymptomatic carotid artery disease.",
+        "start": 0.0,
+        "duration": 11.0
+      },
+      {
+        "text": "Microplastics and nanoplastics, primarily polyethylene and polyvinyl chloride, were detected in the arterial plaque of fifty-eight percent of patients.",
+        "start": 11.0,
+        "duration": 11.0
+      },
+      {
+        "text": "Patients with detectable plastics had a four-point-five-fold greater risk of stroke, myocardial infarction, or all-cause mortality over a thirty-four month follow-up period.",
+        "start": 22.0,
+        "duration": 13.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_007_3",
+        "text": "The NEJM clinical study examined 257 patients undergoing surgery for asymptomatic carotid artery disease.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 11.0,
+        "context": "Patient cohort size in the prospective New England Journal of Medicine microplastics study."
+      },
+      {
+        "id": "claim_007_1",
+        "text": "Microplastics and nanoplastics were found in the carotid artery plaques of 58 percent of surveyed surgical patients.",
+        "timestamp_start": 11.0,
+        "timestamp_end": 22.0,
+        "context": "Findings from the prospective NEJM carotid endarterectomy cohort study."
+      },
+      {
+        "id": "claim_007_2",
+        "text": "Surgical patients with detected arterial microplastics exhibited a 4.5 times higher risk of cardiovascular events or mortality.",
+        "timestamp_start": 22.0,
+        "timestamp_end": 35.0,
+        "context": "Multivariable hazard ratio analysis for adverse cardiovascular outcomes."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_008",
+    "title": "Nuclear Energy: Small Modular Reactor Economics",
+    "transcript_text": "NuScale Power terminated its flagship Carbon Free Power Project in Utah in November 2023 after projected levelized cost of electricity estimates rose from fifty-eight dollars per megawatt-hour to eighty-nine dollars per megawatt-hour. The cost escalation was driven primarily by a fifty-three percent increase in the price of fabricated steel and high interest rate financing.",
+    "segments": [
+      {
+        "text": "NuScale Power terminated its flagship Carbon Free Power Project in Utah in November 2023 after projected levelized cost of electricity estimates rose from fifty-eight dollars per megawatt-hour to eighty-nine dollars per megawatt-hour.",
+        "start": 0.0,
+        "duration": 15.0
+      },
+      {
+        "text": "The cost escalation was driven primarily by a fifty-three percent increase in the price of fabricated steel and high interest rate financing.",
+        "start": 15.0,
+        "duration": 11.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_008_1",
+        "text": "NuScale canceled its Utah Carbon Free Power Project in November 2023 after levelized cost estimates rose from 58 to 89 dollars per megawatt-hour.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 15.0,
+        "context": "Cancellation of the first licensed commercial small modular reactor project in the US."
+      },
+      {
+        "id": "claim_008_3",
+        "text": "The Carbon Free Power Project was located in Utah.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 15.0,
+        "context": "Geographic location of the terminated NuScale modular reactor demonstration site."
+      },
+      {
+        "id": "claim_008_2",
+        "text": "The projected capital cost increase for the SMR project was linked to a 53 percent jump in steel and financing costs.",
+        "timestamp_start": 15.0,
+        "timestamp_end": 26.0,
+        "context": "Cost inflation factors influencing small modular reactor fabrication."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_009",
+    "title": "US Immigration Enforcement and Border Apprehensions",
+    "transcript_text": "U.S. Customs and Border Protection recorded two point four seven million encounters along the southwest land border in fiscal year 2023. Following executive actions enacted in June 2024 that suspended asylum claims during high-volume periods, daily encounters dropped by fifty-five percent within sixty days, falling to the lowest levels recorded since September 2020.",
+    "segments": [
+      {
+        "text": "U.S. Customs and Border Protection recorded two point four seven million encounters along the southwest land border in fiscal year 2023.",
+        "start": 0.0,
+        "duration": 10.0
+      },
+      {
+        "text": "Following executive actions enacted in June 2024 that suspended asylum claims during high-volume periods, daily encounters dropped by fifty-five percent within sixty days, falling to the lowest levels recorded since September 2020.",
+        "start": 10.0,
+        "duration": 14.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_009_1",
+        "text": "US Customs and Border Protection logged 2.47 million southwest border encounters in fiscal year 2023.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 10.0,
+        "context": "Official CBP border encounter statistics for fiscal year 2023."
+      },
+      {
+        "id": "claim_009_2",
+        "text": "Following the June 2024 executive proclamation, southwest border encounters fell by 55 percent within sixty days.",
+        "timestamp_start": 10.0,
+        "timestamp_end": 24.0,
+        "context": "Impact assessment of border policy changes on migration volume."
+      },
+      {
+        "id": "claim_009_3",
+        "text": "Executive actions enacted in June 2024 suspended asylum claims during high-volume periods along the southern border.",
+        "timestamp_start": 10.0,
+        "timestamp_end": 24.0,
+        "context": "Regulatory mechanism of the June 2024 presidential border proclamation."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_010",
+    "title": "Artificial Intelligence Data Center Power Consumption",
+    "transcript_text": "The International Energy Agency projects that global data center electricity consumption will double from four hundred and sixty terawatt-hours in 2022 to more than one thousand terawatt-hours by 2026. In the United States, data centers are forecasted to consume nine percent of total domestic power generation by 2030, driven predominantly by LLM training clusters and continuous inference workloads.",
+    "segments": [
+      {
+        "text": "The International Energy Agency projects that global data center electricity consumption will double from four hundred and sixty terawatt-hours in 2022 to more than one thousand terawatt-hours by 2026.",
+        "start": 0.0,
+        "duration": 12.0
+      },
+      {
+        "text": "In the United States, data centers are forecasted to consume nine percent of total domestic power generation by 2030, driven predominantly by LLM training clusters and continuous inference workloads.",
+        "start": 12.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_010_1",
+        "text": "Global data center power consumption is forecasted by the IEA to exceed 1,000 terawatt-hours by 2026.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 12.0,
+        "context": "IEA Electricity 2024 projections on computing infrastructure energy demand."
+      },
+      {
+        "id": "claim_010_2",
+        "text": "US data centers are projected to account for nine percent of total domestic power generation by 2030.",
+        "timestamp_start": 12.0,
+        "timestamp_end": 24.0,
+        "context": "EPRI study estimates on AI and cloud workload grid demand."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_011",
+    "title": "Child Poverty Rates After the Child Tax Credit Expiration",
+    "transcript_text": "According to Columbia University's Center on Poverty and Social Policy, the expiration of the expanded federal Child Tax Credit in January 2022 caused the monthly child poverty rate to jump from twelve point one percent to seventeen percent in a single month. This policy shift pushed an estimated three point seven million children back below the poverty line.",
+    "segments": [
+      {
+        "text": "According to Columbia University's Center on Poverty and Social Policy, the expiration of the expanded federal Child Tax Credit in January 2022 caused the monthly child poverty rate to jump from twelve point one percent to seventeen percent in a single month.",
+        "start": 0.0,
+        "duration": 14.0
+      },
+      {
+        "text": "This policy shift pushed an estimated three point seven million children back below the poverty line.",
+        "start": 14.0,
+        "duration": 9.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_011_1",
+        "text": "The monthly US child poverty rate increased from 12.1 percent to 17 percent immediately after the expanded Child Tax Credit expired.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 14.0,
+        "context": "Columbia Center on Poverty and Social Policy monthly poverty tracking."
+      },
+      {
+        "id": "claim_011_2",
+        "text": "The expiration of the Child Tax Credit pushed 3.7 million American children into poverty.",
+        "timestamp_start": 14.0,
+        "timestamp_end": 23.0,
+        "context": "Quantifying child poverty demographics following legislative sunset."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_012",
+    "title": "Commercial Real Estate Vacancy and Regional Bank Exposure",
+    "transcript_text": "National office vacancy rates in the United States hit an all-time high of nineteen point eight percent in the first quarter of 2024 according to Moody's Analytics. Small and regional banks with less than two hundred and fifty billion dollars in assets hold sixty-seven percent of all commercial real estate loans outstanding, creating vulnerability to loan refinancings at current interest rates.",
+    "segments": [
+      {
+        "text": "National office vacancy rates in the United States hit an all-time high of nineteen point eight percent in the first quarter of 2024 according to Moody's Analytics.",
+        "start": 0.0,
+        "duration": 11.0
+      },
+      {
+        "text": "Small and regional banks with less than two hundred and fifty billion dollars in assets hold sixty-seven percent of all commercial real estate loans outstanding, creating vulnerability to loan refinancings at current interest rates.",
+        "start": 11.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_012_1",
+        "text": "US national office vacancy rates reached a record 19.8 percent in Q1 2024.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 11.0,
+        "context": "Moody's Analytics commercial real estate vacancy rate report."
+      },
+      {
+        "id": "claim_012_2",
+        "text": "Small and regional banks hold sixty-seven percent of all commercial real estate loans in the US.",
+        "timestamp_start": 11.0,
+        "timestamp_end": 23.0,
+        "context": "Federal Reserve flow of funds and credit exposure across commercial banks."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_013",
+    "title": "Global Warming: Ocean Heat Content and Coral Bleaching",
+    "transcript_text": "NOAA scientists confirmed that global sea surface temperatures broke daily records for four hundred and twenty consecutive days between March 2023 and May 2024. As a result, the National Oceanic and Atmospheric Administration declared the fourth global coral bleaching event on record, affecting more than sixty-five percent of the world's reef areas across fifty-four countries.",
+    "segments": [
+      {
+        "text": "NOAA scientists confirmed that global sea surface temperatures broke daily records for four hundred and twenty consecutive days between March 2023 and May 2024.",
+        "start": 0.0,
+        "duration": 12.0
+      },
+      {
+        "text": "As a result, the National Oceanic and Atmospheric Administration declared the fourth global coral bleaching event on record, affecting more than sixty-five percent of the world's reef areas across fifty-four countries.",
+        "start": 12.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_013_1",
+        "text": "Global sea surface temperatures established daily records for 420 consecutive days from March 2023 to May 2024.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 12.0,
+        "context": "NOAA and Copernicus marine temperature anomaly dataset."
+      },
+      {
+        "id": "claim_013_2",
+        "text": "NOAA declared the fourth global coral bleaching event, with over sixty-five percent of reef areas experiencing bleaching stress.",
+        "timestamp_start": 12.0,
+        "timestamp_end": 24.0,
+        "context": "Coral Reef Watch satellite monitoring and global bleaching status."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_014",
+    "title": "Aviation Safety: Boeing 737 MAX Incident Investigation",
+    "transcript_text": "The National Transportation Safety Board's preliminary report on the Alaska Airlines Flight 1282 blowout determined that four retaining bolts required to secure the mid-cabin door plug were missing before the aircraft departed Boeing's Renton facility. Subsequent Federal Aviation Administration audits discovered multiple non-compliance issues in Spirit AeroSystems' fuselage manufacturing processes.",
+    "segments": [
+      {
+        "text": "The National Transportation Safety Board's preliminary report on the Alaska Airlines Flight 1282 blowout determined that four retaining bolts required to secure the mid-cabin door plug were missing before the aircraft departed Boeing's Renton facility.",
+        "start": 0.0,
+        "duration": 14.0
+      },
+      {
+        "text": "Subsequent Federal Aviation Administration audits discovered multiple non-compliance issues in Spirit AeroSystems' fuselage manufacturing processes.",
+        "start": 14.0,
+        "duration": 10.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_014_1",
+        "text": "Four retaining bolts securing the door plug were missing when Alaska Flight 1282 departed the factory.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 14.0,
+        "context": "NTSB preliminary investigation report on the Boeing 737 MAX 9 door plug detachment."
+      },
+      {
+        "id": "claim_014_2",
+        "text": "The FAA audit found quality control non-compliance at Spirit AeroSystems' fuselage assembly lines.",
+        "timestamp_start": 14.0,
+        "timestamp_end": 24.0,
+        "context": "FAA regulatory inspection findings following the Alaska Airlines incident."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_015",
+    "title": "Weight Loss Therapeutics: GLP-1 Receptor Agonists",
+    "transcript_text": "Results from the STEP 1 trial demonstrated that semaglutide administered at 2.4 mg weekly produced a mean weight reduction of fourteen point nine percent over sixty-eight weeks, compared to two point four percent in the placebo group. In the SELECT cardiovascular outcomes trial, semaglutide reduced the composite incidence of major adverse cardiovascular events by twenty percent in overweight adults with established cardiovascular disease.",
+    "segments": [
+      {
+        "text": "Results from the STEP 1 trial demonstrated that semaglutide administered at 2.4 mg weekly produced a mean weight reduction of fourteen point nine percent over sixty-eight weeks, compared to two point four percent in the placebo group.",
+        "start": 0.0,
+        "duration": 14.0
+      },
+      {
+        "text": "In the SELECT cardiovascular outcomes trial, semaglutide reduced the composite incidence of major adverse cardiovascular events by twenty percent in overweight adults with established cardiovascular disease.",
+        "start": 14.0,
+        "duration": 12.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_015_1",
+        "text": "The STEP 1 trial showed weekly semaglutide 2.4 mg achieved 14.9 percent mean body weight loss over 68 weeks.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 14.0,
+        "context": "Primary endpoint efficacy results published in the New England Journal of Medicine."
+      },
+      {
+        "id": "claim_015_2",
+        "text": "The SELECT trial showed semaglutide lowered major adverse cardiovascular events by twenty percent in overweight adults.",
+        "timestamp_start": 14.0,
+        "timestamp_end": 26.0,
+        "context": "Cardiovascular risk reduction outcomes in non-diabetic patients."
+      }
+    ]
+  },
+  {
+    "video_id": "vid_ce_016",
+    "title": "Quantum Computing Milestones and Error Correction",
+    "transcript_text": "Researchers at Google Quantum AI demonstrated that expanding surface code distance from distance-3 to distance-5 reduced quantum logical error rates from two point nine percent to one point four percent per cycle. This represented the first physical demonstration where adding physical qubits improved rather than degraded logical qubit fidelity. The Sycamore superconducting processor utilized seventy-two physical qubits for the experiment.",
+    "segments": [
+      {
+        "text": "Researchers at Google Quantum AI demonstrated that expanding surface code distance from distance-3 to distance-5 reduced quantum logical error rates from two point nine percent to one point four percent per cycle.",
+        "start": 0.0,
+        "duration": 13.0
+      },
+      {
+        "text": "This represented the first physical demonstration where adding physical qubits improved rather than degraded logical qubit fidelity.",
+        "start": 13.0,
+        "duration": 9.0
+      },
+      {
+        "text": "The Sycamore superconducting processor utilized seventy-two physical qubits for the experiment.",
+        "start": 22.0,
+        "duration": 8.0
+      }
+    ],
+    "gold_claims": [
+      {
+        "id": "claim_016_1",
+        "text": "Scaling surface code distance from d=3 to d=5 reduced logical quantum error rates from 2.9 percent to 1.4 percent per cycle.",
+        "timestamp_start": 0.0,
+        "timestamp_end": 13.0,
+        "context": "Google Quantum AI quantum error correction results published in Nature."
+      },
+      {
+        "id": "claim_016_2",
+        "text": "The experiment demonstrated for the first time that adding physical qubits suppressed logical error rates below threshold.",
+        "timestamp_start": 13.0,
+        "timestamp_end": 22.0,
+        "context": "Fault-tolerant quantum computing threshold milestone."
+      },
+      {
+        "id": "claim_016_3",
+        "text": "The Sycamore superconducting quantum processor utilized seventy-two physical qubits for the surface code experiment.",
+        "timestamp_start": 22.0,
+        "timestamp_end": 30.0,
+        "context": "Hardware architecture specifications of the Sycamore processor array."
+      }
+    ]
+  }
+]

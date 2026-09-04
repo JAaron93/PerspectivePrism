@@ -5,32 +5,32 @@
 > [!TIP]
 > **PARALLEL EXECUTION**: Tasks in Track 1 define data contracts, manifests, and test corpora. They can be created in parallel with Track 2 (Security Sanitization) and Track 3 (Telemetry Infrastructure).
 
-- [ ] **T1.1: Verify & Lock Evaluation Dependencies in Manifests**
+- [x] **T1.1: Verify & Lock Evaluation Dependencies in Manifests**
   - **Description**: Verify `backend/requirements.txt` and `backend/pyproject.toml` explicitly declare all required evaluation packages (`google-adk>=2.4.0`, `google-genai>=2.9.0`, `pydantic>=2.13.0`, `opentelemetry-api>=1.20.0`, `opentelemetry-sdk>=1.20.0`). Add `tabulate>=0.9.0` for console reporting without unapproved external SDKs.
   - **Dependencies**: None
   - **Traceability**: NFR1, Zero-Drift Invariant
 
-- [ ] **T1.2: Author Pre-Classifier Golden Dataset**
+- [x] **T1.2: Author Pre-Classifier Golden Dataset**
   - **Description**: Create `backend/app/evals/datasets/pre_classifier_golden.json` containing minimum 30 diverse test cases with metadata, transcript previews, and annotated target eligibility (`is_analysable`, `expected_category`) targeting `PreClassifierService`. Include edge cases for political satire, political AMVs with debate audio, technical documentaries, and mechanical gaming speedruns.
   - **Dependencies**: None
   - **Traceability**: FR1, US1, NFR3
 
-- [ ] **T1.3: Author Claim Extractor Golden Dataset**
+- [x] **T1.3: Author Claim Extractor Golden Dataset**
   - **Description**: Create `backend/app/evals/datasets/claim_extractor_golden.json` containing 15 full video transcript segments and corresponding gold-standard claims with start/end timestamps and qualifying context.
   - **Dependencies**: None
   - **Traceability**: FR2, US1, NFR3
 
-- [ ] **T1.4: Author Perspective Stance Golden Dataset**
+- [x] **T1.4: Author Perspective Stance Golden Dataset**
   - **Description**: Create `backend/app/evals/datasets/perspective_stance_golden.json` containing 40 test cases across the 4 perspectives (Scientific, Journalistic, Partisan Left, Partisan Right) with claims, frozen search snippets, gold stances (`SUPPORTS`, `REFUTES`, `AMBIGUOUS`), and hallucination bait annotations.
   - **Dependencies**: None
   - **Traceability**: FR3, US2, NFR3
 
-- [ ] **T1.5: Author Bias & Deception Golden Dataset**
+- [x] **T1.5: Author Bias & Deception Golden Dataset**
   - **Description**: Create `backend/app/evals/datasets/bias_deception_golden.json` containing 25 annotated claims with gold standard deception ratings ($0.0$ to $10.0$), framing bias indicators, and omission annotations.
   - **Dependencies**: None
   - **Traceability**: FR4, NFR3
 
-- [ ] **T1.6: Author Alethiology Epistemic Golden Dataset**
+- [x] **T1.6: Author Alethiology Epistemic Golden Dataset**
   - **Description**: Create `backend/app/evals/datasets/alethiology_golden.json` containing 30 philosophical and rhetorical excerpts evenly distributed across all 6 canonical truth theories (Correspondence, Coherence, Pragmatic, Perspectivism, Consensus, Deflationary).
   - **Dependencies**: None
   - **Traceability**: FR5, US3, NFR3
