@@ -18,6 +18,10 @@ This document defines repository-wide test execution standards, test fixture dis
   - **By-Design Zero-Caption Edge Cases**: If a review comment flags that captionless media with non-political metadata bypasses LLM calibration, treat it as by-design: transcript-based analysis cannot run without text or audio, and the user-facing `[⚡ Analyze Anyway]` (Force Override) button is the designated architectural mechanism for manual bypass.
 * **ADK Agent Generation Config Verification**:
   - Any test verifying an ADK 2.0 `Agent` instance must assert that `agent.generate_content_config` is present, `thinking_level` conforms to the task routing standard (`HIGH` for analytical agents, `LOW` for routers), and `max_output_tokens` meets ceiling requirements (65,536 for analytical, 2,048 for routers). Never allow untested bare `Agent(...)` instantiations in services or test fixtures.
+* **Multi-Worktree Virtual Environment Shebang Hygiene**:
+  - When copying or rsyncing a virtual environment `bin/` directory between git worktrees to optimize dependency installation, script entrypoints (`pytest`, `maturin`, `pip`, `uvicorn`) retain hardcoded absolute shebang paths pointing to the source worktree.
+  - Running `pytest` directly will silently invoke the source worktree's Python interpreter and site-packages, ignoring locally compiled native extensions in the current worktree.
+  - Always execute test suites via `python -m pytest` or rewrite shebang lines in `backend/venv/bin/*` to point to the current worktree's local virtual environment binary.
 
 ---
 

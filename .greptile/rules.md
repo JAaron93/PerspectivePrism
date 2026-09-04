@@ -78,6 +78,13 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * **All user-supplied inputs must pass through `app/utils/input_sanitizer.py` before being forwarded to any LLM model** — no exceptions.
   * Input sanitization is accelerated by the compiled PyO3 Rust extension (`prism_sanitizer_rs`, ADR 001). Flag any execution path or helper that bypasses sanitization.
   * Inspect `input_sanitizer.py` strictly for prompt injection vectors, Unicode edge cases, encoding tricks, or weakening of sanitization rules.
+* **Native Rust Sanitizer Parity & Boundary Limits (ADR 006)**:
+  * Flag any PR modifying `prism_sanitizer_rs` or `input_sanitizer.py` that causes the compiled Rust extension and pure-Python fallback to diverge.
+  * Boundary behavior for `max_length` must be strictly identical:
+    1. Negative `max_length` must raise `SanitizationError` in both runtimes.
+    2. `max_length == 0` must return an empty string.
+    3. `0 < max_length < 3` must truncate directly without appending `"..."`.
+    4. `max_length >= 3` must truncate to `max_length - 3`, strip odd trailing backslashes, and append `"..."`.
 * **Pre-Classification Guardrail Invariants**:
   * All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST be sanitized through `input_sanitizer.py` before being passed to `PreClassifierService` or any LLM agent.
   * Deterministic fast-path zero-token early exits MUST verify that the transcript is absent, the category is non-analytical (`Music`, `Gaming`), AND metadata contains no socio-political keywords.
