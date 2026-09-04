@@ -15,6 +15,12 @@ from youtube_transcript_api._errors import (
 )
 from google.adk.agents import Agent
 
+try:
+    from prism_sanitizer_rs import format_and_sanitize_transcript
+    HAS_RUST_TRANSCRIPT_PROCESSOR = True
+except ImportError:
+    HAS_RUST_TRANSCRIPT_PROCESSOR = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,25 +113,29 @@ class ClaimExtractor:
         Extracts claims from the transcript using an LLM.
         Scans the transcript to identify meaningful claims.
         """
-        formatted_transcript = ""
-        for seg in transcript.segments:
-            minutes = int(seg.start // 60)
-            seconds = int(seg.start % 60)
-            timestamp = f"[{minutes:02d}:{seconds:02d}]"
-            formatted_transcript += f"{timestamp} {seg.text}\n"
-
-        # Increase limit for Gemini context caching (larger context windows)
-        if len(formatted_transcript) > 100000:
-            formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
-
         try:
-            sanitized_transcript = sanitize_input(
-                formatted_transcript,
-                max_length=100000,
-                field_name="Transcript",
-                allow_suspicious_patterns=False,
-                allow_control_chars=False
-            )
+            if HAS_RUST_TRANSCRIPT_PROCESSOR:
+                segments_data = [(float(seg.start), str(seg.text)) for seg in transcript.segments]
+                sanitized_transcript = format_and_sanitize_transcript(segments_data, max_length=100000)
+            else:
+                formatted_transcript = ""
+                for seg in transcript.segments:
+                    minutes = int(seg.start // 60)
+                    seconds = int(seg.start % 60)
+                    timestamp = f"[{minutes:02d}:{seconds:02d}]"
+                    formatted_transcript += f"{timestamp} {seg.text}\n"
+
+                # Increase limit for Gemini context caching (larger context windows)
+                if len(formatted_transcript) > 100000:
+                    formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
+
+                sanitized_transcript = sanitize_input(
+                    formatted_transcript,
+                    max_length=100000,
+                    field_name="Transcript",
+                    allow_suspicious_patterns=False,
+                    allow_control_chars=False
+                )
         except SanitizationError as e:
             logger.error(f"Sanitization error in claim extraction: {e!s}")
             return [

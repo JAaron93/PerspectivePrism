@@ -56,6 +56,24 @@ _KEYWORD_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+try:
+    from prism_sanitizer_rs import contains_political_keywords
+    HAS_RUST_CLASSIFIER = True
+except ImportError:
+    HAS_RUST_CLASSIFIER = False
+
+
+def check_political_keywords(text: Optional[str]) -> bool:
+    """
+    Scans text for political / socio-economic keywords using native Aho-Corasick
+    when available, falling back to regex search with NFKC normalization.
+    """
+    if not text:
+        return False
+    if HAS_RUST_CLASSIFIER:
+        return contains_political_keywords(text)
+    return bool(_KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", text)))
+
 
 def evaluate_deterministic_fast_path(
     category_name: Optional[str],
@@ -79,17 +97,17 @@ def evaluate_deterministic_fast_path(
     if cat_norm not in {"music", "gaming"}:
         return None
 
-    # 3. Check metadata for political / socio-economic keywords using NFKC normalization
+    # 3. Check metadata for political / socio-economic keywords
     if metadata:
-        if metadata.title and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.title)):
+        if check_political_keywords(metadata.title):
             return None
-        if metadata.channel_name and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.channel_name)):
+        if check_political_keywords(metadata.channel_name):
             return None
         if metadata.tags:
             for tag in metadata.tags:
-                if tag and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", tag)):
+                if check_political_keywords(tag):
                     return None
-        if metadata.description_snippet and _KEYWORD_PATTERN.search(unicodedata.normalize("NFKC", metadata.description_snippet)):
+        if check_political_keywords(metadata.description_snippet):
             return None
 
     category_label = "Music / Non-Speech Media" if cat_norm == "music" else "Gaming / Non-Speech Media"
