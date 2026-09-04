@@ -85,6 +85,12 @@ This rulebook defines the core architectural invariants, security boundaries, an
     2. `max_length == 0` must return an empty string.
     3. `0 < max_length < 3` must truncate directly without appending `"..."`.
     4. `max_length >= 3` must truncate to `max_length - 3`, strip odd trailing backslashes, and append `"..."`.
+* **Native Keyword Matching & Aho-Corasick Parity (ADR 006)**:
+  * Flag any PR implementing native keyword filtering that uses `MatchKind::LeftmostLongest` or non-overlapping iteration (`find_iter`) where nested candidates could be hidden by boundary-invalid outer matches. Automata must use `MatchKind::Standard` and `find_overlapping_iter()`.
+  * Verify that Rust keyword matchers apply NFKC normalization and explicitly fold Python `re.IGNORECASE` non-ASCII variants (`\u{017F}` $\to$ `'s'`, `\u{0130}`/`\u{0131}` $\to$ `'i'`, `\u{212A}` $\to$ `'k'`) to prevent native false negatives on captionless video metadata.
+* **Native Transcript Processing & Bounded Truncation Parity (ADR 006)**:
+  * Flag any PR where transcript formatting or sanitization diverges between native Rust and Python fallback implementations.
+  * Fallback transcript processing must escape segments prior to truncation, truncate at `max_length - 19`, strip odd trailing backslashes, and append `\n...[TRUNCATED]...` to ensure byte-for-byte prompt parity with the native Rust engine.
 * **Pre-Classification Guardrail Invariants**:
   * All client-extracted video metadata (`title`, `channel_name`, `tags`, `description_snippet`) MUST be sanitized through `input_sanitizer.py` before being passed to `PreClassifierService` or any LLM agent.
   * Deterministic fast-path zero-token early exits MUST verify that the transcript is absent, the category is non-analytical (`Music`, `Gaming`), AND metadata contains no socio-political keywords.
