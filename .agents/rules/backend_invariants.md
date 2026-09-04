@@ -42,6 +42,14 @@ This document defines the implementation guidelines, security invariants, testin
     ```
 * **Structured Output Scope**:
   - Pydantic `output_schema` or `response_schema` enforcement applies to model calls returning application business data (claim extraction, perspective & bias analyses). Utility operations (`count_tokens`, health probes) are exempt.
+* **PyO3 Linker Safety & Native Test Harness (ADR 006)**:
+  - In `Cargo.toml`, feature-gate PyO3's extension module: `crate-type = ["cdylib", "rlib"]`, `default = ["extension-module"]`, and `extension-module = ["pyo3/extension-module"]`.
+  - Native Rust unit tests MUST run cleanly with `cargo test --no-default-features`.
+  - Any Rust unit test instantiating or inspecting `PyResult` / `PyErr` objects MUST call `Python::initialize();` at the start of the test block to prevent uninitialized interpreter panics during standalone testing.
+  - Custom exceptions declared with `pyo3::create_exception!` inside `#[pymodule] mod <name>` MUST be registered in `#[pymodule_init]` exporting both the canonical name (e.g. `SanitizationError`) and the Py-prefixed name (`PySanitizationError`).
+* **Sanitizer Boundary Limit & Fallback Parity**:
+  - `sanitize_input()` MUST explicitly validate that `isinstance(max_length, int) and max_length >= 0`, raising `SanitizationError(f"{field_name} max_length must be non-negative")` prior to FFI crossing to prevent PyO3 unsigned conversion `TypeError`s.
+  - Both native Rust and Python fallback implementations MUST handle boundary lengths `< 3` identically: return `""` when `max_length == 0`, and slice `text[:max_length]` directly without ellipsis when `0 < max_length < 3`. Ellipsis truncation (`max_length - 3` + `"..."`) applies strictly when `max_length >= 3`.
 
 ---
 
