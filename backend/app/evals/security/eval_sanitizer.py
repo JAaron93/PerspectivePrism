@@ -28,8 +28,8 @@ DELIMITER_REGEX = re.compile(
 
 # Imperative scoring directives attempting to force judge verdicts
 SCORING_DIRECTIVE_REGEX = re.compile(
-    r"\b(assign|give|set|rate|award|score|force|yield|return)\b.*?\b(maximum|highest|perfect|5|10|top|best)\b",
-    re.IGNORECASE | re.DOTALL,
+    r"\b(assign|give|set|rate|award|score|force|yield|return)\b[^.!?\n]{0,50}?\b(maximum|highest|perfect|5|10|top|best)\b",
+    re.IGNORECASE,
 )
 
 

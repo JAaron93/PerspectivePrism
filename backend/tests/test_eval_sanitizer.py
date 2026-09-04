@@ -96,6 +96,33 @@ class TestNeutralizeScoringDirectives:
         assert "won 5 out of 10 districts" in cleaned
         assert "maximum temperature of 35 degrees" in cleaned
 
+    def test_does_not_redact_across_sentence_or_newline_boundaries(self):
+        """Ensure directive matching does not span sentence or newline boundaries to destroy evidence."""
+        multi_sentence_evidence = (
+            "The authors sought to give context to solar adoption trends. "
+            "In 2023, 10 distinct jurisdictions established clean energy standards. "
+            "The state department will set regulatory frameworks next quarter. "
+            "A panel of 5 experts confirmed the findings. "
+            "Investors anticipated a high financial return on infrastructure investments. "
+            "The facility reached a maximum recorded output during peak summer hours."
+        )
+        cleaned = neutralize_scoring_directives(multi_sentence_evidence)
+        assert "[REDACTED_SCORING_DIRECTIVE]" not in cleaned
+        assert "give context to solar adoption trends." in cleaned
+        assert "In 2023, 10 distinct jurisdictions" in cleaned
+        assert "set regulatory frameworks next quarter." in cleaned
+        assert "A panel of 5 experts confirmed" in cleaned
+        assert "return on infrastructure investments." in cleaned
+        assert "maximum recorded output" in cleaned
+
+        newline_evidence = (
+            "We aim to give complete transparency.\n"
+            "10 independent audits were completed."
+        )
+        cleaned_newline = neutralize_scoring_directives(newline_evidence)
+        assert "[REDACTED_SCORING_DIRECTIVE]" not in cleaned_newline
+        assert "give complete transparency.\n10 independent audits" in cleaned_newline
+
 
 class TestXmlSandboxEscaping:
     """Unit tests for XML container escaping to prevent sandbox breakout (FR14)."""
