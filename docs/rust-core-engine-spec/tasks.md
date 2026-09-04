@@ -39,7 +39,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
   - `Cargo.toml` includes `unicode-normalization = "0.1.24"` and `aho-corasick = "1.1.3"`.
   - `default = ["extension-module"]` is declared.
   - `cargo check --no-default-features` passes.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 1.2: Native Rust Test Harness Setup
 - **Description**: Establish the native unit testing module inside `backend/prism_sanitizer_rs/src/lib.rs` configured to run with `cargo test --no-default-features`.
@@ -47,7 +47,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 1.1
 - **Acceptance Criteria**:
   - Existing Rust tests (`test_contains_control_characters`, `test_contains_suspicious_patterns`, `test_escape_special_characters`) execute and pass under `cargo test --no-default-features`.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ---
 
@@ -62,7 +62,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Track 1
 - **Acceptance Criteria**:
   - Failing unit tests written in `backend/prism_sanitizer_rs/src/lib.rs`.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 2.2: Implement `sanitize_input` and Truncation in Rust
 - **Description**: Implement `sanitize_input` in Rust using `unicode_normalization`, byte-level control checks, Aho-Corasick pattern matching, single-pass escaping, and backslash-safe truncation.
@@ -70,7 +70,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 2.1
 - **Acceptance Criteria**:
   - All unit tests in Task 2.1 pass via `cargo test --no-default-features`.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 2.3: Export `PySanitizationError` in PyO3 Module
 - **Description**: Declare a custom exception `PySanitizationError` inheriting from `PyValueError` in PyO3 and bind it to the Python module export.
@@ -79,7 +79,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Acceptance Criteria**:
   - Python can import `SanitizationError` from `prism_sanitizer_rs`.
   - Raising `PySanitizationError` in Rust is caught as `SanitizationError` / `ValueError` in Python.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 2.4: Update `app/utils/input_sanitizer.py` to Use Unified Rust Sanitizer
 - **Description**: Update `sanitize_input()` in `backend/app/utils/input_sanitizer.py` to call `prism_sanitizer_rs.sanitize_input()` in a single FFI crossing, handling `field_name` formatting and maintaining pure-Python fallback.
@@ -87,7 +87,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 2.3
 - **Acceptance Criteria**:
   - Python test suite `pytest tests/test_schemas_and_sanitizer.py tests/test_input_sanitizer.py tests/test_dry_spec_helpers.py` passes 100% green.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ---
 

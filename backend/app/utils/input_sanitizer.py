@@ -42,21 +42,37 @@ SUSPICIOUS_PATTERNS = [
     r'act\s+as\s+a',
 ]
 
-import prism_sanitizer_rs
+try:
+    import prism_sanitizer_rs
+    from prism_sanitizer_rs import SanitizationError, PySanitizationError
+    HAS_RUST_SANITIZER = True
+except ImportError:
+    HAS_RUST_SANITIZER = False
 
-class SanitizationError(ValueError):
-    """Raised when input fails sanitization checks."""
-    pass
+    class SanitizationError(ValueError):
+        """Raised when input fails sanitization checks."""
+        pass
+
+    PySanitizationError = SanitizationError
 
 
 def contains_control_characters(text: str) -> bool:
     """Check if text contains control characters (except common whitespace)."""
-    return prism_sanitizer_rs.contains_control_characters(text)
+    if HAS_RUST_SANITIZER:
+        return prism_sanitizer_rs.contains_control_characters(text)
+    for char in text:
+        if char in ('\t', '\n', '\r'):
+            continue
+        if unicodedata.category(char).startswith('C'):
+            return True
+    return False
 
 
 def contains_suspicious_patterns(text: str) -> bool:
     """Check if text contains patterns commonly used in injection attacks."""
-    return prism_sanitizer_rs.contains_suspicious_patterns(text)
+    if HAS_RUST_SANITIZER:
+        return prism_sanitizer_rs.contains_suspicious_patterns(text)
+    return any(re.search(pat, text, re.IGNORECASE) for pat in SUSPICIOUS_PATTERNS)
 
 
 def escape_special_characters(text: str) -> str:
@@ -66,7 +82,15 @@ def escape_special_characters(text: str) -> str:
     This escapes quotes and other characters while preserving readability.
     Newlines are normalized rather than escaped to maintain text flow.
     """
-    return prism_sanitizer_rs.escape_special_characters(text)
+    if HAS_RUST_SANITIZER:
+        return prism_sanitizer_rs.escape_special_characters(text)
+    text = text.replace("\r\n", "\n").replace('\r', "\n")
+    text = text.replace('\\', "\\\\")
+    text = text.replace('"', "\\\"")
+    text = text.replace('\'', "\\'")
+    text = text.replace('{', "\\{")
+    text = text.replace('}', "\\}")
+    return text
 
 
 
@@ -126,7 +150,30 @@ def sanitize_input(
     if not isinstance(text, str):
         raise SanitizationError(f"{field_name} must be a string")
     
-    # Strip leading/trailing whitespace and apply NFKC normalization
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.sanitize_input(
+                text,
+                max_length,
+                allow_suspicious_patterns,
+                allow_control_chars,
+            )
+        except (SanitizationError, ValueError) as e:
+            err_msg = str(e)
+            if "cannot be empty" in err_msg:
+                raise SanitizationError(f"{field_name} cannot be empty") from None
+            elif "contains invalid control characters" in err_msg:
+                raise SanitizationError(f"{field_name} contains invalid control characters") from None
+            elif "suspicious patterns" in err_msg or "prompt injection" in err_msg:
+                raise SanitizationError(
+                    f"{field_name} contains patterns that may indicate a prompt injection attempt"
+                ) from None
+            else:
+                if err_msg.startswith("input "):
+                    err_msg = f"{field_name} " + err_msg[6:]
+                raise SanitizationError(err_msg) from None
+
+    # Fallback to pure-Python implementation
     text = text.strip()
     text = unicodedata.normalize("NFKC", text)
     
