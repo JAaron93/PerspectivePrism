@@ -364,10 +364,23 @@ def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = N
         except Exception:
             pass
 
-    if not nonce:
+    if nonce is None:
         nonce = secrets.token_hex(4)
-    start_delim = f"==={label} {nonce} START==="
-    end_delim = f"==={label} {nonce} END==="
+
+    if contains_delimiter_forgery(data, nonce):
+        if nonce == "":
+            needle = f"==={label} END==="
+            data = data.replace(needle, f"==={label} [NEUTRALIZED] END===")
+        else:
+            needle = f"==={label} {nonce} END==="
+            data = data.replace(needle, f"==={label} {nonce} [NEUTRALIZED] END===")
+
+    if nonce == "":
+        start_delim = f"==={label} START==="
+        end_delim = f"==={label} END==="
+    else:
+        start_delim = f"==={label} {nonce} START==="
+        end_delim = f"==={label} {nonce} END==="
     return f"{start_delim}\n{data}\n{end_delim}"
 
 

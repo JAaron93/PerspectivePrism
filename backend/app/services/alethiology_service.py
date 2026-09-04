@@ -20,7 +20,10 @@ from app.utils.llm_utils import (
     execute_agent_with_circuit_breaker,
     build_agent_generation_config,
 )
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    contains_delimiter_forgery,
+)
 from google.adk.agents import Agent
 from google.genai import errors
 
@@ -245,8 +248,12 @@ class AlethiologyService:
             )
             return None
 
+        alethiology_data = f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}"
+        if contains_delimiter_forgery(alethiology_data):
+            logger.warning("Delimiter forgery detected in alethiology input; isolating via dynamic prompt nonce guard")
+
         user_prompt = build_user_data_prompt(
-            f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}",
+            alethiology_data,
             "Please determine the underlying theory of truth the speaker operates on and output valid JSON matching the schema."
         )
 

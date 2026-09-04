@@ -98,6 +98,13 @@ def build_user_data_prompt(
 
     start_delim, end_delim = get_user_data_delimiters(nonce=nonce)
 
+    if contains_delimiter_forgery(content_block, nonce):
+        if nonce == "":
+            content_block = content_block.replace("===USER DATA END===", "===USER DATA [NEUTRALIZED] END===")
+        elif nonce is not None:
+            needle = f"===USER DATA {nonce} END==="
+            content_block = content_block.replace(needle, f"===USER DATA {nonce} [NEUTRALIZED] END===")
+
     return (
         f"{start_delim}\n"
         f"{content_block}\n"

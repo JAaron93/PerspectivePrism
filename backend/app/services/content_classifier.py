@@ -24,6 +24,7 @@ from app.utils.llm_utils import (
 from app.utils.prompt_helpers import (
     build_user_data_prompt,
     format_classifier_user_data,
+    contains_delimiter_forgery,
 )
 from google.adk.agents import Agent
 from google.genai import errors
@@ -368,8 +369,12 @@ class PreClassifierService:
             )
 
         # 3. Build Prompt with Static Instructions & Nonce Delimiters
+        classifier_data = format_classifier_user_data(metadata_clean, clean_preview)
+        if contains_delimiter_forgery(classifier_data):
+            logger.warning("Delimiter forgery detected in classifier user data; isolating via dynamic prompt nonce guard")
+
         user_prompt = build_user_data_prompt(
-            format_classifier_user_data(metadata_clean, clean_preview),
+            classifier_data,
             "Please determine if this video is eligible for claim and bias analysis according to the instructions and schema."
         )
 

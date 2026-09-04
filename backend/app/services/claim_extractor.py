@@ -14,7 +14,10 @@ from app.utils.input_sanitizer import (
 )
 from app.utils.video_utils import extract_video_id
 from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    contains_delimiter_forgery,
+)
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     TranscriptsDisabled,
@@ -187,6 +190,9 @@ class ClaimExtractor:
                     }
                 )
             ]
+
+        if contains_delimiter_forgery(sanitized_transcript):
+            logger.warning("Delimiter forgery detected in transcript; isolating via dynamic prompt nonce guard")
 
         user_prompt = build_user_data_prompt(
             sanitized_transcript,
