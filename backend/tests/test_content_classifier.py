@@ -406,6 +406,8 @@ async def test_pre_classifier_half_open_probe_ownership(pre_classifier_service):
     ("Gaming Stream Ｅｌｅｃｔｉｏｎ ２０２４ Discussion", True),
     ("Debate with ſenator on tax reform", True),
     ("ſenator", True),
+    ("Discussing Politİcs", True),
+    ("Politıcs in modern media", True),
     ("", False),
 ])
 def test_political_keywords_rust_and_fallback_parity(sample, expected):

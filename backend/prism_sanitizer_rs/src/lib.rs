@@ -196,12 +196,23 @@ mod prism_sanitizer_rs {
             false
         };
 
-        // Apply NFKC normalization followed by Unicode to_lowercase folding
-        // to guarantee full parity with Python's Unicode-aware re.IGNORECASE
+        // Apply NFKC normalization and Python re.IGNORECASE Unicode case folding.
+        // In Python's re.IGNORECASE, the non-ASCII codepoints matching ASCII keywords are:
+        // - 'İ' (\u{0130}) and 'ı' (\u{0131}) -> 'i' (e.g. "Politİcs", "Politıcs")
+        // - 'ſ' (\u{017F}, long s) -> 's' (e.g. "ſenator")
+        // - 'K' (\u{212A}, Kelvin sign) -> 'k'
         let normalized: String = if text.is_ascii() {
             text.to_ascii_lowercase()
         } else {
-            text.nfkc().collect::<String>().to_lowercase()
+            text.nfkc()
+                .map(|c| match c {
+                    '\u{0130}' | '\u{0131}' => 'i',
+                    '\u{017F}' => 's',
+                    '\u{212A}' => 'k',
+                    other => other,
+                })
+                .collect::<String>()
+                .to_lowercase()
         };
         search(&normalized)
     }
@@ -461,6 +472,9 @@ mod prism_sanitizer_rs {
             // Unicode case variant (Latin small letter long s 'ſ') matches 'senator'
             assert!(contains_political_keywords("Debate with ſenator on tax reform"));
             assert!(contains_political_keywords("ſenator"));
+            // Unicode dotted / dotless I case variants match 'politics'
+            assert!(contains_political_keywords("Discussing Politİcs"));
+            assert!(contains_political_keywords("Politıcs in modern media"));
         }
 
         #[test]
