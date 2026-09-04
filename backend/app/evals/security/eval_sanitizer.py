@@ -27,8 +27,28 @@ DELIMITER_REGEX = re.compile(
 )
 
 # Imperative scoring directives attempting to force judge verdicts
+_EVAL_VERBS = r"(?:assign|give|set|rate|award|score|force|yield|return|override)"
+_EVAL_NOUNS = r"(?:score|scores|rating|ratings|grade|grades|verdict|verdicts|evaluation|eval|rubric|points?|marks?|stars?)"
+_SCORE_VALUES = r"(?:maximum|highest|perfect|top|best|full|(?:[1-9]|10)(?:\s*/\s*(?:[1-9]|10))?)"
+
+# 1. Verb + Evaluation Noun + Score Value (or Score Value + Evaluation Noun)
+_PATTERN_VERB_NOUN_VALUE = (
+    rf"\b{_EVAL_VERBS}\b[^.!?\n]{{0,35}}?(?:"
+    rf"\b{_EVAL_NOUNS}\b[^.!?\n]{{0,25}}?\b{_SCORE_VALUES}\b|"
+    rf"\b{_SCORE_VALUES}\b[^.!?\n]{{0,25}}?\b{_EVAL_NOUNS}\b(?:\s+\b{_EVAL_NOUNS}\b)?"
+    rf")"
+)
+# 2. Verb + Explicit Ratio/Fractional Score (e.g. 5/5, 10/10, 5 out of 5)
+_PATTERN_VERB_RATIO = (
+    rf"\b{_EVAL_VERBS}\b[^.!?\n]{{0,35}}?\b(?:[1-9]|10)\s*(?:/|\bout\s+of\b)\s*(?:[1-9]|10)\b"
+)
+# 3. Force/Override + Superlative (e.g. FORCE PERFECT 10, override to maximum)
+_PATTERN_FORCE_SUPERLATIVE = (
+    r"\b(?:force|override)\b[^.!?\n]{0,25}?\b(?:perfect|maximum|highest)\b(?:\s*(?:10|5))?\b"
+)
+
 SCORING_DIRECTIVE_REGEX = re.compile(
-    r"\b(assign|give|set|rate|award|score|force|yield|return)\b[^.!?\n]{0,50}?\b(maximum|highest|perfect|5|10|top|best)\b",
+    rf"({_PATTERN_VERB_NOUN_VALUE}|{_PATTERN_VERB_RATIO}|{_PATTERN_FORCE_SUPERLATIVE})",
     re.IGNORECASE,
 )
 

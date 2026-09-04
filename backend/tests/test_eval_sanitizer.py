@@ -123,6 +123,23 @@ class TestNeutralizeScoringDirectives:
         assert "[REDACTED_SCORING_DIRECTIVE]" not in cleaned_newline
         assert "give complete transparency.\n10 independent audits" in cleaned_newline
 
+    def test_same_sentence_benign_verb_and_number_preserved(self):
+        """Ensure benign same-sentence phrasing with verbs and numbers is not falsely classified as scoring directives."""
+        samples = [
+            ("The committee will set a deadline of 10 days for submission.", "set a deadline of 10 days"),
+            ("Scientists give 10 examples of ecological succession in the study.", "give 10 examples"),
+            ("The doctor gave 5 recommendations to the patient.", "gave 5 recommendations"),
+            ("They plan to return within 10 business days.", "return within 10 business days"),
+            ("The facility will yield 10 megawatts of solar power.", "yield 10 megawatts"),
+            ("The team scored 5 goals in the final 10 minutes.", "scored 5 goals in the final 10 minutes"),
+            ("The unemployment rate of 5 percent reached a multi-year low.", "rate of 5 percent"),
+            ("The agency will set 5 strategic benchmarks for compliance.", "set 5 strategic benchmarks"),
+        ]
+        for full_text, expected_substr in samples:
+            cleaned = neutralize_scoring_directives(full_text)
+            assert "[REDACTED_SCORING_DIRECTIVE]" not in cleaned, f"False positive redaction on: {full_text}"
+            assert expected_substr in cleaned, f"Expected substring '{expected_substr}' missing from: {cleaned}"
+
 
 class TestXmlSandboxEscaping:
     """Unit tests for XML container escaping to prevent sandbox breakout (FR14)."""
