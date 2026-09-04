@@ -130,6 +130,14 @@ def test_claim_extractor_golden_dataset_structure_and_bounds():
                 f"Case {idx} claim {c_idx} invalid timestamps: {claim['timestamp_start']} > {claim['timestamp_end']}"
             )
             assert "context" in claim and claim["context"], f"Case {idx} claim {c_idx} missing 'context'"
+
+            # Validate that each gold claim has corresponding overlapping segment(s)
+            matching_segs = [
+                s for s in item["segments"]
+                if not (s["start"] + s["duration"] <= claim["timestamp_start"] or s["start"] >= claim["timestamp_end"])
+            ]
+            assert len(matching_segs) > 0, f"Case {idx} claim {c_idx} has no overlapping segments"
+
             total_claims += 1
 
     assert total_claims >= 40, f"Expected at least 40 total annotated claims across corpus, got {total_claims}"
