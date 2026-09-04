@@ -408,6 +408,11 @@ async def test_pre_classifier_half_open_probe_ownership(pre_classifier_service):
     ("ſenator", True),
     ("Discussing Politİcs", True),
     ("Politıcs in modern media", True),
+    ("xsupreme court", True),
+    ("non-political debate", True),
+    ("nonpolitical debate", False),
+    ("unpolitical activist", True),
+    ("pre-election analysis", True),
     ("", False),
 ])
 def test_political_keywords_rust_and_fallback_parity(sample, expected):

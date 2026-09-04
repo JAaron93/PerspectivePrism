@@ -52,7 +52,7 @@ static POLITICAL_AUTOMA: Lazy<AhoCorasick> = Lazy::new(|| {
     ];
     AhoCorasickBuilder::new()
         .ascii_case_insensitive(true)
-        .match_kind(MatchKind::LeftmostLongest)
+        .match_kind(MatchKind::Standard)
         .build(keywords)
         .expect("Failed to build AhoCorasick automaton")
 });
@@ -167,7 +167,7 @@ mod prism_sanitizer_rs {
         }
 
         let search = |haystack: &str| -> bool {
-            for mat in POLITICAL_AUTOMA.find_iter(haystack) {
+            for mat in POLITICAL_AUTOMA.find_overlapping_iter(haystack) {
                 let start = mat.start();
                 let end = mat.end();
 
@@ -463,6 +463,13 @@ mod prism_sanitizer_rs {
             assert!(!contains_political_keywords("Enjoy a warm cup of coffee"));
             // "taxpayer" contains "tax", but in the regex \b(tax|taxes)\b does not match taxpayer
             assert!(!contains_political_keywords("General taxpayer information"));
+
+            // Overlapping keywords: "xsupreme court" invalidates "supreme court" start boundary,
+            // but nested "court" has valid word boundaries and must match!
+            assert!(contains_political_keywords("xsupreme court"));
+            assert!(contains_political_keywords("non-political debate"));
+            assert!(!contains_political_keywords("nonpolitical debate"));
+            assert!(contains_political_keywords("unpolitical activist"));
         }
 
         #[test]
