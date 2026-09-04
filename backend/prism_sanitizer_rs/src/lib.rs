@@ -196,12 +196,14 @@ mod prism_sanitizer_rs {
             false
         };
 
-        if text.is_ascii() {
-            search(text)
+        // Apply NFKC normalization followed by Unicode to_lowercase folding
+        // to guarantee full parity with Python's Unicode-aware re.IGNORECASE
+        let normalized: String = if text.is_ascii() {
+            text.to_ascii_lowercase()
         } else {
-            let normalized: String = text.nfkc().collect();
-            search(&normalized)
-        }
+            text.nfkc().collect::<String>().to_lowercase()
+        };
+        search(&normalized)
     }
 
     #[pyfunction]
@@ -278,19 +280,27 @@ mod prism_sanitizer_rs {
 
             let char_count = buffer.chars().count();
             if char_count > max_length {
-                let mut truncated: String = buffer.chars().take(max_length).collect();
-                let mut backslash_count = 0;
-                for c in truncated.chars().rev() {
-                    if c == '\\' {
-                        backslash_count += 1;
-                    } else {
-                        break;
+                const TRUNCATION_SUFFIX: &str = "\n...[TRUNCATED]...";
+                let suffix_len = TRUNCATION_SUFFIX.chars().count();
+                let truncated: String = if max_length >= suffix_len {
+                    let cut_point = max_length - suffix_len;
+                    let mut s: String = buffer.chars().take(cut_point).collect();
+                    let mut backslash_count = 0;
+                    for c in s.chars().rev() {
+                        if c == '\\' {
+                            backslash_count += 1;
+                        } else {
+                            break;
+                        }
                     }
-                }
-                if backslash_count % 2 == 1 {
-                    truncated.pop();
-                }
-                truncated.push_str("\n...[TRUNCATED]...");
+                    if backslash_count % 2 == 1 {
+                        s.pop();
+                    }
+                    s.push_str(TRUNCATION_SUFFIX);
+                    s
+                } else {
+                    buffer.chars().take(max_length).collect()
+                };
                 return Ok(truncated);
             }
         }
@@ -448,6 +458,9 @@ mod prism_sanitizer_rs {
         fn test_contains_political_keywords_fullwidth_unicode() {
             assert!(contains_political_keywords("Gaming Stream Ｅｌｅｃｔｉｏｎ ２０２４ Discussion"));
             assert!(contains_political_keywords("Talking about Ｐｏｌｉｔｉｃｓ and news"));
+            // Unicode case variant (Latin small letter long s 'ſ') matches 'senator'
+            assert!(contains_political_keywords("Debate with ſenator on tax reform"));
+            assert!(contains_political_keywords("ſenator"));
         }
 
         #[test]
@@ -480,6 +493,7 @@ mod prism_sanitizer_rs {
             ];
             let res = format_and_sanitize_transcript(segments, 30).unwrap();
             assert!(res.ends_with("\n...[TRUNCATED]..."));
+            assert!(res.chars().count() <= 30);
         }
 
         #[test]

@@ -127,7 +127,7 @@ class ClaimExtractor:
 
                 # Increase limit for Gemini context caching (larger context windows)
                 if len(formatted_transcript) > 100000:
-                    formatted_transcript = formatted_transcript[:100000] + "\n...[TRUNCATED]..."
+                    formatted_transcript = formatted_transcript[:100000 - 19] + "\n...[TRUNCATED]..."
 
                 sanitized_transcript = sanitize_input(
                     formatted_transcript,
