@@ -6,7 +6,6 @@ from typing import Any, List
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import (
-    sanitize_input,
     SanitizationError,
     contains_control_characters,
     contains_suspicious_patterns,
@@ -24,6 +23,13 @@ from youtube_transcript_api._errors import (
     NoTranscriptFound,
 )
 from google.adk.agents import Agent
+
+__all__ = [
+    "ClaimExtractor",
+    "settings",
+    "TranscriptUnavailableError",
+    "TranscriptRetrievalError",
+]
 
 try:
     from prism_sanitizer_rs import format_and_sanitize_transcript

@@ -1,7 +1,6 @@
 import logging
 import asyncio
-import time
-from typing import Optional, Any, List
+from typing import Optional, Any
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
@@ -25,7 +24,12 @@ from app.utils.prompt_helpers import (
     contains_delimiter_forgery,
 )
 from google.adk.agents import Agent
-from google.genai import errors
+
+__all__ = [
+    "AlethiologyService",
+    "AlethiologyServiceError",
+    "settings",
+]
 
 logger = logging.getLogger(__name__)
 

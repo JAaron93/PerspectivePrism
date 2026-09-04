@@ -9,7 +9,6 @@ import pytest
 from app.utils.prompt_helpers import (
     build_user_data_prompt,
     contains_delimiter_forgery,
-    get_user_data_delimiters,
 )
 from app.utils.input_sanitizer import (
     wrap_user_data,

@@ -1,8 +1,5 @@
-import json
 import pytest
-from pathlib import Path
-from typing import Dict, List
-from unittest.mock import patch
+from typing import List
 
 from redteam.corpus import PayloadEntry, Stage, ExpectedOutcome, Severity
 from redteam.probe import ProbeResult, ProbeStatus
@@ -10,12 +7,7 @@ from redteam.live_probe import LiveProbeResult
 from redteam.judge import JudgeResult, InjectionVerdict, JudgeTier
 from redteam.report import (
     RedTeamReport,
-    RedTeamEntrySummary,
-    CategoryMetrics,
-    BaselineDiff,
-    DiffItem,
     build_report,
-    diff_against_baseline,
     generate_markdown_summary,
     save_report,
     save_baseline,

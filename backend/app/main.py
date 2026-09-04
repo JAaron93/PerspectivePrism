@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.models.schemas import (
-    VideoRequest, AnalysisResponse, TruthProfile, PerspectiveType,
+    VideoRequest, AnalysisResponse, PerspectiveType,
     JobResponse, JobStatusResponse, JobStatus,
     AnalysisMetadata, ClientClaimAnalysis, ClientTruthProfile, BiasIndicators,
     PerspectiveAnalysis
@@ -13,7 +13,6 @@ from app.models.schemas import (
 from app.services.claim_extractor import (
     ClaimExtractor,
     TranscriptUnavailableError,
-    TranscriptRetrievalError,
 )
 from app.services.evidence_retriever import EvidenceRetriever
 from app.services.analysis_service import AnalysisService
@@ -22,7 +21,7 @@ from app.utils.video_utils import extract_video_id
 import asyncio
 import logging
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -386,7 +385,7 @@ async def create_analysis_job(request: VideoRequest, background_tasks: Backgroun
     """
     # Validate video ID upfront
     try:
-        video_id = extract_video_id(str(request.url))
+        extract_video_id(str(request.url))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid video URL: could not extract video ID")
 

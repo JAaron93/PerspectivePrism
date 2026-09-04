@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.models.schemas import Claim, AlethiologyAnalysis
 from app.services.alethiology_service import (
     AlethiologyService,
-    AlethiologyServiceError,
     ALETHIOLOGY_SYSTEM_PROMPT,
 )
 from app.services.analysis_service import AnalysisService

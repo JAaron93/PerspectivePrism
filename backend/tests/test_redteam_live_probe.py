@@ -1,20 +1,18 @@
 import os
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from typing import List
+from unittest.mock import AsyncMock, patch
 
 from redteam.corpus import PayloadEntry, Stage, ExpectedOutcome, Severity
-from redteam.probe import ProbeStatus, STAGE_MAX_LENGTHS
+from redteam.probe import ProbeStatus
 from redteam.live_probe import (
     LiveRunnerConfigError,
     LiveProbeConfig,
     BudgetCounter,
-    LiveProbeResult,
     run_live_probe_payload,
     run_live_probe_corpus,
 )
 from app.services.claim_extractor import ClaimExtractor
-from app.models.schemas import Claim, ClaimsOutput, ExtractedClaim, Transcript, TranscriptSegment, PerspectiveAnalysisLLMOutput, PerspectiveType
+from app.models.schemas import ClaimsOutput, ExtractedClaim, PerspectiveAnalysisLLMOutput
 
 
 @pytest.mark.redteam

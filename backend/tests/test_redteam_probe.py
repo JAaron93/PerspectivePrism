@@ -1,11 +1,9 @@
 import pytest
-from typing import List
 from unittest.mock import patch
 
 from redteam.corpus import PayloadEntry, Stage, ExpectedOutcome, Severity
 from redteam.probe import (
     ProbeStatus,
-    ProbeResult,
     probe_payload,
     run_probe,
     STAGE_MAX_LENGTHS,
@@ -98,7 +96,6 @@ def test_probe_payload_detects_delimiter_forgery_survival_on_static_delimiters()
     )
 
     # When legacy/static nonce is used matching the forged delimiter (e.g. nonce="")
-    from app.utils.prompt_helpers import build_user_data_prompt
     result = probe_payload(entry, nonce="")
     assert result.status == ProbeStatus.BYPASSED
     # If the active delimiter matches static string, delimiter_forgery_survived evaluates to True

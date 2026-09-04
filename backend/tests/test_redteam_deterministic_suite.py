@@ -2,7 +2,7 @@ import time
 import pytest
 from typing import Dict, List
 
-from redteam.corpus import load_corpus, get_default_payloads_dir, PayloadEntry
+from redteam.corpus import load_corpus
 from redteam.probe import run_probe, probe_payload, ProbeStatus, ProbeResult
 
 

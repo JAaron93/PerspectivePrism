@@ -1,16 +1,13 @@
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
-from app.main import app, jobs, jobs_lock
+from app.main import app, jobs
 from app.models.schemas import (
-    VideoRequest,
-    VideoMetadata,
     Transcript,
     TranscriptSegment,
     Claim,
-    Evidence,
     PerspectiveType,
     PerspectiveAnalysis,
     BiasAnalysis,

@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 from app.main import compute_overall_assessment
-from app.core.config import settings
 
 def test_high_deception_short_circuit():
     """Test that high deception score returns 'Suspicious/Deceptive' regardless of stances."""
