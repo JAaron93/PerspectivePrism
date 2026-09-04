@@ -52,7 +52,7 @@
 
 ### Track 3: Google ADK 2.0 Agent-as-a-Judge Harnesses
 
-- **FR9 - ADK 2.0 Autonomous Judge Configuration**: All qualitative evaluations MUST be executed using **Google ADK 2.0** (`google.adk.agents.Agent`) in GCP Vertex AI mode via `execute_adk_agent()`. Naive single-turn unconstrained string completions are prohibited for qualitative judgment.
+- **FR9 - ADK 2.0 Autonomous Judge Configuration**: All qualitative evaluations MUST be executed using **Google ADK 2.0** (`google.adk.agents.Agent`) in GCP Vertex AI mode via `execute_adk_agent()`. Each judge agent MUST configure an explicit `output_key` matching the `output_key` parameter passed to `execute_adk_agent()` to ensure structured results are populated into session state. Naive single-turn unconstrained string completions are prohibited for qualitative judgment.
 - **FR10 - Claim Extraction Recall & Verifiability Judge**: The system MUST implement `backend/app/evals/judges/claim_extraction_judge.py` using `ClaimExtractionRecallRubric` to measure:
   - Semantic claim recall (accounting for paraphrasing).
   - Verifiability precision (penalizing non-factual or purely rhetorical filler).
@@ -64,7 +64,7 @@
 - **FR12 - Alethiology Epistemic Neutrality Judge**: The system MUST implement `backend/app/evals/judges/alethiology_judge.py` using `AlethiologyEvaluationRubric` to rate:
   - Categorical 6-theory classification accuracy.
   - Descriptive neutrality score ($1$ to $5$ scale) asserting that no normative, pejorative, or moral judgments are expressed in the analysis.
-- **FR13 - Strict Pydantic Schema Enforcement**: All ADK evaluation agents MUST output strictly validated Pydantic models with `ConfigDict(extra="forbid")`.
+- **FR13 - Strict Pydantic Schema & Session Key Enforcement**: All ADK evaluation agents MUST configure an explicit `output_key` matching caller invocation arguments and output strictly validated Pydantic models with `ConfigDict(extra="forbid")`.
 
 ---
 

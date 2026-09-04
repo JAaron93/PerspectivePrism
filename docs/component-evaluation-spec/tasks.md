@@ -83,19 +83,19 @@
   - **Traceability**: FR10, FR11, FR12, FR13, FR16
 
 - [ ] **T4.2: Implement Claim Extraction Recall & Verifiability Judge**
-  - **Description**: In `backend/app/evals/judges/claim_extraction_judge.py`, implement `evaluate_claim_extraction()` using Google ADK 2.0 `Agent(name="claim_extraction_judge", model="gemini-3.5-flash-lite", output_schema=ClaimExtractionRecallRubric)` executed via `execute_adk_agent()` in Vertex AI mode to evaluate extracted claims against gold references.
+  - **Description**: In `backend/app/evals/judges/claim_extraction_judge.py`, implement `evaluate_claim_extraction()` using Google ADK 2.0 `Agent(name="claim_extraction_judge", model="gemini-3.5-flash-lite", output_schema=ClaimExtractionRecallRubric, output_key="claim_extraction_result")` executed via `execute_adk_agent(output_key="claim_extraction_result", output_schema=ClaimExtractionRecallRubric)` in Vertex AI mode to evaluate extracted claims against gold references.
   - **Dependencies**: T1.3, T2.1, T3.1, T4.1
-  - **Traceability**: FR9, FR10, US1
+  - **Traceability**: FR9, FR10, FR13, US1
 
 - [ ] **T4.3: Implement Perspective Faithfulness & Groundedness Judge**
-  - **Description**: In `backend/app/evals/judges/perspective_faithfulness_judge.py`, implement `evaluate_perspective_faithfulness()` using Google ADK 2.0 `Agent` and `execute_adk_agent()` to audit stance adherence against search evidence and detect prior knowledge hallucinations.
+  - **Description**: In `backend/app/evals/judges/perspective_faithfulness_judge.py`, implement `evaluate_perspective_faithfulness()` using Google ADK 2.0 `Agent(name="perspective_faithfulness_judge", model="gemini-3.5-flash-lite", output_schema=PerspectiveFaithfulnessRubric, output_key="perspective_faithfulness_result")` and `execute_adk_agent(output_key="perspective_faithfulness_result", output_schema=PerspectiveFaithfulnessRubric)` to audit stance adherence against search evidence and detect prior knowledge hallucinations.
   - **Dependencies**: T1.4, T2.1, T3.1, T4.1
-  - **Traceability**: FR9, FR11, US2
+  - **Traceability**: FR9, FR11, FR13, US2
 
 - [ ] **T4.4: Implement Alethiology Epistemic Neutrality Judge**
-  - **Description**: In `backend/app/evals/judges/alethiology_judge.py`, implement `evaluate_alethiology_neutrality()` using Google ADK 2.0 `Agent` and `execute_adk_agent()` to verify 6-theory classification accuracy and enforce strict descriptive neutrality (zero normative/pejorative slurs).
+  - **Description**: In `backend/app/evals/judges/alethiology_judge.py`, implement `evaluate_alethiology_neutrality()` using Google ADK 2.0 `Agent(name="alethiology_neutrality_judge", model="gemini-3.5-flash-lite", output_schema=AlethiologyEvaluationRubric, output_key="alethiology_neutrality_result")` and `execute_adk_agent(output_key="alethiology_neutrality_result", output_schema=AlethiologyEvaluationRubric)` to verify 6-theory classification accuracy and enforce strict descriptive neutrality (zero normative/pejorative slurs).
   - **Dependencies**: T1.6, T2.1, T3.1, T4.1
-  - **Traceability**: FR9, FR12, US3
+  - **Traceability**: FR9, FR12, FR13, US3
 
 - [ ] **T4.5: TDD & BDD Tests for ADK Judges**
   - **Description**: In `backend/tests/test_adk_judges.py`, create mock-verified unit tests verifying rubric serialization, hallucination detection on ungrounded stances, and neutrality failure detection when biased language is intentionally injected into alethiology outputs.

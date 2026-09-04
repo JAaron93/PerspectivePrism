@@ -138,7 +138,7 @@ class ClaimExtractionRecallRubric(BaseModel):
 
 #### ADK Judge Agent Pattern:
 - Model: `gemini-3.5-flash-lite` (or `gemini-3.1-flash-lite` circuit-breaker backup)
-- Framework: `google.adk.agents.Agent` orchestrated via `execute_adk_agent(agent, user_prompt, output_key, output_schema=ClaimExtractionRecallRubric)` in GCP Vertex AI mode.
+- Framework: `google.adk.agents.Agent` initialized with explicit `output_key="claim_extraction_result"` and orchestrated via `execute_adk_agent(agent, user_prompt, output_key="claim_extraction_result", output_schema=ClaimExtractionRecallRubric)` in GCP Vertex AI mode.
 - Prompt Protection: Zero-trust XML boundary `<transcript_input>`, `<extracted_claims>`, and `<reference_claims>` with dynamic nonce wrapping and pre-sanitization of instruction-override keywords.
 
 ---
@@ -169,6 +169,11 @@ class PerspectiveFaithfulnessRubric(BaseModel):
 - **5 (Fully Grounded)**: Every claim made in the agent's explanation is directly traceable to the supplied search snippet. If snippet is ambiguous, stance is correctly labeled `AMBIGUOUS`.
 - **3 (Partially Grounded)**: Minor external context mentioned, but does not alter stance determination.
 - **1 (Hallucinated / Unfaithful)**: Stance relies completely on unmentioned external knowledge, or contradicts the explicit text of the supplied search snippet.
+
+#### ADK Faithfulness Judge Agent Pattern:
+- Model: `gemini-3.5-flash-lite` (or `gemini-3.1-flash-lite` circuit-breaker backup)
+- Framework: `google.adk.agents.Agent` initialized with explicit `output_key="perspective_faithfulness_result"` and orchestrated via `execute_adk_agent(agent, user_prompt, output_key="perspective_faithfulness_result", output_schema=PerspectiveFaithfulnessRubric)` in GCP Vertex AI mode.
+- Prompt Protection: Zero-trust XML sandboxing enclosing claim and evidence snippets, coupled with nonce delimiters and instruction neutralization.
 
 ---
 
@@ -214,6 +219,11 @@ class AlethiologyEvaluationRubric(BaseModel):
     quote_evidence_relevance: int = Field(ge=1, le=5, description="Relevance and fidelity of extracted quote evidences.")
     evaluation_summary: str = Field(min_length=20, description="Step-by-step audit rationale.")
 ```
+
+#### ADK Epistemic Neutrality Judge Agent Pattern:
+- Model: `gemini-3.5-flash-lite` (or `gemini-3.1-flash-lite` circuit-breaker backup)
+- Framework: `google.adk.agents.Agent` initialized with explicit `output_key="alethiology_neutrality_result"` and orchestrated via `execute_adk_agent(agent, user_prompt, output_key="alethiology_neutrality_result", output_schema=AlethiologyEvaluationRubric)` in GCP Vertex AI mode.
+- Prompt Protection: Dynamic nonce wrapping and sanitization of evaluated transcript text to prevent rubric hijacking.
 
 ---
 
