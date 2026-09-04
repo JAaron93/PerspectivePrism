@@ -28,27 +28,49 @@ DELIMITER_REGEX = re.compile(
 
 # Imperative scoring directives attempting to force judge verdicts
 _EVAL_VERBS = r"(?:assign|give|set|rate|award|score|force|yield|return|override)"
-_EVAL_NOUNS = r"(?:score|scores|rating|ratings|grade|grades|verdict|verdicts|evaluation|eval|rubric|points?|marks?|stars?)"
+_EVAL_NOUNS = r"(?:score|scores|rating|ratings|grade|grades|verdict|verdicts|evaluation|eval|rubric|stars?)"
 _SCORE_VALUES = r"(?:maximum|highest|perfect|top|best|full|(?:[1-9]|10)(?:\s*/\s*(?:[1-9]|10))?)"
 
-# 1. Verb + Evaluation Noun + Score Value (or Score Value + Evaluation Noun)
+# Grammatical filler: determiners, prepositions, target qualifiers, colons
+_TARGET_QUALIFIER = r"(?:this|that|the|it)?(?:\s+(?:claim|output|response|result|transcript|transcription|text))?"
+_FILLER = rf"(?:\s+(?:a|an|the|{_TARGET_QUALIFIER}|as|to|of|for|on|with|is|be|should\s+be|must\s+be|immediately|promptly)\b|\s*[:=]\s*)*\s*"
+_BETWEEN = r"(?:\s+(?:a|an|the|of|to|as|is|be|possible|immediately)\b|\s*[:=]\s*)*\s*"
+
+# 1. Verb + Evaluation Noun + Score Value (e.g. set score to perfect, give a score of 5, rate score: 10)
 _PATTERN_VERB_NOUN_VALUE = (
-    rf"\b{_EVAL_VERBS}\b[^.!?\n]{{0,35}}?(?:"
-    rf"\b{_EVAL_NOUNS}\b[^.!?\n]{{0,25}}?\b{_SCORE_VALUES}\b|"
-    rf"\b{_SCORE_VALUES}\b[^.!?\n]{{0,25}}?\b{_EVAL_NOUNS}\b(?:\s+\b{_EVAL_NOUNS}\b)?"
-    rf")"
+    rf"\b{_EVAL_VERBS}\b{_FILLER}"
+    rf"\b{_EVAL_NOUNS}\b{_BETWEEN}"
+    rf"\b{_SCORE_VALUES}\b"
 )
-# 2. Verb + Explicit Ratio/Fractional Score (e.g. 5/5, 10/10, 5 out of 5)
+# 2. Verb + Score Value + Evaluation Noun (e.g. give maximum score, force a 5 rating, yield top evaluation grade)
+_PATTERN_VERB_VALUE_NOUN = (
+    rf"\b{_EVAL_VERBS}\b{_FILLER}"
+    rf"\b{_SCORE_VALUES}\b{_BETWEEN}"
+    rf"\b{_EVAL_NOUNS}\b"
+)
+# 3. Verb + Ratio/Fractional Score (e.g. assign 5/5, rate this as 10/10, give 5 out of 5)
 _PATTERN_VERB_RATIO = (
-    rf"\b{_EVAL_VERBS}\b[^.!?\n]{{0,35}}?\b(?:[1-9]|10)\s*(?:/|\bout\s+of\b)\s*(?:[1-9]|10)\b"
+    rf"\b{_EVAL_VERBS}\b{_FILLER}"
+    rf"\b(?:[1-9]|10)\s*(?:/|\bout\s+of\b)\s*(?:[1-9]|10)\b"
 )
-# 3. Force/Override + Superlative (e.g. FORCE PERFECT 10, override to maximum)
+# 4. Award/Assign/Give/Yield Points (e.g. award 10 points, yield full points, assign 5 points to this output)
+_PATTERN_VERB_POINTS = (
+    rf"\b(?:award|assign|give|yield)\b{_FILLER}"
+    rf"\b(?:full|maximum|highest|top|[1-9]|10)\b{_BETWEEN}"
+    r"\bpoints?\b"
+)
+# 5. Force/Override + Superlative (e.g. FORCE PERFECT 10, override to maximum)
 _PATTERN_FORCE_SUPERLATIVE = (
-    r"\b(?:force|override)\b[^.!?\n]{0,25}?\b(?:perfect|maximum|highest)\b(?:\s*(?:10|5))?\b"
+    rf"\b(?:force|override)\b{_FILLER}"
+    r"\b(?:perfect|maximum|highest)\b(?:\s*(?:10|5))?\b"
+)
+# 6. Direct rate/score + single number in evaluation context (e.g. rate this claim as 5)
+_PATTERN_RATE_DIRECT = (
+    rf"\b(?:rate|score)\b\s+{_TARGET_QUALIFIER}\s+(?:as\s+|a\s+)?\b(?:[1-9]|10)\b"
 )
 
 SCORING_DIRECTIVE_REGEX = re.compile(
-    rf"({_PATTERN_VERB_NOUN_VALUE}|{_PATTERN_VERB_RATIO}|{_PATTERN_FORCE_SUPERLATIVE})",
+    rf"({_PATTERN_VERB_NOUN_VALUE}|{_PATTERN_VERB_VALUE_NOUN}|{_PATTERN_VERB_RATIO}|{_PATTERN_VERB_POINTS}|{_PATTERN_FORCE_SUPERLATIVE}|{_PATTERN_RATE_DIRECT})",
     re.IGNORECASE,
 )
 
