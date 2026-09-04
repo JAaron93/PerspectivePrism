@@ -126,7 +126,7 @@
   - **Traceability**: FR16, FR21
 
 - [ ] **T6.2: Implement Benchmark CLI & Markdown Summary Generator**
-  - **Description**: In `backend/evals/cli.py`, author a CLI utility `python -m app.evals.cli --component [pre_classifier|extractor|perspective|bias|alethiology|all]` that runs the evaluation matrix, writes markdown reports to `artifacts/eval_results/`, and prints console summary tables.
+  - **Description**: In `backend/app/evals/cli.py`, author a CLI utility `python -m app.evals.cli --component [pre_classifier|extractor|perspective|bias|alethiology|all]` that runs the evaluation matrix, writes markdown reports to `artifacts/eval_results/`, and prints console summary tables.
   - **Dependencies**: T6.1
   - **Traceability**: FR21
 
