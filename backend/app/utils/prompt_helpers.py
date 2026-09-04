@@ -2,6 +2,7 @@
 Prompt formatting helper utilities with dynamic nonce delimiters.
 """
 
+import re
 import secrets
 from typing import Dict, Optional, Tuple, Union
 
@@ -18,6 +19,36 @@ except ImportError:
 def generate_nonce(length: int = 8) -> str:
     """Generates a secure random hex nonce for delimiter isolation."""
     return secrets.token_hex(max(1, length // 2))
+
+
+def neutralize_delimiter_forgery(text: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
+    """
+    Neutralizes forged delimiter boundaries inside untrusted user data to prevent prompt breakout.
+    """
+    def replace_delim(m):
+        bound = m.group(2) or "END"
+        sub_nonce = m.group(1)
+        if sub_nonce:
+            return f"===USER DATA {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+        else:
+            return f"===USER DATA [NEUTRALIZED] {bound}==="
+
+    pattern = r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+    neutralized = re.sub(pattern, replace_delim, text)
+
+    if label != "USER DATA":
+        custom_pattern = rf"==={re.escape(label)}(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+        def replace_custom(m):
+            bound = m.group(2) or "END"
+            sub_nonce = m.group(1)
+            if sub_nonce:
+                return f"==={label} {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+            else:
+                return f"==={label} [NEUTRALIZED] {bound}==="
+        neutralized = re.sub(custom_pattern, replace_custom, neutralized)
+
+    return neutralized
+
 
 
 def contains_delimiter_forgery(text: str, nonce: Optional[str] = None) -> bool:
@@ -96,14 +127,18 @@ def build_user_data_prompt(
         except Exception:
             pass
 
-    start_delim, end_delim = get_user_data_delimiters(nonce=nonce)
+    if nonce is None:
+        active_nonce = generate_nonce()
+        start_delim, end_delim = f"===USER DATA {active_nonce} START===", f"===USER DATA {active_nonce} END==="
+    elif nonce == "":
+        active_nonce = ""
+        start_delim, end_delim = USER_DATA_START, USER_DATA_END
+    else:
+        active_nonce = nonce
+        start_delim, end_delim = f"===USER DATA {active_nonce} START===", f"===USER DATA {active_nonce} END==="
 
-    if contains_delimiter_forgery(content_block, nonce):
-        if nonce == "":
-            content_block = content_block.replace("===USER DATA END===", "===USER DATA [NEUTRALIZED] END===")
-        elif nonce is not None:
-            needle = f"===USER DATA {nonce} END==="
-            content_block = content_block.replace(needle, f"===USER DATA {nonce} [NEUTRALIZED] END===")
+    if contains_delimiter_forgery(content_block, active_nonce) or re.search(r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)===", content_block):
+        content_block = neutralize_delimiter_forgery(content_block, "USER DATA", active_nonce)
 
     return (
         f"{start_delim}\n"

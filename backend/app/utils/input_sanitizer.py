@@ -351,6 +351,35 @@ def sanitize_video_metadata(metadata: Optional[Any]) -> Dict[str, str]:
     }
 
 
+def neutralize_delimiter_forgery(text: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
+    """
+    Neutralizes forged delimiter boundaries inside untrusted user data to prevent prompt breakout.
+    """
+    def replace_delim(m):
+        bound = m.group(2) or "END"
+        sub_nonce = m.group(1)
+        if sub_nonce:
+            return f"===USER DATA {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+        else:
+            return f"===USER DATA [NEUTRALIZED] {bound}==="
+
+    pattern = r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+    neutralized = re.sub(pattern, replace_delim, text)
+
+    if label != "USER DATA":
+        custom_pattern = rf"==={re.escape(label)}(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+        def replace_custom(m):
+            bound = m.group(2) or "END"
+            sub_nonce = m.group(1)
+            if sub_nonce:
+                return f"==={label} {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+            else:
+                return f"==={label} [NEUTRALIZED] {bound}==="
+        neutralized = re.sub(custom_pattern, replace_custom, neutralized)
+
+    return neutralized
+
+
 def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
     """
     Wrap user data in clearly delimited sections with dynamic nonce delimiters.
@@ -365,22 +394,21 @@ def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = N
             pass
 
     if nonce is None:
-        nonce = secrets.token_hex(4)
-
-    if contains_delimiter_forgery(data, nonce):
-        if nonce == "":
-            needle = f"==={label} END==="
-            data = data.replace(needle, f"==={label} [NEUTRALIZED] END===")
-        else:
-            needle = f"==={label} {nonce} END==="
-            data = data.replace(needle, f"==={label} {nonce} [NEUTRALIZED] END===")
-
-    if nonce == "":
+        active_nonce = secrets.token_hex(4)
+        start_delim = f"==={label} {active_nonce} START==="
+        end_delim = f"==={label} {active_nonce} END==="
+    elif nonce == "":
+        active_nonce = ""
         start_delim = f"==={label} START==="
         end_delim = f"==={label} END==="
     else:
-        start_delim = f"==={label} {nonce} START==="
-        end_delim = f"==={label} {nonce} END==="
+        active_nonce = nonce
+        start_delim = f"==={label} {active_nonce} START==="
+        end_delim = f"==={label} {active_nonce} END==="
+
+    if contains_delimiter_forgery(data, active_nonce) or re.search(r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)===", data):
+        data = neutralize_delimiter_forgery(data, label, active_nonce)
+
     return f"{start_delim}\n{data}\n{end_delim}"
 
 
