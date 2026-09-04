@@ -1,8 +1,5 @@
 import pytest
-from pathlib import Path
 import yaml
-import sys
-import os
 from typing import Dict, List
 
 from redteam.corpus import (

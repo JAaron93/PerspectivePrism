@@ -3,7 +3,6 @@ import asyncio
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.models.schemas import JobStatus
-from unittest.mock import AsyncMock, patch
 
 async def _poll_until_done(ac: AsyncClient, job_id: str) -> dict:
     for _ in range(20):
@@ -27,8 +26,7 @@ async def test_integration_outbound_schema_and_sanitization(monkeypatch):
         # Mock get_transcript to return a transcript with control characters
         from app.main import claim_extractor, analysis_service, evidence_retriever
         from app.models.schemas import (
-            Transcript, TranscriptSegment, Claim, PerspectiveType, PerspectiveAnalysis, Evidence,
-            BiasAnalysis
+            Transcript, TranscriptSegment, PerspectiveType, PerspectiveAnalysis, BiasAnalysis
         )
         
         async def mock_get_transcript_malicious(*args, **kwargs):

@@ -1,9 +1,8 @@
 import re
-import time
 import asyncio
 import logging
 import unicodedata
-from typing import Optional, Any, List
+from typing import Optional, Any
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import (
@@ -24,9 +23,18 @@ from app.utils.llm_utils import (
 from app.utils.prompt_helpers import (
     build_user_data_prompt,
     format_classifier_user_data,
+    contains_delimiter_forgery,
 )
 from google.adk.agents import Agent
-from google.genai import errors
+
+__all__ = [
+    "PreClassifierService",
+    "PreClassifierServiceError",
+    "POLITICAL_KEYWORDS",
+    "check_political_keywords",
+    "evaluate_deterministic_fast_path",
+    "settings",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -368,8 +376,12 @@ class PreClassifierService:
             )
 
         # 3. Build Prompt with Static Instructions & Nonce Delimiters
+        classifier_data = format_classifier_user_data(metadata_clean, clean_preview)
+        if contains_delimiter_forgery(classifier_data):
+            logger.warning("Delimiter forgery detected in classifier user data; isolating via dynamic prompt nonce guard")
+
         user_prompt = build_user_data_prompt(
-            format_classifier_user_data(metadata_clean, clean_preview),
+            classifier_data,
             "Please determine if this video is eligible for claim and bias analysis according to the instructions and schema."
         )
 

@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import time
 from typing import List, Any, Optional
 
 from app.core.config import configure_provider_env, settings
@@ -27,9 +26,17 @@ from app.utils.llm_utils import (
     execute_agent_with_circuit_breaker,
     build_agent_generation_config,
 )
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    contains_delimiter_forgery,
+)
 from google.adk.agents import Agent
-from google.genai import errors
+
+__all__ = [
+    "AnalysisService",
+    "AnalysisServiceError",
+    "settings",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -230,8 +237,12 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
+        perspective_data = f"CLAIM: {sanitized_claim}\nPERSPECTIVE: {sanitized_perspective}\nEVIDENCE:\n{sanitized_evidence}"
+        if contains_delimiter_forgery(perspective_data):
+            logger.warning("Delimiter forgery detected in perspective input; isolating via dynamic prompt nonce guard")
+
         user_prompt = build_user_data_prompt(
-            f"CLAIM: {sanitized_claim}\nPERSPECTIVE: {sanitized_perspective}\nEVIDENCE:\n{sanitized_evidence}",
+            perspective_data,
             "Please analyze this claim from the specified perspective based on the evidence."
         )
 
@@ -284,8 +295,12 @@ class AnalysisService:
             )
 
         # Build prompt with static/context data at the absolute start
+        bias_data = f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}"
+        if contains_delimiter_forgery(bias_data):
+            logger.warning("Delimiter forgery detected in bias analysis input; isolating via dynamic prompt nonce guard")
+
         user_prompt = build_user_data_prompt(
-            f"CLAIM TEXT: {sanitized_claim}\nCONTEXT: {sanitized_context if sanitized_context else 'No context provided'}",
+            bias_data,
             "Please analyze this claim and context for bias and deception."
         )
 

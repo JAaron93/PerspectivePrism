@@ -13,8 +13,8 @@ root_dir = str(Path(__file__).resolve().parents[2])
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from verify_environment import verify_environment
-from scripts.burst_test import run_burst_test
+from verify_environment import verify_environment  # noqa: E402
+from scripts.burst_test import run_burst_test  # noqa: E402
 
 
 class TestVerifyEnvironment:

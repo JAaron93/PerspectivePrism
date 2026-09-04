@@ -6,7 +6,6 @@ from typing import Any, List
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import (
-    sanitize_input,
     SanitizationError,
     contains_control_characters,
     contains_suspicious_patterns,
@@ -14,13 +13,23 @@ from app.utils.input_sanitizer import (
 )
 from app.utils.video_utils import extract_video_id
 from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
-from app.utils.prompt_helpers import build_user_data_prompt
+from app.utils.prompt_helpers import (
+    build_user_data_prompt,
+    contains_delimiter_forgery,
+)
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     TranscriptsDisabled,
     NoTranscriptFound,
 )
 from google.adk.agents import Agent
+
+__all__ = [
+    "ClaimExtractor",
+    "settings",
+    "TranscriptUnavailableError",
+    "TranscriptRetrievalError",
+]
 
 try:
     from prism_sanitizer_rs import format_and_sanitize_transcript
@@ -187,6 +196,9 @@ class ClaimExtractor:
                     }
                 )
             ]
+
+        if contains_delimiter_forgery(sanitized_transcript):
+            logger.warning("Delimiter forgery detected in transcript; isolating via dynamic prompt nonce guard")
 
         user_prompt = build_user_data_prompt(
             sanitized_transcript,

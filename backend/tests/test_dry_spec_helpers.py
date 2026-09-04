@@ -1,7 +1,5 @@
 import asyncio
-import time
 import pytest
-from unittest.mock import AsyncMock, patch
 from google.genai import errors
 
 from app.models.schemas import VideoMetadata

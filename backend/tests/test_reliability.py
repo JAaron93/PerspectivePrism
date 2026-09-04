@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import time
-from app.services.analysis_service import AnalysisService, AnalysisServiceError
+from app.services.analysis_service import AnalysisService
 from google.genai import errors
 from app.main import app
 from httpx import AsyncClient, ASGITransport

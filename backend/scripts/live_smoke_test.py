@@ -138,7 +138,7 @@ async def run_smoke_test(video_url: str):
             p50 = latencies[len(latencies)//2]
             p95 = latencies[int(len(latencies) * 0.95)] if len(latencies) >= 20 else latencies[-1]
             
-            print(f"\n--- Metrics ---")
+            print("\n--- Metrics ---")
             print(f"Baseline Latency: {cold_latency:.2f} s")
             print(f"Cached p50 Latency: {p50:.2f} s")
             print(f"Cached p95 Latency: {p95:.2f} s")

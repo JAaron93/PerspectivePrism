@@ -8,8 +8,6 @@ from app.models.schemas import (
 from app.services.content_classifier import (
     evaluate_deterministic_fast_path,
     PreClassifierService,
-    PreClassifierServiceError,
-    POLITICAL_KEYWORDS,
 )
 from google.genai import errors
 

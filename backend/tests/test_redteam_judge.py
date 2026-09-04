@@ -1,15 +1,13 @@
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from redteam.corpus import PayloadEntry, Stage, ExpectedOutcome, Severity
 from redteam.judge import (
     JudgeTier,
     InjectionVerdict,
     LLMJudgeOutput,
-    JudgeResult,
     check_canary,
     check_heuristics,
-    judge_agent_output,
     judge_agent_output_async,
 )
 

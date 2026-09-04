@@ -1,5 +1,4 @@
 import os
-import pytest
 
 # Set default test environment variables if not already provided
 os.environ.setdefault("GCP_PROJECT", "test-project")

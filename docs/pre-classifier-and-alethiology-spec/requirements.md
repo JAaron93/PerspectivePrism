@@ -18,9 +18,9 @@
 - **FR2 - Zero-Token Deterministic Fast Path**: The system MUST implement a zero-token deterministic early exit ONLY when:
   1. The transcript is absent or empty (`transcript is None or transcript.strip() == ""`), AND
   2. The YouTube category is non-analytical (`Music`, `Gaming`), AND
-  3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords.
+  3. The video metadata (`title`, `channel_name`, `tags`, `description_snippet`) contains NO political, electoral, policy, or socio-economic keywords (evaluated in linear time $O(N)$ via compiled Aho-Corasick DFA `prism_sanitizer_rs.contains_political_keywords` under ADR 006 Candidate B in <50µs).
   If the video lacks captions but metadata suggests political discourse (e.g., `"[AMV] Election 2024"` or `"Gaming Stream - Talking Supreme Court"`), the request MUST NOT be fast-path rejected; it MUST proceed to the `PreClassifierAgent` to evaluate metadata and generate a context-aware disclaimer explaining caption absence rather than falsely asserting 1.0 confidence of non-political content.
-- **FR3 - ADK 2.0 Guardrail Agent**: The system MUST implement a dedicated ADK 2.0 `PreClassifierAgent` configured with `gemini-3.8-flash` (and `gemini-3.1-flash-lite` circuit-breaker backup) in GCP Vertex AI mode enforcing the `ContentEligibilityResult` structured output schema.
+- **FR3 - ADK 2.0 Guardrail Agent**: The system MUST implement a dedicated ADK 2.0 `PreClassifierAgent` configured with `gemini-3.8-flash` (`thinking_level="LOW"`, `max_output_tokens=2048` under ADR 007, with `gemini-3.1-flash-lite` circuit-breaker backup) in GCP Vertex AI mode enforcing the `ContentEligibilityResult` structured output schema. Prompt inputs MUST be protected with dynamic cryptographic nonces (`build_user_data_prompt`).
 - **FR4 - Conservative Ambiguity Threshold**: If the agent returns `is_analysable == False` but `confidence_score < 0.70`, the backend MUST treat the classification as ambiguous and automatically default to allowing full analysis (`is_analysable = True`).
 - **FR5 - Edge-Case Prompt Calibration**: The agent system prompt MUST include few-shot calibration handling:
   - *Political Satire & Parody*: Classified as `is_analysable = True`.
@@ -41,9 +41,9 @@
   5. `Consensus (Institutional Agreement)`
   6. `Deflationary (Rhetorical Endorsement)`
 - **FR8 - Strict Descriptive Neutrality**: The Alethiology Agent MUST output strictly neutral, descriptive characterizations of *how* the speaker constructs arguments. It MUST NOT evaluate whether a theory is "better" or "sound," nor accuse the speaker of fallacies or falsehoods.
-- **FR9 - Alethiology Structured Output**: The agent MUST enforce the `AlethiologyAnalysis` schema, returning `primary_theory`, optional `secondary_theory`, `epistemic_summary` (2–3 sentences), and `quote_evidences` (exact transcript excerpts).
+- **FR9 - Alethiology Structured Output**: The agent MUST enforce the `AlethiologyAnalysis` schema, returning `primary_theory`, optional `secondary_theory`, `epistemic_summary` (2–3 sentences), and `quote_evidences` (exact transcript excerpts) with `thinking_level="HIGH"` and 64K token ceiling (ADR 007).
 - **FR10 - Concurrent Non-Blocking Execution**: The Alethiology Agent MUST execute concurrently (`asyncio.gather`) alongside `PerspectiveAnalysis` and `BiasAnalysis` agents, adding zero net wall-clock latency to the claim processing loop.
-- **FR11 - Rust PyO3 Sanitization**: All metadata, summaries, category strings, and quote evidences MUST be validated through `app.utils.input_sanitizer` (`prism_sanitizer_rs`).
+- **FR11 - Rust PyO3 Sanitization & Delimiter Isolation Guard**: All metadata, summaries, category strings, and quote evidences MUST be validated through `app.utils.input_sanitizer` (`prism_sanitizer_rs`). All agent prompts MUST be isolated via Candidate D dynamic cryptographic nonces (`build_user_data_prompt`) and scanned for delimiter forgery (`contains_delimiter_forgery`).
 
 ---
 

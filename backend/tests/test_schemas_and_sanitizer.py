@@ -18,8 +18,6 @@ from app.utils.input_sanitizer import (
     sanitize_quote_evidence,
     SanitizationError,
     MAX_METADATA_FIELD_LENGTH,
-    MAX_CATEGORY_LENGTH,
-    MAX_QUOTE_LENGTH,
 )
 
 

@@ -2,16 +2,74 @@
 Prompt formatting helper utilities with dynamic nonce delimiters.
 """
 
+import re
 import secrets
 from typing import Dict, Optional, Tuple, Union
 
 USER_DATA_START = "===USER DATA START==="
 USER_DATA_END = "===USER DATA END==="
 
+try:
+    import prism_sanitizer_rs
+    HAS_RUST_SANITIZER = True
+except ImportError:
+    HAS_RUST_SANITIZER = False
+
 
 def generate_nonce(length: int = 8) -> str:
     """Generates a secure random hex nonce for delimiter isolation."""
     return secrets.token_hex(max(1, length // 2))
+
+
+def neutralize_delimiter_forgery(text: str, label: str = "USER DATA", nonce: Optional[str] = None) -> str:
+    """
+    Neutralizes forged delimiter boundaries inside untrusted user data to prevent prompt breakout.
+    """
+    def replace_delim(m):
+        bound = m.group(2) or "END"
+        sub_nonce = m.group(1)
+        if sub_nonce:
+            return f"===USER DATA {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+        else:
+            return f"===USER DATA [NEUTRALIZED] {bound}==="
+
+    pattern = r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+    neutralized = re.sub(pattern, replace_delim, text)
+
+    if label != "USER DATA":
+        custom_pattern = rf"==={re.escape(label)}(?:\s+([^\n=\[\]]+))?\s+(END|START)==="
+        def replace_custom(m):
+            bound = m.group(2) or "END"
+            sub_nonce = m.group(1)
+            if sub_nonce:
+                return f"==={label} {sub_nonce.strip()} [NEUTRALIZED] {bound}==="
+            else:
+                return f"==={label} [NEUTRALIZED] {bound}==="
+        neutralized = re.sub(custom_pattern, replace_custom, neutralized)
+
+    return neutralized
+
+
+
+def contains_delimiter_forgery(text: str, nonce: Optional[str] = None) -> bool:
+    """
+    Checks if text contains delimiter forgery attempts (such as ===USER DATA or
+    matching active closing delimiters).
+    """
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.contains_delimiter_forgery(text, nonce)
+        except Exception:
+            pass
+
+    if "===USER DATA" in text:
+        return True
+    if nonce is not None:
+        if nonce == "":
+            return "===USER DATA END===" in text
+        else:
+            return f"===USER DATA {nonce} END===" in text
+    return False
 
 
 def get_user_data_delimiters(nonce: Optional[str] = None) -> Tuple[str, str]:
@@ -63,7 +121,24 @@ def build_user_data_prompt(
     else:
         content_block = str(data)
 
-    start_delim, end_delim = get_user_data_delimiters(nonce=nonce)
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.build_user_data_prompt(content_block, instruction, nonce)
+        except Exception:
+            pass
+
+    if nonce is None:
+        active_nonce = generate_nonce()
+        start_delim, end_delim = f"===USER DATA {active_nonce} START===", f"===USER DATA {active_nonce} END==="
+    elif nonce == "":
+        active_nonce = ""
+        start_delim, end_delim = USER_DATA_START, USER_DATA_END
+    else:
+        active_nonce = nonce
+        start_delim, end_delim = f"===USER DATA {active_nonce} START===", f"===USER DATA {active_nonce} END==="
+
+    if contains_delimiter_forgery(content_block, active_nonce) or re.search(r"===USER DATA(?:\s+([^\n=\[\]]+))?\s+(END|START)===", content_block):
+        content_block = neutralize_delimiter_forgery(content_block, "USER DATA", active_nonce)
 
     return (
         f"{start_delim}\n"

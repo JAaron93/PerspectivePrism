@@ -518,7 +518,6 @@ class TestUnifiedSanitizerAndFallback:
         """Verify the compiled Rust extension is active in backend."""
         import app.utils.input_sanitizer as s
         assert s.HAS_RUST_SANITIZER is True
-        import prism_sanitizer_rs
         from prism_sanitizer_rs import SanitizationError as RustSanitizationError, PySanitizationError
         assert issubclass(RustSanitizationError, ValueError)
         assert issubclass(PySanitizationError, ValueError)
