@@ -89,6 +89,7 @@ class TestAnalysisServiceInitialization:
 
             assert "GEMINI_API_KEY" not in os.environ
             assert "LLM_API_KEY" not in os.environ
+            assert os.environ.get("GOOGLE_GENAI_USE_ENTERPRISE") == "true"
             assert os.environ.get("GOOGLE_GENAI_USE_VERTEXAI") == "true"
 
     def test_gemini_tier_stored_and_semaphore_created(self):

@@ -13,6 +13,7 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "httpx",
+  "httpx2",
   "pydantic",
   "pydantic-settings",
   "youtube-transcript-api",
@@ -39,4 +40,7 @@ markers = [
 ]
 filterwarnings = [
     "ignore:BaseAgentConfig is deprecated:DeprecationWarning",
+    "ignore:.*_UnionGenericAlias.*is deprecated:DeprecationWarning",
+    "ignore:unclosed transport <_SelectorSocketTransport:ResourceWarning",
+    "ignore:unclosed <socket.socket:ResourceWarning",
 ]
