@@ -1,10 +1,17 @@
 import asyncio
 import logging
+import unicodedata
 from typing import Any, List
 
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
-from app.utils.input_sanitizer import sanitize_input, SanitizationError
+from app.utils.input_sanitizer import (
+    sanitize_input,
+    SanitizationError,
+    contains_control_characters,
+    contains_suspicious_patterns,
+    escape_special_characters,
+)
 from app.utils.video_utils import extract_video_id
 from app.utils.llm_utils import execute_adk_agent, build_agent_generation_config
 from app.utils.prompt_helpers import build_user_data_prompt
@@ -118,24 +125,52 @@ class ClaimExtractor:
                 segments_data = [(float(seg.start), str(seg.text)) for seg in transcript.segments]
                 sanitized_transcript = format_and_sanitize_transcript(segments_data, max_length=100000)
             else:
-                formatted_transcript = ""
+                if not transcript.segments or all(not str(s.text).strip() for s in transcript.segments):
+                    raise SanitizationError("Transcript cannot be empty")
+
+                # Validate segments for control characters and suspicious patterns
+                for seg in transcript.segments:
+                    text = unicodedata.normalize("NFKC", str(seg.text))
+                    if contains_control_characters(text):
+                        raise SanitizationError("Transcript contains invalid control characters")
+                    if contains_suspicious_patterns(text):
+                        raise SanitizationError("Transcript contains patterns that may indicate a prompt injection attempt")
+
+                formatted_parts = []
+                total_len = 0
+                max_len = 100000
+                truncation_suffix = "\n...[TRUNCATED]..."
+                suffix_len = len(truncation_suffix)
+
                 for seg in transcript.segments:
                     minutes = int(seg.start // 60)
                     seconds = int(seg.start % 60)
-                    timestamp = f"[{minutes:02d}:{seconds:02d}]"
-                    formatted_transcript += f"{timestamp} {seg.text}\n"
+                    escaped_text = escape_special_characters(unicodedata.normalize("NFKC", str(seg.text)))
+                    line = f"[{minutes:02d}:{seconds:02d}] {escaped_text}\n"
 
-                # Increase limit for Gemini context caching (larger context windows)
-                if len(formatted_transcript) > 100000:
-                    formatted_transcript = formatted_transcript[:100000 - 19] + "\n...[TRUNCATED]..."
-
-                sanitized_transcript = sanitize_input(
-                    formatted_transcript,
-                    max_length=100000,
-                    field_name="Transcript",
-                    allow_suspicious_patterns=False,
-                    allow_control_chars=False
-                )
+                    if total_len + len(line) > max_len:
+                        combined = "".join(formatted_parts) + line
+                        if max_len >= suffix_len:
+                            cut_point = max_len - suffix_len
+                            truncated = combined[:cut_point]
+                            # Strip odd trailing backslashes to avoid escaping suffix
+                            backslash_count = 0
+                            for c in reversed(truncated):
+                                if c == "\\":
+                                    backslash_count += 1
+                                else:
+                                    break
+                            if backslash_count % 2 == 1:
+                                truncated = truncated[:-1]
+                            sanitized_transcript = truncated + truncation_suffix
+                        else:
+                            sanitized_transcript = combined[:max_len]
+                        break
+                    else:
+                        formatted_parts.append(line)
+                        total_len += len(line)
+                else:
+                    sanitized_transcript = "".join(formatted_parts)
         except SanitizationError as e:
             logger.error(f"Sanitization error in claim extraction: {e!s}")
             return [

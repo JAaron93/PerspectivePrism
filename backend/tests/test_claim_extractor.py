@@ -293,3 +293,49 @@ def test_native_transcript_processor_formatting_and_escaping():
     assert truncated.endswith("\n...[TRUNCATED]...")
 
 
+@pytest.mark.asyncio
+async def test_long_escape_expanding_transcript_parity():
+    """Verify long escape-expanding transcript produces identical sanitized prompts in native and fallback."""
+    from app.utils.prompt_helpers import build_user_data_prompt
+
+    # Generate segments rich with characters that require escaping (\, ", ', {, })
+    segments = [
+        TranscriptSegment(
+            text=f'Segment {i}: "quote" and {{brace}} and C:\\path\\{i}\r\nnewline',
+            start=float(i * 10),
+            duration=9.0,
+        )
+        for i in range(2500)  # Generates >100,000 chars when formatted and escaped
+    ]
+    transcript = Transcript(video_id="long_parity_test", segments=segments, full_text="long")
+
+    captured_prompts = {}
+
+    with patch("app.services.claim_extractor.build_user_data_prompt", side_effect=lambda data, instr: build_user_data_prompt(data, instr, nonce="fixed_nonce")):
+        for use_rust in [True, False]:
+            with patch("app.services.claim_extractor.settings") as mock_settings:
+                mock_settings.effective_gcp_project = "my-gcp-project"
+                mock_settings.GCP_LOCATION = "global"
+                mock_settings.GEMINI_TIER = "paid"
+                mock_settings.LLM_MODEL = "gemini-3.8-flash"
+
+                extractor = ClaimExtractor(settings=mock_settings)
+
+                async def fake_execute_adk_agent(*args, **kwargs):
+                    captured_prompts[use_rust] = kwargs.get("user_prompt")
+                    mock_out = MagicMock()
+                    mock_out.claims = []
+                    return mock_out
+
+                with patch("app.services.claim_extractor.HAS_RUST_TRANSCRIPT_PROCESSOR", use_rust):
+                    with patch("app.services.claim_extractor.execute_adk_agent", side_effect=fake_execute_adk_agent):
+                        await extractor.extract_claims(transcript)
+
+    assert True in captured_prompts
+    assert False in captured_prompts
+    assert captured_prompts[True] == captured_prompts[False]
+    assert len(captured_prompts[True]) <= 100500  # including outer prompt scaffolding
+    assert "\n...[TRUNCATED]..." in captured_prompts[True]
+
+
+
