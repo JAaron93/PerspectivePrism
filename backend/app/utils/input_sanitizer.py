@@ -358,9 +358,37 @@ def wrap_user_data(data: str, label: str = "USER DATA", nonce: Optional[str] = N
     This makes it clear to the LLM where user-provided data begins and ends,
     reducing the risk of prompt injection and neutralizing delimiter forgery.
     """
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.wrap_user_data(data, label, nonce)
+        except Exception:
+            pass
+
     if not nonce:
         nonce = secrets.token_hex(4)
     start_delim = f"==={label} {nonce} START==="
     end_delim = f"==={label} {nonce} END==="
     return f"{start_delim}\n{data}\n{end_delim}"
+
+
+def contains_delimiter_forgery(text: str, nonce: Optional[str] = None) -> bool:
+    """
+    Check if text contains delimiter forgery attempts (such as ===USER DATA or
+    matching active closing delimiters).
+    """
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.contains_delimiter_forgery(text, nonce)
+        except Exception:
+            pass
+
+    if "===USER DATA" in text:
+        return True
+    if nonce is not None:
+        if nonce == "":
+            return "===USER DATA END===" in text
+        else:
+            return f"===USER DATA {nonce} END===" in text
+    return False
+
 

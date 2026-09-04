@@ -164,7 +164,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Track 1
 - **Acceptance Criteria**:
   - Unit tests written and failing prior to implementation in `prism_sanitizer_rs`.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 5.2: Implement Delimiter Check & Prompt Builder in Rust
 - **Description**: Implement `contains_delimiter_forgery` and `build_user_data_prompt` in `prism_sanitizer_rs` with contiguous memory pre-allocation and secure hex nonce generation.
@@ -172,7 +172,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 5.1
 - **Acceptance Criteria**:
   - `cargo test --no-default-features` passes for delimiter and prompt builder tests.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 5.3: Integrate Native Prompt Wrapping into `prompt_helpers.py`
 - **Description**: Update `build_user_data_prompt()` and `wrap_user_data()` in `backend/app/utils/prompt_helpers.py` and `backend/app/utils/input_sanitizer.py` to delegate to `prism_sanitizer_rs`, maintaining pure-Python fallback.
@@ -180,7 +180,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 5.2
 - **Acceptance Criteria**:
   - `pytest tests/test_dry_spec_helpers.py tests/test_redteam_probe.py` passes 100% green.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ---
 
@@ -193,7 +193,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Acceptance Criteria**:
   - Full pytest suite (all 219+ tests) passes 100% green.
   - Extension Vitest suite passes 100% green.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 6.2: Create Micro-Benchmark Script & Measure Latency Speedups
 - **Description**: Create a benchmark script in `.benchmarks/` evaluating latency on 10k, 50k, and 100k character inputs comparing Python baseline vs native Rust execution.
@@ -201,7 +201,7 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Dependencies**: Task 6.1
 - **Acceptance Criteria**:
   - Demonstrates >75% latency reduction on 100k character sanitization and sub-millisecond transcript processing.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`
 
 ### Task 6.3: Update Centralized Documentation & Record Architecture Decision (ADR 006)
 - **Description**: Update `docs/helper_functions.md` with new native functions and document the architectural design as `docs/adr/006-rust-native-core-engine.md`.
@@ -210,4 +210,4 @@ This task breakdown organizes the implementation of the Rust Native Core Engine 
 - **Acceptance Criteria**:
   - `docs/helper_functions.md` reflects unified functions.
   - `docs/adr/006-rust-native-core-engine.md` committed.
-- **Status**: `[STATUS: PENDING]`
+- **Status**: `[STATUS: COMPLETED]`

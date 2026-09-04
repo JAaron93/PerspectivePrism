@@ -107,14 +107,14 @@
 
 ### `build_user_data_prompt(data, instruction, nonce=None) -> str`
 
-**Purpose:** Builds a prompt string with untrusted user data wrapped at the beginning inside dynamic per-request nonce delimiters (`===USER DATA <nonce> START===` / `===USER DATA <nonce> END===`), followed by the directive instruction.
+**Purpose:** Builds a prompt string with untrusted user data wrapped at the beginning inside dynamic per-request nonce delimiters (`===USER DATA <nonce> START===` / `===USER DATA <nonce> END===`), followed by the directive instruction. Delegates to the native Rust engine (`prism_sanitizer_rs.build_user_data_prompt`) for single-pass contiguous memory pre-allocation and zero intermediate copying, with pure-Python fallback parity.
 
 **Parameters:**
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `data` | `str \| dict[str, str]` | — | User data as a pre-formatted string or dictionary of labeled fields. |
 | `instruction` | `str` | — | Directive instruction for the LLM. |
-| `nonce` | `str \| None` | `None` | Optional specific nonce string; generates a random nonce if None. |
+| `nonce` | `str \| None` | `None` | Optional specific nonce string; generates a random 8-hex-character nonce if None. |
 
 **Returns:** Formatted prompt string.
 
@@ -123,6 +123,21 @@
 - `app/services/analysis_service.py` — `AnalysisService.analyze_perspective()`, `analyze_bias_and_deception()`
 - `app/services/content_classifier.py` — `PreClassifierService.classify_video()`
 - `app/services/alethiology_service.py` — `AlethiologyService.analyze_alethiology()`
+
+### `contains_delimiter_forgery(text: str, nonce: Optional[str] = None) -> bool`
+
+**Purpose:** Scans untrusted payload text for unescaped `===USER DATA` prefixes or matching active closing delimiter sequences. Delegates to native Rust engine `prism_sanitizer_rs.contains_delimiter_forgery()` with pure-Python fallback.
+
+**Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `text` | `str` | — | Input text to scan for delimiter injection attempts. |
+| `nonce` | `str \| None` | `None` | Active nonce context (or empty string for legacy delimiters). |
+
+**Returns:** `bool` indicating whether delimiter forgery patterns were detected.
+
+**Used by:**
+- `app/utils/prompt_helpers.py`, `app/utils/input_sanitizer.py`, and red-team probe suites.
 
 ### `format_classifier_user_data(metadata_clean, preview) -> str`
 
@@ -183,7 +198,11 @@ Dictionary with keys: `title`, `channel_name`, `category_name`, `description_sni
 - `app/services/content_classifier.py` — `PreClassifierService.classify_video()`
 
 ### `wrap_user_data(data, label="USER DATA", nonce=None) -> str`
-Wraps user data in dynamic nonce-delimited sections.
+Wraps user data in dynamic nonce-delimited sections. Delegates to native Rust engine `prism_sanitizer_rs.wrap_user_data()` with pure-Python fallback.
+
+### `contains_delimiter_forgery(text, nonce=None) -> bool`
+Convenience export in `input_sanitizer.py` mirroring `prompt_helpers.contains_delimiter_forgery`.
+
 
 ---
 

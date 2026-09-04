@@ -8,10 +8,37 @@ from typing import Dict, Optional, Tuple, Union
 USER_DATA_START = "===USER DATA START==="
 USER_DATA_END = "===USER DATA END==="
 
+try:
+    import prism_sanitizer_rs
+    HAS_RUST_SANITIZER = True
+except ImportError:
+    HAS_RUST_SANITIZER = False
+
 
 def generate_nonce(length: int = 8) -> str:
     """Generates a secure random hex nonce for delimiter isolation."""
     return secrets.token_hex(max(1, length // 2))
+
+
+def contains_delimiter_forgery(text: str, nonce: Optional[str] = None) -> bool:
+    """
+    Checks if text contains delimiter forgery attempts (such as ===USER DATA or
+    matching active closing delimiters).
+    """
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.contains_delimiter_forgery(text, nonce)
+        except Exception:
+            pass
+
+    if "===USER DATA" in text:
+        return True
+    if nonce is not None:
+        if nonce == "":
+            return "===USER DATA END===" in text
+        else:
+            return f"===USER DATA {nonce} END===" in text
+    return False
 
 
 def get_user_data_delimiters(nonce: Optional[str] = None) -> Tuple[str, str]:
@@ -62,6 +89,12 @@ def build_user_data_prompt(
         content_block = "\n".join(formatted_fields)
     else:
         content_block = str(data)
+
+    if HAS_RUST_SANITIZER:
+        try:
+            return prism_sanitizer_rs.build_user_data_prompt(content_block, instruction, nonce)
+        except Exception:
+            pass
 
     start_delim, end_delim = get_user_data_delimiters(nonce=nonce)
 
