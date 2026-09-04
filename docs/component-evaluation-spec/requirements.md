@@ -42,7 +42,7 @@
 ### Track 2: Vertex AI Gen AI Evaluation Engine (EvalTask) Integration
 
 - **FR6 - Vertex AI SDK Pointwise Evaluation**: The system MUST implement `backend/evals/runners/vertex_eval_runner.py` using `vertexai.preview.evaluation.EvalTask` for reference-based and rule-based quantitative evaluations:
-  - F1-score, accuracy, precision, and recall for `ContentClassifierService`.
+  - F1-score, accuracy, precision, and recall for `PreClassifierService`.
   - Timestamp Intersection-over-Union (IoU) calculation for `ClaimExtractor`.
   - Stance categorical accuracy for `AnalysisService`.
 - **FR7 - Pairwise Model Benchmark**: The evaluation suite MUST support pairwise model comparisons via `PairwiseMetric` with `AutoraterConfig(flip_enabled=True, sampling_count=4)` to benchmark candidate models (e.g., `gemini-3.5-flash-lite` vs `gemini-3.8-flash`) while eliminating positional judge bias.
