@@ -187,6 +187,24 @@ Wraps user data in dynamic nonce-delimited sections.
 
 ---
 
+## Backend: `app/services/content_classifier.py`
+
+### `check_political_keywords(text: Optional[str]) -> bool`
+
+**Purpose:** Scans input text for political and socio-economic keywords using the native Rust Aho-Corasick automaton (`prism_sanitizer_rs.contains_political_keywords`) in linear time $O(N)$ with word-boundary isolation and Unicode NFKC/case-folding normalization, falling back to compiled pure-Python regex `_KEYWORD_PATTERN` when the native extension is unavailable.
+
+**Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `text` | `str \| None` | — | Text to evaluate (title, channel, tags, or description snippet). |
+
+**Returns:** `bool` indicating whether political/socio-economic keywords were detected.
+
+**Used by:**
+- `app/services/content_classifier.py` — `evaluate_deterministic_fast_path()`
+
+---
+
 ## Backend: `app/utils/video_utils.py`
 
 ### `extract_video_id(url) -> str`

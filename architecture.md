@@ -94,7 +94,7 @@ sequenceDiagram
         BE->>BE: Skip classification (force_override=True)
     else force_override is false
         BE->>PC: classify_video(video_id, title, snippet)
-        PC->>PC: Check deterministic regex fast-path (<1ms)
+        PC->>PC: Check deterministic fast-path (Aho-Corasick DFA <50µs)
         alt Inconclusive
             PC->>EXT: Gemini ADK Classifier Agent
             EXT-->>PC: ContentEligibilityResult
@@ -111,6 +111,7 @@ sequenceDiagram
     BE->>CE: extract_claims(video_id)
     CE->>EXT: YouTube Transcript API
     EXT-->>CE: Raw Transcript
+    CE->>CE: Format & sanitize transcript via prism_sanitizer_rs (<2ms)
     CE->>EXT: Gemini ADK ExtractorAgent (Structured Outputs)
     EXT-->>CE: Extracted Claims List
     CE-->>BE: List of Claims
