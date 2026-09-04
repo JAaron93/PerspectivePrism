@@ -56,8 +56,8 @@ def escape_xml_sandbox_tags(text: str, tag_name: str = "untrusted_model_output")
     escaped_close = f"&lt;/{tag_name}&gt;"
 
     # Case-insensitive replacement of opening and closing tags matching tag_name
-    open_tag_pattern = re.compile(rf"<{re.escape(tag_name)}>", re.IGNORECASE)
-    close_tag_pattern = re.compile(rf"</{re.escape(tag_name)}>", re.IGNORECASE)
+    open_tag_pattern = re.compile(rf"<{re.escape(tag_name)}\s*>", re.IGNORECASE)
+    close_tag_pattern = re.compile(rf"</{re.escape(tag_name)}\s*>", re.IGNORECASE)
 
     text = close_tag_pattern.sub(escaped_close, text)
     text = open_tag_pattern.sub(escaped_open, text)
