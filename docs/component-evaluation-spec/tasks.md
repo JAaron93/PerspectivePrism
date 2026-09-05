@@ -42,12 +42,12 @@
 > [!TIP]
 > **PARALLEL EXECUTION**: Track 2 can be developed concurrently with Track 1 and Track 3.
 
-- [ ] **T2.1: Implement Structural Delimitation and Tag Neutralizer**
+- [x] **T2.1: Implement Structural Delimitation and Tag Neutralizer**
   - **Description**: In `backend/app/evals/security/eval_sanitizer.py`, implement `sanitize_eval_input()` to strip instruction delimiters (`[INST]`, `[/INST]`, `<<SYS>>`, `<</SYS>>`, `<|im_start|>`, `<|im_end|>`) and regex-neutralize scoring directives attempting to force judge verdicts (`\b(assign|give|set|rate|award|score|force)\b.*?\b(maximum|highest|perfect|5|10)\b`). Wrap untrusted outputs in per-request random nonces (`===JUDGE DATA <nonce> START/END===`) and `<untrusted_model_output>` XML sandboxes.
   - **Dependencies**: None
   - **Traceability**: FR14, FR15
 
-- [ ] **T2.2: TDD & BDD Unit Tests for Judge Sanitization**
+- [x] **T2.2: TDD & BDD Unit Tests for Judge Sanitization**
   - **Description**: In `backend/tests/test_eval_sanitizer.py`, create unit tests and BDD Gherkin scenarios testing tag neutralization, scoring directive redaction, and XML escaping on malicious evaluation targets.
   - **Dependencies**: T2.1
   - **Traceability**: FR14, FR15

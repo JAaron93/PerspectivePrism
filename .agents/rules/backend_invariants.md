@@ -62,6 +62,10 @@ This document defines the implementation guidelines, security invariants, testin
        - Strip odd trailing backslashes at the cut point (`backslash_count % 2 == 1`) to avoid escaping the first character of the truncation marker.
        - Append `\n...[TRUNCATED]...`.
     5. The Python fallback must NEVER truncate unescaped text before escaping, as downstream character escaping expands the prompt and produces divergent prompt inputs and LLM claims between runtimes.
+* **Zero-Trust Judge Input Sanitizer Invariants (`eval_sanitizer.py`)**:
+  - **Sentence-Bounded Directive Neutralization**: Imperative scoring directive patterns MUST NEVER configure `re.DOTALL` or unconstrained wildcards (`.*?`). Patterns must strictly terminate at sentence boundaries (`.`, `!`, `?`) and newlines (`\n`), and require evaluation domain nouns (e.g. `score`, `rating`, `grade`, `verdict`, `points`, `stars`), explicit ratio scales (`5/5`, `10/10`), or force superlatives so that benign same-sentence phrasing (e.g. `set a deadline of 10 days`, `give 10 examples`) is never falsely redacted.
+  - **Whitespace-Tolerant Sandbox Tag Escaping**: XML sandbox boundary escaping patterns MUST permit internal whitespace before the closing bracket (e.g. `rf"<{re.escape(tag_name)}\s*>"` and `rf"</{re.escape(tag_name)}\s*>"`). This blocks adversarial breakout payloads using XML-compliant whitespace variants (such as `</untrusted_model_output >`).
+  - **Cryptographic Nonce Encapsulation**: Dynamic evaluation sandboxes MUST wrap untrusted model outputs with cryptographically secure hex nonces (`secrets.token_hex(16)`) and strict XML boundary markers (`===JUDGE DATA {nonce} START===` / `===JUDGE DATA {nonce} END===`) to guarantee that evaluators distinguish rubric instructions from untrusted claims.
 
 ---
 

@@ -26,6 +26,9 @@ This document defines repository-wide test execution standards, test fixture dis
   - **Runtime Enum Fidelity**: All evaluation datasets and golden fixtures MUST use exact canonical string values matching the codebase's Pydantic/Enum models (e.g. `PerspectiveType` requiring `"Partisan (Left)"` and `"Partisan (Right)"` rather than conversational shorthand `"Partisan Left"` / `"Partisan Right"`). Unit tests for fixtures MUST assert direct enum instantiation (`PerspectiveType(item["perspective"])`).
   - **Transcript Timing Structure**: Evaluation fixtures targeting transcript-consuming services (`ClaimExtractor`) MUST include structured `segments: [{"text": str, "start": float, "duration": float}]` capable of directly instantiating runtime `Transcript` and `TranscriptSegment` objects without synthetic patching.
   - **Temporal Overlap Alignment**: Every annotated gold claim's `[timestamp_start, timestamp_end]` interval MUST explicitly overlap with the spoken segment interval(s) where that claim occurs. Dataset test suites MUST programmatically assert non-empty segment overlap for all annotated claims to prevent temporal scoring drift.
+* **Evaluation Sanitizer Regression Test Invariants**:
+  - **Sentence & Line Boundary Preservation**: Sanitizer test suites MUST assert that multi-sentence and newline-separated evidence containing benign verbs (`give`, `return`, `set`) and numbers (`5`, `10`) or superlatives (`maximum`, `best`) are preserved intact without false-positive redaction (`[REDACTED_SCORING_DIRECTIVE]`).
+  - **Whitespace-Variant Breakout Assertions**: Tag breakout test suites MUST explicitly assert that whitespace variants (e.g. `</tag >` and `<tag >`) are escaped or stripped to verify sandbox integrity.
 
 ---
 
