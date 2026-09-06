@@ -172,16 +172,17 @@ async def _judge_pairwise_candidates(
     """
     nonce = secrets.token_hex(16)
     try:
-        neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)) if candidate_1_text else ""
-        clean_c1 = sanitize_candidate_output(neutralized_c1, field_name="Candidate 1") if neutralized_c1 else ""
-        neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)) if candidate_2_text else ""
-        clean_c2 = sanitize_candidate_output(neutralized_c2, field_name="Candidate 2") if neutralized_c2 else ""
-        neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(criteria)) if criteria else ""
-        clean_criteria = sanitize_benchmark_prompt(neutralized_crit, field_name="Criteria") if neutralized_crit else ""
+        clean_c1 = sanitize_candidate_output(candidate_1_text, field_name="Candidate 1") if candidate_1_text else ""
+        clean_c2 = sanitize_candidate_output(candidate_2_text, field_name="Candidate 2") if candidate_2_text else ""
+        clean_criteria = sanitize_benchmark_prompt(criteria, field_name="Criteria") if criteria else ""
 
-        sanitized_c1 = escape_xml_sandbox_tags(clean_c1, tag_name="candidate_1")
-        sanitized_c2 = escape_xml_sandbox_tags(clean_c2, tag_name="candidate_2")
-        sanitized_criteria = escape_xml_sandbox_tags(clean_criteria, tag_name="criteria")
+        neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(clean_c1)) if clean_c1 else ""
+        neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(clean_c2)) if clean_c2 else ""
+        neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(clean_criteria)) if clean_criteria else ""
+
+        sanitized_c1 = escape_xml_sandbox_tags(neutralized_c1, tag_name="candidate_1")
+        sanitized_c2 = escape_xml_sandbox_tags(neutralized_c2, tag_name="candidate_2")
+        sanitized_criteria = escape_xml_sandbox_tags(neutralized_crit, tag_name="criteria")
 
         judge_prompt = (
             f"===JUDGE DATA {nonce} START===\n"
