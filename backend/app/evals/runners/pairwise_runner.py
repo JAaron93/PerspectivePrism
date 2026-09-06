@@ -15,7 +15,8 @@ from app.evals.security.eval_sanitizer import (
     strip_instruction_delimiters,
 )
 from app.evals.telemetry.tracer import record_eval_span
-from app.utils.llm_utils import get_genai_client
+from app.utils.input_sanitizer import sanitize_context
+from app.utils.llm_utils import build_agent_generation_config, get_genai_client
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ class PairwiseBenchmarkResult(BaseModel):
     model_b_wins: int = Field(ge=0)
     ties: int = Field(ge=0)
     total_comparisons: int = Field(ge=0)
+    fallback_count: int = Field(ge=0, default=0, description="Total count of comparisons where judge failed or timed out.")
+    valid_comparisons: int = Field(ge=0, default=0, description="Count of non-fallback comparisons used for win rates.")
     positional_bias_score: float = Field(
         ge=0.0,
         le=1.0,
@@ -57,12 +60,19 @@ class PairwiseBenchmarkResult(BaseModel):
     details: List[Dict[str, Any]] = Field(default_factory=list)
 
 
-async def _generate_candidate_output(model_name: str, prompt: str) -> str:
-    """Invokes candidate model via Google GenAI SDK under Vertex AI mode."""
+async def _generate_candidate_output(model_name: str, prompt: str, settings: Any = None) -> str:
+    """Invokes candidate model via Google GenAI SDK under Vertex AI mode with sanitization and zero-throttling config."""
+    clean_prompt = sanitize_context(prompt, allow_suspicious_patterns=True) if prompt else ""
     client = get_genai_client()
+    gen_config = build_agent_generation_config(
+        model=model_name,
+        task_type="analysis",
+        settings=settings or global_settings,
+    )
     response = await client.aio.models.generate_content(
         model=model_name,
-        contents=prompt,
+        contents=clean_prompt,
+        config=gen_config,
     )
     return response.text or ""
 
@@ -72,22 +82,28 @@ async def _judge_pairwise_candidates(
     candidate_2_text: str,
     criteria: str,
     is_flipped: bool = False,
-    judge_model: str = "gemini-3.5-flash-lite",
+    judge_model: str = "gemini-3.8-flash",
+    settings: Any = None,
 ) -> PairwiseJudgmentRubric:
     """
-    Submits two candidate texts to the judge model with structured Pydantic schema output.
+    Submits two candidate texts to the judge model with structured Pydantic schema output,
+    applying mandatory input sanitization and zero-throttling generation floors.
     """
     nonce = secrets.token_hex(8)
+    clean_c1 = sanitize_context(candidate_1_text, allow_suspicious_patterns=True) if candidate_1_text else ""
+    clean_c2 = sanitize_context(candidate_2_text, allow_suspicious_patterns=True) if candidate_2_text else ""
+    clean_criteria = sanitize_context(criteria, allow_suspicious_patterns=True) if criteria else ""
+
     sanitized_c1 = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)),
+        neutralize_scoring_directives(strip_instruction_delimiters(clean_c1)),
         tag_name="candidate_1",
     )
     sanitized_c2 = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)),
+        neutralize_scoring_directives(strip_instruction_delimiters(clean_c2)),
         tag_name="candidate_2",
     )
     sanitized_criteria = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(criteria)),
+        neutralize_scoring_directives(strip_instruction_delimiters(clean_criteria)),
         tag_name="criteria",
     )
 
@@ -103,13 +119,17 @@ async def _judge_pairwise_candidates(
 
     try:
         client = get_genai_client()
+        gen_config = build_agent_generation_config(
+            model=judge_model,
+            task_type="judge",
+            settings=settings or global_settings,
+            response_mime_type="application/json",
+            response_schema=PairwiseJudgmentRubric,
+        )
         response = await client.aio.models.generate_content(
             model=judge_model,
             contents=judge_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": PairwiseJudgmentRubric,
-            },
+            config=gen_config,
         )
         parsed = json.loads(response.text)
         return PairwiseJudgmentRubric.model_validate(parsed)
@@ -127,7 +147,7 @@ async def run_pairwise_model_benchmark(
     test_items: List[Dict[str, str]],
     model_a: str = "gemini-3.5-flash-lite",
     model_b: str = "gemini-3.8-flash",
-    judge_model: str = "gemini-3.5-flash-lite",
+    judge_model: str = "gemini-3.8-flash",
     multi_sample_count: int = 4,
     settings: Any = None,
 ) -> PairwiseBenchmarkResult:
@@ -136,6 +156,7 @@ async def run_pairwise_model_benchmark(
     Eliminates presentation order bias and provides statistically grounded win rates.
     """
     total_comparisons = 0
+    fallback_count = 0
     model_a_wins = 0
     model_b_wins = 0
     ties = 0
@@ -148,8 +169,8 @@ async def run_pairwise_model_benchmark(
         criteria = item.get("criteria", "Accuracy, groundedness, and descriptive neutrality.")
 
         # Generate outputs from both candidate models in parallel
-        out_a_task = _generate_candidate_output(model_a, prompt)
-        out_b_task = _generate_candidate_output(model_b, prompt)
+        out_a_task = _generate_candidate_output(model_a, prompt, settings=settings)
+        out_b_task = _generate_candidate_output(model_b, prompt, settings=settings)
         out_a, out_b = await asyncio.gather(out_a_task, out_b_task)
 
         # Run both forward (flip=False) and reversed (flip=True) configurations
@@ -165,12 +186,16 @@ async def run_pairwise_model_benchmark(
                     criteria=criteria,
                     is_flipped=is_flipped,
                     judge_model=judge_model,
+                    settings=settings,
                 )
 
                 total_comparisons += 1
                 winner = judgment.winner
 
-                if winner == "candidate_1":
+                if judgment.is_fallback:
+                    fallback_count += 1
+                    actual_winner = "fallback"
+                elif winner == "candidate_1":
                     pos_1_selections += 1
                     actual_winner = model_b if is_flipped else model_a
                 elif winner == "candidate_2":
@@ -195,6 +220,7 @@ async def run_pairwise_model_benchmark(
                     "is_fallback": judgment.is_fallback,
                 })
 
+    valid_comparisons = total_comparisons - fallback_count
     decisive_comparisons = pos_1_selections + pos_2_selections
     if decisive_comparisons > 0:
         pos_1_ratio = pos_1_selections / decisive_comparisons
@@ -202,9 +228,9 @@ async def run_pairwise_model_benchmark(
     else:
         positional_bias_score = 0.0
 
-    a_win_rate = round(model_a_wins / total_comparisons, 4) if total_comparisons > 0 else 0.0
-    b_win_rate = round(model_b_wins / total_comparisons, 4) if total_comparisons > 0 else 0.0
-    tie_rate = round(ties / total_comparisons, 4) if total_comparisons > 0 else 0.0
+    a_win_rate = round(model_a_wins / valid_comparisons, 4) if valid_comparisons > 0 else 0.0
+    b_win_rate = round(model_b_wins / valid_comparisons, 4) if valid_comparisons > 0 else 0.0
+    tie_rate = round(ties / valid_comparisons, 4) if valid_comparisons > 0 else 0.0
 
     result = PairwiseBenchmarkResult(
         model_a=model_a,
@@ -216,6 +242,8 @@ async def run_pairwise_model_benchmark(
         model_b_wins=model_b_wins,
         ties=ties,
         total_comparisons=total_comparisons,
+        fallback_count=fallback_count,
+        valid_comparisons=valid_comparisons,
         positional_bias_score=positional_bias_score,
         details=details,
     )

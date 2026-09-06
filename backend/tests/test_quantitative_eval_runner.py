@@ -1,5 +1,6 @@
 """TDD unit tests for Native Quantitative Evaluation Runners (FR6, FR7, NFR2, NFR4)."""
 
+import json
 import math
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -232,7 +233,7 @@ class TestPairwiseModelRunner:
         with patch("app.evals.runners.pairwise_runner._generate_candidate_output", new_callable=AsyncMock) as mock_gen, \
              patch("app.evals.runners.pairwise_runner._judge_pairwise_candidates", side_effect=mock_judge):
 
-            mock_gen.side_effect = lambda model, prompt: f"Output from {model}"
+            mock_gen.side_effect = lambda model, prompt, **kw: f"Output from {model}"
 
             result = await run_pairwise_model_benchmark(
                 test_items=test_items,
@@ -263,7 +264,7 @@ class TestPairwiseModelRunner:
         with patch("app.evals.runners.pairwise_runner._generate_candidate_output", new_callable=AsyncMock) as mock_gen, \
              patch("app.evals.runners.pairwise_runner._judge_pairwise_candidates", side_effect=biased_judge):
 
-            mock_gen.side_effect = lambda model, prompt: f"Output from {model}"
+            mock_gen.side_effect = lambda model, prompt, **kw: f"Output from {model}"
 
             result = await run_pairwise_model_benchmark(
                 test_items=test_items,
@@ -277,3 +278,104 @@ class TestPairwiseModelRunner:
             assert result.model_b_win_rate == 0.5
             # Positional bias score should be high (Candidate 1 was chosen 100% of the time)
             assert result.positional_bias_score == 1.0
+
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_isolates_fallback_ties_from_metrics(self):
+        """Verify that fallback judgments (e.g. timeouts, quota) do not inflate ties or dilute win rates."""
+        test_items = [{"prompt": "Analyze claims.", "criteria": "Accuracy."}]
+
+        call_count = 0
+
+        async def fallback_intermittent_judge(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # Return fallback on odd calls, valid judgment on even calls
+            if call_count % 2 == 1:
+                return PairwiseJudgmentRubric(
+                    winner="tie",
+                    confidence_score=0.0,
+                    comparative_rationale="Fallback error timeout.",
+                    is_fallback=True,
+                )
+            else:
+                return PairwiseJudgmentRubric(
+                    winner="candidate_1",
+                    confidence_score=0.9,
+                    comparative_rationale="Candidate 1 is superior.",
+                    is_fallback=False,
+                )
+
+        with patch("app.evals.runners.pairwise_runner._generate_candidate_output", new_callable=AsyncMock) as mock_gen, \
+             patch("app.evals.runners.pairwise_runner._judge_pairwise_candidates", side_effect=fallback_intermittent_judge):
+
+            mock_gen.side_effect = lambda model, prompt, **kw: f"Output from {model}"
+
+            result = await run_pairwise_model_benchmark(
+                test_items=test_items,
+                model_a="gemini-3.5-flash-lite",
+                model_b="gemini-3.8-flash",
+                multi_sample_count=2,
+            )
+
+            # Total = 1 item * 2 flips * 2 samples = 4 comparisons
+            assert result.total_comparisons == 4
+            # Exactly 2 were fallbacks
+            assert result.fallback_count == 2
+            assert result.valid_comparisons == 2
+            # Fallbacks must NOT be counted in ties
+            assert result.ties == 0
+            assert result.tie_rate == 0.0
+            # Valid comparisons (2) had candidate_1 winning each time (1 win for Model A, 1 win for Model B due to flip)
+            assert result.model_a_wins == 1
+            assert result.model_b_wins == 1
+            assert result.model_a_win_rate == 0.5
+            assert result.model_b_win_rate == 0.5
+
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_internal_functions_sanitize_and_configure(self):
+        """Verify _generate_candidate_output and _judge_pairwise_candidates sanitize inputs and use generation floors."""
+        from app.evals.runners.pairwise_runner import _generate_candidate_output, _judge_pairwise_candidates
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({
+            "winner": "candidate_1",
+            "confidence_score": 0.95,
+            "comparative_rationale": "High quality reasoning.",
+            "is_fallback": False,
+        })
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("app.evals.runners.pairwise_runner.get_genai_client", return_value=mock_client), \
+             patch("app.evals.runners.pairwise_runner.sanitize_context", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize:
+
+            # Test candidate generation
+            candidate_out = await _generate_candidate_output("gemini-3.5-flash-lite", "Raw <script>alert(1)</script> prompt")
+            mock_sanitize.assert_called_with("Raw <script>alert(1)</script> prompt", allow_suspicious_patterns=True)
+            assert mock_client.aio.models.generate_content.called
+            gen_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
+            assert gen_call_kwargs["model"] == "gemini-3.5-flash-lite"
+            assert "[CLEAN]" in gen_call_kwargs["contents"]
+            assert gen_call_kwargs["config"] is not None
+            assert gen_call_kwargs["config"].max_output_tokens >= 65536
+
+            # Test judge invocation
+            mock_client.aio.models.generate_content.reset_mock()
+            mock_sanitize.reset_mock()
+
+            rubric = await _judge_pairwise_candidates(
+                candidate_1_text="Text 1 <script>",
+                candidate_2_text="Text 2",
+                criteria="Accuracy",
+                judge_model="gemini-3.8-flash",
+            )
+            assert rubric.winner == "candidate_1"
+            assert rubric.is_fallback is False
+            # Verify sanitize_context was called on candidates and criteria
+            assert mock_sanitize.call_count >= 3
+            judge_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
+            assert judge_call_kwargs["model"] == "gemini-3.8-flash"
+            assert judge_call_kwargs["config"] is not None
+            assert judge_call_kwargs["config"].max_output_tokens >= 65536
+            assert judge_call_kwargs["config"].http_options.timeout >= 120.0
+

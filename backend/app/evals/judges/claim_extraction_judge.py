@@ -15,6 +15,7 @@ from app.evals.security.eval_sanitizer import (
     strip_instruction_delimiters,
 )
 from app.evals.telemetry.tracer import record_eval_span
+from app.utils.input_sanitizer import sanitize_context
 from app.utils.llm_utils import build_agent_generation_config, execute_adk_agent
 
 logger = logging.getLogger(__name__)
@@ -92,8 +93,11 @@ async def evaluate_claim_extraction(
     Catches transient exceptions and returns an explicit is_fallback=True rubric if execution fails.
     """
     active_settings = settings or global_settings
-    active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+    active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
     nonce = secrets.token_hex(8)
+
+    # Enforce mandatory application sanitizer boundary
+    clean_transcript = sanitize_context(transcript_text, allow_suspicious_patterns=True) if transcript_text else ""
 
     judge_agent = Agent(
         name="claim_extraction_judge",
@@ -103,13 +107,13 @@ async def evaluate_claim_extraction(
         output_key="claim_extraction_result",
         generate_content_config=build_agent_generation_config(
             model=active_model,
-            task_type="eval_judge",
+            task_type="judge",
             settings=active_settings,
         ),
     )
 
     user_prompt = _build_sanitized_judge_prompt(
-        transcript_text=transcript_text,
+        transcript_text=clean_transcript,
         extracted_claims=extracted_claims,
         reference_claims=reference_claims,
         nonce=nonce,

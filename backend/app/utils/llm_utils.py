@@ -41,7 +41,7 @@ EXCLUDED_TELEMETRY_KEYS: Set[str] = {
 }
 
 ANALYTICAL_TASK_TYPES: frozenset[str] = frozenset({
-    "extractor", "analysis", "alethiology", "evaluator", "judge"
+    "extractor", "analysis", "alethiology", "evaluator", "judge", "eval_judge"
 })
 ROUTER_TASK_TYPES: frozenset[str] = frozenset({
     "micro_task", "router", "classifier"
@@ -96,6 +96,8 @@ def build_agent_generation_config(
     thinking_level: Optional[str] = None,
     max_output_tokens: Optional[int] = None,
     http_timeout: Optional[float] = None,
+    response_mime_type: Optional[str] = None,
+    response_schema: Optional[Any] = None,
 ) -> types.GenerateContentConfig:
     """
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
@@ -155,6 +157,8 @@ def build_agent_generation_config(
         thinking_config=thinking_config,
         max_output_tokens=max_output_tokens,
         http_options=http_options,
+        response_mime_type=response_mime_type,
+        response_schema=response_schema,
     )
 
 

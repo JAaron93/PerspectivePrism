@@ -217,7 +217,7 @@ async def run_pre_classifier_eval(
         y_true.append(bool(item.get("is_analysable", True)))
         y_pred.append(bool(result.is_analysable))
         category_true.append(str(item.get("expected_category", "")))
-        category_pred.append(str(getattr(result, "category", "")))
+        category_pred.append(str(getattr(result, "detected_category", getattr(result, "category", ""))))
 
         if getattr(result, "deterministic_fast_path", False):
             fast_path_count += 1
@@ -272,16 +272,16 @@ def run_claim_timestamp_iou_eval(
     matches: List[Tuple[int, int, float]] = []
 
     for ext_idx, ext in enumerate(extracted_claims):
-        p_start = float(ext.get("start", 0.0))
-        p_end = float(ext.get("end", 0.0))
+        p_start = float(ext.get("timestamp_start", ext.get("start", 0.0)))
+        p_end = float(ext.get("timestamp_end", ext.get("end", 0.0)))
 
         best_gold_idx = -1
         best_iou = 0.0
 
         for gold_idx in unmatched_gold:
             g = gold_claims[gold_idx]
-            g_start = float(g.get("start", 0.0))
-            g_end = float(g.get("end", 0.0))
+            g_start = float(g.get("timestamp_start", g.get("start", 0.0)))
+            g_end = float(g.get("timestamp_end", g.get("end", 0.0)))
 
             iou = calculate_timestamp_iou(p_start, p_end, g_start, g_end)
             if iou > best_iou:

@@ -15,6 +15,7 @@ from app.evals.security.eval_sanitizer import (
     strip_instruction_delimiters,
 )
 from app.evals.telemetry.tracer import record_eval_span
+from app.utils.input_sanitizer import sanitize_claim_text, sanitize_context
 from app.utils.llm_utils import build_agent_generation_config, execute_adk_agent
 
 logger = logging.getLogger(__name__)
@@ -109,8 +110,13 @@ async def evaluate_alethiology_neutrality(
     Catches transient exceptions and returns an explicit is_fallback=True rubric if execution fails.
     """
     active_settings = settings or global_settings
-    active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.5-flash-lite")
+    active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
     nonce = secrets.token_hex(8)
+
+    # Enforce mandatory application sanitizer boundary
+    clean_claim = sanitize_claim_text(claim_text, allow_suspicious_patterns=True) if claim_text else ""
+    clean_excerpt = sanitize_context(transcript_excerpt, allow_suspicious_patterns=True) if transcript_excerpt else ""
+    clean_summary = sanitize_context(predicted_epistemic_summary, allow_suspicious_patterns=True) if predicted_epistemic_summary else ""
 
     judge_agent = Agent(
         name="alethiology_neutrality_judge",
@@ -120,17 +126,17 @@ async def evaluate_alethiology_neutrality(
         output_key="alethiology_neutrality_result",
         generate_content_config=build_agent_generation_config(
             model=active_model,
-            task_type="eval_judge",
+            task_type="judge",
             settings=active_settings,
         ),
     )
 
     user_prompt = _build_sanitized_alethiology_prompt(
-        claim_text=claim_text,
-        transcript_excerpt=transcript_excerpt,
+        claim_text=clean_claim,
+        transcript_excerpt=clean_excerpt,
         predicted_primary_theory=predicted_primary_theory,
         predicted_secondary_theory=predicted_secondary_theory,
-        predicted_epistemic_summary=predicted_epistemic_summary,
+        predicted_epistemic_summary=clean_summary,
         predicted_quote_evidences=predicted_quote_evidences,
         gold_primary_theory=gold_primary_theory,
         gold_secondary_theory=gold_secondary_theory,
