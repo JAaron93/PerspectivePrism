@@ -187,41 +187,42 @@ def normalize_content_category(category: str) -> str:
     if any(k in cat_lower for k in ["satire", "parody", "onion"]):
         return "Satire / Parody"
 
-    # 3. Cooking & Recipes (must precede generic tutorials)
+    # 3. Domain-specific lifestyle, entertainment, gaming & art categories (must precede generic tutorials)
+    # 3a. Cooking & Recipes
     if any(k in cat_lower for k in ["cook", "recipe", "food", "baking", "culinary"]):
         return "Lifestyle & Cooking"
 
-    # 4. Education & Lectures
-    if "education" in cat_lower or "lecture" in cat_lower or "tutorial" in cat_lower:
-        return "Education & Science"
-
-    # 5. News & Politics
-    if any(k in cat_lower for k in ["politic", "news", "commentary", "legislation", "policy", "congress"]):
-        return "News & Politics"
-
-    # 6. Science & Technology
-    if any(k in cat_lower for k in ["science", "tech", "semiconductor", "lithography", "hardware", "software"]):
-        return "Science & Technology"
-
-    # 7. Gaming
+    # 3b. Gaming & Speedruns (e.g. 'Gaming Tutorial', 'Speedrun Walkthrough')
     if any(k in cat_lower for k in ["gaming", "game", "speedrun", "playthrough", "gameplay"]):
         return "Gaming"
 
-    # 8. Music & Entertainment
+    # 3c. Art, Painting & DIY (e.g. 'Painting Tutorial', 'Watercolor Painting')
+    if any(k in cat_lower for k in ["art", "paint", "draw", "craft", "diy", "watercolor", "lifestyle"]):
+        return "Lifestyle & Art"
+
+    # 3d. Wellness & Fitness (e.g. 'Yoga Tutorial', 'Fitness Workout')
+    if any(k in cat_lower for k in ["wellness", "fitness", "health", "yoga", "workout"]):
+        return "Lifestyle & Wellness"
+
+    # 3e. Pets & Animals
+    if any(k in cat_lower for k in ["pet", "animal", "dog", "cat", "puppy", "wildlife", "zoo"]):
+        return "Pets & Animals"
+
+    # 3f. Music & Entertainment
     if any(k in cat_lower for k in ["music", "song", "amv", "remix", "entertainment", "concert", "beat"]):
         return "Music & Entertainment"
 
-    # 9. Wellness & Fitness
-    if "wellness" in cat_lower or "fitness" in cat_lower or "health" in cat_lower or "yoga" in cat_lower:
-        return "Lifestyle & Wellness"
+    # 4. News & Politics (including political commentary, legislation, investigative reporting)
+    if any(k in cat_lower for k in ["politic", "news", "commentary", "legislation", "policy", "congress", "investigat"]):
+        return "News & Politics"
 
-    # 10. Art & Lifestyle
-    if "art" in cat_lower or "paint" in cat_lower or "craft" in cat_lower or "diy" in cat_lower or "lifestyle" in cat_lower:
-        return "Lifestyle & Art"
+    # 5. Science, Technology & Documentaries (e.g. 'Documentary Essay', 'Technical Documentary')
+    if any(k in cat_lower for k in ["science", "tech", "semiconductor", "lithography", "hardware", "software", "engineering", "documentary", "essay"]):
+        return "Science & Technology"
 
-    # 11. Pets & Animals
-    if any(k in cat_lower for k in ["pet", "animal", "dog", "cat", "wildlife", "zoo"]):
-        return "Pets & Animals"
+    # 6. Education, Lectures & Academic Tutorials
+    if any(k in cat_lower for k in ["education", "lecture", "tutorial", "academic", "course"]):
+        return "Education & Science"
 
     return category.strip()
 

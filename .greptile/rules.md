@@ -127,11 +127,11 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Configuration must strictly rely on `pydantic-settings` (`app/core/config.py`).
 * **Evaluation Runner & Pairwise Benchmark Invariants**:
   * In pairwise evaluation benchmarks (`backend/app/evals/runners/pairwise_runner.py`):
-    - Candidate model output sanitization must allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(text) * 4, 2097152)`) to ensure post-escaping character expansion never triggers silent ellipsis truncation before judging.
+    - Candidate model output sanitization must normalize text with NFKC upfront and allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(unicodedata.normalize("NFKC", text)) * 4, 2097152)`) to ensure post-normalization and post-escaping character expansion never triggers silent ellipsis truncation before judging.
     - Candidate generation failures and judge exceptions must be isolated as explicit fallbacks (`is_fallback = True`, tracked in `fallback_count`) and never submitted to the judge as empty strings or recorded as decisive wins/ties.
     - `gemini-3.5-flash-lite` vs `gemini-3.8-flash` is an authorized candidate evaluation pair, while the judge model must use `gemini-3.8-flash`.
   * In pointwise quantitative runners (`backend/app/evals/runners/quantitative_runner.py`):
-    - Category vocabulary normalization (`normalize_content_category`) must evaluate captionless/raw footage indicators before political keywords, and cooking/recipe keywords before generic tutorial keywords, to prevent vocabulary mismatch from corrupting multi-class F1 and accuracy metrics.
+    - Category vocabulary normalization (`normalize_content_category`) must evaluate captionless/raw footage indicators first, followed by specific domain categories (gaming, art, cooking, wellness, pets, music) before generic tutorials, and map documentary essays to `Science & Technology`, to prevent vocabulary mismatch from corrupting multi-class F1 and accuracy metrics.
 
 ---
 

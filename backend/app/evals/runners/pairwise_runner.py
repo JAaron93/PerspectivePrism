@@ -20,24 +20,27 @@ from app.utils.llm_utils import build_agent_generation_config, get_genai_client
 
 logger = logging.getLogger(__name__)
 
+import unicodedata
+
 # 65,536 output tokens accommodates up to ~524,288 characters (~512KB).
-# With character escaping (quotes, braces, slashes doubling/expanding character count),
-# an expanded headroom multiplier (4x len(text)) with a 2MB floor is enforced
-# so post-escaping expansion never triggers silent truncation.
+# With NFKC normalization expansion and character escaping (quotes, braces, slashes),
+# an expanded headroom multiplier (4x normalized text length) with a 2MB floor is enforced
+# so post-normalization and post-escaping expansion never triggers silent truncation.
 MAX_CANDIDATE_OUTPUT_LENGTH: int = 2097152  # 2MB floor
 
 
 def sanitize_candidate_output(text: str, field_name: str = "Candidate output") -> str:
     """
     Sanitizes candidate output preserving the full 64K token generation allowance (~512KB)
-    without premature character truncation, accounting for special character escaping expansion
+    without premature character truncation, accounting for NFKC expansion and special character escaping
     while strictly enforcing prompt injection and control character detection.
     """
     if not text:
         return ""
-    # Multiply by 4 to accommodate worst-case escaping expansion (e.g. quotes, slashes, braces)
-    # ensuring sanitize_input never truncates candidate evidence, conclusions, or constraints.
-    ceiling = max(len(text) * 4, MAX_CANDIDATE_OUTPUT_LENGTH)
+    # Normalize with NFKC first so the ceiling accounts for compatibility character expansion upfront,
+    # then multiply by 4 to accommodate worst-case escaping expansion (e.g. quotes, slashes, braces).
+    norm_len = len(unicodedata.normalize("NFKC", text))
+    ceiling = max(norm_len * 4, MAX_CANDIDATE_OUTPUT_LENGTH)
     return sanitize_input(
         text,
         max_length=ceiling,

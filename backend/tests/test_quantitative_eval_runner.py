@@ -449,6 +449,10 @@ class TestPairwiseModelRunner:
         assert normalize_content_category("ASML EUV Semiconductor Tech") == "Science & Technology"
         assert normalize_content_category("Academic Lecture on Economics") == "Education & Science"
         assert normalize_content_category("Vegan Recipe Tutorial") == "Lifestyle & Cooking"
+        assert normalize_content_category("Gaming Tutorial") == "Gaming"
+        assert normalize_content_category("Speedrun Tutorial") == "Gaming"
+        assert normalize_content_category("Painting Tutorial") == "Lifestyle & Art"
+        assert normalize_content_category("Documentary Essay") == "Science & Technology"
         assert normalize_content_category("Political Commentary (No Captions)") == "Raw Video Footage"
         assert normalize_content_category("Raw Video Footage") == "Raw Video Footage"
         assert normalize_content_category("Silent B-Roll: City Hall Press") == "Raw Video Footage"
@@ -474,6 +478,16 @@ class TestPairwiseModelRunner:
         assert not clean.endswith("...")
         # Verify length after escaping is strictly larger than original without any truncation ellipsis
         assert len(clean) >= len(dense_quotes_candidate)
+
+    def test_sanitize_candidate_output_preserves_nfkc_expanded_characters(self):
+        """Verify candidate outputs with NFKC-expanding compatibility characters do not truncate."""
+        from app.evals.runners.pairwise_runner import sanitize_candidate_output
+
+        # \uFDFA is the Arabic ligature Sallallahou Alayhe Wasallam which expands from 1 to 18 characters under NFKC
+        nfkc_candidate = ("Finding with ligature \uFDFA and details. " * 500).strip()
+        clean = sanitize_candidate_output(nfkc_candidate)
+        assert not clean.endswith("...")
+        assert len(clean) > len(nfkc_candidate)
 
 
 

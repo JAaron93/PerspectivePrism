@@ -152,10 +152,10 @@ This document defines the implementation guidelines, security invariants, testin
 
 ## 8. Evaluation Runners & Model Benchmarking Invariants (`backend/app/evals/`)
 
-* **Candidate Sanitizer Escaping Expansion Headroom**:
+* **Candidate Sanitizer Escaping & NFKC Expansion Headroom**:
   - `sanitize_candidate_output()` MUST preserve the full 64K output token generation ceiling (~512KB) without premature character truncation.
-  - Because `sanitize_input()` (both compiled Rust and Python fallback) escapes special characters (`"` $\to$ `\"`, `\` $\to$ `\\`, braces), post-escaping expansion can substantially exceed raw text length.
-  - Sanitization ceilings for candidate outputs MUST dynamically allocate an expansion multiplier (`ceiling = max(len(text) * 4, MAX_CANDIDATE_OUTPUT_LENGTH)` with `MAX_CANDIDATE_OUTPUT_LENGTH = 2097152`, a 2MB floor) to guarantee that escaping expansion never triggers silent ellipsis truncation on valid candidate responses.
+  - Compatibility characters (ligatures, mathematical symbols, Roman numerals) expand upon Unicode NFKC normalization, and special characters (`"` $\to$ `\"`, `\` $\to$ `\\`, braces) expand upon escaping inside `sanitize_input()`.
+  - Sanitization ceilings for candidate outputs MUST normalize text with NFKC upfront (`norm_len = len(unicodedata.normalize("NFKC", text))`) and dynamically allocate an expansion multiplier (`ceiling = max(norm_len * 4, MAX_CANDIDATE_OUTPUT_LENGTH)` with `MAX_CANDIDATE_OUTPUT_LENGTH = 2097152`, a 2MB floor) to guarantee that post-normalization and post-escaping expansion never triggers silent ellipsis truncation on valid candidate responses.
 * **Pairwise Candidate Generation & Judge Fallback Isolation**:
   - In pairwise model benchmarks (`run_pairwise_model_benchmark()`), both candidate generation failures and judge execution exceptions MUST be isolated as explicit fallbacks (`is_fallback = True`, incrementing `fallback_count` and `total_comparisons`).
   - The runner MUST NEVER pass empty strings or generation errors to the judge model.
@@ -168,6 +168,7 @@ This document defines the implementation guidelines, security invariants, testin
   - Normalization rule evaluation MUST enforce strict priority ordering:
     1. **Captionless & Raw Media Indicators**: Patterns such as `no caption`, `captionless`, `raw`, `dashcam`, `cctv`, `security`, `traffic`, `ambient`, `webcam`, `b-roll` MUST be evaluated first $\to$ `"Raw Video Footage"`. This prevents captionless political content (e.g. `Political Commentary (No Captions)`) from being prematurely matched by broad political keywords.
     2. **Satire & Parody**: `satire`, `parody`, `onion` $\to$ `"Satire / Parody"`.
-    3. **Culinary & Food Specifics**: `cook`, `recipe`, `food`, `baking`, `culinary` MUST precede generic tutorial keywords $\to$ `"Lifestyle & Cooking"`.
-    4. **Education & Lectures**: `education`, `lecture`, `tutorial` $\to$ `"Education & Science"`.
-    5. **News & Politics**: `politic`, `news`, `commentary`, `legislation`, `policy`, `congress` $\to$ `"News & Politics"`.
+    3. **Specific Domain Categories (Must Precede Generic Tutorials)**: Domain keywords MUST precede generic tutorial checks so that `Gaming Tutorial` $\to$ `"Gaming"`, `Painting Tutorial` $\to$ `"Lifestyle & Art"`, `Vegan Recipe Tutorial` $\to$ `"Lifestyle & Cooking"`, and `Yoga Tutorial` $\to$ `"Lifestyle & Wellness"`.
+    4. **News & Politics**: `politic`, `news`, `commentary`, `legislation`, `policy`, `congress`, `investigat` $\to$ `"News & Politics"`.
+    5. **Science, Technology & Documentaries**: `science`, `tech`, `semiconductor`, `lithography`, `hardware`, `software`, `engineering`, `documentary`, `essay` $\to$ `"Science & Technology"`.
+    6. **Education, Lectures & Academic Tutorials**: `education`, `lecture`, `tutorial`, `academic`, `course` $\to$ `"Education & Science"`.
