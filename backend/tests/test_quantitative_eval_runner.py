@@ -394,4 +394,37 @@ class TestPairwiseModelRunner:
         assert len(clean) == len(long_candidate)
         assert not clean.endswith("...")
 
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_catches_sanitization_error_as_fallback(self):
+        """Verify that when candidate content triggers SanitizationError, it is caught as fallback."""
+        from app.evals.runners.pairwise_runner import _judge_pairwise_candidates
+        from app.utils.input_sanitizer import SanitizationError
+
+        with patch("app.evals.runners.pairwise_runner.sanitize_candidate_output", side_effect=SanitizationError("Prompt injection")):
+            rubric = await _judge_pairwise_candidates(
+                candidate_1_text="Adversarial content",
+                candidate_2_text="Normal content",
+                criteria="Accuracy",
+            )
+            assert rubric.winner == "tie"
+            assert rubric.is_fallback is True
+            assert "Prompt injection" in rubric.comparative_rationale
+
+    def test_normalize_content_category(self):
+        """Verify category normalization maps diverse vocabularies to consistent evaluation classes."""
+        from app.evals.runners.quantitative_runner import normalize_content_category
+
+        assert normalize_content_category("Political Commentary") == "News & Politics"
+        assert normalize_content_category("News & Politics") == "News & Politics"
+        assert normalize_content_category("Political Satire & Comedy") == "Satire / Parody"
+        assert normalize_content_category("Satire / Parody") == "Satire / Parody"
+        assert normalize_content_category("Gameplay Walkthrough") == "Gaming"
+        assert normalize_content_category("Gaming") == "Gaming"
+        assert normalize_content_category("Music / Non-Speech Media") == "Music & Entertainment"
+        assert normalize_content_category("ASML EUV Semiconductor Tech") == "Science & Technology"
+        assert normalize_content_category("Academic Lecture on Economics") == "Education & Science"
+        assert normalize_content_category("Vegan Recipe Tutorial") == "Lifestyle & Cooking"
+        assert normalize_content_category("") == "Unknown"
+
+
 

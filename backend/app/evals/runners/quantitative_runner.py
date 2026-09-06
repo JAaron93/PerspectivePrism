@@ -170,6 +170,43 @@ def _load_pre_classifier_dataset(dataset_path: Optional[Union[str, Path]] = None
     raise ValueError(f"Invalid format in golden dataset at {path}")
 
 
+def normalize_content_category(category: str) -> str:
+    """
+    Normalizes diverse category labels across golden datasets and model predictions
+    into canonical evaluation categories to prevent vocabulary mismatch from corrupting metrics.
+    """
+    if not category:
+        return "Unknown"
+    cat_lower = category.lower()
+    if any(k in cat_lower for k in ["cook", "recipe", "food", "baking", "culinary"]):
+        return "Lifestyle & Cooking"
+    if "education" in cat_lower or "lecture" in cat_lower or "tutorial" in cat_lower:
+        return "Education & Science"
+    if any(k in cat_lower for k in ["politic", "news", "commentary", "legislation", "policy", "congress"]):
+        if "satire" in cat_lower or "parody" in cat_lower or "comedy" in cat_lower:
+            return "Satire / Parody"
+        return "News & Politics"
+    if any(k in cat_lower for k in ["satire", "parody", "onion"]):
+        return "Satire / Parody"
+    if any(k in cat_lower for k in ["science", "tech", "semiconductor", "lithography", "hardware", "software"]):
+        return "Science & Technology"
+    if any(k in cat_lower for k in ["gaming", "game", "speedrun", "playthrough", "gameplay"]):
+        return "Gaming"
+    if any(k in cat_lower for k in ["music", "song", "amv", "remix", "entertainment", "concert", "beat"]):
+        return "Music & Entertainment"
+    if "wellness" in cat_lower or "fitness" in cat_lower or "health" in cat_lower or "yoga" in cat_lower:
+        return "Lifestyle & Wellness"
+    if "art" in cat_lower or "paint" in cat_lower or "craft" in cat_lower or "diy" in cat_lower:
+        return "Lifestyle & Art"
+    if "lifestyle" in cat_lower:
+        return "Lifestyle & Art"
+    if any(k in cat_lower for k in ["pet", "animal", "dog", "cat", "wildlife", "zoo"]):
+        return "Pets & Animals"
+    if any(k in cat_lower for k in ["raw", "dashcam", "cctv", "security", "traffic", "ambient", "webcam"]):
+        return "Raw Video Footage"
+    return category.strip()
+
+
 async def run_pre_classifier_eval(
     service: Optional[Any] = None,
     dataset_path: Optional[Union[str, Path]] = None,
@@ -216,8 +253,8 @@ async def run_pre_classifier_eval(
 
         y_true.append(bool(item.get("is_analysable", True)))
         y_pred.append(bool(result.is_analysable))
-        category_true.append(str(item.get("expected_category", "")))
-        category_pred.append(str(getattr(result, "detected_category", getattr(result, "category", ""))))
+        category_true.append(normalize_content_category(str(item.get("expected_category", ""))))
+        category_pred.append(normalize_content_category(str(getattr(result, "detected_category", getattr(result, "category", "")))))
 
         if getattr(result, "deterministic_fast_path", False):
             fast_path_count += 1

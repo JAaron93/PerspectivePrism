@@ -106,28 +106,28 @@ async def _judge_pairwise_candidates(
     applying mandatory input sanitization with strict injection rejection and zero-throttling generation floors.
     """
     nonce = secrets.token_hex(8)
-    neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)) if candidate_1_text else ""
-    clean_c1 = sanitize_candidate_output(neutralized_c1, field_name="Candidate 1") if neutralized_c1 else ""
-    neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)) if candidate_2_text else ""
-    clean_c2 = sanitize_candidate_output(neutralized_c2, field_name="Candidate 2") if neutralized_c2 else ""
-    neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(criteria)) if criteria else ""
-    clean_criteria = sanitize_context(neutralized_crit) if neutralized_crit else ""
-
-    sanitized_c1 = escape_xml_sandbox_tags(clean_c1, tag_name="candidate_1")
-    sanitized_c2 = escape_xml_sandbox_tags(clean_c2, tag_name="candidate_2")
-    sanitized_criteria = escape_xml_sandbox_tags(clean_criteria, tag_name="criteria")
-
-    judge_prompt = (
-        f"{PAIRWISE_JUDGE_SYSTEM_PROMPT}\n\n"
-        f"===JUDGE DATA {nonce} START===\n"
-        f"<criteria>\n{sanitized_criteria}\n</criteria>\n\n"
-        f"<candidate_1>\n{sanitized_c1}\n</candidate_1>\n\n"
-        f"<candidate_2>\n{sanitized_c2}\n</candidate_2>\n"
-        f"===JUDGE DATA {nonce} END===\n\n"
-        f"Compare Candidate 1 and Candidate 2 against the criteria. Return structured judgment."
-    )
-
     try:
+        neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)) if candidate_1_text else ""
+        clean_c1 = sanitize_candidate_output(neutralized_c1, field_name="Candidate 1") if neutralized_c1 else ""
+        neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)) if candidate_2_text else ""
+        clean_c2 = sanitize_candidate_output(neutralized_c2, field_name="Candidate 2") if neutralized_c2 else ""
+        neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(criteria)) if criteria else ""
+        clean_criteria = sanitize_context(neutralized_crit) if neutralized_crit else ""
+
+        sanitized_c1 = escape_xml_sandbox_tags(clean_c1, tag_name="candidate_1")
+        sanitized_c2 = escape_xml_sandbox_tags(clean_c2, tag_name="candidate_2")
+        sanitized_criteria = escape_xml_sandbox_tags(clean_criteria, tag_name="criteria")
+
+        judge_prompt = (
+            f"{PAIRWISE_JUDGE_SYSTEM_PROMPT}\n\n"
+            f"===JUDGE DATA {nonce} START===\n"
+            f"<criteria>\n{sanitized_criteria}\n</criteria>\n\n"
+            f"<candidate_1>\n{sanitized_c1}\n</candidate_1>\n\n"
+            f"<candidate_2>\n{sanitized_c2}\n</candidate_2>\n"
+            f"===JUDGE DATA {nonce} END===\n\n"
+            f"Compare Candidate 1 and Candidate 2 against the criteria. Return structured judgment."
+        )
+
         client = get_genai_client()
         gen_config = build_agent_generation_config(
             model=judge_model,
@@ -179,9 +179,13 @@ async def run_pairwise_model_benchmark(
         criteria = item.get("criteria", "Accuracy, groundedness, and descriptive neutrality.")
 
         # Generate outputs from both candidate models in parallel
-        out_a_task = _generate_candidate_output(model_a, prompt, settings=settings)
-        out_b_task = _generate_candidate_output(model_b, prompt, settings=settings)
-        out_a, out_b = await asyncio.gather(out_a_task, out_b_task)
+        try:
+            out_a_task = _generate_candidate_output(model_a, prompt, settings=settings)
+            out_b_task = _generate_candidate_output(model_b, prompt, settings=settings)
+            out_a, out_b = await asyncio.gather(out_a_task, out_b_task)
+        except Exception as gen_exc:
+            logger.warning("Candidate model generation failed (%s); using fallback empty strings.", gen_exc)
+            out_a, out_b = "", ""
 
         # Run both forward (flip=False) and reversed (flip=True) configurations
         for is_flipped in [False, True]:
@@ -190,14 +194,23 @@ async def run_pairwise_model_benchmark(
 
             # Run multi-sample comparisons to mitigate LLM evaluation variance
             for sample_idx in range(multi_sample_count):
-                judgment = await _judge_pairwise_candidates(
-                    candidate_1_text=cand_1,
-                    candidate_2_text=cand_2,
-                    criteria=criteria,
-                    is_flipped=is_flipped,
-                    judge_model=judge_model,
-                    settings=settings,
-                )
+                try:
+                    judgment = await _judge_pairwise_candidates(
+                        candidate_1_text=cand_1,
+                        candidate_2_text=cand_2,
+                        criteria=criteria,
+                        is_flipped=is_flipped,
+                        judge_model=judge_model,
+                        settings=settings,
+                    )
+                except Exception as judge_exc:
+                    logger.warning("Pairwise judge execution failed (%s); recording fallback.", judge_exc)
+                    judgment = PairwiseJudgmentRubric(
+                        winner="tie",
+                        confidence_score=0.0,
+                        comparative_rationale=f"Fallback judgment: {str(judge_exc)[:150]}",
+                        is_fallback=True,
+                    )
 
                 total_comparisons += 1
                 winner = judgment.winner
