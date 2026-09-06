@@ -179,12 +179,14 @@ async def run_pairwise_model_benchmark(
         criteria = item.get("criteria", "Accuracy, groundedness, and descriptive neutrality.")
 
         # Generate outputs from both candidate models in parallel
+        gen_error: Optional[str] = None
         try:
             out_a_task = _generate_candidate_output(model_a, prompt, settings=settings)
             out_b_task = _generate_candidate_output(model_b, prompt, settings=settings)
             out_a, out_b = await asyncio.gather(out_a_task, out_b_task)
         except Exception as gen_exc:
-            logger.warning("Candidate model generation failed (%s); using fallback empty strings.", gen_exc)
+            logger.warning("Candidate model generation failed (%s); recording comparisons as fallbacks.", gen_exc)
+            gen_error = str(gen_exc)
             out_a, out_b = "", ""
 
         # Run both forward (flip=False) and reversed (flip=True) configurations
@@ -194,6 +196,21 @@ async def run_pairwise_model_benchmark(
 
             # Run multi-sample comparisons to mitigate LLM evaluation variance
             for sample_idx in range(multi_sample_count):
+                if gen_error:
+                    total_comparisons += 1
+                    fallback_count += 1
+                    details.append({
+                        "item_index": item_idx,
+                        "is_flipped": is_flipped,
+                        "sample_index": sample_idx,
+                        "raw_winner": "tie",
+                        "actual_winner": "fallback",
+                        "confidence": 0.0,
+                        "is_fallback": True,
+                        "rationale": f"Candidate generation failed: {gen_error[:150]}",
+                    })
+                    continue
+
                 try:
                     judgment = await _judge_pairwise_candidates(
                         candidate_1_text=cand_1,

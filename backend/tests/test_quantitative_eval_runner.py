@@ -410,6 +410,31 @@ class TestPairwiseModelRunner:
             assert rubric.is_fallback is True
             assert "Prompt injection" in rubric.comparative_rationale
 
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_candidate_generation_failure_marks_fallback(self):
+        """Verify that when candidate generation fails, all item comparisons are marked as fallbacks without polluting win/tie rates."""
+        test_items = [{"prompt": "Generate claim analysis", "criteria": "Accuracy"}]
+
+        with patch("app.evals.runners.pairwise_runner._generate_candidate_output", side_effect=RuntimeError("Quota exceeded on model A")):
+            result = await run_pairwise_model_benchmark(
+                test_items=test_items,
+                model_a="gemini-3.5-flash-lite",
+                model_b="gemini-3.8-flash",
+                multi_sample_count=2,
+            )
+
+            assert result.total_comparisons == 4  # 1 item * 2 flips * 2 samples
+            assert result.fallback_count == 4
+            assert result.valid_comparisons == 0
+            assert result.model_a_wins == 0
+            assert result.model_b_wins == 0
+            assert result.ties == 0
+            assert result.model_a_win_rate == 0.0
+            assert result.model_b_win_rate == 0.0
+            assert result.tie_rate == 0.0
+            assert all(d["is_fallback"] is True for d in result.details)
+            assert all("Quota exceeded" in d.get("rationale", "") for d in result.details)
+
     def test_normalize_content_category(self):
         """Verify category normalization maps diverse vocabularies to consistent evaluation classes."""
         from app.evals.runners.quantitative_runner import normalize_content_category
