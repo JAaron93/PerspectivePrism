@@ -455,3 +455,36 @@ class TestBddJudgeScenarios:
         assert result.descriptive_neutrality_score == 5
         assert len(result.neutrality_violations) == 0
 
+    @pytest.mark.asyncio
+    async def test_judge_model_override_raises_value_error_for_impartiality(self):
+        """Verify passing an arbitrary model_name to judges raises ValueError to preserve impartiality."""
+        with pytest.raises(ValueError, match="Judge model override 'gemini-3.5-flash-lite' is not permitted"):
+            await evaluate_claim_extraction(
+                transcript_text="Test",
+                extracted_claims=[],
+                reference_claims=[],
+                model_name="gemini-3.5-flash-lite",
+            )
+
+        with pytest.raises(ValueError, match="Judge model override 'gemini-3.1-flash-lite' is not permitted"):
+            await evaluate_perspective_faithfulness(
+                claim_text="Test",
+                perspective="Scientific",
+                search_evidence=[],
+                generated_stance="SUPPORTS",
+                generated_explanation="Explanation",
+                model_name="gemini-3.1-flash-lite",
+            )
+
+        with pytest.raises(ValueError, match="Judge model override 'unsupported-model' is not permitted"):
+            await evaluate_alethiology_neutrality(
+                claim_text="Test",
+                transcript_excerpt="Excerpt",
+                predicted_primary_theory="Correspondence (Empirical)",
+                predicted_secondary_theory=None,
+                predicted_epistemic_summary="Summary",
+                predicted_quote_evidences=[],
+                gold_primary_theory="Correspondence (Empirical)",
+                model_name="unsupported-model",
+            )
+

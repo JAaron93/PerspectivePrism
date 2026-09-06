@@ -113,7 +113,9 @@ async def evaluate_perspective_faithfulness(
     Catches transient exceptions and returns an explicit is_fallback=True rubric if execution fails.
     """
     active_settings = settings or global_settings
-    active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
+    active_model = "gemini-3.8-flash"
+    if model_name and model_name != "gemini-3.8-flash":
+        raise ValueError(f"Judge model override '{model_name}' is not permitted; evaluations must strictly use 'gemini-3.8-flash' for benchmark impartiality")
     nonce = secrets.token_hex(16)
 
     # Enforce mandatory application sanitizer boundary with strict rejection
