@@ -98,6 +98,7 @@ def build_agent_generation_config(
     http_timeout: Optional[float] = None,
     response_mime_type: Optional[str] = None,
     response_schema: Optional[Any] = None,
+    system_instruction: Optional[Any] = None,
 ) -> types.GenerateContentConfig:
     """
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
@@ -159,6 +160,7 @@ def build_agent_generation_config(
         http_options=http_options,
         response_mime_type=response_mime_type,
         response_schema=response_schema,
+        system_instruction=system_instruction,
     )
 
 

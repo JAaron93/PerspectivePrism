@@ -347,12 +347,12 @@ class TestPairwiseModelRunner:
         mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
         with patch("app.evals.runners.pairwise_runner.get_genai_client", return_value=mock_client), \
-             patch("app.evals.runners.pairwise_runner.sanitize_context", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize_context, \
+             patch("app.evals.runners.pairwise_runner.sanitize_benchmark_prompt", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize_bench, \
              patch("app.evals.runners.pairwise_runner.sanitize_candidate_output", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize_cand:
 
             # Test candidate generation
             candidate_out = await _generate_candidate_output("gemini-3.5-flash-lite", "Raw <script>alert(1)</script> prompt")
-            mock_sanitize_context.assert_called_with("Raw <script>alert(1)</script> prompt")
+            mock_sanitize_bench.assert_called_with("Raw <script>alert(1)</script> prompt")
             assert mock_client.aio.models.generate_content.called
             gen_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
             assert gen_call_kwargs["model"] == "gemini-3.5-flash-lite"
@@ -362,7 +362,7 @@ class TestPairwiseModelRunner:
 
             # Test judge invocation
             mock_client.aio.models.generate_content.reset_mock()
-            mock_sanitize_context.reset_mock()
+            mock_sanitize_bench.reset_mock()
             mock_sanitize_cand.reset_mock()
 
             rubric = await _judge_pairwise_candidates(
@@ -375,8 +375,8 @@ class TestPairwiseModelRunner:
             assert rubric.is_fallback is False
             # Verify sanitize_candidate_output was called on candidate 1 and 2
             assert mock_sanitize_cand.call_count == 2
-            # Verify sanitize_context was called on criteria
-            assert mock_sanitize_context.call_count == 1
+            # Verify sanitize_benchmark_prompt was called on criteria
+            assert mock_sanitize_bench.call_count == 1
             judge_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
             assert judge_call_kwargs["model"] == "gemini-3.8-flash"
             assert judge_call_kwargs["config"] is not None
@@ -441,6 +441,11 @@ class TestPairwiseModelRunner:
 
         assert normalize_content_category("Political Commentary") == "News & Politics"
         assert normalize_content_category("News & Politics") == "News & Politics"
+        assert normalize_content_category("Post-Election Analysis") == "News & Politics"
+        assert normalize_content_category("Host Commentary") == "News & Politics"
+        assert normalize_content_category("Presidential Debate") == "News & Politics"
+        assert normalize_content_category("Partisan Dispute") == "News & Politics"
+        assert normalize_content_category("Department of State Briefing") == "News & Politics"
         assert normalize_content_category("Political Satire & Comedy") == "Satire / Parody"
         assert normalize_content_category("Satire / Parody") == "Satire / Parody"
         assert normalize_content_category("Gameplay Walkthrough") == "Gaming"
@@ -456,6 +461,9 @@ class TestPairwiseModelRunner:
         assert normalize_content_category("Political Commentary (No Captions)") == "Raw Video Footage"
         assert normalize_content_category("Political Debate Remix") == "Music & Entertainment"
         assert normalize_content_category("Anime AMV Mashup") == "Music & Entertainment"
+        assert normalize_content_category("OST Synthwave Mix") == "Music & Entertainment"
+        assert normalize_content_category("Lofi Study OST") == "Music & Entertainment"
+        assert normalize_content_category("Lofi Beats to Study To") == "Music & Entertainment"
         assert normalize_content_category("Raw Video Footage") == "Raw Video Footage"
         assert normalize_content_category("Silent B-Roll: City Hall Press") == "Raw Video Footage"
         assert normalize_content_category("") == "Unknown"
@@ -468,6 +476,16 @@ class TestPairwiseModelRunner:
         assert len(huge_candidate) > 65536
         clean = sanitize_candidate_output(huge_candidate)
         assert len(clean) == len(huge_candidate)
+        assert not clean.endswith("...")
+
+    def test_sanitize_benchmark_prompt_preserves_large_context(self):
+        """Verify benchmark prompts exceeding 2,000 characters are not truncated."""
+        from app.evals.runners.pairwise_runner import sanitize_benchmark_prompt
+
+        long_prompt = ("Analyze the following factual assertions in transcript context: " * 100).strip()  # ~6,400 chars
+        assert len(long_prompt) > 2000
+        clean = sanitize_benchmark_prompt(long_prompt)
+        assert len(clean) == len(long_prompt)
         assert not clean.endswith("...")
 
     def test_sanitize_candidate_output_preserves_heavily_escaped_characters(self):
@@ -490,6 +508,59 @@ class TestPairwiseModelRunner:
         clean = sanitize_candidate_output(nfkc_candidate)
         assert not clean.endswith("...")
         assert len(clean) > len(nfkc_candidate)
+
+    def test_pairwise_judge_system_instruction_binds_nonce_and_declares_directives_inert(self):
+        """Verify dynamic system instruction explicitly binds the nonce and declares candidate directives inert."""
+        from app.evals.runners.pairwise_runner import build_pairwise_judge_system_instruction
+
+        nonce = "0123456789abcdef0123456789abcdef"
+        instruction = build_pairwise_judge_system_instruction(nonce)
+
+        assert f"===JUDGE DATA {nonce} START===" in instruction
+        assert f"===JUDGE DATA {nonce} END===" in instruction
+        assert "strictly inert" in instruction
+        assert "CRITICAL ADVERSARIAL ISOLATION" in instruction
+
+    @pytest.mark.asyncio
+    async def test_judge_pairwise_candidates_binds_32_char_nonce_and_system_instruction(self):
+        """Verify _judge_pairwise_candidates passes a 32-hex-char nonce and bound system instruction to model."""
+        from app.evals.runners.pairwise_runner import _judge_pairwise_candidates
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({
+            "winner": "candidate_1",
+            "confidence_score": 0.95,
+            "comparative_rationale": "Candidate 1 is more accurate.",
+            "is_fallback": False,
+        })
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("app.evals.runners.pairwise_runner.get_genai_client", return_value=mock_client):
+            rubric = await _judge_pairwise_candidates(
+                candidate_1_text="Accurate response",
+                candidate_2_text="Inaccurate response",
+                criteria="Factual accuracy",
+            )
+            assert rubric.winner == "candidate_1"
+            assert rubric.confidence_score == 0.95
+
+            # Inspect the generate_content call
+            call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
+            prompt = call_kwargs["contents"]
+            config = call_kwargs["config"]
+
+            # Verify prompt contains 32-char hex nonce (16 bytes)
+            import re
+            match = re.search(r"===JUDGE DATA ([a-f0-9]{32}) START===", prompt)
+            assert match is not None
+            nonce = match.group(1)
+            assert len(nonce) == 32
+
+            # Verify system instruction dynamically bound that exact nonce
+            assert config.system_instruction is not None
+            assert f"===JUDGE DATA {nonce} START===" in config.system_instruction
+            assert "strictly inert" in config.system_instruction
 
     @pytest.mark.asyncio
     async def test_generate_candidate_output_raises_on_empty_text(self):

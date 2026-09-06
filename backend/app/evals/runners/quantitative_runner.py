@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -197,7 +198,8 @@ def normalize_content_category(category: str) -> str:
         return "Gaming"
 
     # 3c. Art, Painting & DIY (e.g. 'Painting Tutorial', 'Watercolor Painting')
-    if any(k in cat_lower for k in ["art", "paint", "draw", "craft", "diy", "watercolor", "lifestyle"]):
+    # Use word boundary for 'art' to avoid false substring matches in 'party', 'department', 'partisan'
+    if any(k in cat_lower for k in ["paint", "draw", "craft", "diy", "watercolor", "lifestyle"]) or re.search(r"\barts?\b", cat_lower):
         return "Lifestyle & Art"
 
     # 3d. Wellness & Fitness (e.g. 'Yoga Tutorial', 'Fitness Workout')
@@ -205,15 +207,19 @@ def normalize_content_category(category: str) -> str:
         return "Lifestyle & Wellness"
 
     # 3e. Pets & Animals
-    if any(k in cat_lower for k in ["pet", "animal", "dog", "cat", "puppy", "wildlife", "zoo"]):
+    # Use word boundary for 'pet' to avoid false substring matches in 'competition', 'appetite'
+    if any(k in cat_lower for k in ["animal", "dog", "cat", "puppy", "wildlife", "zoo"]) or re.search(r"\bpets?\b", cat_lower):
         return "Pets & Animals"
 
     # 3f. Music & Entertainment (e.g. 'Political Debate Remix', 'Anime AMV Mashup', 'OST Synthwave Mix')
-    if any(k in cat_lower for k in ["music", "song", "amv", "remix", "entertainment", "concert", "beat", "mashup", "soundtrack", "ost", "synthwave"]):
+    # Use word boundaries for short tokens ('ost', 'amv', 'beat') so words like 'post', 'host', 'debate' do not falsely match music
+    music_substrings = ["music", "song", "remix", "entertainment", "concert", "mashup", "soundtrack", "synthwave"]
+    music_word_patterns = [r"\bost\b", r"\bamvs?\b", r"\bbeats?\b"]
+    if any(k in cat_lower for k in music_substrings) or any(re.search(p, cat_lower) for p in music_word_patterns):
         return "Music & Entertainment"
 
     # 4. News & Politics (including political commentary, legislation, investigative reporting)
-    if any(k in cat_lower for k in ["politic", "news", "commentary", "legislation", "policy", "congress", "investigat"]):
+    if any(k in cat_lower for k in ["politic", "news", "commentary", "legislation", "policy", "congress", "investigat", "election", "debate", "senate", "governance", "partisan", "briefing"]):
         return "News & Politics"
 
     # 5. Science, Technology & Documentaries (e.g. 'Documentary Essay', 'Technical Documentary')
