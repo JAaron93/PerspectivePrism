@@ -20,16 +20,22 @@ from app.utils.llm_utils import build_agent_generation_config, get_genai_client
 
 logger = logging.getLogger(__name__)
 
-MAX_CANDIDATE_OUTPUT_LENGTH: int = 65536
+# 65,536 output tokens accommodates up to ~524,288 characters (~512KB at 8 chars/token).
+MAX_CANDIDATE_OUTPUT_LENGTH: int = 524288
 
 
 def sanitize_candidate_output(text: str, field_name: str = "Candidate output") -> str:
-    """Sanitizes candidate output with an expanded 64K ceiling to prevent premature truncation."""
+    """
+    Sanitizes candidate output preserving the full 64K token generation allowance (~512KB)
+    without premature character truncation, while strictly enforcing injection detection.
+    """
     if not text:
         return ""
+    # Accommodate full candidate response length so valid outputs are never silently truncated
+    ceiling = max(len(text), MAX_CANDIDATE_OUTPUT_LENGTH)
     return sanitize_input(
         text,
-        max_length=MAX_CANDIDATE_OUTPUT_LENGTH,
+        max_length=ceiling,
         field_name=field_name,
         allow_suspicious_patterns=False,
         allow_control_chars=False,

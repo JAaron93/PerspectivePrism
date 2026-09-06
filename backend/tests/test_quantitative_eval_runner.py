@@ -449,7 +449,20 @@ class TestPairwiseModelRunner:
         assert normalize_content_category("ASML EUV Semiconductor Tech") == "Science & Technology"
         assert normalize_content_category("Academic Lecture on Economics") == "Education & Science"
         assert normalize_content_category("Vegan Recipe Tutorial") == "Lifestyle & Cooking"
+        assert normalize_content_category("Political Commentary (No Captions)") == "Raw Video Footage"
+        assert normalize_content_category("Raw Video Footage") == "Raw Video Footage"
+        assert normalize_content_category("Silent B-Roll: City Hall Press") == "Raw Video Footage"
         assert normalize_content_category("") == "Unknown"
+
+    def test_sanitize_candidate_output_preserves_over_65k_characters(self):
+        """Verify candidate outputs exceeding 65,536 characters are preserved without truncation."""
+        from app.evals.runners.pairwise_runner import sanitize_candidate_output
+
+        huge_candidate = ("Comprehensive analytical reasoning with evidence. " * 2000).strip()  # ~100,000 chars
+        assert len(huge_candidate) > 65536
+        clean = sanitize_candidate_output(huge_candidate)
+        assert len(clean) == len(huge_candidate)
+        assert not clean.endswith("...")
 
 
 
