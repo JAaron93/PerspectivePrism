@@ -125,6 +125,13 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` ➔ `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases. Completed jobs are cleaned up after 1 hour by a background task.
   * Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService`.
   * Configuration must strictly rely on `pydantic-settings` (`app/core/config.py`).
+* **Evaluation Runner & Pairwise Benchmark Invariants**:
+  * In pairwise evaluation benchmarks (`backend/app/evals/runners/pairwise_runner.py`):
+    - Candidate model output sanitization must allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(text) * 4, 2097152)`) to ensure post-escaping character expansion never triggers silent ellipsis truncation before judging.
+    - Candidate generation failures and judge exceptions must be isolated as explicit fallbacks (`is_fallback = True`, tracked in `fallback_count`) and never submitted to the judge as empty strings or recorded as decisive wins/ties.
+    - `gemini-3.5-flash-lite` vs `gemini-3.8-flash` is an authorized candidate evaluation pair, while the judge model must use `gemini-3.8-flash`.
+  * In pointwise quantitative runners (`backend/app/evals/runners/quantitative_runner.py`):
+    - Category vocabulary normalization (`normalize_content_category`) must evaluate captionless/raw footage indicators before political keywords, and cooking/recipe keywords before generic tutorial keywords, to prevent vocabulary mismatch from corrupting multi-class F1 and accuracy metrics.
 
 ---
 

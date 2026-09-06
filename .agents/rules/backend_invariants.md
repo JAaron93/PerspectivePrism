@@ -147,3 +147,27 @@ This document defines the implementation guidelines, security invariants, testin
 * **Strict Descriptive Neutrality (CRITICAL)**: The agent MUST remain strictly descriptive and neutral. It is strictly prohibited from evaluating whether a truth theory is "better", "more rational", or "sound", and must never accuse speakers of fallacies or falsehoods.
 * **Unified Single-Phase Concurrency**: Perspective analyses, bias & deception analysis, and alethiology analysis MUST be dispatched concurrently in a single unified `asyncio.gather(*analysis_tasks, analysis_service.analyze_bias_and_deception(claim), analysis_service.analyze_alethiology(claim))` phase, eliminating sequential stage latency.
 * **Failure State Fidelity (No Default Theory Fabrication)**: When input sanitization or non-budget model calls fail, `analyze_alethiology()` MUST return `None` (or an explicit unavailable state). Services and pipelines are strictly prohibited from fabricating a default valid classification (e.g. `Correspondence (Empirical)`).
+
+---
+
+## 8. Evaluation Runners & Model Benchmarking Invariants (`backend/app/evals/`)
+
+* **Candidate Sanitizer Escaping Expansion Headroom**:
+  - `sanitize_candidate_output()` MUST preserve the full 64K output token generation ceiling (~512KB) without premature character truncation.
+  - Because `sanitize_input()` (both compiled Rust and Python fallback) escapes special characters (`"` $\to$ `\"`, `\` $\to$ `\\`, braces), post-escaping expansion can substantially exceed raw text length.
+  - Sanitization ceilings for candidate outputs MUST dynamically allocate an expansion multiplier (`ceiling = max(len(text) * 4, MAX_CANDIDATE_OUTPUT_LENGTH)` with `MAX_CANDIDATE_OUTPUT_LENGTH = 2097152`, a 2MB floor) to guarantee that escaping expansion never triggers silent ellipsis truncation on valid candidate responses.
+* **Pairwise Candidate Generation & Judge Fallback Isolation**:
+  - In pairwise model benchmarks (`run_pairwise_model_benchmark()`), both candidate generation failures and judge execution exceptions MUST be isolated as explicit fallbacks (`is_fallback = True`, incrementing `fallback_count` and `total_comparisons`).
+  - The runner MUST NEVER pass empty strings or generation errors to the judge model.
+  - Decisive win rates (`model_a_win_rate`, `model_b_win_rate`) and tie rates (`tie_rate`) MUST be computed strictly over `valid_comparisons` (`total_comparisons - fallback_count`), preventing provider timeouts, quota exhaustion, or prompt injection rejections from diluting or corrupting benchmark metrics.
+* **Authorized Pairwise Candidate Benchmarks & Impartial Judge Model**:
+  - Candidate model evaluations (`model_a` vs `model_b`) in `pairwise_runner.py` authorize benchmarking `gemini-3.5-flash-lite` vs `gemini-3.8-flash` to evaluate speed vs reasoning quality trade-offs.
+  - The judge model itself MUST remain strictly impartial and default to `gemini-3.8-flash` with zero-throttling generation standards (`thinking_level="HIGH"`, 64K token ceiling, 120s HTTP timeout).
+* **Multi-Class Category Normalization Rule Precedence**:
+  - In pointwise quantitative runners (`quantitative_runner.py`), `normalize_content_category()` MUST normalize disparate golden dataset labels and classifier outputs into canonical evaluation classes before calculating accuracy, precision, recall, and macro-F1.
+  - Normalization rule evaluation MUST enforce strict priority ordering:
+    1. **Captionless & Raw Media Indicators**: Patterns such as `no caption`, `captionless`, `raw`, `dashcam`, `cctv`, `security`, `traffic`, `ambient`, `webcam`, `b-roll` MUST be evaluated first $\to$ `"Raw Video Footage"`. This prevents captionless political content (e.g. `Political Commentary (No Captions)`) from being prematurely matched by broad political keywords.
+    2. **Satire & Parody**: `satire`, `parody`, `onion` $\to$ `"Satire / Parody"`.
+    3. **Culinary & Food Specifics**: `cook`, `recipe`, `food`, `baking`, `culinary` MUST precede generic tutorial keywords $\to$ `"Lifestyle & Cooking"`.
+    4. **Education & Lectures**: `education`, `lecture`, `tutorial` $\to$ `"Education & Science"`.
+    5. **News & Politics**: `politic`, `news`, `commentary`, `legislation`, `policy`, `congress` $\to$ `"News & Politics"`.
