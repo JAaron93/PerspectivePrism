@@ -8,9 +8,23 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from google.genai import errors
+from google import genai
 from app.core.config import configure_provider_env
 
 logger = logging.getLogger(__name__)
+
+
+def get_genai_client(settings: Optional[Any] = None) -> genai.Client:
+    """
+    Returns an initialized google-genai Client configured exclusively for
+    GCP Vertex AI Mode using ADC.
+    """
+    from app.core.config import settings as global_settings
+
+    active_settings = settings or global_settings
+    gcp_project = getattr(active_settings, "GCP_PROJECT", None) or os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT")
+    gcp_location = getattr(active_settings, "GCP_LOCATION", None) or os.getenv("GCP_LOCATION", "us-central1")
+    return genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
 
 # Telemetry and trace sanitization exclusion set: thinking tokens & signatures must never be redacted
 EXCLUDED_TELEMETRY_KEYS: Set[str] = {

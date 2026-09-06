@@ -101,7 +101,22 @@
 - `ROUTER_TASK_TYPES`: `frozenset({"micro_task", "router", "classifier"})`
 - `EXCLUDED_TELEMETRY_KEYS`: `Set[str]` protecting thinking tokens and thought signatures (`"thought"`, `"thought_tokens"`, `"thought_signature"`, `"reasoning"`) from sanitization or logging redaction.
 
+### `get_genai_client(settings=None) -> genai.Client`
+
+**Purpose:** Factory function that returns an initialized Google GenAI SDK (`google-genai`) `Client` configured exclusively for GCP Vertex AI Mode (`vertexai=True`) using Application Default Credentials (ADC), `GCP_PROJECT`, and `GCP_LOCATION`.
+
+**Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `settings` | `Any \| None` | `None` | Application `Settings` instance for configuration overrides. |
+
+**Returns:** `genai.Client` initialized for Vertex AI mode.
+
+**Used by:**
+- `app/evals/runners/pairwise_runner.py` — `_generate_candidate_output()`, `_judge_pairwise_candidates()`
+
 ---
+
 
 ## Backend: `app/utils/prompt_helpers.py`
 

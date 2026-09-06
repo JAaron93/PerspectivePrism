@@ -56,12 +56,12 @@
 
 ## Track 3: OpenTelemetry GenAI Telemetry & Cloud Trace Infrastructure
 
-- [ ] **T3.1: Configure OpenTelemetry GenAI Exporter to Google Cloud Trace**
+- [x] **T3.1: Configure OpenTelemetry GenAI Exporter to Google Cloud Trace**
   - **Description**: In `backend/app/evals/telemetry/tracer.py`, configure OpenTelemetry GenAI Semantic Conventions (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.evaluation.metric_name`, `gen_ai.evaluation.score`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `total_cost`) exporting directly to Google Cloud Trace using ADC. Implement `DISABLE_CLOUD_TRACE` flag precedence with local fallback span emission.
   - **Dependencies**: None
   - **Traceability**: FR17, FR18, FR19, NFR1
 
-- [ ] **T3.2: TDD Unit Tests for OpenTelemetry Tracing**
+- [x] **T3.2: TDD Unit Tests for OpenTelemetry Tracing**
   - **Description**: In `backend/tests/test_eval_telemetry.py`, verify that evaluation spans capture exact token usage metadata, compute accurate cost per token for Gemini models, and emit fallback spans when Cloud Trace is disabled.
   - **Dependencies**: T3.1
   - **Traceability**: FR17, FR19
@@ -73,7 +73,7 @@
 > [!TIP]
 > **PARALLEL EXECUTION**: Each judge in Track 4 can be implemented and tested concurrently once Track 1 (Datasets), Track 2 (Sanitization), and Track 3 (Telemetry) are established.
 
-- [ ] **T4.1: Define Evaluation Pydantic Rubrics**
+- [x] **T4.1: Define Evaluation Pydantic Rubrics**
   - **Description**: In `backend/app/evals/judges/rubrics.py`, implement Pydantic models with `ConfigDict(extra="forbid")`:
     - `ClaimExtractionRecallRubric` (semantic recall, verifiability precision, hallucinated claims).
     - `PerspectiveFaithfulnessRubric` (groundedness score 1-5, stance correctness, hallucinated external facts).
@@ -82,22 +82,22 @@
   - **Dependencies**: None
   - **Traceability**: FR10, FR11, FR12, FR13, FR16
 
-- [ ] **T4.2: Implement Claim Extraction Recall & Verifiability Judge**
+- [x] **T4.2: Implement Claim Extraction Recall & Verifiability Judge**
   - **Description**: In `backend/app/evals/judges/claim_extraction_judge.py`, implement `evaluate_claim_extraction()` using Google ADK 2.0 `Agent(name="claim_extraction_judge", model="gemini-3.5-flash-lite", output_schema=ClaimExtractionRecallRubric, output_key="claim_extraction_result")` executed via `execute_adk_agent(output_key="claim_extraction_result", output_schema=ClaimExtractionRecallRubric)` in Vertex AI mode to evaluate extracted claims against gold references.
   - **Dependencies**: T1.3, T2.1, T3.1, T4.1
   - **Traceability**: FR9, FR10, FR13, US1
 
-- [ ] **T4.3: Implement Perspective Faithfulness & Groundedness Judge**
+- [x] **T4.3: Implement Perspective Faithfulness & Groundedness Judge**
   - **Description**: In `backend/app/evals/judges/perspective_faithfulness_judge.py`, implement `evaluate_perspective_faithfulness()` using Google ADK 2.0 `Agent(name="perspective_faithfulness_judge", model="gemini-3.5-flash-lite", output_schema=PerspectiveFaithfulnessRubric, output_key="perspective_faithfulness_result")` and `execute_adk_agent(output_key="perspective_faithfulness_result", output_schema=PerspectiveFaithfulnessRubric)` to audit stance adherence against search evidence and detect prior knowledge hallucinations.
   - **Dependencies**: T1.4, T2.1, T3.1, T4.1
   - **Traceability**: FR9, FR11, FR13, US2
 
-- [ ] **T4.4: Implement Alethiology Epistemic Neutrality Judge**
+- [x] **T4.4: Implement Alethiology Epistemic Neutrality Judge**
   - **Description**: In `backend/app/evals/judges/alethiology_judge.py`, implement `evaluate_alethiology_neutrality()` using Google ADK 2.0 `Agent(name="alethiology_neutrality_judge", model="gemini-3.5-flash-lite", output_schema=AlethiologyEvaluationRubric, output_key="alethiology_neutrality_result")` and `execute_adk_agent(output_key="alethiology_neutrality_result", output_schema=AlethiologyEvaluationRubric)` to verify 6-theory classification accuracy and enforce strict descriptive neutrality (zero normative/pejorative slurs).
   - **Dependencies**: T1.6, T2.1, T3.1, T4.1
   - **Traceability**: FR9, FR12, FR13, US3
 
-- [ ] **T4.5: TDD & BDD Tests for ADK Judges**
+- [x] **T4.5: TDD & BDD Tests for ADK Judges**
   - **Description**: In `backend/tests/test_adk_judges.py`, create mock-verified unit tests verifying rubric serialization, hallucination detection on ungrounded stances, and neutrality failure detection when biased language is intentionally injected into alethiology outputs.
   - **Dependencies**: T4.1, T4.2, T4.3, T4.4
   - **Traceability**: FR10, FR11, FR12, US1, US2, US3
@@ -106,17 +106,17 @@
 
 ## Track 5: Native Quantitative Evaluation Runners
 
-- [ ] **T5.1: Implement Pointwise Quantitative Metric Runner**
+- [x] **T5.1: Implement Pointwise Quantitative Metric Runner**
   - **Description**: In `backend/app/evals/runners/quantitative_runner.py`, implement `run_pre_classifier_eval()` and `calculate_timestamp_iou()` using `google-genai` and native calculation routines to compute F1, precision, recall, and exact match on `PreClassifierService` results and extraction timestamp IoU.
   - **Dependencies**: T1.2, T3.1
   - **Traceability**: FR6, NFR4
 
-- [ ] **T5.2: Implement Pairwise Model Benchmark Runner with Position Flipping**
+- [x] **T5.2: Implement Pairwise Model Benchmark Runner with Position Flipping**
   - **Description**: In `backend/app/evals/runners/pairwise_runner.py`, implement `run_pairwise_model_benchmark()` using `google-genai` with 50% presentation order flipping and $4\times$ multi-sampling to benchmark model candidate upgrades (e.g. `gemini-3.5-flash-lite` vs `gemini-3.8-flash`) eliminating positional judge bias.
   - **Dependencies**: T5.1
   - **Traceability**: FR7, NFR2
 
-- [ ] **T5.3: TDD Unit Tests for Quantitative Eval Runners**
+- [x] **T5.3: TDD Unit Tests for Quantitative Eval Runners**
   - **Description**: In `backend/tests/test_quantitative_eval_runner.py`, test the execution of quantitative runners against mocked responses, ensuring metric aggregation tables and confusion matrices are formatted accurately.
   - **Dependencies**: T5.1, T5.2
   - **Traceability**: FR6, FR7

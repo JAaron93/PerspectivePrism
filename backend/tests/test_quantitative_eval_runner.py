@@ -1,0 +1,279 @@
+"""TDD unit tests for Native Quantitative Evaluation Runners (FR6, FR7, NFR2, NFR4)."""
+
+import math
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from app.evals.runners.quantitative_runner import (
+    calculate_timestamp_iou,
+    calculate_classification_metrics,
+    calculate_error_metrics,
+    run_pre_classifier_eval,
+    run_claim_timestamp_iou_eval,
+)
+from app.evals.runners.pairwise_runner import (
+    run_pairwise_model_benchmark,
+    PairwiseBenchmarkResult,
+)
+from app.evals.judges.rubrics import PairwiseJudgmentRubric
+
+
+# ==============================================================================
+# 1. Timestamp Intersection-over-Union (IoU) Tests (FR6)
+# ==============================================================================
+
+class TestTimestampIoU:
+    """Unit tests for calculate_timestamp_iou metric algorithm."""
+
+    def test_identical_intervals(self):
+        iou = calculate_timestamp_iou(pred_start=10.0, pred_end=25.0, gold_start=10.0, gold_end=25.0)
+        assert pytest.approx(iou, rel=1e-5) == 1.0
+
+    def test_disjoint_intervals(self):
+        iou = calculate_timestamp_iou(pred_start=0.0, pred_end=5.0, gold_start=10.0, gold_end=15.0)
+        assert iou == 0.0
+
+    def test_partial_overlap(self):
+        # pred: [0, 10], gold: [5, 15]
+        # intersection: [5, 10] -> 5.0
+        # union: [0, 15] -> 15.0
+        # IoU: 5/15 = 1/3
+        iou = calculate_timestamp_iou(pred_start=0.0, pred_end=10.0, gold_start=5.0, gold_end=15.0)
+        assert pytest.approx(iou, rel=1e-4) == 1.0 / 3.0
+
+    def test_nested_intervals(self):
+        # pred: [2, 8], gold: [0, 10]
+        # intersection: 6.0, union: 10.0 -> IoU: 0.6
+        iou = calculate_timestamp_iou(pred_start=2.0, pred_end=8.0, gold_start=0.0, gold_end=10.0)
+        assert pytest.approx(iou, rel=1e-4) == 0.6
+
+    def test_touching_boundary_intervals(self):
+        # pred: [0, 5], gold: [5, 10] -> 0 overlap
+        iou = calculate_timestamp_iou(pred_start=0.0, pred_end=5.0, gold_start=5.0, gold_end=10.0)
+        assert iou == 0.0
+
+    def test_inverted_timestamps_handled_safely(self):
+        # Inverted start and end should not raise exception
+        iou = calculate_timestamp_iou(pred_start=10.0, pred_end=5.0, gold_start=0.0, gold_end=5.0)
+        assert iou == 0.0
+
+    def test_zero_duration_intervals(self):
+        iou = calculate_timestamp_iou(pred_start=5.0, pred_end=5.0, gold_start=5.0, gold_end=5.0)
+        assert iou == 0.0
+
+
+class TestClaimTimestampIoUEval:
+    """Unit tests for run_claim_timestamp_iou_eval."""
+
+    def test_empty_claims(self):
+        res = run_claim_timestamp_iou_eval([], [])
+        assert res["mean_iou"] == 0.0
+        assert res["matched_claims"] == 0
+
+    def test_matching_claims(self):
+        extracted = [
+            {"text": "Claim 1", "start": 0.0, "end": 10.0},
+            {"text": "Claim 2", "start": 20.0, "end": 30.0},
+        ]
+        gold = [
+            {"text": "Claim 1", "start": 0.0, "end": 10.0},
+            {"text": "Claim 2", "start": 22.0, "end": 30.0},
+        ]
+        res = run_claim_timestamp_iou_eval(extracted, gold, iou_threshold=0.5)
+        assert res["matched_claims"] == 2
+        assert res["precision_at_iou"] == 1.0
+        assert res["recall_at_iou"] == 1.0
+        assert res["mean_iou"] > 0.8
+
+
+# ==============================================================================
+# 2. Classification Metrics Tests (FR6)
+# ==============================================================================
+
+class TestClassificationMetrics:
+    """Unit tests for precision, recall, F1, and accuracy computations."""
+
+    def test_perfect_binary_classification(self):
+        y_true = [True, False, True, True, False]
+        y_pred = [True, False, True, True, False]
+        metrics = calculate_classification_metrics(y_true, y_pred)
+
+        assert metrics["accuracy"] == 1.0
+        assert metrics["precision"] == 1.0
+        assert metrics["recall"] == 1.0
+        assert metrics["f1_score"] == 1.0
+        assert metrics["tp"] == 3
+        assert metrics["fp"] == 0
+        assert metrics["fn"] == 0
+        assert metrics["tn"] == 2
+
+    def test_all_wrong_binary_classification(self):
+        y_true = [True, True, True]
+        y_pred = [False, False, False]
+        metrics = calculate_classification_metrics(y_true, y_pred)
+
+        assert metrics["accuracy"] == 0.0
+        assert metrics["precision"] == 0.0
+        assert metrics["recall"] == 0.0
+        assert metrics["f1_score"] == 0.0
+
+    def test_mixed_multiclass_metrics(self):
+        y_true = ["A", "B", "C", "A", "B"]
+        y_pred = ["A", "B", "A", "A", "C"]
+        metrics = calculate_classification_metrics(y_true, y_pred)
+
+        assert metrics["accuracy"] == 3 / 5
+        assert 0.0 <= metrics["macro_f1"] <= 1.0
+
+    def test_empty_lists_handled(self):
+        metrics = calculate_classification_metrics([], [])
+        assert metrics["accuracy"] == 0.0
+        assert metrics["f1_score"] == 0.0
+
+
+# ==============================================================================
+# 3. Continuous Error Metrics Tests (FR4, FR6)
+# ==============================================================================
+
+class TestErrorMetrics:
+    """Unit tests for MAE, MSE, and RMSE on continuous scores (e.g. deception rating)."""
+
+    def test_perfect_predictions(self):
+        y_true = [2.5, 7.0, 9.0]
+        y_pred = [2.5, 7.0, 9.0]
+        metrics = calculate_error_metrics(y_true, y_pred)
+
+        assert metrics["mae"] == 0.0
+        assert metrics["mse"] == 0.0
+        assert metrics["rmse"] == 0.0
+
+    def test_known_deviations(self):
+        y_true = [1.0, 2.0, 3.0]
+        y_pred = [2.0, 3.0, 4.0]
+        metrics = calculate_error_metrics(y_true, y_pred)
+
+        assert metrics["mae"] == 1.0
+        assert metrics["mse"] == 1.0
+        assert metrics["rmse"] == 1.0
+
+
+# ==============================================================================
+# 4. Pointwise Pre-Classifier Runner Tests (FR6, T5.1)
+# ==============================================================================
+
+class TestPreClassifierPointwiseRunner:
+    """Tests for run_pre_classifier_eval against golden dataset fixtures."""
+
+    @pytest.mark.asyncio
+    async def test_run_pre_classifier_eval_with_mock_service(self):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.is_analysable = True
+        mock_result.category = "Political / News"
+        mock_result.deterministic_fast_path = True
+        mock_service.classify_video = AsyncMock(return_value=mock_result)
+
+        test_dataset = [
+            {
+                "video_id": "test_1",
+                "title": "Senate Hearing on AI Policy",
+                "channel_name": "C-SPAN",
+                "category_id": "25",
+                "category_name": "News & Politics",
+                "is_analysable": True,
+                "expected_category": "Political / News",
+            },
+            {
+                "video_id": "test_2",
+                "title": "Speedrun Mario Kart",
+                "channel_name": "Gamer123",
+                "category_id": "20",
+                "category_name": "Gaming",
+                "is_analysable": False,
+                "expected_category": "Gaming Walkthrough / Speedrun",
+            },
+        ]
+
+        with patch("app.evals.runners.quantitative_runner._load_pre_classifier_dataset", return_value=test_dataset):
+            results = await run_pre_classifier_eval(service=mock_service, limit=2)
+
+            assert "accuracy" in results
+            assert "f1_score" in results
+            assert "fast_path_short_circuit_rate" in results
+            assert results["total_samples"] == 2
+            assert results["fast_path_short_circuit_rate"] == 1.0
+
+
+# ==============================================================================
+# 5. Pairwise Model Benchmark Runner with Position Flipping Tests (FR7, T5.2)
+# ==============================================================================
+
+class TestPairwiseModelRunner:
+    """Tests for run_pairwise_model_benchmark with 50% position flipping and 4x sampling."""
+
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_position_flipping_eliminates_bias(self):
+        # We test that when Model A is consistently judged better, Model A win rate is 100%
+        # regardless of whether Model A was shown as Candidate 1 or Candidate 2.
+        test_items = [
+            {"prompt": "Analyze climate claims in transcript segment.", "criteria": "Accuracy and depth."}
+        ]
+
+        async def mock_judge(candidate_1_text, candidate_2_text, criteria, is_flipped, **kwargs):
+            # If is_flipped is False, Candidate 1 is Model A. Candidate 1 is better.
+            # If is_flipped is True, Candidate 2 is Model A. Candidate 2 is better.
+            winner = "candidate_2" if is_flipped else "candidate_1"
+            return PairwiseJudgmentRubric(
+                winner=winner,
+                confidence_score=0.9,
+                comparative_rationale="The superior model provided much deeper empirical reasoning.",
+            )
+
+        with patch("app.evals.runners.pairwise_runner._generate_candidate_output", new_callable=AsyncMock) as mock_gen, \
+             patch("app.evals.runners.pairwise_runner._judge_pairwise_candidates", side_effect=mock_judge):
+
+            mock_gen.side_effect = lambda model, prompt: f"Output from {model}"
+
+            result = await run_pairwise_model_benchmark(
+                test_items=test_items,
+                model_a="gemini-3.5-flash-lite",
+                model_b="gemini-3.8-flash",
+                multi_sample_count=4,
+            )
+
+            assert isinstance(result, PairwiseBenchmarkResult)
+            # Model A was better in both forward and reversed presentation -> 100% win rate
+            assert result.model_a_win_rate == 1.0
+            assert result.model_b_win_rate == 0.0
+            assert result.tie_rate == 0.0
+            assert result.total_comparisons == 8  # 1 item * 2 flips * 4 samples = 8
+
+    @pytest.mark.asyncio
+    async def test_pairwise_runner_detects_pure_positional_bias(self):
+        # When a judge always votes for "candidate_1" regardless of content
+        test_items = [{"prompt": "Test prompt", "criteria": "Criteria"}]
+
+        async def biased_judge(*args, **kwargs):
+            return PairwiseJudgmentRubric(
+                winner="candidate_1",  # Always prefers Candidate 1
+                confidence_score=0.8,
+                comparative_rationale="Always picking candidate 1 due to positional bias.",
+            )
+
+        with patch("app.evals.runners.pairwise_runner._generate_candidate_output", new_callable=AsyncMock) as mock_gen, \
+             patch("app.evals.runners.pairwise_runner._judge_pairwise_candidates", side_effect=biased_judge):
+
+            mock_gen.side_effect = lambda model, prompt: f"Output from {model}"
+
+            result = await run_pairwise_model_benchmark(
+                test_items=test_items,
+                model_a="gemini-3.5-flash-lite",
+                model_b="gemini-3.8-flash",
+                multi_sample_count=2,
+            )
+
+            # Because 50% flips were run, Model A won 50% (when in pos 1) and Model B won 50% (when in pos 1)
+            assert result.model_a_win_rate == 0.5
+            assert result.model_b_win_rate == 0.5
+            # Positional bias score should be high (Candidate 1 was chosen 100% of the time)
+            assert result.positional_bias_score == 1.0
