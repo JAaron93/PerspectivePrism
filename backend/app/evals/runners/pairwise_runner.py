@@ -15,10 +15,26 @@ from app.evals.security.eval_sanitizer import (
     strip_instruction_delimiters,
 )
 from app.evals.telemetry.tracer import record_eval_span
-from app.utils.input_sanitizer import sanitize_context
+from app.utils.input_sanitizer import sanitize_context, sanitize_input
 from app.utils.llm_utils import build_agent_generation_config, get_genai_client
 
 logger = logging.getLogger(__name__)
+
+MAX_CANDIDATE_OUTPUT_LENGTH: int = 65536
+
+
+def sanitize_candidate_output(text: str, field_name: str = "Candidate output") -> str:
+    """Sanitizes candidate output with an expanded 64K ceiling to prevent premature truncation."""
+    if not text:
+        return ""
+    return sanitize_input(
+        text,
+        max_length=MAX_CANDIDATE_OUTPUT_LENGTH,
+        field_name=field_name,
+        allow_suspicious_patterns=False,
+        allow_control_chars=False,
+    )
+
 
 PAIRWISE_JUDGE_SYSTEM_PROMPT = """You are an expert impartial Pairwise Evaluation Judge for PerspectivePrism.
 
@@ -91,9 +107,9 @@ async def _judge_pairwise_candidates(
     """
     nonce = secrets.token_hex(8)
     neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)) if candidate_1_text else ""
-    clean_c1 = sanitize_context(neutralized_c1) if neutralized_c1 else ""
+    clean_c1 = sanitize_candidate_output(neutralized_c1, field_name="Candidate 1") if neutralized_c1 else ""
     neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)) if candidate_2_text else ""
-    clean_c2 = sanitize_context(neutralized_c2) if neutralized_c2 else ""
+    clean_c2 = sanitize_candidate_output(neutralized_c2, field_name="Candidate 2") if neutralized_c2 else ""
     neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(criteria)) if criteria else ""
     clean_criteria = sanitize_context(neutralized_crit) if neutralized_crit else ""
 

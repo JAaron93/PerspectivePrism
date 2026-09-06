@@ -347,11 +347,12 @@ class TestPairwiseModelRunner:
         mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
         with patch("app.evals.runners.pairwise_runner.get_genai_client", return_value=mock_client), \
-             patch("app.evals.runners.pairwise_runner.sanitize_context", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize:
+             patch("app.evals.runners.pairwise_runner.sanitize_context", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize_context, \
+             patch("app.evals.runners.pairwise_runner.sanitize_candidate_output", side_effect=lambda x, **kw: f"[CLEAN]{x}") as mock_sanitize_cand:
 
             # Test candidate generation
             candidate_out = await _generate_candidate_output("gemini-3.5-flash-lite", "Raw <script>alert(1)</script> prompt")
-            mock_sanitize.assert_called_with("Raw <script>alert(1)</script> prompt")
+            mock_sanitize_context.assert_called_with("Raw <script>alert(1)</script> prompt")
             assert mock_client.aio.models.generate_content.called
             gen_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
             assert gen_call_kwargs["model"] == "gemini-3.5-flash-lite"
@@ -361,7 +362,8 @@ class TestPairwiseModelRunner:
 
             # Test judge invocation
             mock_client.aio.models.generate_content.reset_mock()
-            mock_sanitize.reset_mock()
+            mock_sanitize_context.reset_mock()
+            mock_sanitize_cand.reset_mock()
 
             rubric = await _judge_pairwise_candidates(
                 candidate_1_text="Text 1 <script>",
@@ -371,11 +373,25 @@ class TestPairwiseModelRunner:
             )
             assert rubric.winner == "candidate_1"
             assert rubric.is_fallback is False
-            # Verify sanitize_context was called on candidates and criteria
-            assert mock_sanitize.call_count >= 3
+            # Verify sanitize_candidate_output was called on candidate 1 and 2
+            assert mock_sanitize_cand.call_count == 2
+            # Verify sanitize_context was called on criteria
+            assert mock_sanitize_context.call_count == 1
             judge_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
             assert judge_call_kwargs["model"] == "gemini-3.8-flash"
             assert judge_call_kwargs["config"] is not None
             assert judge_call_kwargs["config"].max_output_tokens >= 65536
             assert judge_call_kwargs["config"].http_options.timeout >= 120.0
+
+    @pytest.mark.asyncio
+    async def test_judge_pairwise_candidates_does_not_truncate_candidate_over_2000_chars(self):
+        """Verify candidate outputs are not truncated at 2000 chars by the context sanitizer."""
+        from app.evals.runners.pairwise_runner import sanitize_candidate_output
+
+        long_candidate = ("Detailed analytical finding about economics. " * 100).strip()  # ~4500 chars
+        assert len(long_candidate) > 2000
+        clean = sanitize_candidate_output(long_candidate)
+        assert len(clean) == len(long_candidate)
+        assert not clean.endswith("...")
+
 
