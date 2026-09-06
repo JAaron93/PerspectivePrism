@@ -351,7 +351,7 @@ class TestPairwiseModelRunner:
 
             # Test candidate generation
             candidate_out = await _generate_candidate_output("gemini-3.5-flash-lite", "Raw <script>alert(1)</script> prompt")
-            mock_sanitize.assert_called_with("Raw <script>alert(1)</script> prompt", allow_suspicious_patterns=True)
+            mock_sanitize.assert_called_with("Raw <script>alert(1)</script> prompt")
             assert mock_client.aio.models.generate_content.called
             gen_call_kwargs = mock_client.aio.models.generate_content.call_args.kwargs
             assert gen_call_kwargs["model"] == "gemini-3.5-flash-lite"

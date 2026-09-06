@@ -61,8 +61,8 @@ class PairwiseBenchmarkResult(BaseModel):
 
 
 async def _generate_candidate_output(model_name: str, prompt: str, settings: Any = None) -> str:
-    """Invokes candidate model via Google GenAI SDK under Vertex AI mode with sanitization and zero-throttling config."""
-    clean_prompt = sanitize_context(prompt, allow_suspicious_patterns=True) if prompt else ""
+    """Invokes candidate model via Google GenAI SDK under Vertex AI mode with strict sanitization and zero-throttling config."""
+    clean_prompt = sanitize_context(prompt) if prompt else ""
     client = get_genai_client()
     gen_config = build_agent_generation_config(
         model=model_name,
@@ -87,25 +87,19 @@ async def _judge_pairwise_candidates(
 ) -> PairwiseJudgmentRubric:
     """
     Submits two candidate texts to the judge model with structured Pydantic schema output,
-    applying mandatory input sanitization and zero-throttling generation floors.
+    applying mandatory input sanitization with strict injection rejection and zero-throttling generation floors.
     """
     nonce = secrets.token_hex(8)
-    clean_c1 = sanitize_context(candidate_1_text, allow_suspicious_patterns=True) if candidate_1_text else ""
-    clean_c2 = sanitize_context(candidate_2_text, allow_suspicious_patterns=True) if candidate_2_text else ""
-    clean_criteria = sanitize_context(criteria, allow_suspicious_patterns=True) if criteria else ""
+    neutralized_c1 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_1_text)) if candidate_1_text else ""
+    clean_c1 = sanitize_context(neutralized_c1) if neutralized_c1 else ""
+    neutralized_c2 = neutralize_scoring_directives(strip_instruction_delimiters(candidate_2_text)) if candidate_2_text else ""
+    clean_c2 = sanitize_context(neutralized_c2) if neutralized_c2 else ""
+    neutralized_crit = neutralize_scoring_directives(strip_instruction_delimiters(criteria)) if criteria else ""
+    clean_criteria = sanitize_context(neutralized_crit) if neutralized_crit else ""
 
-    sanitized_c1 = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(clean_c1)),
-        tag_name="candidate_1",
-    )
-    sanitized_c2 = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(clean_c2)),
-        tag_name="candidate_2",
-    )
-    sanitized_criteria = escape_xml_sandbox_tags(
-        neutralize_scoring_directives(strip_instruction_delimiters(clean_criteria)),
-        tag_name="criteria",
-    )
+    sanitized_c1 = escape_xml_sandbox_tags(clean_c1, tag_name="candidate_1")
+    sanitized_c2 = escape_xml_sandbox_tags(clean_c2, tag_name="candidate_2")
+    sanitized_criteria = escape_xml_sandbox_tags(clean_criteria, tag_name="criteria")
 
     judge_prompt = (
         f"{PAIRWISE_JUDGE_SYSTEM_PROMPT}\n\n"

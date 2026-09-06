@@ -101,9 +101,11 @@ async def evaluate_perspective_faithfulness(
     active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
     nonce = secrets.token_hex(8)
 
-    # Enforce mandatory application sanitizer boundary
-    clean_claim = sanitize_claim_text(claim_text, allow_suspicious_patterns=True) if claim_text else ""
-    clean_explanation = sanitize_context(generated_explanation, allow_suspicious_patterns=True) if generated_explanation else ""
+    # Enforce mandatory application sanitizer boundary with strict rejection
+    neutralized_claim = neutralize_scoring_directives(strip_instruction_delimiters(claim_text)) if claim_text else ""
+    clean_claim = sanitize_claim_text(neutralized_claim) if neutralized_claim else ""
+    neutralized_exp = neutralize_scoring_directives(strip_instruction_delimiters(generated_explanation)) if generated_explanation else ""
+    clean_explanation = sanitize_context(neutralized_exp) if neutralized_exp else ""
 
     judge_agent = Agent(
         name="perspective_faithfulness_judge",

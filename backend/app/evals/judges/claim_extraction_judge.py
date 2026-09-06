@@ -96,8 +96,9 @@ async def evaluate_claim_extraction(
     active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
     nonce = secrets.token_hex(8)
 
-    # Enforce mandatory application sanitizer boundary
-    clean_transcript = sanitize_context(transcript_text, allow_suspicious_patterns=True) if transcript_text else ""
+    # Enforce mandatory application sanitizer boundary with strict rejection
+    neutralized_raw = neutralize_scoring_directives(strip_instruction_delimiters(transcript_text)) if transcript_text else ""
+    clean_transcript = sanitize_context(neutralized_raw) if neutralized_raw else ""
 
     judge_agent = Agent(
         name="claim_extraction_judge",

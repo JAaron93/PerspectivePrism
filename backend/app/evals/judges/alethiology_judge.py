@@ -113,10 +113,13 @@ async def evaluate_alethiology_neutrality(
     active_model = model_name or getattr(active_settings, "LLM_MODEL", "gemini-3.8-flash")
     nonce = secrets.token_hex(8)
 
-    # Enforce mandatory application sanitizer boundary
-    clean_claim = sanitize_claim_text(claim_text, allow_suspicious_patterns=True) if claim_text else ""
-    clean_excerpt = sanitize_context(transcript_excerpt, allow_suspicious_patterns=True) if transcript_excerpt else ""
-    clean_summary = sanitize_context(predicted_epistemic_summary, allow_suspicious_patterns=True) if predicted_epistemic_summary else ""
+    # Enforce mandatory application sanitizer boundary with strict rejection
+    neutralized_claim = neutralize_scoring_directives(strip_instruction_delimiters(claim_text)) if claim_text else ""
+    clean_claim = sanitize_claim_text(neutralized_claim) if neutralized_claim else ""
+    neutralized_excerpt = neutralize_scoring_directives(strip_instruction_delimiters(transcript_excerpt)) if transcript_excerpt else ""
+    clean_excerpt = sanitize_context(neutralized_excerpt) if neutralized_excerpt else ""
+    neutralized_summary = neutralize_scoring_directives(strip_instruction_delimiters(predicted_epistemic_summary)) if predicted_epistemic_summary else ""
+    clean_summary = sanitize_context(neutralized_summary) if neutralized_summary else ""
 
     judge_agent = Agent(
         name="alethiology_neutrality_judge",

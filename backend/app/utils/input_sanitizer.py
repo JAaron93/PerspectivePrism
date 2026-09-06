@@ -205,13 +205,13 @@ def sanitize_input(
     return text
 
 
-def sanitize_claim_text(claim_text: str, allow_suspicious_patterns: bool = False) -> str:
+def sanitize_claim_text(claim_text: str) -> str:
     """Sanitize claim text for use in prompts."""
     return sanitize_input(
         claim_text,
         max_length=MAX_CLAIM_LENGTH,
         field_name="Claim text",
-        allow_suspicious_patterns=allow_suspicious_patterns,
+        allow_suspicious_patterns=False,
         allow_control_chars=False
     )
 
@@ -238,7 +238,7 @@ def sanitize_evidence_text(evidence_text: str) -> str:
     )
 
 
-def sanitize_context(context: Optional[str], allow_suspicious_patterns: bool = False) -> str:
+def sanitize_context(context: Optional[str]) -> str:
     """Sanitize context text for use in prompts."""
     if not context:
         return ""
@@ -246,7 +246,7 @@ def sanitize_context(context: Optional[str], allow_suspicious_patterns: bool = F
         context,
         max_length=MAX_CONTEXT_LENGTH,
         field_name="Context",
-        allow_suspicious_patterns=allow_suspicious_patterns,
+        allow_suspicious_patterns=False,
         allow_control_chars=False
     )
 
