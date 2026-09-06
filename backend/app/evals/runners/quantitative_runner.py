@@ -208,8 +208,8 @@ def normalize_content_category(category: str) -> str:
     if any(k in cat_lower for k in ["pet", "animal", "dog", "cat", "puppy", "wildlife", "zoo"]):
         return "Pets & Animals"
 
-    # 3f. Music & Entertainment
-    if any(k in cat_lower for k in ["music", "song", "amv", "remix", "entertainment", "concert", "beat"]):
+    # 3f. Music & Entertainment (e.g. 'Political Debate Remix', 'Anime AMV Mashup', 'OST Synthwave Mix')
+    if any(k in cat_lower for k in ["music", "song", "amv", "remix", "entertainment", "concert", "beat", "mashup", "soundtrack", "ost", "synthwave"]):
         return "Music & Entertainment"
 
     # 4. News & Politics (including political commentary, legislation, investigative reporting)

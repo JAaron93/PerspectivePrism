@@ -104,7 +104,10 @@ async def _generate_candidate_output(model_name: str, prompt: str, settings: Any
         contents=clean_prompt,
         config=gen_config,
     )
-    return response.text or ""
+    raw_text = (response.text or "").strip()
+    if not raw_text:
+        raise ValueError(f"Candidate model '{model_name}' produced empty response text")
+    return raw_text
 
 
 async def _judge_pairwise_candidates(

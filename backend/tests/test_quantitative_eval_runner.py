@@ -454,6 +454,8 @@ class TestPairwiseModelRunner:
         assert normalize_content_category("Painting Tutorial") == "Lifestyle & Art"
         assert normalize_content_category("Documentary Essay") == "Science & Technology"
         assert normalize_content_category("Political Commentary (No Captions)") == "Raw Video Footage"
+        assert normalize_content_category("Political Debate Remix") == "Music & Entertainment"
+        assert normalize_content_category("Anime AMV Mashup") == "Music & Entertainment"
         assert normalize_content_category("Raw Video Footage") == "Raw Video Footage"
         assert normalize_content_category("Silent B-Roll: City Hall Press") == "Raw Video Footage"
         assert normalize_content_category("") == "Unknown"
@@ -488,6 +490,20 @@ class TestPairwiseModelRunner:
         clean = sanitize_candidate_output(nfkc_candidate)
         assert not clean.endswith("...")
         assert len(clean) > len(nfkc_candidate)
+
+    @pytest.mark.asyncio
+    async def test_generate_candidate_output_raises_on_empty_text(self):
+        """Verify _generate_candidate_output raises ValueError if provider returns empty string."""
+        from app.evals.runners.pairwise_runner import _generate_candidate_output
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = ""  # Empty text from model
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("app.evals.runners.pairwise_runner.get_genai_client", return_value=mock_client):
+            with pytest.raises(ValueError, match="produced empty response text"):
+                await _generate_candidate_output("gemini-3.5-flash-lite", "Test prompt")
 
 
 
