@@ -464,5 +464,16 @@ class TestPairwiseModelRunner:
         assert len(clean) == len(huge_candidate)
         assert not clean.endswith("...")
 
+    def test_sanitize_candidate_output_preserves_heavily_escaped_characters(self):
+        """Verify candidate outputs containing dense quotes and backslashes do not truncate after escaping expansion."""
+        from app.evals.runners.pairwise_runner import sanitize_candidate_output
+
+        # Generate text with dense quotes and braces that expands heavily upon escaping
+        dense_quotes_candidate = ('"key": "value with quotes and evidence", ' * 2500).strip()
+        clean = sanitize_candidate_output(dense_quotes_candidate)
+        assert not clean.endswith("...")
+        # Verify length after escaping is strictly larger than original without any truncation ellipsis
+        assert len(clean) >= len(dense_quotes_candidate)
+
 
 
