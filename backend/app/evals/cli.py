@@ -311,51 +311,67 @@ def _emit_agents_cli_success_artifacts(
     component: str,
 ) -> None:
     """
-    Generates a minimal trace and report when `agents-cli eval run` completes
-    successfully (FR21). agents-cli writes its own native output; this function
-    additionally produces a structured trace JSON (EvaluationDataset schema) and
-    Markdown/JSON summary at the caller-specified output paths, so the unified
-    CLI always delivers its promised artifacts regardless of delegation mode.
+    Generates a structured delegation receipt trace and report when `agents-cli eval run`
+    completes successfully (FR21).
 
-    The sentinel record uses is_fallback=True to accurately reflect that scores
-    were computed by agents-cli internally rather than our local judge runners.
+    agents-cli writes its own native output (scores, grade reports) to its own paths.
+    This function additionally produces a trace JSON (EvaluationDataset schema) and
+    Markdown/JSON summary at the caller-specified --trace-dir and --output-dir paths,
+    so the unified CLI always delivers artifacts at the advertised locations regardless
+    of delegation mode.
+
+    The delegation receipt record uses:
+      - is_fallback=False: the delegation itself succeeded (agents-cli exit code 0)
+      - score=1.0: indicates successful delegation (not a quality metric — see report header)
+      - metric_name="agents_cli_delegation_success": distinct name avoids confusion with
+        quality metrics like claim_recall or pre_classifier_f1
+
+    The Markdown report header labels this clearly as a delegation receipt.
+    Actual quality scores are in agents-cli's own output files.
     """
     from app.evals.reporting.aggregator import (
         aggregate_benchmark_results,
         export_traces,
         generate_markdown_report,
-        print_console_summary,
     )
 
-    sentinel_results = [
+    # Delegation receipt: score=1.0 signals agents-cli exit code 0 (success).
+    # is_fallback=False so the aggregator counts this as a valid result (not 0/0).
+    delegation_results = [
         {
             "component": component,
-            "metric_name": "agents_cli_delegated",
-            "score": 0.0,
-            "is_fallback": True,  # Score produced by agents-cli, not local runner
+            "metric_name": "agents_cli_delegation_success",
+            "score": 1.0,   # Delegation succeeded (exit code 0); not a quality score
+            "is_fallback": False,
             "model_name": "gemini-3.5-flash-lite",
             "input_tokens": 0,
             "output_tokens": 0,
             "eval_input": "agents-cli eval run",
-            "eval_output": f"Delegated to agents-cli at {run_timestamp}",
+            "eval_output": (
+                f"agents-cli eval run exited 0 at {run_timestamp}. "
+                "Quality scores are in agents-cli's native output. "
+                "This record is a delegation receipt only."
+            ),
         }
     ]
 
-    aggregation = aggregate_benchmark_results(sentinel_results)
+    aggregation = aggregate_benchmark_results(delegation_results)
 
-    trace_path = export_traces(sentinel_results, trace_dir=trace_dir, run_timestamp=run_timestamp)
+    trace_path = export_traces(delegation_results, trace_dir=trace_dir, run_timestamp=run_timestamp)
     report_path = generate_markdown_report(
         aggregation,
         report_dir=report_dir,
         run_timestamp=run_timestamp,
-        component_filter=component,
+        component_filter=f"{component} [agents-cli delegation receipt — quality scores in agents-cli output]",
     )
 
     logger.info(
-        "Unified artifacts emitted after agents-cli success — trace: %s, report: %s",
+        "Delegation receipt artifacts emitted — trace: %s, report: %s. "
+        "Quality scores are in agents-cli's native output files.",
         trace_path,
         report_path,
     )
+
 
 
 def _run_adk_eval(

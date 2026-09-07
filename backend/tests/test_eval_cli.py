@@ -185,6 +185,36 @@ class TestAgentsCLIFallback:
             mock_emit.assert_called_once()
             assert exit_code == 0
 
+    def test_emit_agents_cli_success_artifacts(self, tmp_path):
+        """Test _emit_agents_cli_success_artifacts creates trace and reports with valid record."""
+        from app.evals.cli import _emit_agents_cli_success_artifacts
+        trace_dir = tmp_path / "traces"
+        report_dir = tmp_path / "reports"
+        run_ts = "20260907_140005"
+
+        _emit_agents_cli_success_artifacts(
+            trace_dir=trace_dir,
+            report_dir=report_dir,
+            run_timestamp=run_ts,
+            component="pre_classifier",
+        )
+
+        trace_file = trace_dir / f"run_{run_ts}.json"
+        assert trace_file.exists()
+        trace_data = json.loads(trace_file.read_text(encoding="utf-8"))
+        assert len(trace_data.get("eval_cases", [])) == 1
+        meta = trace_data["eval_cases"][0]["metadata"]
+        assert meta["is_fallback"] is False
+        assert meta["score"] == 1.0
+        assert meta["metric_name"] == "agents_cli_delegation_success"
+
+        report_md = report_dir / f"summary_{run_ts}.md"
+        assert report_md.exists()
+        assert "agents-cli delegation receipt" in report_md.read_text(encoding="utf-8")
+
+        report_json = report_dir / f"summary_{run_ts}.json"
+        assert report_json.exists()
+
 
     def test_agents_cli_subprocess_failure_falls_back_to_native(self, tmp_path):
         """If agents-cli exits non-zero, fall back to native runner (FR22)."""
