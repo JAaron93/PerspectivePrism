@@ -16,6 +16,7 @@ This specification designs a **Component-Level Evaluation Suite** built 100% on 
 - **Google ADK 2.0 (`google.adk.agents.Agent`) Agent-as-a-Judge**: Autonomous, rubric-calibrated evaluation agents that execute qualitative analysis (faithfulness, epistemic neutrality, deception calibration) replacing naive single-prompt LLM judges, validated via structured Pydantic schemas.
 - **Google GenAI SDK (`google-genai`) Evaluation Runners**: Native async Vertex AI runners executing deterministic quantitative benchmarks (F1-score, accuracy, timestamp IoU, and position-flipped pairwise model comparisons).
 - **Google Cloud Trace & OpenTelemetry**: 100% cloud-native telemetry capturing GenAI spans, token usage, and cost tracking with zero third-party SaaS dependencies.
+- **Google `agents-cli` & Dual-Mode Orchestration**: Standardized ADK platform CLI integration (`agents-cli eval run/grade/compare`) paired with a lightweight native component CLI runner (`python -m app.evals.cli`) featuring automatic binary detection and graceful fallback.
 
 ---
 
@@ -47,10 +48,17 @@ flowchart TD
         end
     end
 
-    subgraph Level3 ["Level 3: Observability & Cloud Reporting"]
+    subgraph Level3 ["Level 3: Observability & Trace Telemetry"]
         O1["OpenTelemetry GenAI Semantic Spans"]
         O2["Google Cloud Trace (ADC Native)"]
-        O3["Benchmark Evaluation Reports\n(Markdown, JSON Rollups)"]
+        O3["Execution Traces (artifacts/traces/)"]
+    end
+
+    subgraph Level4 ["Level 4: Orchestration & Evaluation CLI"]
+        C1["Dual-Mode Evaluation CLI (app.evals.cli)"]
+        C2["Google agents-cli Platform Suite (eval run/grade/compare)"]
+        C3["CI Pytest Harness (-m 'eval and component')"]
+        C4["Markdown & JSON Rollup Summaries (artifacts/eval_results/)"]
     end
 
     D1 --> EngineQuantitative
@@ -64,6 +72,10 @@ flowchart TD
     EngineADK --> O1
     O1 --> O2
     O1 --> O3
+    O3 --> C1
+    C1 --> C2
+    C1 --> C3
+    C1 --> C4
 ```
 
 ---
@@ -269,3 +281,110 @@ All evaluation operations emit structured OpenTelemetry spans directly exported 
 
 ### 6.2 Context Caching Optimization
 Static evaluation instructions, rubrics, and few-shot exemplars exceed $32\text{k}$ tokens across large test suites. By placing static rubrics at the prompt prefix, evaluations automatically benefit from **Gemini Implicit Context Caching** (yielding a **90% discount** on input tokens during evaluation sweeps).
+
+---
+
+## 7. CI/CD Integration, Benchmark CLI & Google agents-cli Orchestration
+
+### 7.1 Dual-Mode Benchmark Orchestration Architecture
+The evaluation suite exposes a unified CLI entrypoint at `backend/app/evals/cli.py` that operates in two complementary modes:
+
+```mermaid
+flowchart TD
+    CLI["Benchmark CLI Entrypoint\n(python -m app.evals.cli)"]
+    FlagCheck{"Mode Selection\n(--adk-eval vs --component)"}
+    
+    CLI --> FlagCheck
+    
+    subgraph ModeNative ["Mode A: Native Component Evaluation"]
+        CompFilter["Component Filter\n(--component pre_classifier|extractor|perspective|bias|alethiology|all)"]
+        NativeRunners["Direct Execution of Quantitative Runners\n& ADK Judge Agents"]
+        TraceExporter["OpenTelemetry Traces & JSON Exporter\n(artifacts/traces/)"]
+        Aggregator["Metrics Aggregator\n(Mean, CI, Cost, Fallback Filter)"]
+    end
+    
+    subgraph ModeADK ["Mode B: Google agents-cli Platform Suite"]
+        BinaryCheck{"shutil.which('agents-cli')"}
+        ConfigYaml["Load Evaluation Config\n(backend/tests/eval/eval_config.yaml)"]
+        ADKSubprocess["agents-cli eval run\n--config eval_config.yaml"]
+        DownstreamADK["Platform Analytics\n(agents-cli eval grade / compare / analyze)"]
+        PurePyFallback["Graceful Pure-Python Fallback\n(Runs Native Mode with Warning)"]
+    end
+    
+    FlagCheck -->|--component <name>| CompFilter
+    CompFilter --> NativeRunners
+    NativeRunners --> TraceExporter
+    NativeRunners --> Aggregator
+    
+    FlagCheck -->|--adk-eval| BinaryCheck
+    BinaryCheck -->|Found in PATH| ConfigYaml
+    ConfigYaml --> ADKSubprocess
+    ADKSubprocess --> DownstreamADK
+    BinaryCheck -->|Not Installed| PurePyFallback
+    PurePyFallback --> NativeRunners
+    
+    Aggregator --> OutputMarkdown["Summary Report\n(artifacts/eval_results/summary_<timestamp>.md)"]
+    Aggregator --> OutputConsole["Console Summary Table\n(tabulate)"]
+```
+
+1. **Native Component Mode (`--component [name]`)**:
+   - Executes isolated component benchmarks using declared ADK 2.0 judge agents (`execute_adk_agent`) and quantitative runners (`google-genai`).
+   - Generates granular component metrics (F1-score, timestamp IoU, groundedness 1-5, descriptive neutrality 1-5, deception MAE).
+   - Writes evaluation execution traces to `artifacts/traces/run_<timestamp>.json`.
+2. **Google ADK Platform Mode (`--adk-eval`)**:
+   - Delegates evaluation execution to the official Google Agent Development Kit CLI tool (`agents-cli eval run`).
+   - Uses `backend/tests/eval/eval_config.yaml` to declare benchmark dataset sources, target model identifiers (`gemini-3.5-flash-lite`), and evaluation metrics.
+   - Enables developers to inspect runs with `agents-cli eval grade`, `agents-cli eval compare`, and `agents-cli eval analyze`.
+   - **Graceful Pure-Python Fallback**: Uses `shutil.which("agents-cli")` to probe for the binary. If `agents-cli` is not installed or available in the active environment PATH, the CLI emits a warning log and automatically routes execution to the native component runner, ensuring CI pipelines never crash due to external tooling absence.
+
+### 7.2 Evaluation Configuration Schema (`eval_config.yaml`)
+To interface with `agents-cli`, the repository maintains an evaluation manifest at `backend/tests/eval/eval_config.yaml`:
+
+```yaml
+version: "1.0"
+project: "perspective-prism"
+
+evaluation:
+  model: "gemini-3.5-flash-lite"
+  max_concurrency: 5
+  timeout_seconds: 120
+  
+  datasets:
+    pre_classifier: "app/evals/datasets/pre_classifier_golden.json"
+    claim_extractor: "app/evals/datasets/claim_extractor_golden.json"
+    perspective_stance: "app/evals/datasets/perspective_stance_golden.json"
+    bias_deception: "app/evals/datasets/bias_deception_golden.json"
+    alethiology: "app/evals/datasets/alethiology_golden.json"
+
+  metrics:
+    - name: "claim_recall"
+      type: "custom"
+      judge: "app.evals.judges.claim_extraction_judge"
+    - name: "perspective_faithfulness"
+      type: "custom"
+      judge: "app.evals.judges.perspective_faithfulness_judge"
+    - name: "alethiology_neutrality"
+      type: "custom"
+      judge: "app.evals.judges.alethiology_judge"
+    - name: "hallucination"
+      type: "builtin"
+    - name: "safety"
+      type: "builtin"
+
+output:
+  trace_dir: "artifacts/traces"
+  report_dir: "artifacts/eval_results"
+```
+
+### 7.3 Trace Schema & Artifact Parity
+To guarantee interoperability between native evaluation runs and the Google ADK tooling ecosystem:
+1. **Trace Directory (`artifacts/traces/`)**: The quantitative and judge runners emit structured execution traces formatted to align with the schema expected by `agents-cli eval grade` and `agents-cli eval compare`.
+2. **Report Directory (`artifacts/eval_results/`)**: Aggregated summary reports are exported as both Markdown (`summary_<timestamp>.md`) and JSON (`summary_<timestamp>.json`), presenting pass/fail status, confidence intervals, cost rollups, and explicit fallback exclusions.
+
+### 7.4 Pytest CI Integration & Offline Invariant
+Component-level evaluations are registered as a custom pytest marker in `backend/pyproject.toml`:
+```bash
+pytest -m "eval and component" backend/tests/
+```
+All component evaluation test cases execute offline using pre-recorded golden fixtures (`backend/app/evals/datasets/*.json`), satisfying NFR3 by requiring zero active calls to YouTube or Google Custom Search APIs during CI execution.
+

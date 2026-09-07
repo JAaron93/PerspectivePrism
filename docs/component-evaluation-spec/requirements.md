@@ -9,6 +9,8 @@
 - **Descriptive Neutrality**: The invariant governing epistemic evaluation where an evaluator objectively identifies *how* truth is structured without expressing normative, moral, or validity judgments.
 - **Zero-Trust Judge Delimitation**: Security patterns that sandbox and sanitize untrusted evaluation inputs within explicit XML blocks and per-request random nonces, neutralizing instruction overrides or scoring directives before passing data to an evaluation agent.
 - **Implicit Context Caching**: Automatic GCP Vertex AI token discount (up to 90%) achieved by maintaining static prefix tokens (system instructions, rubrics, few-shot examples) above 32,768 tokens.
+- **Google `agents-cli` Platform Evaluation**: The official command-line evaluation toolchain provided with the Google Agent Development Kit (`agents-cli eval run/grade/compare/analyze`), executing trajectory evaluation, safety checks, and multi-agent benchmark runs.
+- **Dual-Mode Benchmark Orchestrator**: The centralized CLI entrypoint (`backend/app/evals/cli.py`) supporting both native component evaluation mode and delegated Google `agents-cli` execution with pure-Python fallback.
 - **Zero-Drift Invariant**: The requirement that specifications, data models, evaluation scripts, manifests, and telemetry remain in 100% synchronous lockstep with the declared repository environment.
 
 ---
@@ -99,12 +101,15 @@
   ```bash
   pytest -m "eval and component" backend/tests/
   ```
-  allowing component evaluations to run separately from fast unit tests.
-- **FR21 - Benchmark Report Rollup**: The evaluation harness MUST generate a structured benchmark report (`artifacts/eval_results/summary_<timestamp>.md` and `.json`) detailing:
+  allowing component evaluations to run separately from fast unit tests. All CI evaluation executions MUST run offline against frozen golden datasets without external network or YouTube/Google API requests.
+- **FR21 - Benchmark Report Rollup & Trace Artifact Parity**: The evaluation harness MUST generate a structured benchmark report (`artifacts/eval_results/summary_<timestamp>.md` and `.json`) detailing:
   - Per-component pass rates, mean scores, and confidence intervals.
   - Detailed breakdown of faithfulness, neutrality, and claim recall.
   - Token consumption and dollar cost rollup.
   - Fallback counts and error rates.
+  Additionally, the evaluation runner MUST export individual execution traces to `artifacts/traces/run_<timestamp>.json` conforming to schemas compatible with `agents-cli eval grade` and `agents-cli eval compare`.
+- **FR22 - Google `agents-cli` Platform Orchestration & Pure-Python Fallback**: The evaluation CLI entrypoint in `backend/app/evals/cli.py` MUST provide an `--adk-eval` flag that delegates execution to `agents-cli eval run` using configuration from `backend/tests/eval/eval_config.yaml`. The orchestrator MUST check for the presence of the `agents-cli` binary using `shutil.which("agents-cli")`. If the binary is unavailable in the environment PATH, the orchestrator MUST log a graceful fallback warning and seamlessly route execution to the native component runner, ensuring CI/CD pipelines never crash due to CLI absence.
+- **FR23 - Evaluation Configuration Manifest (`eval_config.yaml`)**: The system MUST supply `backend/tests/eval/eval_config.yaml` specifying evaluation dataset paths, target model configuration (`gemini-3.5-flash-lite`), timeout and concurrency limits, built-in metrics (`hallucination`, `safety`), and custom ADK judge mappings.
 
 ---
 
@@ -164,4 +169,20 @@ Scenario: Evaluating neutrality on systemic narrative coherence
   Then the primary_theory must be "Coherence (Systemic Narrative)"
   And the descriptive_neutrality_score must be 5
   And neutrality_violations must be empty
+```
+
+### US4: Hybrid Benchmark CLI & agents-cli Platform Evaluation
+**As a** platform engineer maintaining CI pipelines and local evaluation loops,  
+**I want to** execute evaluation sweeps via `python -m app.evals.cli` with optional `--adk-eval` delegation,  
+**So that** I can seamlessly grade models locally using `agents-cli` without breaking environments where the standalone binary is omitted.
+
+```gherkin
+Scenario: Graceful pure-Python fallback when agents-cli binary is absent
+  Given the evaluation CLI is invoked with flag "--adk-eval"
+  And the "agents-cli" binary is not found in PATH
+  When the benchmark orchestrator executes
+  Then a warning log is emitted indicating pure-Python fallback
+  And the native component evaluation runner executes without error
+  And execution traces are successfully exported to "artifacts/traces/"
+  And an aggregated summary is saved to "artifacts/eval_results/"
 ```
