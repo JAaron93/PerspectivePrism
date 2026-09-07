@@ -123,19 +123,24 @@
 
 ---
 
-## Track 6: CI Pytest Integration, Benchmark CLI & Aggregation Reporting
+## Track 6: CI Pytest Integration, Benchmark CLI & Google agents-cli Orchestration
 
-- [ ] **T6.1: Implement Clean Benchmark Aggregator with Fallback Isolation**
-  - **Description**: In `backend/app/evals/reporting/aggregator.py`, implement `aggregate_benchmark_results(results: list[dict]) -> dict` calculating mean scores, confidence intervals, total token usage, and total dollar cost. Filter out `is_fallback == True` records when computing mean judge scores and output explicit `fallback_count`.
+- [ ] **T6.1: Implement Benchmark Aggregator with Fallback Isolation & Trace Export**
+  - **Description**: In `backend/app/evals/reporting/aggregator.py`, implement `aggregate_benchmark_results(results: list[dict]) -> dict` calculating per-component mean scores, confidence intervals, total token usage, and total dollar cost. Filter out `is_fallback == True` records when computing mean judge scores and output an explicit `fallback_count`. Implement trace serialization exporting execution traces to `artifacts/traces/run_<timestamp>.json` formatted to match schemas required by `agents-cli eval grade` and `agents-cli eval compare`.
   - **Dependencies**: T4.1, T5.1
   - **Traceability**: FR16, FR21
 
-- [ ] **T6.2: Implement Benchmark CLI & Markdown Summary Generator**
-  - **Description**: In `backend/app/evals/cli.py`, author a CLI utility `python -m app.evals.cli --component [pre_classifier|extractor|perspective|bias|alethiology|all]` that runs the evaluation matrix, writes markdown reports to `artifacts/eval_results/`, and prints console summary tables.
+- [ ] **T6.2: Implement Dual-Mode Benchmark CLI & Google agents-cli Orchestration**
+  - **Description**: In `backend/app/evals/cli.py`, author a unified CLI utility `python -m app.evals.cli` supporting:
+    1. `--component [pre_classifier|extractor|perspective|bias|alethiology|all]` for native component benchmark execution.
+    2. `--adk-eval` flag to delegate evaluation to Google's official toolchain (`agents-cli eval run --config backend/tests/eval/eval_config.yaml`).
+    3. Graceful fallback logic using `shutil.which("agents-cli")`: if the binary is absent from PATH, log a fallback warning and seamlessly run the native component runner without error.
+    4. Author `backend/tests/eval/eval_config.yaml` specifying evaluation datasets, target model (`gemini-3.5-flash-lite`), timeout/concurrency parameters, built-in metrics (`hallucination`, `safety`), and custom ADK judge mappings.
+    5. Output generation: write formatted Markdown rollups (`artifacts/eval_results/summary_<timestamp>.md`) and JSON reports, printing summary tables via `tabulate`.
   - **Dependencies**: T6.1
-  - **Traceability**: FR21
+  - **Traceability**: FR21, FR22, FR23, US4
 
-- [ ] **T6.3: Register Pytest Markers & End-to-End Suite Verification**
-  - **Description**: Update the `[tool.pytest.ini_options]` section in `backend/pyproject.toml` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets.
-  - **Dependencies**: T1.2-T1.6, T4.2-T4.4, T5.1, T6.1
-  - **Traceability**: FR20, FR21, US1, US2, US3
+- [ ] **T6.3: Register Pytest Markers & Component Suite Verification**
+  - **Description**: Update `[tool.pytest.ini_options]` in `backend/pyproject.toml` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets without external network requests. In `backend/tests/test_eval_cli.py`, add unit tests covering CLI argument parsing, fallback behavior when `agents-cli` is missing, and `eval_config.yaml` schema validation.
+  - **Dependencies**: T1.2-T1.6, T4.2-T4.4, T5.1, T6.1, T6.2
+  - **Traceability**: FR20, FR21, FR22, FR23, US1, US2, US3, US4
