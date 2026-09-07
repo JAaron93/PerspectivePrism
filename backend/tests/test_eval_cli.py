@@ -186,7 +186,12 @@ class TestAgentsCLIFallback:
             assert exit_code == 0
 
     def test_emit_agents_cli_success_artifacts(self, tmp_path):
-        """Test _emit_agents_cli_success_artifacts creates trace and reports with valid record."""
+        """
+        Test _emit_agents_cli_success_artifacts creates:
+        - An empty EvaluationDataset trace (zero eval_cases, no fabricated scores)
+        - A Markdown delegation receipt report
+        - A JSON delegation receipt report
+        """
         from app.evals.cli import _emit_agents_cli_success_artifacts
         trace_dir = tmp_path / "traces"
         report_dir = tmp_path / "reports"
@@ -199,21 +204,30 @@ class TestAgentsCLIFallback:
             component="pre_classifier",
         )
 
+        # Trace: empty eval_cases — no fabricated quality scores injected
         trace_file = trace_dir / f"run_{run_ts}.json"
         assert trace_file.exists()
         trace_data = json.loads(trace_file.read_text(encoding="utf-8"))
-        assert len(trace_data.get("eval_cases", [])) == 1
-        meta = trace_data["eval_cases"][0]["metadata"]
-        assert meta["is_fallback"] is False
-        assert meta["score"] == 1.0
-        assert meta["metric_name"] == "agents_cli_delegation_success"
+        assert trace_data.get("eval_cases") == [], (
+            "Delegation receipt trace must have zero eval_cases to prevent "
+            "grade/compare pipeline contamination"
+        )
 
+        # Markdown report: human-readable delegation receipt
         report_md = report_dir / f"summary_{run_ts}.md"
         assert report_md.exists()
-        assert "agents-cli delegation receipt" in report_md.read_text(encoding="utf-8")
+        md_content = report_md.read_text(encoding="utf-8")
+        assert "Delegation Receipt" in md_content
+        assert "agents-cli" in md_content
+        assert "zero `eval_cases`" in md_content
 
+        # JSON report: machine-readable delegation metadata
         report_json = report_dir / f"summary_{run_ts}.json"
         assert report_json.exists()
+        json_data = json.loads(report_json.read_text(encoding="utf-8"))
+        assert json_data["delegation_mode"] == "agents-cli"
+        assert json_data["eval_cases_count"] == 0
+        assert "Delegation receipt only" in json_data["note"]
 
 
     def test_agents_cli_subprocess_failure_falls_back_to_native(self, tmp_path):
