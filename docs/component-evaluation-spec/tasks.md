@@ -144,3 +144,9 @@
   - **Description**: Update `[tool.pytest.ini_options]` in `backend/pyproject.toml` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets without external network requests. In `backend/tests/test_eval_cli.py`, add unit tests covering CLI argument parsing, fallback behavior when `agents-cli` is missing, and `eval_config.yaml` schema validation.
   - **Dependencies**: T1.2-T1.6, T4.2-T4.4, T5.1, T6.1, T6.2
   - **Traceability**: FR20, FR21, FR22, FR23, US1, US2, US3, US4
+
+- [ ] **T6.4: Codify agents-cli Evaluation Invariants in `.agents/rules/testing_and_hygiene.md`**
+  - **Description**: Update `.agents/rules/testing_and_hygiene.md` to document the operational requirement to use `agents-cli` (via `python -m app.evals.cli --adk-eval` or direct CLI commands) whenever evaluating ADK agents or running benchmark suites. Codify guidelines on offline golden fixture execution, trace schema outputs in `artifacts/traces/`, and fallback error handling.
+  - **Dependencies**: T6.1, T6.2, T6.3
+  - **Traceability**: FR20, FR21, FR22, FR23, Constitution & Rule Maintenance Protocol
+
