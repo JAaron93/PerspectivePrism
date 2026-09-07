@@ -66,3 +66,43 @@ This document defines repository-wide test execution standards, test fixture dis
 
 * **Spec Gate Before Implementation**: Whenever a new technical specification (e.g. under `docs/*-spec/`) or Architecture Decision Record (ADR) is generated or updated via `/spec-creator` or architectural planning, the specification documents (`design.md`, `requirements.md`, `tasks.md`, `ADR-*.md`) MUST be committed, pushed to a dedicated feature branch, and have a GitHub Pull Request opened for human review **before** beginning any code implementation, build configuration changes, or test harness modifications.
 * **Cascading Update Integrity**: When modifying existing specifications, updates must strictly follow the design-first cascade (`design.md` → `requirements.md` → `tasks.md`). Never implement un-versioned or uncommitted architectural tasks.
+
+---
+
+## 5. Google agents-cli Platform Evaluation & Benchmark Orchestration Invariants (T6.4)
+
+* **CLI Entrypoint**: The canonical benchmark CLI for PerspectivePrism evaluation is `python -m app.evals.cli` (`backend/app/evals/cli.py`). All component benchmark sweeps, ADK judge evaluations, and CI evaluation invocations must route through this unified entrypoint.
+
+* **Dual-Mode Execution** (FR22):
+  - **Native Component Mode** (`--component [pre_classifier|extractor|perspective|bias|alethiology|all]`): Directly executes isolated quantitative runners (`app.evals.runners`) and ADK judge agents. Required for offline CI evaluation.
+  - **agents-cli Platform Mode** (`--adk-eval`): Delegates evaluation to `agents-cli eval run --config backend/tests/eval/eval_config.yaml`. Use when `agents-cli` is installed and full trajectory grading (`agents-cli eval grade`, `agents-cli eval compare`) is required.
+
+* **Graceful Pure-Python Fallback** (FR22, US4):
+  - The CLI MUST probe for the `agents-cli` binary using `shutil.which("agents-cli")` before attempting subprocess delegation.
+  - If the binary is absent from the active environment PATH, the CLI MUST emit a warning-level log (containing `PURE-PYTHON FALLBACK`) and seamlessly route to the native component runner **without raising an exception or returning a non-zero exit code**.
+  - CI/CD pipelines must never crash due to absence of the `agents-cli` binary.
+
+* **Offline Golden Fixture Invariant** (NFR3, FR20):
+  - All component evaluations executed under pytest markers `eval` and `component` MUST run 100% offline using pre-recorded golden datasets in `backend/app/evals/datasets/`.
+  - Zero active calls to YouTube, Google Custom Search, or any external API are permitted during `pytest -m "eval and component"` execution.
+  - If a component evaluation requires live ADK judge execution (perspective, bias, alethiology), the offline CI test records `is_fallback=True` placeholder records to preserve dataset structure without making network calls.
+
+* **Pytest Marker Registration** (FR20):
+  - Component evaluation tests MUST be marked with both `@pytest.mark.eval` and `@pytest.mark.component` to enable selective CI execution:
+    ```bash
+    pytest -m "eval and component" backend/tests/
+    ```
+  - These markers are registered in `backend/pyproject.toml` under `[tool.pytest.ini_options]`.
+
+* **Trace Schema & Artifact Parity** (FR21):
+  - Execution traces exported to `artifacts/traces/run_<timestamp>.json` MUST conform to the `EvaluationDataset` JSON schema (fields: `eval_cases`, each with `eval_case_id`, `prompt`, `responses`, `metadata`), ensuring compatibility with `agents-cli eval grade` and `agents-cli eval compare`.
+  - Aggregated benchmark reports MUST be written to `artifacts/eval_results/summary_<timestamp>.md` (Markdown with `tabulate` tables) AND `artifacts/eval_results/summary_<timestamp>.json` (structured JSON).
+
+* **Fallback Isolation in Aggregation** (FR16, FR21):
+  - `aggregate_benchmark_results()` MUST exclude records with `is_fallback=True` from mean score calculations. Fallback counts MUST be separately recorded in `fallback_count` and per-component `error_rate` fields.
+  - Trace files MUST include **all** records (valid AND fallback) for audit completeness.
+
+* **eval_config.yaml Schema Invariants** (FR23):
+  - `backend/tests/eval/eval_config.yaml` MUST specify: `version`, `project: "perspective-prism"`, evaluation `model: "gemini-3.5-flash-lite"` (benchmark candidate), `max_concurrency <= 10`, `timeout_seconds >= 120`, five dataset paths (pre_classifier, claim_extractor, perspective_stance, bias_deception, alethiology), built-in metrics (`hallucination`, `safety`), and custom ADK judge mappings (`claim_recall`, `perspective_faithfulness`, `alethiology_neutrality`).
+  - The config schema is tested in `backend/tests/test_eval_cli.py::TestEvalConfigYamlValidation`.
+

@@ -55,3 +55,7 @@ test-results/
 # Weights & Biases / Weave
 wandb/
 .weave/
+
+# Evaluation artifacts (runtime-generated, not committed — FR21)
+backend/artifacts/
+artifacts/
