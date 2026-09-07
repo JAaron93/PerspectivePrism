@@ -1,0 +1,55 @@
+# PerspectivePrism agents-cli Evaluation Configuration (T6.2, FR23)
+# Compatible with: agents-cli eval run --config backend/tests/eval/eval_config.yaml
+# Used by: python -m app.evals.cli --adk-eval
+
+version: "1.0"
+project: "perspective-prism"
+
+evaluation:
+  # Target model for evaluation (benchmark candidate — gemini-3.5-flash-lite vs gemini-3.8-flash)
+  model: "gemini-3.5-flash-lite"
+
+  # Concurrency: obeys tier_max_concurrency semaphore limits (NFR4)
+  max_concurrency: 5
+
+  # HTTP timeout per evaluation request (120s aligns with ADR 007 zero-throttling standard)
+  timeout_seconds: 120
+
+  # Golden dataset paths (relative to backend/)
+  datasets:
+    pre_classifier: "app/evals/datasets/pre_classifier_golden.json"
+    claim_extractor: "app/evals/datasets/claim_extractor_golden.json"
+    perspective_stance: "app/evals/datasets/perspective_stance_golden.json"
+    bias_deception: "app/evals/datasets/bias_deception_golden.json"
+    alethiology: "app/evals/datasets/alethiology_golden.json"
+
+  # Metrics configuration
+  # Built-in agents-cli metrics + custom ADK 2.0 judge mappings (FR23)
+  metrics:
+    - name: "claim_recall"
+      type: "custom"
+      judge: "app.evals.judges.claim_extraction_judge"
+      description: "Semantic claim recall and verifiability precision (FR10)"
+
+    - name: "perspective_faithfulness"
+      type: "custom"
+      judge: "app.evals.judges.perspective_faithfulness_judge"
+      description: "Evidence groundedness and prior knowledge hallucination detection (FR11)"
+
+    - name: "alethiology_neutrality"
+      type: "custom"
+      judge: "app.evals.judges.alethiology_judge"
+      description: "6-theory epistemic classification accuracy and descriptive neutrality (FR12)"
+
+    - name: "hallucination"
+      type: "builtin"
+      description: "Built-in hallucination detection metric"
+
+    - name: "safety"
+      type: "builtin"
+      description: "Built-in safety policy compliance metric"
+
+# Artifact output directories (FR21)
+output:
+  trace_dir: "artifacts/traces"
+  report_dir: "artifacts/eval_results"

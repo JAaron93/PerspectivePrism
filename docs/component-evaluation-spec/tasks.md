@@ -125,12 +125,12 @@
 
 ## Track 6: CI Pytest Integration, Benchmark CLI & Google agents-cli Orchestration
 
-- [ ] **T6.1: Implement Benchmark Aggregator with Fallback Isolation & Trace Export**
+- [x] **T6.1: Implement Benchmark Aggregator with Fallback Isolation & Trace Export**
   - **Description**: In `backend/app/evals/reporting/aggregator.py`, implement `aggregate_benchmark_results(results: list[dict]) -> dict` calculating per-component mean scores, confidence intervals, total token usage, and total dollar cost. Filter out `is_fallback == True` records when computing mean judge scores and output an explicit `fallback_count`. Implement trace serialization exporting execution traces to `artifacts/traces/run_<timestamp>.json` formatted to match schemas required by `agents-cli eval grade` and `agents-cli eval compare`.
   - **Dependencies**: T4.1, T5.1
   - **Traceability**: FR16, FR21
 
-- [ ] **T6.2: Implement Dual-Mode Benchmark CLI & Google agents-cli Orchestration**
+- [x] **T6.2: Implement Dual-Mode Benchmark CLI & Google agents-cli Orchestration**
   - **Description**: In `backend/app/evals/cli.py`, author a unified CLI utility `python -m app.evals.cli` supporting:
     1. `--component [pre_classifier|extractor|perspective|bias|alethiology|all]` for native component benchmark execution.
     2. `--adk-eval` flag to delegate evaluation to Google's official toolchain (`agents-cli eval run --config backend/tests/eval/eval_config.yaml`).
@@ -140,12 +140,12 @@
   - **Dependencies**: T6.1
   - **Traceability**: FR21, FR22, FR23, US4
 
-- [ ] **T6.3: Register Pytest Markers & Component Suite Verification**
+- [x] **T6.3: Register Pytest Markers & Component Suite Verification**
   - **Description**: Update `[tool.pytest.ini_options]` in `backend/pyproject.toml` with `eval: mark test as component-level evaluation benchmark`. Create `backend/tests/test_component_evaluations_e2e.py` executing offline component evaluations across all 5 stages using frozen golden datasets without external network requests. In `backend/tests/test_eval_cli.py`, add unit tests covering CLI argument parsing, fallback behavior when `agents-cli` is missing, and `eval_config.yaml` schema validation.
   - **Dependencies**: T1.2-T1.6, T4.2-T4.4, T5.1, T6.1, T6.2
   - **Traceability**: FR20, FR21, FR22, FR23, US1, US2, US3, US4
 
-- [ ] **T6.4: Codify agents-cli Evaluation Invariants in `.agents/rules/testing_and_hygiene.md`**
+- [x] **T6.4: Codify agents-cli Evaluation Invariants in `.agents/rules/testing_and_hygiene.md`**
   - **Description**: Update `.agents/rules/testing_and_hygiene.md` to document the operational requirement to use `agents-cli` (via `python -m app.evals.cli --adk-eval` or direct CLI commands) whenever evaluating ADK agents or running benchmark suites. Codify guidelines on offline golden fixture execution, trace schema outputs in `artifacts/traces/`, and fallback error handling.
   - **Dependencies**: T6.1, T6.2, T6.3
   - **Traceability**: FR20, FR21, FR22, FR23, Constitution & Rule Maintenance Protocol

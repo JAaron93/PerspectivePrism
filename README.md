@@ -101,7 +101,7 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 - **Comprehensive Quality Assurance & E2E Testing**
   - **Vitest Unit Test Suite**: 232 Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
   - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
-  - **FastAPI Pytest Backend Suite**: 207 tests covering API endpoints, claim extraction, classifier guardrails, and alethiology agents (`pytest`).
+  - **FastAPI Pytest Backend Suite**: 450+ tests covering API endpoints, claim extraction, classifier guardrails, alethiology agents, eval harness, and component evaluation benchmarks (`pytest`).
 - **AI Code Review & Quality Gates (Greptile)**
   - Automated PR reviews and hard architectural compliance checks configured via [.greptile/rules.md](.greptile/rules.md) and [.greptile/config.json](.greptile/config.json).
 - **Chrome Web Store Submission Disclosure**
@@ -136,6 +136,28 @@ cd backend
 source venv/bin/activate
 pytest -m redteam
 ```
+
+### Component Evaluation Suite (Track 6)
+
+A modular offline component evaluation harness using frozen golden datasets (zero network calls) with a dual-mode benchmark CLI:
+
+```bash
+# Run offline component evaluations (all 5 pipeline stages, no Vertex AI credentials needed):
+cd backend && source venv/bin/activate
+GCP_PROJECT=test-project LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy \
+  python -m app.evals.cli --component all
+
+# Run a specific component:
+python -m app.evals.cli --component pre_classifier
+
+# Delegate to Google agents-cli platform suite (requires agents-cli installed):
+python -m app.evals.cli --adk-eval --config tests/eval/eval_config.yaml
+
+# Run only component-marked evaluation tests in CI:
+pytest -m "eval and component" backend/tests/
+```
+
+Reports and traces are written to `backend/artifacts/eval_results/` and `backend/artifacts/traces/`. See [`docs/component-evaluation-spec/`](docs/component-evaluation-spec/) for the full specification.
 
 ## ☁️ Deployment Strategy
 
