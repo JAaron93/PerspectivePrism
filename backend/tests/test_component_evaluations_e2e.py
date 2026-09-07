@@ -360,7 +360,17 @@ class TestClaimExtractorOfflineIoU:
         assert result["mean_iou"] < 1.0
 
     def test_golden_claim_dataset_structure(self):
-        """Claim extractor golden dataset loads and has timestamp fields."""
+        """
+        Claim extractor golden dataset loads and validates timestamp alignment.
+
+        Checks that every golden claim in the first 3 test cases:
+        1. Has timestamp boundary keys (timestamp_start / start)
+        2. Has non-negative start time
+        3. Has end time strictly after start time (start < end)
+
+        This ensures temporally misaligned fixtures cannot pass CI and
+        distort IoU measurements (P2 — Fixture alignment validation).
+        """
         dataset_path = Path(__file__).resolve().parent.parent / "app" / "evals" / "datasets" / "claim_extractor_golden.json"
         if not dataset_path.exists():
             pytest.skip("Claim extractor dataset not found")
@@ -368,11 +378,28 @@ class TestClaimExtractorOfflineIoU:
             data = json.load(f)
         cases = data if isinstance(data, list) else data.get("test_cases", [])
         assert len(cases) >= 15, "Must have at least 15 transcript segments (FR2)"
-        for case in cases[:3]:
+        for case_idx, case in enumerate(cases[:3]):
             gold_claims = case.get("gold_claims", [])
-            for claim in gold_claims[:2]:
-                assert "timestamp_start" in claim or "start" in claim, (
-                    "Gold claims must include timestamp boundaries for IoU evaluation"
+            assert len(gold_claims) > 0, f"Case {case_idx} must have at least one gold claim"
+            for claim_idx, claim in enumerate(gold_claims):
+                # Key presence check
+                has_start = "timestamp_start" in claim or "start" in claim
+                has_end = "timestamp_end" in claim or "end" in claim
+                assert has_start, (
+                    f"Case {case_idx} claim {claim_idx}: missing timestamp_start/start key"
+                )
+                assert has_end, (
+                    f"Case {case_idx} claim {claim_idx}: missing timestamp_end/end key"
+                )
+                # Temporal validity check
+                t_start = float(claim.get("timestamp_start", claim.get("start", 0)))
+                t_end = float(claim.get("timestamp_end", claim.get("end", 0)))
+                assert t_start >= 0.0, (
+                    f"Case {case_idx} claim {claim_idx}: timestamp_start must be non-negative, got {t_start}"
+                )
+                assert t_end > t_start, (
+                    f"Case {case_idx} claim {claim_idx}: timestamp_end ({t_end}) must be > "
+                    f"timestamp_start ({t_start}) — temporally misaligned fixture"
                 )
 
 

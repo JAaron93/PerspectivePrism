@@ -60,28 +60,63 @@ async def _run_pre_classifier_component(
     settings: Any,
     limit: Optional[int],
 ) -> List[Dict[str, Any]]:
-    """Runs the native PreClassifier quantitative evaluation runner."""
+    """
+    Runs the native PreClassifier quantitative evaluation runner.
+
+    NOTE: This performs live inference against Vertex AI. In offline CI (NFR3),
+    credentials are unavailable, so any inference error is caught here and
+    recorded as is_fallback=True without raising, to preserve benchmark integrity.
+    """
     from app.evals.runners.quantitative_runner import run_pre_classifier_eval
-    summary = await run_pre_classifier_eval(limit=limit, settings=settings)
-    return [
-        {
-            "component": "pre_classifier",
-            "metric_name": "pre_classifier_f1",
-            "score": summary.get("f1_score", 0.0),
-            "is_fallback": False,
-            "model_name": "gemini-3.8-flash",
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "eval_input": "pre_classifier_golden.json",
-            "eval_output": json.dumps(summary),
-        }
-    ]
+    try:
+        summary = await run_pre_classifier_eval(limit=limit, settings=settings)
+        return [
+            {
+                "component": "pre_classifier",
+                "metric_name": "pre_classifier_f1",
+                "score": summary.get("f1_score", 0.0),
+                "is_fallback": False,
+                "model_name": "gemini-3.8-flash",
+                "input_tokens": summary.get("total_input_tokens", 0),
+                "output_tokens": summary.get("total_output_tokens", 0),
+                "eval_input": "pre_classifier_golden.json",
+                "eval_output": json.dumps(summary),
+            }
+        ]
+    except Exception as exc:
+        logger.warning(
+            "PreClassifier live inference failed (%s). "
+            "Recording is_fallback=True — no billable request was completed (NFR3).",
+            exc,
+        )
+        return [
+            {
+                "component": "pre_classifier",
+                "metric_name": "pre_classifier_f1",
+                "score": 0.0,
+                "is_fallback": True,
+                "model_name": "gemini-3.8-flash",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "eval_input": "pre_classifier_golden.json",
+                "eval_output": f"Offline CI fallback: {str(exc)[:200]}",
+            }
+        ]
+
 
 
 def _build_mock_extractor_results(limit: Optional[int]) -> List[Dict[str, Any]]:
     """
-    Provides offline claim IoU evaluation results using golden fixture data.
-    In CI the claim extractor is evaluated against the quantitative IoU runner.
+    Provides offline claim IoU baseline evaluation using golden fixture data.
+
+    IMPORTANT: This function performs a self-consistency check (comparing golden claims
+    against themselves) to verify the IoU computation pipeline is operational. Since
+    the actual ClaimExtractor agent never runs, ALL records are marked is_fallback=True
+    to correctly signal that real extractor performance was not measured. The self-match
+    baseline score (IoU=1.0) is excluded from aggregated mean scores by the aggregator's
+    fallback isolation logic (FR16).
+
+    Live extractor benchmarking requires --adk-eval with a valid Vertex AI session.
     """
     from app.evals.runners.quantitative_runner import run_claim_timestamp_iou_eval
     try:
@@ -99,13 +134,14 @@ def _build_mock_extractor_results(limit: Optional[int]) -> List[Dict[str, Any]]:
         results = []
         for case in cases:
             gold_claims = case.get("gold_claims", [])
-            # Use gold claims as proxy for extracted claims (self-consistency baseline)
+            # Self-consistency baseline: verifies IoU pipeline is intact.
+            # is_fallback=True because the real extractor agent did not run.
             iou_result = run_claim_timestamp_iou_eval(gold_claims, gold_claims)
             results.append({
                 "component": "extractor",
                 "metric_name": "timestamp_iou",
                 "score": iou_result.get("mean_iou", 0.0),
-                "is_fallback": False,
+                "is_fallback": True,  # Real extractor did not run; self-match baseline only
                 "model_name": "gemini-3.8-flash",
                 "input_tokens": 0,
                 "output_tokens": 0,
@@ -263,9 +299,64 @@ async def _run_native_components(
     return 0
 
 
+
 # ---------------------------------------------------------------------------
 # agents-cli delegation
 # ---------------------------------------------------------------------------
+
+def _emit_agents_cli_success_artifacts(
+    trace_dir: Path,
+    report_dir: Path,
+    run_timestamp: str,
+    component: str,
+) -> None:
+    """
+    Generates a minimal trace and report when `agents-cli eval run` completes
+    successfully (FR21). agents-cli writes its own native output; this function
+    additionally produces a structured trace JSON (EvaluationDataset schema) and
+    Markdown/JSON summary at the caller-specified output paths, so the unified
+    CLI always delivers its promised artifacts regardless of delegation mode.
+
+    The sentinel record uses is_fallback=True to accurately reflect that scores
+    were computed by agents-cli internally rather than our local judge runners.
+    """
+    from app.evals.reporting.aggregator import (
+        aggregate_benchmark_results,
+        export_traces,
+        generate_markdown_report,
+        print_console_summary,
+    )
+
+    sentinel_results = [
+        {
+            "component": component,
+            "metric_name": "agents_cli_delegated",
+            "score": 0.0,
+            "is_fallback": True,  # Score produced by agents-cli, not local runner
+            "model_name": "gemini-3.5-flash-lite",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "eval_input": "agents-cli eval run",
+            "eval_output": f"Delegated to agents-cli at {run_timestamp}",
+        }
+    ]
+
+    aggregation = aggregate_benchmark_results(sentinel_results)
+
+    trace_path = export_traces(sentinel_results, trace_dir=trace_dir, run_timestamp=run_timestamp)
+    report_path = generate_markdown_report(
+        aggregation,
+        report_dir=report_dir,
+        run_timestamp=run_timestamp,
+        component_filter=component,
+    )
+
+    logger.info(
+        "Unified artifacts emitted after agents-cli success — trace: %s, report: %s",
+        trace_path,
+        report_path,
+    )
+
 
 def _run_adk_eval(
     config_path: Path,
@@ -325,6 +416,16 @@ def _run_adk_eval(
                     run_timestamp=run_timestamp,
                 )
             )
+        # agents-cli succeeded — emit our unified trace + report artifacts (FR21).
+        # agents-cli writes its own output; we additionally produce a structured
+        # summary so the caller always receives artifacts at the requested paths.
+        logger.info("agents-cli eval run succeeded. Generating unified artifact reports...")
+        _emit_agents_cli_success_artifacts(
+            trace_dir=trace_dir,
+            report_dir=report_dir,
+            run_timestamp=run_timestamp,
+            component=component,
+        )
         return 0
     except Exception as exc:
         logger.error("agents-cli subprocess execution failed (%s); falling back to native runner.", exc)

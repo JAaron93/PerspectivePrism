@@ -155,7 +155,8 @@ class TestAgentsCLIFallback:
         assert exit_code != 0
 
     def test_agents_cli_subprocess_called_when_present(self, tmp_path):
-        """When agents-cli is found and config exists, subprocess.run must be called."""
+        """When agents-cli is found and config exists, subprocess.run must be called
+        and artifact generation is triggered after a successful run."""
         config_path = tmp_path / "eval_config.yaml"
         config_path.write_text("version: '1.0'\n", encoding="utf-8")
 
@@ -165,6 +166,7 @@ class TestAgentsCLIFallback:
         with (
             patch("app.evals.cli.shutil.which", return_value="/usr/local/bin/agents-cli"),
             patch("app.evals.cli.subprocess.run", return_value=mock_proc) as mock_subprocess,
+            patch("app.evals.cli._emit_agents_cli_success_artifacts") as mock_emit,
         ):
             exit_code = self._run_adk_eval(
                 config_path=config_path,
@@ -179,7 +181,10 @@ class TestAgentsCLIFallback:
             assert "agents-cli" in call_args[0]
             assert "eval" in call_args
             assert "run" in call_args
+            # Artifact generation must be triggered after success (P1 fix)
+            mock_emit.assert_called_once()
             assert exit_code == 0
+
 
     def test_agents_cli_subprocess_failure_falls_back_to_native(self, tmp_path):
         """If agents-cli exits non-zero, fall back to native runner (FR22)."""
