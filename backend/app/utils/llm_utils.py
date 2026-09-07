@@ -8,9 +8,23 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from google.genai import errors
+from google import genai
 from app.core.config import configure_provider_env
 
 logger = logging.getLogger(__name__)
+
+
+def get_genai_client(settings: Optional[Any] = None) -> genai.Client:
+    """
+    Returns an initialized google-genai Client configured exclusively for
+    GCP Vertex AI Mode using ADC.
+    """
+    from app.core.config import settings as global_settings
+
+    active_settings = settings or global_settings
+    gcp_project = getattr(active_settings, "GCP_PROJECT", None) or os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT")
+    gcp_location = getattr(active_settings, "GCP_LOCATION", None) or os.getenv("GCP_LOCATION", "us-central1")
+    return genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
 
 # Telemetry and trace sanitization exclusion set: thinking tokens & signatures must never be redacted
 EXCLUDED_TELEMETRY_KEYS: Set[str] = {
@@ -27,7 +41,7 @@ EXCLUDED_TELEMETRY_KEYS: Set[str] = {
 }
 
 ANALYTICAL_TASK_TYPES: frozenset[str] = frozenset({
-    "extractor", "analysis", "alethiology", "evaluator", "judge"
+    "extractor", "analysis", "alethiology", "evaluator", "judge", "eval_judge"
 })
 ROUTER_TASK_TYPES: frozenset[str] = frozenset({
     "micro_task", "router", "classifier"
@@ -82,6 +96,9 @@ def build_agent_generation_config(
     thinking_level: Optional[str] = None,
     max_output_tokens: Optional[int] = None,
     http_timeout: Optional[float] = None,
+    response_mime_type: Optional[str] = None,
+    response_schema: Optional[Any] = None,
+    system_instruction: Optional[Any] = None,
 ) -> types.GenerateContentConfig:
     """
     Builds a types.GenerateContentConfig for an ADK Agent configured with dynamic
@@ -141,6 +158,9 @@ def build_agent_generation_config(
         thinking_config=thinking_config,
         max_output_tokens=max_output_tokens,
         http_options=http_options,
+        response_mime_type=response_mime_type,
+        response_schema=response_schema,
+        system_instruction=system_instruction,
     )
 
 

@@ -108,6 +108,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * `.env.example` must contain `GCP_PROJECT=` with clear GCP billing usage comments and no committed AI Studio keys.
 * **Primary & Backup Models**:
   * Exclusively use Gemini 3.x series models: **`gemini-3.8-flash`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
+  * In pairwise empirical benchmarks (`backend/app/evals/runners/pairwise_runner.py`), `gemini-3.5-flash-lite` vs `gemini-3.8-flash` is an authorized candidate model evaluation pair to benchmark speed vs quality trade-offs. The judge model itself must use `gemini-3.8-flash`.
   * Exclusively use **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`). Deprecated SDKs (`openai`, `AsyncOpenAI`, legacy `google-generativeai`) are prohibited.
 * **Gemini 3.8 Flash Model Optimization & Zero-Throttling Invariants (ADR 007)**:
   * **Mandatory Generation Config Factory**: Flag any ADK 2.0 `Agent(...)` instantiation that fails to attach `generate_content_config` built via `build_agent_generation_config(model=..., task_type=..., settings=...)`.
@@ -124,10 +125,28 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` ➔ `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases. Completed jobs are cleaned up after 1 hour by a background task.
   * Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService`.
   * Configuration must strictly rely on `pydantic-settings` (`app/core/config.py`).
+* **Evaluation Runner & Pairwise Benchmark Invariants**:
+  * In pairwise evaluation benchmarks (`backend/app/evals/runners/pairwise_runner.py`):
+    - Candidate model output sanitization must normalize text with NFKC upfront and allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(unicodedata.normalize("NFKC", text)) * 4, 2097152)`) to ensure post-normalization and post-escaping character expansion never triggers silent ellipsis truncation before judging.
+    - Candidate generation failures and judge exceptions must be isolated as explicit fallbacks (`is_fallback = True`, tracked in `fallback_count`) and never submitted to the judge as empty strings or recorded as decisive wins/ties.
+    - `gemini-3.5-flash-lite` vs `gemini-3.8-flash` is an authorized candidate evaluation pair, while the judge model must use `gemini-3.8-flash`.
+    - **Anti-Oscillation & Sanitization Rejection Boundary**: Candidate model outputs and benchmark prompts must be passed through the application input sanitizer (`sanitize_candidate_output` / `sanitize_benchmark_prompt`) first so prompt injections immediately raise `SanitizationError` and safely fall back (`is_fallback = True`). Valid outputs are then stripped of instruction delimiters and escaped within XML sandboxes (`escape_xml_sandbox_tags`) with per-request 16-byte random nonces (`===JUDGE DATA <nonce> START===`). Do NOT oscillate between demanding pre-neutralization of candidate text and demanding strict sanitizer rejection.
+  * In pointwise quantitative runners (`backend/app/evals/runners/quantitative_runner.py`):
+    - Category vocabulary normalization (`normalize_content_category`) must evaluate captionless/raw footage indicators first, followed by specific domain categories (gaming, art, cooking, wellness, pets, music) before generic tutorials, and map documentary essays to `Science & Technology`, to prevent vocabulary mismatch from corrupting multi-class F1 and accuracy metrics.
 
 ---
 
-## 5. Testing & Quality Standards
+## 5. Evaluation, Benchmark & Cybersecurity Test Harness Invariants (`backend/app/evals/`, `tests/`)
+
+* **Adversarial Input Tolerance**: Golden datasets (`backend/app/evals/datasets/*.json`) and candidate model outputs in evaluation suites intentionally contain malformed text, prompt injection vectors, delimiter attacks (`[INST]`, `<<SYS>>`), and scoring directives (`assign maximum score`). These represent test probes, NOT vulnerabilities in the test harness. Do NOT flag benchmark fixtures or red-team datasets as security vulnerabilities.
+* **Fallback Isolation vs. Process Crashing**: In evaluation runners and test suites, catching `SanitizationError` or runtime exceptions to record an explicit fallback rubric (`is_fallback = True`, `winner = "tie"`, `fallback_count += 1`) is the MANDATORY architectural pattern. It ensures multi-hour evaluation runs survive adversarial samples without crashing the runner. Do NOT flag exception handling or fallback ties as "swallowed errors" or "sanitizer bypasses".
+* **XML Nonce Sandboxing**: Evaluation judges evaluate untrusted candidate outputs wrapped in per-request 16-byte random nonces (`===JUDGE DATA <nonce> START===`) and `<candidate_*>` XML sandboxes with dynamically bound system instructions. Do NOT flag candidate output interpolation inside bounded sandboxes as prompt injection vulnerabilities.
+* **Anti-Oscillation Standard on Candidate Sanitization**: Candidate outputs and benchmark prompts must pass through the application input sanitizer (`sanitize_candidate_output` / `sanitize_benchmark_prompt`) first so attacks trip `SanitizationError` and safely fall back (`is_fallback = True`). Valid outputs are then stripped of instruction delimiters and escaped within XML sandboxes. Do NOT oscillate between demanding pre-neutralization of candidate text and demanding strict sanitizer rejection.
+* **Synthetic Metric Vocabulary vs. User Data**: Evaluation category normalizers (`normalize_content_category`) operate on standardized synthetic test vocabularies and domain labels. Do NOT flag substring-matching optimizations or domain mappings in evaluation runners as user-facing classification bugs.
+
+---
+
+## 6. Testing & Quality Standards
 
 * **Meaningful Assertions**: Tests must assert meaningful behavior, error handling, and state transitions rather than mere execution coverage.
 * **Backend Tests (Pytest)**: Async tests must correctly use `pytest-asyncio` fixtures and mock credentials via dummy environment variables (`LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest`).

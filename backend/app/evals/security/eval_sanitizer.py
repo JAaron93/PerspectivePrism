@@ -112,7 +112,7 @@ def wrap_in_nonce_sandbox(
     tag_name: str = "untrusted_model_output",
 ) -> str:
     """Wraps untrusted evaluation content in a cryptographic nonce sandbox."""
-    active_nonce = nonce if nonce else secrets.token_hex(8)
+    active_nonce = nonce if nonce else secrets.token_hex(16)
     return (
         f"===JUDGE DATA {active_nonce} START===\n"
         f"<{tag_name}>\n"
