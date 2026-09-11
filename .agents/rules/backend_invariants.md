@@ -11,6 +11,8 @@ This document defines the implementation guidelines, security invariants, testin
   - Provider & auth mode: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM paid quota). AI Studio API keys and free tier throttles are permanently removed.
   - Allowed models: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
   - Forbidden SDKs: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently forbidden.
+* **Runtime Application Architecture vs. Developer Agent Tooling**:
+  - The Python backend runs purely in-process via Google ADK 2.0 and the Google GenAI SDK. It does NOT shell out to CLI tools (`gcloud`, `agents-cli`, `gh`) for runtime claim extraction, evidence retrieval, or perspective analysis. The repository's "CLI-First Architecture" directive strictly applies to developer/review agent tooling (version control, container management, build/test execution), not the runtime application engine.
 * **Strict Non-Blocking Async I/O**:
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.
@@ -71,13 +73,13 @@ This document defines the implementation guidelines, security invariants, testin
 
 ## 3. Architecture & Service Components
 
-* `app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration allowlisting `CHROME_EXTENSION_IDS`.
-* `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
-* `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
-* `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection with circuit breaker fallback to `gemini-3.1-flash-lite`.
-* `app/utils/llm_utils.py`: Shared ADK agent execution utilities (`get_validated_api_key()`, `execute_adk_agent()`).
-* `app/utils/prompt_helpers.py`: Shared prompt formatting utility (`build_user_data_prompt()`).
-* `app/core/config.py`: `pydantic-settings` configuration.
+* `backend/app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration allowlisting `CHROME_EXTENSION_IDS`.
+* `backend/app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
+* `backend/app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
+* `backend/app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection with circuit breaker fallback to `gemini-3.1-flash-lite`.
+* `backend/app/utils/llm_utils.py`: Shared ADK agent execution utilities (`get_validated_api_key()`, `execute_adk_agent()`).
+* `backend/app/utils/prompt_helpers.py`: Shared prompt formatting utility (`build_user_data_prompt()`).
+* `backend/app/core/config.py`: `pydantic-settings` configuration.
 
 ---
 

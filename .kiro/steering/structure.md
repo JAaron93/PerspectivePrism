@@ -72,7 +72,7 @@
 
 ### Chrome Extension
 - **Manifest V3**: Uses service worker (`background.js`) instead of background pages
-- **Content Script Pipeline**: `logging-utils-script.js` → `config-script.js` → `consent.js` → `claim-navigator.js` → `content.js` (injected in this order)
+- **Content Script Pipeline**: `logging-utils-script.js` → `config-script.js` → `video-utils-script.js` → `consent.js` → `claim-navigator.js` → `timeline-utils-script.js` → `content-markers-script.js` → `content.js` (injected in this order)
 - **ES Modules**: Extension scripts use `type: "module"`
 - **CORS**: Backend allowlists extension IDs via `CHROME_EXTENSION_IDS` env var
 

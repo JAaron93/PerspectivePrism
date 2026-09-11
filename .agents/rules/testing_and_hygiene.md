@@ -6,6 +6,8 @@ This document defines repository-wide test execution standards, test fixture dis
 
 ## 1. Test Harness & Tool Routing Discipline
 
+* **CLI-First Tool Routing & Stateful MCP Scope**: All developer test orchestration, git management, and build tasks MUST execute through native CLI binaries (`pytest`, `npm`, `cargo`, `gh`, `git`) paired with companion skills. MCP tools are strictly reserved for stateful persistent daemons (`codebase-memory-mcp` for AST queries, `context7` for external library docs, `chrome-devtools` for live CDP debugging, `axe-core-mcp` for DOM accessibility analysis, and `greptile` for code review gateways). Stateless MCP servers (Git MCP, GitHub MCP, Jira/Slack MCP) are strictly forbidden. (This governs developer tooling and test execution, not the runtime ADK 2.0 application in `backend/app/`).
+* **CLI Output Hygiene & Token Conservation**: Diagnostic test runs and command queries generating verbose logs (>100 lines) must buffer output to scratch files or filter through Unix pipelines (`head -n <N>`, `grep`, `jq`) to preserve model context. Structured tools must specify projection flags where supported (e.g. `gh --json ... --limit N` on list queries, `docker --format`, `gcloud --format`).
 * **Primary Integration Test Harness**: Always use **Playwright's Persistent Extension Context** (`npm run test:integration` in `chrome-extension/`) for automated integration testing, assertions, regression checks, and CI quality gates.
 * **Domain-Relevant Test Fixtures**: **Never use pop music videos or dummy Rick Astley IDs (`dQw4w9WgXcQ`) for automated testing or browser QA**. Always use realistic journalism, news analysis, science reporting, or policy documentary video URLs/IDs (e.g. PBS NewsHour, BBC News, DW News, or Veritasium claims) so test data accurately reflects Perspective Prism's claim extraction domain.
 * **Network Mocking & Stubbing (MSW v2)**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/`) for intercepting FastAPI backend requests (`/analyze/jobs`), simulating stream progress chunks, testing network errors (500/429), and verifying local cache hit/miss behavior without making live API calls.
@@ -49,6 +51,10 @@ This document defines repository-wide test execution standards, test fixture dis
 
 ## 3. Git Merge & Documentation Invariants
 
+* **GitHub CLI (`gh`) & Feature Branch Operational Guardrails**:
+  - All development must occur on dedicated feature branches within isolated git worktrees. Direct commits or pushes to `main` or `master` are strictly prohibited.
+  - **Zero Autonomous Merging**: Merging via CLI (`gh pr merge` is prohibited) or automated bot action is strictly forbidden; all PRs require human review and merge.
+  - **Pre-Commit Hygiene**: Before staging files via `git add`, verify that no `.env` files, API keys, credentials, or `.sqlite` WAL files are included in the commit payload.
 * **Git Merge Resolution & Parent Verification**:
   - **Conclude Merge State**: After resolving conflict markers in files during a `git merge`, ALWAYS finalize the two-parent merge commit using terminal command `git commit --no-edit` (or explicit merge commit message).
   - **Verify Merge Parents**: Before pushing a merge resolution commit to remote (`git push`), verify that the resulting commit is a true 2-parent merge commit by checking `git rev-parse HEAD^1 HEAD^2`.
@@ -105,4 +111,26 @@ This document defines repository-wide test execution standards, test fixture dis
 * **eval_config.yaml Schema Invariants** (FR23):
   - `backend/tests/eval/eval_config.yaml` MUST specify: `version`, `project: "perspective-prism"`, evaluation `model: "gemini-3.5-flash-lite"` (benchmark candidate), `max_concurrency <= 10`, `timeout_seconds >= 120`, five dataset paths (pre_classifier, claim_extractor, perspective_stance, bias_deception, alethiology), built-in metrics (`hallucination`, `safety`), and custom ADK judge mappings (`claim_recall`, `perspective_faithfulness`, `alethiology_neutrality`).
   - The config schema is tested in `backend/tests/test_eval_cli.py::TestEvalConfigYamlValidation`.
+
+---
+
+## 6. Antigravity 2.0 CLI-First Architecture & Downstream Agent Invariants
+
+> [!NOTE]
+> **Developer Tooling Scope vs. Runtime Application Architecture**:
+> This CLI-first doctrine governs **Software Engineering Agents (SEAs), coding assistants, and developer workflows** (version control, PR management, testing, builds, containers, and environment inspection). The **runtime application itself** (`backend/app/`) runs purely in-process via Google ADK 2.0 and the Google GenAI SDK in GCP Vertex AI mode; the backend does **not** shell out to CLI binaries for domain analysis, claim extraction, or perspective scoring.
+
+* **MCP Scope & Stateful Boundaries**:
+  - **Reserved Tier (Stateful & Daemon Integrations Only)**: `codebase-memory-mcp` (AST knowledge graph), `context7` (external library docs), `chrome-devtools` (live CDP browser sessions), `axe-core-mcp` (DOM accessibility scans), and `greptile` (PR review gateway).
+  - **CLI Tier (Stateless Operations)**: Native CLI tools (`gh`, `git`, `gcloud`, `aws`, `docker`, `cargo`, `npm`, `pytest`) paired with companion skills for all version control, PR reviews, cloud deployments, container management, and build tasks.
+  - **Stateless MCP Deny List**: Strictly reject adding stateless MCP servers (e.g. GitHub MCP, Git MCP, Jira MCP, Slack MCP, Linear, sequential-thinking).
+* **CLI Output Hygiene Protocol**:
+  - Always project structured outputs: `gh --json ... --limit N`, `gcloud --format=...`, `docker --format=...`.
+  - Pipe verbose outputs through Unix stream filters (`jq`, `head -n <N>`, `grep`, `awk`).
+  - Buffer test traces exceeding 100 lines to the conversational scratch directory rather than dumping raw streams into context.
+* **Architectural Perpetuation & Downstream Agent Invariant**:
+  - All future agents, subagents, and automated workflows must:
+    1. **Perpetuate the Pattern**: Prioritize CLI binaries paired with lightweight skills rather than introducing new MCP servers.
+    2. **Defend the Boundaries**: Strictly reject stateless MCP servers whenever a mature CLI tool or scriptable API exists.
+    3. **Propagate to Project Invariants**: Codify this CLI-first discipline when authoring repository-level rules, instructions, or subagent prompts.
 

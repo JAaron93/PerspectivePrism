@@ -7,6 +7,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
 ## 1. Global Architectural Boundaries & Scope Restrictions
 
 * **No Over-Engineering**: Do NOT suggest enterprise architecture patterns, including microservices, distributed message queues (Celery/RabbitMQ), ORMs/database migrations, role-based access control (RBAC), multi-tenancy, external logging/telemetry platforms (Datadog, Sentry, ELK), container orchestration (Docker/K8s in development), or heavy CI/CD deployment pipelines.
+* **Antigravity 2.0 CLI-First Architecture (Developer Tooling)**: For all developer operations (Git, GitHub, cloud management, containers, builds, and test runs), operate directly through native CLI tools (`gh`, `git`, `gcloud`, `docker`, `cargo`, `npm`) rather than stateless MCP servers. Reserve MCP strictly for stateful persistent daemons and gateways (`codebase-memory-mcp`, `context7`, `chrome-devtools`, `axe-core-mcp`, `greptile`). Flag any introduction or recommendation of stateless MCP servers (GitHub MCP, Git MCP, Jira/Slack MCP). (Note: This governs developer tooling, not the runtime ADK 2.0 Python application in `backend/app/`).
 * **Focus Areas**: Focus reviews strictly on **code correctness, logic bugs, solo-developer maintainability, LLM integration security, non-blocking I/O performance, and missing exception handling** on critical execution paths.
 * **Review Strictness**: Target P0 (critical bugs/security vulnerabilities) and P1 (functional defects, performance regressions) issues. Avoid noisy comments on purely subjective formatting.
 
@@ -75,7 +76,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
 ## 4. Backend Architecture & Security (FastAPI + Python 3.10+ / ADK 2.0 / Vertex AI)
 
 * **Mandatory LLM Input Sanitization Guardrail (CRITICAL)**:
-  * **All user-supplied inputs must pass through `app/utils/input_sanitizer.py` before being forwarded to any LLM model** — no exceptions.
+  * **All user-supplied inputs must pass through `backend/app/utils/input_sanitizer.py` before being forwarded to any LLM model** — no exceptions.
   * Input sanitization is accelerated by the compiled PyO3 Rust extension (`prism_sanitizer_rs`, ADR 001). Flag any execution path or helper that bypasses sanitization.
   * Inspect `input_sanitizer.py` strictly for prompt injection vectors, Unicode edge cases, encoding tricks, or weakening of sanitization rules.
 * **Native Rust Sanitizer Parity & Boundary Limits (ADR 006)**:
@@ -124,7 +125,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **In-Memory Job Store & Stateless Backend**:
   * Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` ➔ `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases. Completed jobs are cleaned up after 1 hour by a background task.
   * Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService`.
-  * Configuration must strictly rely on `pydantic-settings` (`app/core/config.py`).
+  * Configuration must strictly rely on `pydantic-settings` (`backend/app/core/config.py`).
 * **Evaluation Runner & Pairwise Benchmark Invariants**:
   * In pairwise evaluation benchmarks (`backend/app/evals/runners/pairwise_runner.py`):
     - Candidate model output sanitization must normalize text with NFKC upfront and allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(unicodedata.normalize("NFKC", text)) * 4, 2097152)`) to ensure post-normalization and post-escaping character expansion never triggers silent ellipsis truncation before judging.
@@ -173,3 +174,43 @@ This is a **Catch-22 Oscillation boundary**: any review finding that demands a n
   * Vitest unit tests in JSDOM must properly mock Chrome Extension APIs (`chrome.storage.local`, `chrome.runtime`).
   * Playwright integration tests (`chrome-extension/tests/integration/`) must use realistic domain fixtures and persistent extension contexts loading directly from the unpacked source root.
 * **Benchmark & Documentation Integrity**: `.benchmarks/**/*` and documentation (`*.md`) must be checked for factual accuracy against the codebase state.
+
+---
+
+## 7. Antigravity 2.0 CLI-First Architecture & Tool Governance
+
+> [!NOTE]
+> **Developer Tooling Scope vs. Runtime Application Architecture**:
+> This CLI-first doctrine governs **Software Engineering Agents (SEAs), coding assistants, and developer workflows** (version control, PR management, testing, builds, containers, and environment inspection). The **runtime application itself** (`backend/app/`) runs purely in-process via Google ADK 2.0 and the Google GenAI SDK in GCP Vertex AI mode; the backend does **not** shell out to CLI binaries for domain analysis, claim extraction, or perspective scoring. Greptile must NOT flag runtime ADK 2.0 / `google-genai` Python SDK calls as violating CLI-first architecture.
+
+* **MCP Scope & Stateful Boundaries**:
+  - Perspective Prism development workflows operate strictly on an **Antigravity 2.0 CLI-first, stateful-MCP-sparing architecture**.
+  - **MCP Reserved Tier (Stateful & Daemon Integrations Only)**:
+    - **AST Knowledge Graph**: `codebase-memory-mcp` maintains the persistent SQLite Abstract Syntax Tree graph for codebase navigation, symbol lookup, and call-graph tracing.
+    - **External Library Documentation**: `context7` resolves third-party package syntax and API definitions.
+    - **Live Browser Sessions**: `chrome-devtools` and `axe-core` manage interactive Chrome DevTools Protocol (CDP) sessions and accessibility validation.
+    - **Automated Review Agent Gateways**: `greptile` triggers and manages PR code reviews.
+  - **CLI Tier (Stateless Operations)**:
+    - All version control, pull requests, issues, cloud infrastructure, container management, and build tasks MUST execute through native CLI tools (`gh`, `git`, `gcloud`, `aws`, `docker`, `cargo`, `npm`, etc.) paired with lightweight companion skills rather than stateless MCP servers.
+    - **Stateless MCP Deny List**: Strictly reject the introduction or usage of stateless MCP servers (e.g. GitHub MCP, Git MCP, Jira MCP, Slack MCP, Linear, sequential-thinking).
+* **GitHub CLI (`gh`) & Git Operational Guardrails**:
+  - **Feature Branches Only**: All code modifications must occur within an isolated git worktree and be pushed to a dedicated feature branch. Direct commits or pushes to `main` and `master` are strictly prohibited.
+  - **No Autonomous Merging**: You may create Pull Requests via `gh pr create` and inspect reviews via `gh pr view`, but you are strictly forbidden from merging Pull Requests via the terminal (`gh pr merge` is prohibited) or any API. A human developer must review and merge all code.
+  - **Remote & Exfiltration Protection**: Never execute `git remote add*`, `git remote set-url*`, or `git remote remove*`. Never execute `git submodule add*` or `git submodule update --init*`.
+  - **Output Token Hygiene for `gh` Queries**: Never execute bare `gh` commands that dump unbounded JSON or table rows. Always constrain queries using `--json <fields>`, `--limit <N>`, or pipe through `jq` (e.g., `gh pr list --limit 10 --json number,title,author,headRefName,state`).
+  - **No Destructive API / CLI Actions**: Repository deletion, branch protection tampering, and visibility modifications are blocked at the token level and strictly prohibited by rule.
+  - **Pre-Commit Hygiene**: Before staging files via `git add`, verify that no `.env` files, API keys, credentials, or `.sqlite` WAL files are included in the commit payload.
+* **CLI Output Hygiene & Token Conservation Protocol**:
+  - To maintain strict token economy across long-running sessions, agents must adhere to output-limiting practices whenever running terminal CLI tools:
+    - **Mandatory Projection Flags**: On tools with structured output support (`gh`, `gcloud`, `aws`, `docker`), always specify output projections:
+      - `gh`: Use `--json <field1,field2>` and `--limit <N>` (or `--template`)
+      - `gcloud`: Use `--format="value(field)"` or `--format="table(field1,field2)"`
+      - `docker`: Use `--format "{{.ID}}: {{.Names}} ({{.Status}})"`
+    - **Unix Pipeline Filtering**: Filter raw text streams before they reach the model context. Pipe through `jq`, `head -n <N>`, `grep`, `awk`, or `cut` (e.g., `gh run view <id> --log-failed | head -n 50`).
+    - **Scratch File Buffering for Large Outputs**: If a diagnostic command or test run generates more than 100 lines of logs, redirect or tee it to the conversation scratch directory and inspect targeted segments with `grep` or `head` rather than dumping the full trace into context.
+    - **Atomic Pipelines Over Chatty Turns**: Prefer chaining commands in a single shell invocation using `&&` or pipelines (`|`) rather than executing separate single-command tool calls across multiple conversational turns.
+* **Architectural Perpetuation & Downstream Agent Invariant**:
+  - This CLI-first, MCP-sparing doctrine is a permanent, indefinite architectural standard. All future agents, subagents, and automated workflows governed by this constitution must:
+    1. **Perpetuate the Pattern**: When recommending, designing, or scaffolding new tools, integrations, or workflows, agents must prioritize CLI binaries paired with lightweight skills rather than introducing new MCP servers.
+    2. **Defend the Boundaries**: Strictly reject the addition of stateless MCP servers (e.g. for Jira, Slack, Linear, Stripe, or cloud providers) whenever a mature CLI tool or scriptable API exists. Reserve MCP exclusively for persistent stateful daemons, database connections, and AST memory graphs.
+    3. **Propagate to Project Invariants**: When authoring repository-level `AGENTS.md`, `.cursor/rules/`, or subagent system prompts, agents must explicitly codify this CLI-first discipline to ensure child agents and subagents inherit identical token hygiene.
