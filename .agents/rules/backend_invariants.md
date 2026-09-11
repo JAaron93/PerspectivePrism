@@ -71,13 +71,13 @@ This document defines the implementation guidelines, security invariants, testin
 
 ## 3. Architecture & Service Components
 
-* `app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration allowlisting `CHROME_EXTENSION_IDS`.
-* `app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
-* `app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
-* `app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection with circuit breaker fallback to `gemini-3.1-flash-lite`.
-* `app/utils/llm_utils.py`: Shared ADK agent execution utilities (`get_validated_api_key()`, `execute_adk_agent()`).
-* `app/utils/prompt_helpers.py`: Shared prompt formatting utility (`build_user_data_prompt()`).
-* `app/core/config.py`: `pydantic-settings` configuration.
+* `backend/app/main.py`: FastAPI entry point. Defines the async job API, background task processing, and CORS configuration allowlisting `CHROME_EXTENSION_IDS`.
+* `backend/app/services/claim_extractor.py`: Fetches YouTube transcripts and uses the ADK 2.0-wrapped `ExtractorAgent` to extract claims using structured outputs.
+* `backend/app/services/evidence_retriever.py`: Queries Google Custom Search to retrieve evidence per perspective.
+* `backend/app/services/analysis_service.py`: Modernized ADK 2.0-wrapped `AnalysisAgent` logic for perspective, bias, and deception detection with circuit breaker fallback to `gemini-3.1-flash-lite`.
+* `backend/app/utils/llm_utils.py`: Shared ADK agent execution utilities (`get_validated_api_key()`, `execute_adk_agent()`).
+* `backend/app/utils/prompt_helpers.py`: Shared prompt formatting utility (`build_user_data_prompt()`).
+* `backend/app/core/config.py`: `pydantic-settings` configuration.
 
 ---
 
