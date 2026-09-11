@@ -39,7 +39,7 @@ This document defines the implementation guidelines, security invariants, testin
 * **Rust Toolchain Configuration**:
   - When building the Rust extension (`prism_sanitizer_rs`), dynamically prepend the active Rust toolchain binary directory to `PATH` before compiling (supporting dynamic cross-platform environments across macOS Apple Silicon, x86_64, and Linux):
     ```bash
-    export PATH="$(rustup which rustc 2>/dev/null | xargs dirname || echo "$HOME/.cargo/bin"):$PATH"
+    export PATH="$(dirname "$(rustup which rustc 2>/dev/null || echo "$HOME/.cargo/bin/rustc")"):$PATH"
     pip install -e .
     ```
 * **Structured Output Scope**:
