@@ -37,9 +37,9 @@ This document defines the implementation guidelines, security invariants, testin
   - All user-supplied content (video URLs, search queries, transcript texts) MUST pass through `input_sanitizer.py` before being processed by any agent or LLM call.
   - Integrates high-performance compiled Rust PyO3 extension (`prism_sanitizer_rs`).
 * **Rust Toolchain Configuration**:
-  - When building the Rust extension, if `rustc` or `cargo` is missing from `PATH`, prepend the local Rustup stable toolchain bin directory:
+  - When building the Rust extension (`prism_sanitizer_rs`), dynamically prepend the active Rust toolchain binary directory to `PATH` before compiling (supporting dynamic cross-platform environments across macOS Apple Silicon, x86_64, and Linux):
     ```bash
-    export PATH="~/.rustup/toolchains/stable-x86_64-apple-darwin/bin:$PATH"
+    export PATH="$(dirname "$(rustup which rustc 2>/dev/null || echo "$HOME/.cargo/bin/rustc")"):$PATH"
     pip install -e .
     ```
 * **Structured Output Scope**:

@@ -131,6 +131,6 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Architectural Perpetuation & Downstream Agent Invariant**:
   - All future agents, subagents, and automated workflows must:
     1. **Perpetuate the Pattern**: Prioritize CLI binaries paired with lightweight skills rather than introducing new MCP servers.
-    2. **Defend the Boundaries**: Strictly reject stateless MCP servers whenever a mature CLI tool or scriptable API exists.
-    3. **Propagate to Project Invariants**: Codify this CLI-first discipline when authoring repository-level rules, instructions, or subagent prompts.
+    2. **Defend the Boundaries**: Strictly reject stateless MCP servers whenever a mature CLI tool or scriptable API exists. Reserve MCP exclusively for persistent stateful daemons, database connections, AST memory graphs, and the designated Reserved Tier.
+    3. **Propagate to Project Invariants**: Codify this CLI-first discipline when authoring repository-level rules, instructions, or subagent prompts with an explicit scope demarcation separating developer tooling from runtime application architecture to prevent review bot context blindness.
 
