@@ -7,7 +7,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
 ## 1. Global Architectural Boundaries & Scope Restrictions
 
 * **No Over-Engineering**: Do NOT suggest enterprise architecture patterns, including microservices, distributed message queues (Celery/RabbitMQ), ORMs/database migrations, role-based access control (RBAC), multi-tenancy, external logging/telemetry platforms (Datadog, Sentry, ELK), container orchestration (Docker/K8s in development), or heavy CI/CD deployment pipelines.
-* **Antigravity 2.0 CLI-First Architecture**: For all Git operations, GitHub workflows, cloud management, containers, and build processes, operate directly through native CLI tools (`gh`, `git`, `gcloud`, `docker`, `cargo`, `npm`) rather than stateless MCP servers. Reserve MCP strictly for stateful persistent daemons and gateways (`codebase-memory-mcp`, `context7`, `chrome-devtools`, `axe-core-mcp`, `greptile`). Flag any introduction or recommendation of stateless MCP servers (GitHub MCP, Git MCP, Jira/Slack MCP).
+* **Antigravity 2.0 CLI-First Architecture (Developer Tooling)**: For all developer operations (Git, GitHub, cloud management, containers, builds, and test runs), operate directly through native CLI tools (`gh`, `git`, `gcloud`, `docker`, `cargo`, `npm`) rather than stateless MCP servers. Reserve MCP strictly for stateful persistent daemons and gateways (`codebase-memory-mcp`, `context7`, `chrome-devtools`, `axe-core-mcp`, `greptile`). Flag any introduction or recommendation of stateless MCP servers (GitHub MCP, Git MCP, Jira/Slack MCP). (Note: This governs developer tooling, not the runtime ADK 2.0 Python application in `backend/app/`).
 * **Focus Areas**: Focus reviews strictly on **code correctness, logic bugs, solo-developer maintainability, LLM integration security, non-blocking I/O performance, and missing exception handling** on critical execution paths.
 * **Review Strictness**: Target P0 (critical bugs/security vulnerabilities) and P1 (functional defects, performance regressions) issues. Avoid noisy comments on purely subjective formatting.
 
@@ -179,8 +179,12 @@ This is a **Catch-22 Oscillation boundary**: any review finding that demands a n
 
 ## 7. Antigravity 2.0 CLI-First Architecture & Tool Governance
 
+> [!NOTE]
+> **Developer Tooling Scope vs. Runtime Application Architecture**:
+> This CLI-first doctrine governs **Software Engineering Agents (SEAs), coding assistants, and developer workflows** (version control, PR management, testing, builds, containers, and environment inspection). The **runtime application itself** (`backend/app/`) runs purely in-process via Google ADK 2.0 and the Google GenAI SDK in GCP Vertex AI mode; the backend does **not** shell out to CLI binaries for domain analysis, claim extraction, or perspective scoring. Greptile must NOT flag runtime ADK 2.0 / `google-genai` Python SDK calls as violating CLI-first architecture.
+
 * **MCP Scope & Stateful Boundaries**:
-  - Perspective Prism operates strictly on an **Antigravity 2.0 CLI-first, stateful-MCP-sparing architecture**.
+  - Perspective Prism development workflows operate strictly on an **Antigravity 2.0 CLI-first, stateful-MCP-sparing architecture**.
   - **MCP Reserved Tier (Stateful & Daemon Integrations Only)**:
     - **AST Knowledge Graph**: `codebase-memory-mcp` maintains the persistent SQLite Abstract Syntax Tree graph for codebase navigation, symbol lookup, and call-graph tracing.
     - **External Library Documentation**: `context7` resolves third-party package syntax and API definitions.

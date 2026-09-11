@@ -11,6 +11,8 @@ This document defines the implementation guidelines, security invariants, testin
   - Provider & auth mode: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM paid quota). AI Studio API keys and free tier throttles are permanently removed.
   - Allowed models: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
   - Forbidden SDKs: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently forbidden.
+* **Runtime Application Architecture vs. Developer Agent Tooling**:
+  - The Python backend runs purely in-process via Google ADK 2.0 and the Google GenAI SDK. It does NOT shell out to CLI tools (`gcloud`, `agents-cli`, `gh`) for runtime claim extraction, evidence retrieval, or perspective analysis. The repository's "CLI-First Architecture" directive strictly applies to developer/review agent tooling (version control, container management, build/test execution), not the runtime application engine.
 * **Strict Non-Blocking Async I/O**:
   - All network I/O operations (LLM generation, Google Custom Search, YouTube transcript fetching) MUST use non-blocking `async`/`await` patterns (`client.aio.models`, `httpx.AsyncClient`, `asyncio.to_thread`).
   - Synchronous blocking network calls inside event loop contexts are strictly prohibited.

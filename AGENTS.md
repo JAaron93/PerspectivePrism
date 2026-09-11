@@ -32,8 +32,12 @@ Perspective Prism analyzes YouTube video transcripts for claims, bias, and decep
 
 # Antigravity 2.0 CLI-First Architecture & Tool Governance
 
+> [!NOTE]
+> **Developer Tooling Scope vs. Runtime Application Architecture**:
+> This CLI-first doctrine governs **Software Engineering Agents (SEAs), coding assistants, and developer workflows** (version control, PR management, testing, builds, containers, and environment inspection). The **runtime application itself** (`backend/app/`) runs purely in-process via Google ADK 2.0 and the Google GenAI SDK in GCP Vertex AI mode; the backend does **not** shell out to CLI binaries for domain analysis, claim extraction, or perspective scoring.
+
 ### 1. MCP Scope & Stateful Boundaries
-Perspective Prism operates strictly on an **Antigravity 2.0 CLI-first, stateful-MCP-sparing architecture**:
+Perspective Prism development workflows operate strictly on an **Antigravity 2.0 CLI-first, stateful-MCP-sparing architecture**:
 * **MCP Reserved Tier (Stateful & Daemon Integrations Only)**:
   - **AST Knowledge Graph**: `codebase-memory-mcp` maintains the persistent SQLite Abstract Syntax Tree graph for codebase navigation, symbol lookup, and call-graph tracing.
   - **External Library Documentation**: `context7` resolves third-party package syntax and API definitions.

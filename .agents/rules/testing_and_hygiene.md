@@ -6,7 +6,7 @@ This document defines repository-wide test execution standards, test fixture dis
 
 ## 1. Test Harness & Tool Routing Discipline
 
-* **CLI-First Tool Routing & Stateful MCP Scope**: All test orchestration, git management, and build tasks MUST execute through native CLI binaries (`pytest`, `npm`, `cargo`, `gh`, `git`) paired with companion skills. MCP tools are strictly reserved for stateful persistent daemons (`codebase-memory-mcp` for AST queries, `context7` for external library docs, `chrome-devtools` for live CDP debugging, `axe-core-mcp` for DOM accessibility analysis, and `greptile` for code review gateways). Stateless MCP servers (Git MCP, GitHub MCP, Jira/Slack MCP) are strictly forbidden.
+* **CLI-First Tool Routing & Stateful MCP Scope**: All developer test orchestration, git management, and build tasks MUST execute through native CLI binaries (`pytest`, `npm`, `cargo`, `gh`, `git`) paired with companion skills. MCP tools are strictly reserved for stateful persistent daemons (`codebase-memory-mcp` for AST queries, `context7` for external library docs, `chrome-devtools` for live CDP debugging, `axe-core-mcp` for DOM accessibility analysis, and `greptile` for code review gateways). Stateless MCP servers (Git MCP, GitHub MCP, Jira/Slack MCP) are strictly forbidden. (This governs developer tooling and test execution, not the runtime ADK 2.0 application in `backend/app/`).
 * **CLI Output Hygiene & Token Conservation**: Diagnostic test runs and command queries generating verbose logs (>100 lines) must buffer output to scratch files or filter through Unix pipelines (`head -n <N>`, `grep`, `jq`) to preserve model context. Structured tools must specify projection flags where supported (e.g. `gh --json ... --limit N` on list queries, `docker --format`, `gcloud --format`).
 * **Primary Integration Test Harness**: Always use **Playwright's Persistent Extension Context** (`npm run test:integration` in `chrome-extension/`) for automated integration testing, assertions, regression checks, and CI quality gates.
 * **Domain-Relevant Test Fixtures**: **Never use pop music videos or dummy Rick Astley IDs (`dQw4w9WgXcQ`) for automated testing or browser QA**. Always use realistic journalism, news analysis, science reporting, or policy documentary video URLs/IDs (e.g. PBS NewsHour, BBC News, DW News, or Veritasium claims) so test data accurately reflects Perspective Prism's claim extraction domain.
@@ -115,6 +115,10 @@ This document defines repository-wide test execution standards, test fixture dis
 ---
 
 ## 6. Antigravity 2.0 CLI-First Architecture & Downstream Agent Invariants
+
+> [!NOTE]
+> **Developer Tooling Scope vs. Runtime Application Architecture**:
+> This CLI-first doctrine governs **Software Engineering Agents (SEAs), coding assistants, and developer workflows** (version control, PR management, testing, builds, containers, and environment inspection). The **runtime application itself** (`backend/app/`) runs purely in-process via Google ADK 2.0 and the Google GenAI SDK in GCP Vertex AI mode; the backend does **not** shell out to CLI binaries for domain analysis, claim extraction, or perspective scoring.
 
 * **MCP Scope & Stateful Boundaries**:
   - **Reserved Tier (Stateful & Daemon Integrations Only)**: `codebase-memory-mcp` (AST knowledge graph), `context7` (external library docs), `chrome-devtools` (live CDP browser sessions), `axe-core-mcp` (DOM accessibility scans), and `greptile` (PR review gateway).
