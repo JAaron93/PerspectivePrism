@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "description": "Chrome extension for analyzing YouTube videos with Perspective Prism",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "test": "vitest --run",
     "test:watch": "vitest",
