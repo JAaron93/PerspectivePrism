@@ -13,22 +13,22 @@
     "build": "vite build"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.308",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "archiver": "^7.0.1",
     "clean-css": "^5.3.3",
     "eslint": "^9.16.0",
     "jsdom": "^27.0.1",
     "msw": "^2.15.0",
-    "playwright": "^1.57.0",
-    "terser": "^5.37.0",
+    "playwright": "^1.63.0",
+    "terser": "^5.51.2",
     "typescript": "^7.0.2",
-    "vite": "^6.0.0",
-    "vitest": "^4.1.10"
+    "vite": "^8.3.0",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
-    "dompurify": "^3.4.12"
+    "dompurify": "^3.4.15"
   },
   "overrides": {
     "minimatch@3": {
