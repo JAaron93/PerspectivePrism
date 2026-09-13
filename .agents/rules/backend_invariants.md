@@ -7,10 +7,12 @@ This document defines the implementation guidelines, security invariants, testin
 ## 1. Environment & Model Invariants
 
 * **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-  - Exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
+  - Exclusively uses **Google ADK 2.0** (`google-adk>=2.9.0`) and the **Google GenAI SDK** (`google-genai>=2.23.0`).
   - Provider & auth mode: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM paid quota). AI Studio API keys and free tier throttles are permanently removed.
   - Allowed models: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
   - Forbidden SDKs: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently forbidden.
+* **OpenTelemetry Version Ceiling for ADK 2.9**:
+  - `google-adk>=2.9.0` strictly requires `opentelemetry-api<=1.42.1` and `opentelemetry-sdk<=1.42.1`. Manifests (`requirements.txt`, `pyproject.toml`) and virtual environments must constrain OpenTelemetry packages to `<=1.42.1` to prevent dependency resolution conflicts.
 * **Runtime Application Architecture vs. Developer Agent Tooling**:
   - The Python backend runs purely in-process via Google ADK 2.0 and the Google GenAI SDK. It does NOT shell out to CLI tools (`gcloud`, `agents-cli`, `gh`) for runtime claim extraction, evidence retrieval, or perspective analysis. The repository's "CLI-First Architecture" directive strictly applies to developer/review agent tooling (version control, container management, build/test execution), not the runtime application engine.
 * **Strict Non-Blocking Async I/O**:

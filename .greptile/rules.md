@@ -110,7 +110,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **Primary & Backup Models**:
   * Exclusively use Gemini 3.x series models: **`gemini-3.8-flash`** (primary) and **`gemini-3.1-flash-lite`** (backup). Gemini 2.x and non-Google models are prohibited.
   * In pairwise empirical benchmarks (`backend/app/evals/runners/pairwise_runner.py`), `gemini-3.5-flash-lite` vs `gemini-3.8-flash` is an authorized candidate model evaluation pair to benchmark speed vs quality trade-offs. The judge model itself must use `gemini-3.8-flash`.
-  * Exclusively use **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`). Deprecated SDKs (`openai`, `AsyncOpenAI`, legacy `google-generativeai`) are prohibited.
+  * Exclusively use **Google ADK 2.0** (`google-adk>=2.9.0`) and the **Google GenAI SDK** (`google-genai>=2.23.0`). Deprecated SDKs (`openai`, `AsyncOpenAI`, legacy `google-generativeai`) are prohibited.
 * **Gemini 3.8 Flash Model Optimization & Zero-Throttling Invariants (ADR 007)**:
   * **Mandatory Generation Config Factory**: Flag any ADK 2.0 `Agent(...)` instantiation that fails to attach `generate_content_config` built via `build_agent_generation_config(model=..., task_type=..., settings=...)`.
   * **Task-Aware Thinking Level Resolution**: Verify that analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) configure `thinking_level="HIGH"`, while lightweight guardrail routers (`PreClassifierService`) configure `thinking_level="LOW"` and `max_output_tokens=2048`.

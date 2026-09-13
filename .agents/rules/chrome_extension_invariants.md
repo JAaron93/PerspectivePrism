@@ -16,6 +16,8 @@ This document defines the implementation guidelines, security invariants, storag
   - Ambient extension globals, DOM element augmentations (`currentTime`, `duration`, `dataset`), and window methods are declared in `chrome-extension/globals.d.ts`.
   - Third-party vendor bundles in `chrome-extension/vendor/` MUST include `// @ts-nocheck` and be excluded from `tsconfig.json`.
   - DOM element attribute setters MUST cast values to strings (`String(...)`) to satisfy semantic validation.
+* **Packaging Toolchain (Vite 8 & Archiver 8)**:
+  - Distribution bundling (`npm run build`) uses Vite 8 with native `rolldownOptions` and Archiver 8's ES6 `ZipArchive` streaming via `stream/promises.pipeline` to generate `perspective-prism-extension.zip`.
 
 ---
 
@@ -53,6 +55,9 @@ This document defines the implementation guidelines, security invariants, storag
 * **ESLint Globals & Scoped Overrides**:
   - Functions defined in classic scripts (`*-script.js`), shared module classes (`CacheManager`), and Web APIs must be explicitly added to `globals` in `eslint.config.js`.
   - Transitive dependency overrides in `package.json` must always use parent-scoped overrides (e.g. `"minimatch@3": { ... }`).
+* **Semantic Version Contracts in `overrides`**:
+  - When configuring parent-scoped dependency overrides in `package.json` (e.g. `"minimatch@N": { ... }`), NEVER override a transitive dependency with an incompatible major version (e.g. pinning `brace-expansion@2.x` on `minimatch@10`, which requires `5.x`).
+  - When performing major package upgrades, agents MUST audit existing `"overrides"` blocks to remove obsolete overrides that conflict with upstream dependencies.
 
 ---
 

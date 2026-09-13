@@ -6,8 +6,8 @@ This document defines the implementation guidelines, compiler architecture, and 
 
 ## 1. Tooling & Compiler Architecture (ADR 004)
 
-* **TypeScript 7.0 Native Engine**:
-  - The build system (`npm run build`) uses TypeScript 7.0 for sub-second Go-native compilation (`tsc -b && vite build` < 1.0s).
+* **TypeScript 7.0 Native Engine & Vite 8**:
+  - The build system (`npm run build`) uses TypeScript 7.0 for sub-second Go-native compilation (`tsc -b && vite build` < 1.0s) paired with Vite 8 for Rolldown-accelerated bundling.
   - Delivers native multithreaded type checking and instant build feedback.
 * **ESLint Bridge (`@typescript/typescript6`)**:
   - Because TypeScript 7.0 does not yet ship with a stable programmatic compiler API (targeted for TS 7.1), `package.json` installs Microsoft's `@typescript/typescript6` compatibility package to provide the AST parser for `typescript-eslint`.
