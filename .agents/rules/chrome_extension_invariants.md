@@ -16,6 +16,8 @@ This document defines the implementation guidelines, security invariants, storag
   - Ambient extension globals, DOM element augmentations (`currentTime`, `duration`, `dataset`), and window methods are declared in `chrome-extension/globals.d.ts`.
   - Third-party vendor bundles in `chrome-extension/vendor/` MUST include `// @ts-nocheck` and be excluded from `tsconfig.json`.
   - DOM element attribute setters MUST cast values to strings (`String(...)`) to satisfy semantic validation.
+* **Packaging Toolchain (Vite 8 & Archiver 8)**:
+  - Distribution bundling (`npm run build`) uses Vite 8 with native `rolldownOptions` and Archiver 8's ES6 `ZipArchive` streaming via `stream/promises.pipeline` to generate `perspective-prism-extension.zip`.
 
 ---
 

@@ -99,9 +99,9 @@ Perspective Prism features a Manifest V3 Chrome Extension modernized and hardene
 - **Content-Hashed Local Storage Caching**
   - Caches analysis results locally (`cache_${videoId}_${contentHash}`) with 10MB LRU storage pruning, enabling instant (<20ms) cache-hit loads.
 - **Comprehensive Quality Assurance & E2E Testing**
-  - **Vitest Unit Test Suite**: 232 Vitest unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
+  - **Vitest Unit Test Suite**: Comprehensive unit tests covering key extension modules (`npm test`), with coverage validation (`npm run test:coverage`).
   - **Playwright E2E Integration Suite**: End-to-end integration tests passing via persistent browser extension context (`npm run test:integration`).
-  - **FastAPI Pytest Backend Suite**: 450+ tests covering API endpoints, claim extraction, classifier guardrails, alethiology agents, eval harness, and component evaluation benchmarks (`pytest`).
+  - **FastAPI Pytest Backend Suite**: Comprehensive tests covering API endpoints, claim extraction, classifier guardrails, alethiology agents, eval harness, and component evaluation benchmarks (`pytest`).
 - **AI Code Review & Quality Gates (Greptile)**
   - Automated PR reviews and hard architectural compliance checks configured via [.greptile/rules.md](.greptile/rules.md) and [.greptile/config.json](.greptile/config.json).
 - **Chrome Web Store Submission Disclosure**
@@ -175,7 +175,7 @@ Since there are no funds allocated to scale this extension further, the extensio
     - **Primary**: Gemini API (`gemini-3.8-flash` via `google-genai` SDK)
     - **Backup**: `gemini-3.1-flash-lite` with transient-error circuit breaker fallback
 - **Search**: Google Custom Search API
-- **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite, Custom CSS
+- **Frontend**: React 19, TypeScript 7.0 (Go native compiler), Vite 8, Custom CSS
 - **Chrome Extension**: Manifest V3, Vanilla JavaScript (ES modules + classic injection scripts), Zero-Build Runtime
 - **Security**: Rust-accelerated input sanitizer (`prism_sanitizer_rs` regex/control character validation)
 
@@ -328,7 +328,7 @@ For distribution or release testing, compile and package the extension:
    cd chrome-extension
    npm run build
    ```
-   This command runs Vite (`vite build` via `vite.config.js`) to bundle entry points, minify JavaScript (stripping development `console.log` statements via Terser) and CSS files, copy static assets, and generate a production-ready `dist/` directory.
+   This command runs Vite 8 (`vite build` via `vite.config.js` with Rolldown bundling and Archiver 8 stream pipeline) to bundle entry points, minify JavaScript and CSS files, copy static assets, and generate a production-ready `dist/` directory alongside `perspective-prism-extension.zip`.
 2. Load the production build:
    - Navigate to `chrome://extensions/`.
    - Click **Load unpacked** and select the `chrome-extension/dist` directory.

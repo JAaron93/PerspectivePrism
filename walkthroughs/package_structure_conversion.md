@@ -10,7 +10,7 @@ Successfully converted the backend project into a proper Python package, removin
 
 Defined the project metadata, dependencies, and build system.
 
-**File**: [pyproject.toml](file:///Users/pretermodernist/PerspectivePrismMVP/backend/pyproject.toml)
+**File**: [pyproject.toml](../backend/pyproject.toml)
 
 ```toml
 [build-system]

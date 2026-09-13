@@ -233,10 +233,10 @@ This section describes validation that is **READY TO EXECUTE** but not yet compl
 
 **Test Artifacts Available**:
 
-- [test-backend-offline.html](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/test-backend-offline.html) - Interactive test page
-- [TEST_PLAN.md](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/tests/manual_qa/regression_scenarios/analysis_with_backend_offline/TEST_PLAN.md) - Comprehensive test plan
-- [TEST_RESULTS_TEMPLATE.md](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/tests/manual_qa/regression_scenarios/analysis_with_backend_offline/TEST_RESULTS_TEMPLATE.md) - Results template
-- [README.md](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/tests/manual_qa/regression_scenarios/analysis_with_backend_offline/README.md) - Test suite overview
+- [test-backend-offline.html](../../../../test-backend-offline.html) - Interactive test page
+- [TEST_PLAN.md](TEST_PLAN.md) - Comprehensive test plan
+- [TEST_RESULTS_TEMPLATE.md](TEST_RESULTS_TEMPLATE.md) - Results template
+- [README.md](README.md) - Test suite overview
 
 **Pending**: Test execution logs, pass/fail results, and tester sign-off
 
@@ -476,7 +476,7 @@ This section describes test scenarios that are **DOCUMENTED and READY** to execu
 
 ### Retry Behavior Testing
 
-**Current Implementation**: The extension includes automatic retry logic via `sendMessageWithRetry()` in [content.js:L975-1046](file:///Users/pretermodernist/PerspectivePrismMVP/chrome-extension/content.js#L975-L1046)
+**Current Implementation**: The extension includes automatic retry logic via `sendMessageWithRetry()` in [content.js](../../../../content.js)
 
 **Retry Configuration**:
 

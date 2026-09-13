@@ -20,7 +20,7 @@ Perspective Prism analyzes YouTube video transcripts for claims, bias, and decep
 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-> - **Framework & SDK**: Exclusively uses **Google ADK 2.0** (`google-adk>=2.4.0`) and the **Google GenAI SDK** (`google-genai>=2.9.0`).
+> - **Framework & SDK**: Exclusively uses **Google ADK 2.0** (`google-adk>=2.9.0`) and the **Google GenAI SDK** (`google-genai>=2.23.0`).
 > - **Provider & Authentication Mode**: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM high-throughput quota). AI Studio API keys and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
 > - **Zero-Throttling Generation Standards (ADR 007)**: Primary analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) use `thinking_level="HIGH"`, `max_output_tokens=65536` (64K ceiling), and 120s HTTP timeouts (`GEMINI_HTTP_TIMEOUT=120.0`). Screening micro-tasks (`PreClassifierService`) use `thinking_level="LOW"` and `max_output_tokens=2048`. Thought signatures and thinking tokens are strictly preserved (`EXCLUDED_TELEMETRY_KEYS`).
@@ -153,7 +153,7 @@ Future AI agents, pair programmers, and automated tooling must adhere to this ru
 
 Detailed engineering invariants and implementation guidelines are maintained in the following modular rulebooks:
 
-* **[Backend Invariants](file:///.agents/rules/backend_invariants.md)**: Python FastAPI rules, ADK 2.0 patterns, Rust PyO3 input sanitizer compilation, `pydantic-settings` dependency injection, SDK mock safety, and concurrency testing.
-* **[Frontend Invariants](file:///.agents/rules/frontend_invariants.md)**: React 19 standards, TypeScript 7.0 Go native compiler architecture (ADR 004), `@typescript/typescript6` ESLint bridge, custom CSS conventions, and API schema interfaces.
-* **[Chrome Extension Invariants](file:///.agents/rules/chrome_extension_invariants.md)**: Manifest V3 zero-build vanilla JS architecture (ADR 004), `checkJs: true` semantic typechecking, ambient `globals.d.ts`, content script load order, BYOK storage isolation (`chrome.storage.local`), IPC origin verification, native Side Panel UI, and cache key content hashing.
-* **[Testing & Hygiene Invariants](file:///.agents/rules/testing_and_hygiene.md)**: Playwright persistent context integration test harness, domain-relevant news fixtures, MSW v2 mocking, Vitest script execution, accessibility scanning (axe-core vs a11y-debugging), git merge 2-parent verification, GitHub CLI (`gh`) guardrails, and Antigravity 2.0 CLI-first architecture.
+* **[Backend Invariants](.agents/rules/backend_invariants.md)**: Python FastAPI rules, ADK 2.0 patterns, Rust PyO3 input sanitizer compilation, `pydantic-settings` dependency injection, SDK mock safety, and concurrency testing.
+* **[Frontend Invariants](.agents/rules/frontend_invariants.md)**: React 19 standards, TypeScript 7.0 Go native compiler architecture (ADR 004), `@typescript/typescript6` ESLint bridge, custom CSS conventions, and API schema interfaces.
+* **[Chrome Extension Invariants](.agents/rules/chrome_extension_invariants.md)**: Manifest V3 zero-build vanilla JS architecture (ADR 004), `checkJs: true` semantic typechecking, ambient `globals.d.ts`, content script load order, BYOK storage isolation (`chrome.storage.local`), IPC origin verification, native Side Panel UI, and cache key content hashing.
+* **[Testing & Hygiene Invariants](.agents/rules/testing_and_hygiene.md)**: Playwright persistent context integration test harness, domain-relevant news fixtures, MSW v2 mocking, Vitest script execution, accessibility scanning (axe-core vs a11y-debugging), git merge 2-parent verification, GitHub CLI (`gh`) guardrails, and Antigravity 2.0 CLI-first architecture.
