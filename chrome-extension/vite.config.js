@@ -2,28 +2,19 @@ import { defineConfig } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { pipeline } from 'stream/promises';
 import { ZipArchive } from 'archiver';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function createZipArchive(distDir, zipPath) {
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(zipPath);
-    const archive = new ZipArchive({ zlib: { level: 9 } });
-
-    output.on('close', () => {
-      resolve();
-    });
-
-    archive.on('error', (err) => {
-      reject(err);
-    });
-
-    archive.pipe(output);
-    archive.directory(distDir, false);
-    archive.finalize();
-  });
+async function createZipArchive(distDir, zipPath) {
+  const output = fs.createWriteStream(zipPath);
+  const archive = new ZipArchive({ zlib: { level: 9 } });
+  const piping = pipeline(archive, output);
+  archive.directory(distDir, false);
+  await archive.finalize();
+  await piping;
 }
 
 // Custom Vite plugin to copy static extension manifest, CSS, scripts, and icons to dist/, and generate ZIP bundle
@@ -85,7 +76,7 @@ export default defineConfig({
         pure_funcs: ['console.log']
       }
     },
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         background: path.resolve(__dirname, 'background.js'),
         content: path.resolve(__dirname, 'content.js'),

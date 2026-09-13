@@ -1,4 +1,6 @@
-export default [
+import { defineConfig, globalIgnores } from "eslint/config";
+
+export default defineConfig([
   {
     languageOptions: {
       ecmaVersion: 2022,
@@ -50,15 +52,13 @@ export default [
       "no-undef": "error"
     }
   },
-  {
-    ignores: [
-      "dist/**/*",
-      "node_modules/**/*",
-      "coverage/**/*",
-      "tests/**/*",
-      "build.js",
-      "scripts/**/*",
-      "vendor/**/*"
-    ]
-  }
-];
+  globalIgnores([
+    "dist/**/*",
+    "node_modules/**/*",
+    "coverage/**/*",
+    "tests/**/*",
+    "build.js",
+    "scripts/**/*",
+    "vendor/**/*"
+  ])
+]);
