@@ -55,6 +55,9 @@ This document defines the implementation guidelines, security invariants, storag
 * **ESLint Globals & Scoped Overrides**:
   - Functions defined in classic scripts (`*-script.js`), shared module classes (`CacheManager`), and Web APIs must be explicitly added to `globals` in `eslint.config.js`.
   - Transitive dependency overrides in `package.json` must always use parent-scoped overrides (e.g. `"minimatch@3": { ... }`).
+* **Semantic Version Contracts in `overrides`**:
+  - When configuring parent-scoped dependency overrides in `package.json` (e.g. `"minimatch@N": { ... }`), NEVER override a transitive dependency with an incompatible major version (e.g. pinning `brace-expansion@2.x` on `minimatch@10`, which requires `5.x`).
+  - When performing major package upgrades, agents MUST audit existing `"overrides"` blocks to remove obsolete overrides that conflict with upstream dependencies.
 
 ---
 
