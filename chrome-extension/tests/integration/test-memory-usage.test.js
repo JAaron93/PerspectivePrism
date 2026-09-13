@@ -9,15 +9,16 @@ describe("Memory Monitor Integration Tests", () => {
   let memoryMonitor;
 
   beforeAll(async () => {
-    // Mock performance.memory globally for all tests in this file
-    global.performance = {
-      ...global.performance,
-      memory: {
+    // Mock performance.memory globally for all tests in this file without stripping prototype methods
+    Object.defineProperty(global.performance, "memory", {
+      value: {
         usedJSHeapSize: 5 * 1024 * 1024, // 5MB (safe baseline)
         totalJSHeapSize: 20 * 1024 * 1024, // 20MB
         jsHeapSizeLimit: 100 * 1024 * 1024, // 100MB
       },
-    };
+      configurable: true,
+      writable: true,
+    });
 
     // Import memory monitor
     const module = await import("../../memory-monitor.js");
