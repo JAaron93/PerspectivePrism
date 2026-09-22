@@ -62,6 +62,17 @@ A sophisticated multi-perspective search tool that queries the Google Custom Sea
 
 A specialized security evaluation framework for auditing Perspective Prism's transcript-to-Gemini pipeline against Indirect Prompt Injection (IPI) threats. The harness includes a versioned corpus of attack and control payloads spanning 11 threat taxonomy categories (direct overrides, delimiter escapes, persona hijacking, Unicode homoglyphs, and multilingual attacks) plus legitimate journalism controls. It supports deterministic offline validation (`pytest -m redteam`), automated JSON/Markdown reporting (`redteam/report.py`), baseline regression gating against committed baselines (`redteam-baseline.json`), and live agent probing with automated canary, heuristic, and LLM judge tiers.
 
+### Interactive Evaluation Dashboard (`notebooks/evaluation_dashboard.py`)
+
+A reactive, zero-SaaS evaluation dashboard built with [marimo](https://marimo.io) and [Altair](https://altair-viz.github.io/) for reviewing component-level benchmark results, inspecting LLM-as-a-judge rubrics, and demonstrating pipeline performance outside the browser extension:
+- **🗺️ Navigation Guide**: Structured orientation callout detailing all 6 sections (ideal for colleague demonstrations and presentation mode).
+- **📊 Executive KPI Cards**: Headline summary of total golden fixtures (150 across 5 datasets), benchmark runs, and latest accuracy.
+- **📈 Chronological Score Trends**: Altair line & point chart tracking overall and per-component accuracy across historical benchmark runs over time.
+- **🗃️ Golden Dataset Explorer**: Specialized distributions across all 5 evaluation datasets, including an Edge Case Type Breakdown for pre-classifier filtering.
+- **📈 Benchmark Run Explorer**: Visualizes 95% confidence interval error-bars, token consumption, and Vertex AI cost accounting per component.
+- **⚖️ Grade & A/B Comparison**: Compares `agents-cli eval grade` rubric scores and side-by-side A/B candidate deltas.
+- **🔍 Case-Level Trace Inspector**: Expandable inspection of raw prompts, candidate responses, and execution metadata with an instant "⚠️ Show fallback cases only" filter.
+
 ## 🏁 Conclusion
 
 Perspective Prism addresses the core problem of filter bubbles and misinformation by automating the fact-checking process that most users don't have time to perform manually. When a user submits a YouTube video URL, the system retrieves the video's transcript and initiates a sophisticated multi-agent workflow. The **Claim Extractor** agent uses large language models to intelligently parse the transcript, identifying specific claims that can be verified rather than opinions or subjective statements. Each extracted claim is then passed to the **Evidence Retriever** agent, which conducts targeted searches across trusted external sources using the Google Custom Search API. The **Analysis Engine** synthesizes this evidence with the original claim, evaluating the degree of support or refutation while simultaneously detecting logical fallacies, emotional manipulation tactics, and other bias indicators. Finally, the **Truth Profiler** aggregates these multi-perspective analyses into a comprehensive report that presents users with a balanced view—showing not just whether claims are true or false, but _how_ different perspectives (scientific, journalistic, partisan) interpret the same information. This automated pipeline transforms hours of manual research into seconds of computational analysis, empowering users to escape their filter bubbles and make informed decisions about the content they consume.
@@ -278,6 +289,30 @@ PYTHONPATH=backend python3 backend/scripts/burst_test.py 20
    ```
    The API will be available at `http://localhost:8000`.
 
+### Component Evaluations & Interactive Dashboard
+
+Perspective Prism features an automated component evaluation harness and an interactive, zero-SaaS [marimo](https://marimo.io) notebook dashboard for reviewing benchmark performance, inspecting execution traces, and demonstrating pipeline capabilities:
+
+```bash
+# 1. Run component evaluations across all 5 stages (using Google agents-cli or native runner)
+cd backend && venv/bin/python -m app.evals.cli --component all --limit 2
+
+# 2. Grade exported execution traces with agents-cli custom rubrics
+agents-cli eval grade --traces artifacts/traces/run_<timestamp>.json \
+  --output artifacts/grade_results/ \
+  --config tests/eval/eval_config.yaml
+
+# 3. Compare two benchmark runs head-to-head
+agents-cli eval compare artifacts/grade_results/results_<baseline>.json \
+                         artifacts/grade_results/results_<candidate>.json
+
+# 4. Launch the reactive Marimo evaluation dashboard (interactive edit mode)
+venv/bin/marimo edit ../notebooks/evaluation_dashboard.py
+
+# 5. Launch the Marimo dashboard in presentation mode (clean demo app view)
+venv/bin/marimo run ../notebooks/evaluation_dashboard.py
+```
+
 ### Frontend
 
 1. Navigate to the frontend directory:
@@ -453,6 +488,8 @@ The project is organized as follows:
   - `src/utils/time.ts`: Time formatting utilities for video timestamps
 - **.benchmarks/**: Contains the agent evaluation framework
   - `evaluate_agents.py`: Benchmark script measuring success rate, latency, and output quality
+- **notebooks/**: Interactive evaluation and analysis dashboards
+  - `evaluation_dashboard.py`: Reactive [marimo](https://marimo.io) notebook providing deep-dive visualizations of component evaluations, golden fixture datasets, chronological score trends, agents-cli LLM-as-a-judge comparisons, and case-level trace inspection
 - **chrome-extension/**: YouTube Chrome Extension (Manifest V3) - Nearly Complete Implementation
   - **Core Components**:
     - `manifest.json`: Extension configuration with Manifest V3 permissions (`sidePanel`, `storage`), content scripts, and background service worker

@@ -144,6 +144,9 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **XML Nonce Sandboxing**: Evaluation judges evaluate untrusted candidate outputs wrapped in per-request cryptographic nonces (e.g. `===JUDGE DATA <nonce> START===`) and XML sandboxes (`<candidate>` / `<candidate_*>` tags) with dynamically bound system instructions. Do NOT flag candidate output interpolation inside bounded sandboxes as prompt injection vulnerabilities.
 * **Anti-Oscillation Standard on Candidate Sanitization**: When evaluation runners pass candidate outputs or benchmark prompts through an input sanitizer (`sanitize_candidate_output` / `sanitize_benchmark_prompt`), any rejected attacks must trip `SanitizationError` and safely route to fallback evaluation states (`is_fallback = True`). Valid outputs may then be stripped of instruction delimiters and escaped within XML sandboxes. Do NOT oscillate between demanding pre-neutralization of candidate text and demanding strict sanitizer rejection.
 * **Synthetic Metric Vocabulary vs. User Data**: Evaluation category normalizers (`normalize_content_category`), heuristics, and regex matchers operate on standardized synthetic test vocabularies and domain labels. Do NOT flag substring-matching optimizations or test label mappings in evaluation runners as user-facing bugs.
+* **agents-cli Custom Metric Scoping**:
+  - Flag any custom evaluation metric in `custom_metrics` (inside `eval_config.yaml`) that reads a generic `metadata.score` without checking `metadata.component` or `metric_name`.
+  - Flag any custom metric fallback that defaults missing scores to `1.0`. Custom metric fallbacks must evaluate to `0.0` or raise an unhandled case error.
 
 ### 5.1 agents-cli CLI Delegation Pattern — MANDATORY Anti-Oscillation Guardrail
 

@@ -37,6 +37,18 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Evaluation Sanitizer Regression Test Invariants**:
   - **Sentence & Line Boundary Preservation**: Sanitizer test suites MUST assert that multi-sentence and newline-separated evidence containing benign verbs (`give`, `return`, `set`) and numbers (`5`, `10`) or superlatives (`maximum`, `best`) are preserved intact without false-positive redaction (`[REDACTED_SCORING_DIRECTIVE]`).
   - **Whitespace-Variant Breakout Assertions**: Tag breakout test suites MUST explicitly assert that whitespace variants (e.g. `</tag >` and `<tag >`) are escaped or stripped to verify sandbox integrity.
+* **agents-cli Custom Metric Scoping Invariants**:
+  - In multi-component pipelines evaluated with `agents-cli eval grade`, each custom metric in `custom_metrics` executes against *all* cases in the trace dataset.
+  - Custom `evaluate(instance)` functions MUST explicitly filter by `instance["metadata"]["component"]` or `metric_name` so they only score their intended pipeline stage.
+  - Model responses (`instance["responses"]`) should be parsed for stage-specific measurements (`recall_at_iou`, `faithfulness_score`, `neutrality_score`).
+  - Missing metadata or non-applicable cases MUST default to `0.0` (never `1.0`), preventing unhandled cases from silently scoring as perfect runs and conflating distinct rubrics.
+* **Evaluation Dashboard Visualizations & Comparison Invariants**:
+  - **A/B Metric Set Intersection**: When comparing baseline vs. candidate runs, take the intersection of metric keys (`set(b.keys()) & set(c.keys())`). Never use union with `0.0` defaults, which misrepresents unshared metrics as false improvements or regressions.
+  - **Categorical Scale Enum Case Sensitivity**: Altair and plotting scale domains (`domain=[...]`) must match the exact casing and enum values present in the golden datasets (e.g. `["SUPPORTS", "REFUTES", "AMBIGUOUS"]`).
+  - **Marimo Markdown & Export Mechanics**:
+    - In Marimo notebooks, markdown documentation cells must place `mo.md(...)` as a bare expression as the final statement in the cell (not `return mo.md(...)`), ensuring the Marimo reactive runtime captures it as displayable output.
+    - Markdown cells positioned before library imports cannot reference `mo`.
+    - When running headless exports non-interactively (`marimo export html ...`), pipe user confirmation (`echo y | marimo export html ... --output ...`) to prevent interactive overwrite prompt blockage.
 
 ---
 
