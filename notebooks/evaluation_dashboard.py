@@ -56,7 +56,7 @@ def __(mo):
         2. **Claim Extractor Agent**: Extracts verifiable factual claims with exact video timestamps via Gemini Structured Outputs.
         3. **Perspective & Stance Analysis**: Gathers frozen search snippets across 4 distinct viewpoints (*Scientific*, *Journalistic*, *Partisan Left*, *Partisan Right*).
         4. **Bias & Deception Service**: Quantifies framing manipulation, sourcing omissions, sensationalism, and computes deception severity (0–10).
-        5. **Alethiology Service**: Assesses claim veracity across 6 classical philosophical truth theories (*Correspondence*, *Coherence*, *Pragmatic*, *Consensus*, *Deflationary*, *Semantic*).
+        5. **Alethiology Service**: Assesses claim veracity across 6 classical philosophical truth theories (*Correspondence (Empirical)*, *Coherence (Systemic Narrative)*, *Pragmatic (Practical Utility)*, *Perspectivism (Lived Experience)*, *Consensus (Institutional Agreement)*, *Deflationary (Rhetorical Endorsement)*).
 
         ```mermaid
         flowchart LR
@@ -510,7 +510,8 @@ def __(alt, dataset_selector, golden_datasets, mo):
         ),
         "Alethiology": (
             "**Alethiology Golden Dataset** (36 records): Validates philosophical truth profiling across 6 epistemic theories: "
-            "Correspondence, Coherence, Pragmatic, Consensus, Deflationary, and Semantic."
+            "Correspondence (Empirical), Coherence (Systemic Narrative), Pragmatic (Practical Utility), "
+            "Perspectivism (Lived Experience), Consensus (Institutional Agreement), and Deflationary (Rhetorical Endorsement)."
         ),
     }
 
@@ -615,8 +616,8 @@ def __(alt, dataset_selector, golden_datasets, mo):
                     "gold_stance:N",
                     title="Gold Stance",
                     scale=alt.Scale(
-                        domain=["supports", "refutes", "nuancing", "insufficient"],
-                        range=["#34A853", "#EA4335", "#FBBC05", "#9AA0A6"],
+                        domain=["SUPPORTS", "REFUTES", "AMBIGUOUS"],
+                        range=["#34A853", "#EA4335", "#FBBC05"],
                     ),
                 ),
                 tooltip=["perspective:N", "gold_stance:N", "count():Q"],
@@ -960,9 +961,9 @@ def __(
             _b_metrics = {m["metric_name"]: m.get("mean_score", 0.0) for m in grade_results[_b_run].get("summary_metrics", [])}
             _c_metrics = {m["metric_name"]: m.get("mean_score", 0.0) for m in grade_results[_c_run].get("summary_metrics", [])}
 
-            for _mname in set(_b_metrics.keys()) | set(_c_metrics.keys()):
-                _b_val = _b_metrics.get(_mname, 0.0)
-                _c_val = _c_metrics.get(_mname, 0.0)
+            for _mname in sorted(set(_b_metrics.keys()) & set(_c_metrics.keys())):
+                _b_val = _b_metrics[_mname]
+                _c_val = _c_metrics[_mname]
                 _delta = _c_val - _b_val
 
                 _ab_data.append({"metric": _mname, "run": "Baseline", "score": round(_b_val, 4)})

@@ -66,22 +66,73 @@ custom_metrics:
     custom_function: |
       def evaluate(instance):
           meta = instance.get("metadata") or {}
-          score = meta.get("score", 1.0)
-          return {"score": float(score)}
+          comp = meta.get("component", "")
+          mname = meta.get("metric_name", "")
+          if comp == "extractor" or "claim" in mname or mname in ("claim_recall", "timestamp_iou"):
+              score = meta.get("score")
+              if score is not None:
+                  return {"score": float(score)}
+          responses = instance.get("responses") or []
+          if responses:
+              try:
+                  import json
+                  resp_text = responses[0].get("response", {}).get("parts", [{}])[0].get("text", "{}")
+                  data = json.loads(resp_text)
+                  if "recall_at_iou" in data:
+                      return {"score": float(data["recall_at_iou"])}
+                  if "gold_count" in data and data["gold_count"] > 0:
+                      return {"score": float(data.get("matched_claims", 0)) / float(data["gold_count"])}
+              except Exception:
+                  pass
+          return {"score": 0.0}
 
   - name: perspective_faithfulness
     description: "Evidence groundedness and prior knowledge hallucination detection (FR11)"
     custom_function: |
       def evaluate(instance):
           meta = instance.get("metadata") or {}
-          score = meta.get("score", 1.0)
-          return {"score": float(score)}
+          comp = meta.get("component", "")
+          mname = meta.get("metric_name", "")
+          if comp == "perspective" or "perspective" in mname or mname in ("perspective_faithfulness", "stance_f1"):
+              score = meta.get("score")
+              if score is not None:
+                  return {"score": float(score)}
+          responses = instance.get("responses") or []
+          if responses:
+              try:
+                  import json
+                  resp_text = responses[0].get("response", {}).get("parts", [{}])[0].get("text", "{}")
+                  data = json.loads(resp_text)
+                  if "faithfulness_score" in data:
+                      return {"score": float(data["faithfulness_score"])}
+                  if "f1_score" in data and comp == "perspective":
+                      return {"score": float(data["f1_score"])}
+              except Exception:
+                  pass
+          return {"score": 0.0}
 
   - name: alethiology_neutrality
     description: "6-theory epistemic classification accuracy and descriptive neutrality (FR12)"
     custom_function: |
       def evaluate(instance):
           meta = instance.get("metadata") or {}
-          score = meta.get("score", 1.0)
-          return {"score": float(score)}
+          comp = meta.get("component", "")
+          mname = meta.get("metric_name", "")
+          if comp == "alethiology" or "alethiology" in mname or mname in ("alethiology_neutrality", "alethiology_accuracy"):
+              score = meta.get("score")
+              if score is not None:
+                  return {"score": float(score)}
+          responses = instance.get("responses") or []
+          if responses:
+              try:
+                  import json
+                  resp_text = responses[0].get("response", {}).get("parts", [{}])[0].get("text", "{}")
+                  data = json.loads(resp_text)
+                  if "neutrality_score" in data:
+                      return {"score": float(data["neutrality_score"])}
+                  if "theory_f1" in data:
+                      return {"score": float(data["theory_f1"])}
+              except Exception:
+                  pass
+          return {"score": 0.0}
 
