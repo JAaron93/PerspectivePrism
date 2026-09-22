@@ -125,7 +125,7 @@ To verify this task is complete:
 1. **Execute Tests**: Run all test scenarios from TEST_GUIDE.md
 2. **Document Results**: Record pass/fail status for each test
 3. **Fix Issues**: Address any critical issues found during testing
-4. **Update Tasks**: Mark task as complete in `docs/archive/specs/youtube-chrome-extension/tasks.md`
+4. **Update Tasks**: Mark task as complete in `.kiro/specs/youtube-chrome-extension/tasks.md`
 5. **Update Checklist**: Check off "Cache persistence across browser restarts" in manual testing checklist
 
 ## Related Tasks

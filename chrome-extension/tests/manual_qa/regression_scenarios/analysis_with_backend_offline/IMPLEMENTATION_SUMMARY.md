@@ -542,9 +542,9 @@ This section describes test scenarios that are **DOCUMENTED and READY** to execu
 
 ## References
 
-- **Requirements**: `docs/archive/specs/youtube-chrome-extension/requirements.md` (Requirement 6)
-- **Design**: `docs/archive/specs/youtube-chrome-extension/design.md` (Section 3.3)
-- **Tasks**: `docs/archive/specs/youtube-chrome-extension/tasks.md` (Task 16.4)
+- **Requirements**: `.kiro/specs/youtube-chrome-extension/requirements.md` (Requirement 6)
+- **Design**: `.kiro/specs/youtube-chrome-extension/design.md` (Section 3.3)
+- **Tasks**: `.kiro/specs/youtube-chrome-extension/tasks.md` (Task 16.4)
 - **Manual Testing Guide**: `chrome-extension/MANUAL_TESTING_GUIDE.md`
 
 ## Sign-Off

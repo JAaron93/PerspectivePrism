@@ -1,15 +1,3 @@
----
-status: completed
-lifecycle: historical-archive
-closed_date: 2026-07-17
----
-
-> [!IMPORTANT]
-> **HISTORICAL SPECIFICATION — IMMUTABLE RECORD**:
-> This specification represents a completed milestone and is permanently preserved for architectural provenance and design history.
-> **DO NOT EDIT, APPEND TASKS, OR MODIFY REQUIREMENTS IN THIS FILE.**
-> All post-launch enhancements, refactors, and follow-up work must be documented in living repository documentation (`README.md`, `docs/adr/`) or in a new, dedicated feature spec.
-
 # Implementation Plan
 
 - [x] 1. Set up extension project structure and manifest

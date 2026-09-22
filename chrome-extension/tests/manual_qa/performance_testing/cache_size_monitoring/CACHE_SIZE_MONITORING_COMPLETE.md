@@ -294,9 +294,9 @@ The implementation is production-ready and provides robust cache monitoring for 
 
 ## References
 
-- **Design Document**: `docs/archive/specs/youtube-chrome-extension/design.md`
-- **Requirements Document**: `docs/archive/specs/youtube-chrome-extension/requirements.md`
-- **Tasks Document**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
+- **Design Document**: `.kiro/specs/youtube-chrome-extension/design.md`
+- **Requirements Document**: `.kiro/specs/youtube-chrome-extension/requirements.md`
+- **Tasks Document**: `.kiro/specs/youtube-chrome-extension/tasks.md`
 - **Test Report**: `tests/manual_qa/performance_testing/cache_size_monitoring_test_report.md`
 - **Verification Document**: `CACHE_SIZE_MONITORING_VERIFICATION.md`
 - **Test README**: `test-cache-size-monitoring-README.md`

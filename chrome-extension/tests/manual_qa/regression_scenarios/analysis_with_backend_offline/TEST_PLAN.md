@@ -405,7 +405,7 @@ chrome.storage.sync.clear();
 
 ## Related Documentation
 
-- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`
-- Requirements: `docs/archive/specs/youtube-chrome-extension/requirements.md` (Requirement 6)
+- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
+- Requirements: `.kiro/specs/youtube-chrome-extension/requirements.md` (Requirement 6)
 - Manual Testing Guide: `chrome-extension/MANUAL_TESTING_GUIDE.md`
 - Interactive Test Page: `chrome-extension/test-backend-offline.html`

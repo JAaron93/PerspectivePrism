@@ -94,4 +94,4 @@ All must be true:
 - Full guide: `README.md`
 - Test plan: `TEST_PLAN.md`
 - Manual testing guide: `../../MANUAL_TESTING_GUIDE.md`
-- Design doc: `docs/archive/specs/youtube-chrome-extension/design.md`
+- Design doc: `.kiro/specs/youtube-chrome-extension/design.md`

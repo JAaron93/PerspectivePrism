@@ -56,4 +56,4 @@ Panel state persistence during YouTube video navigation. When a user has the ana
 
 - **Task**: 16.4 - Panel state persistence during navigation
 - **Status**: ✅ COMPLETED (implementation)
-- **Location**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
+- **Location**: `.kiro/specs/youtube-chrome-extension/tasks.md`

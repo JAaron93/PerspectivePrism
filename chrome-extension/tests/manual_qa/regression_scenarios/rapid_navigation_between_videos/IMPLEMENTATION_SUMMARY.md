@@ -377,9 +377,9 @@ The rapid navigation test suite is **COMPLETE** and **READY FOR USE**.
 
 ## References
 
-- **Requirements**: `docs/archive/specs/youtube-chrome-extension/requirements.md`
-- **Design**: `docs/archive/specs/youtube-chrome-extension/design.md`
-- **Tasks**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
+- **Requirements**: `.kiro/specs/youtube-chrome-extension/requirements.md`
+- **Design**: `.kiro/specs/youtube-chrome-extension/design.md`
+- **Tasks**: `.kiro/specs/youtube-chrome-extension/tasks.md`
 - **Content Script**: `chrome-extension/content.js`
 - **Integration Tests**: `chrome-extension/tests/integration/rapid-navigation.spec.js`
 

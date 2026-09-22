@@ -5,7 +5,7 @@
 **Task ID**: 16.4 - Regression Scenarios - Service worker recovery after termination
 **Status**: 📝 DOCUMENTATION COMPLETE - TESTING PENDING
 **Date Documentation Completed**: 11-30-2025
-**Spec**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
+**Spec**: `.kiro/specs/youtube-chrome-extension/tasks.md`
 
 ## What Was Implemented
 
@@ -238,7 +238,7 @@ Success criteria definitions and documentation complete; test execution and resu
 
 - **Client Implementation**: `chrome-extension/client.js`
 - **Background Integration**: `chrome-extension/background.js`
-- **Task List**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
+- **Task List**: `.kiro/specs/youtube-chrome-extension/tasks.md`
 
 ### External Resources
 

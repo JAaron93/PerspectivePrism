@@ -277,8 +277,8 @@ The implementation meets all requirements from the design document and provides 
 
 ## References
 
-- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`
-- Requirements Document: `docs/archive/specs/youtube-chrome-extension/requirements.md`
+- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
+- Requirements Document: `.kiro/specs/youtube-chrome-extension/requirements.md`
 - Test Report: `tests/manual_qa/performance_testing/cache_size_monitoring_test_report.md`
 - Test README: `test-cache-size-monitoring-README.md`
 - Unit Tests: `tests/unit/cache-size-monitoring.test.js`

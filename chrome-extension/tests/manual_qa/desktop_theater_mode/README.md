@@ -144,7 +144,7 @@ Some manual tests could potentially be automated:
 
 If you have questions about manual testing:
 1. Check the main README.md
-2. Review the design document (`docs/archive/specs/youtube-chrome-extension/design.md`)
+2. Review the design document (`.kiro/specs/youtube-chrome-extension/design.md`)
 3. Check existing test files for examples
 4. Ask the development team
 
