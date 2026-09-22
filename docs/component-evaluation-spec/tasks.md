@@ -150,3 +150,8 @@
   - **Dependencies**: T6.1, T6.2, T6.3
   - **Traceability**: FR20, FR21, FR22, FR23, Constitution & Rule Maintenance Protocol
 
+- [x] **T6.5: Interactive Marimo Evaluation Dashboard**
+  - **Description**: In `notebooks/evaluation_dashboard.py`, implement an interactive, zero-SaaS reactive evaluation dashboard with Altair visualizations and dedicated documentation cells across 6 core panels: Navigation Guide, KPI stat cards, Chronological Score Trends, Golden Dataset Explorer (with edge case type breakdown), Benchmark Run Explorer (with 95% CI error bars and cost/token metrics), Grade & A/B Comparison View, and Case-Level Trace Inspector (with fallback filtering). Ensure headless export compatibility (`marimo export html`).
+  - **Dependencies**: T6.1, T6.2, T6.3
+  - **Traceability**: FR20, FR21, FR22, FR23, US4
+

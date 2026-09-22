@@ -59,6 +59,7 @@ flowchart TD
         C2["Google agents-cli Platform Suite (eval run/grade/compare)"]
         C3["CI Pytest Harness (-m 'eval and component')"]
         C4["Markdown & JSON Rollup Summaries (artifacts/eval_results/)"]
+        C5["Interactive Marimo Dashboard (notebooks/evaluation_dashboard.py)"]
     end
 
     D1 --> EngineQuantitative
