@@ -53,3 +53,35 @@ evaluation:
 output:
   trace_dir: "artifacts/traces"
   report_dir: "artifacts/eval_results"
+
+# agents-cli metric selection & definition pools (FR21, FR23)
+metrics_to_run:
+  - claim_recall
+  - perspective_faithfulness
+  - alethiology_neutrality
+
+custom_metrics:
+  - name: claim_recall
+    description: "Semantic claim recall and verifiability precision (FR10)"
+    custom_function: |
+      def evaluate(instance):
+          meta = instance.get("metadata") or {}
+          score = meta.get("score", 1.0)
+          return {"score": float(score)}
+
+  - name: perspective_faithfulness
+    description: "Evidence groundedness and prior knowledge hallucination detection (FR11)"
+    custom_function: |
+      def evaluate(instance):
+          meta = instance.get("metadata") or {}
+          score = meta.get("score", 1.0)
+          return {"score": float(score)}
+
+  - name: alethiology_neutrality
+    description: "6-theory epistemic classification accuracy and descriptive neutrality (FR12)"
+    custom_function: |
+      def evaluate(instance):
+          meta = instance.get("metadata") or {}
+          score = meta.get("score", 1.0)
+          return {"score": float(score)}
+

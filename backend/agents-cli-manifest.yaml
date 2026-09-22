@@ -1,0 +1,4 @@
+name: perspective-prism
+agent_directory: app
+language: python
+base_template: adk
