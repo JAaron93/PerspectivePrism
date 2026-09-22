@@ -1,7 +1,7 @@
 ---
 status: completed
 lifecycle: historical-archive
-closed_date: 2026-09-22
+closed_date: 2026-09-04
 ---
 
 > [!IMPORTANT]
