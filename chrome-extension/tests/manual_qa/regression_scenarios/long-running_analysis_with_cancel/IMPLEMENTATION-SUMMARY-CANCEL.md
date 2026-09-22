@@ -158,7 +158,7 @@ The manual QA document covers:
 
 ## Requirements Validation
 
-From `.kiro/specs/youtube-chrome-extension/requirements.md`:
+From `docs/archive/specs/youtube-chrome-extension/requirements.md`:
 
 ### Requirement 3: Video Analysis Request
 - ✅ 3.3: Extension displays loading indicator while background refresh is in progress
@@ -175,7 +175,7 @@ From `.kiro/specs/youtube-chrome-extension/requirements.md`:
 
 ## Design Validation
 
-From `.kiro/specs/youtube-chrome-extension/design.md`:
+From `docs/archive/specs/youtube-chrome-extension/design.md`:
 
 ### Section 3.1: PerspectivePrismClient
 - ✅ Add progress tracking for long-running requests

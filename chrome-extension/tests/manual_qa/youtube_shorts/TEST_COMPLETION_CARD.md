@@ -129,8 +129,8 @@
 
 - Test Guide: `README.md`
 - Test Checklist: `TEST_CHECKLIST.md`
-- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
-- Requirements: `.kiro/specs/youtube-chrome-extension/requirements.md`
+- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`
+- Requirements: `docs/archive/specs/youtube-chrome-extension/requirements.md`
 - Implementation: `chrome-extension/content.js`
 - Manifest: `chrome-extension/manifest.json`
 

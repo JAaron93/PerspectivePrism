@@ -61,7 +61,7 @@ Perspective Prism enforces strict CPU-bound workload isolation under [ADR 001](d
 - **DFA Multi-Pattern Fast-Path**: Aho-Corasick automaton searches 65+ political keywords simultaneously in linear time $O(N)$ with zero backtracking in **<50µs** (8.7x speedup over Python regex).
 - **Vectorized Chunking**: Pre-allocates buffer capacity for 100k-character transcripts, eliminating quadratic memory allocations and executing in **<2ms** (15x speedup).
 - **Prompt Nonce Delimiter Isolation Guard**: Dynamically wraps prompts in per-request cryptographic nonces (`===USER DATA <nonce> START===`) and scans for unescaped closing delimiters via `contains_delimiter_forgery()`, neutralizing adversarial prompt injections while preserving Gemini context caching.
-- **Specification Index**: The complete technical blueprint is documented under [`docs/rust-core-engine-spec/`](docs/rust-core-engine-spec/).
+- **Specification Index**: The complete technical blueprint is documented under [`docs/archive/specs/rust-core-engine-spec/`](docs/archive/specs/rust-core-engine-spec/).
 
 ### Zero-Throttling Foundation Model Architecture (ADR 007)
 The pipeline is optimized for **Gemini 3.8 Flash** under [ADR 007](docs/adr/007-gemini-38-flash-capability-optimization.md), prioritizing native reasoning depth and output completeness over cost or throttling:

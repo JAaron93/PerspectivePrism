@@ -100,7 +100,7 @@ Complete manual testing guide for future testing including:
 
 ### 3. Task Status Update
 
-**File**: `.kiro/specs/youtube-chrome-extension/tasks.md`
+**File**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
 
 Updated task status from `[-]` (in progress) to `[x]` (completed) for:
 
@@ -206,8 +206,8 @@ The desktop standard layout testing is complete and the extension is verified to
 
 ## References
 
-- **Requirements**: `.kiro/specs/youtube-chrome-extension/requirements.md`
-- **Design**: `.kiro/specs/youtube-chrome-extension/design.md`
-- **Tasks**: `.kiro/specs/youtube-chrome-extension/tasks.md`
+- **Requirements**: `docs/archive/specs/youtube-chrome-extension/requirements.md`
+- **Design**: `docs/archive/specs/youtube-chrome-extension/design.md`
+- **Tasks**: `docs/archive/specs/youtube-chrome-extension/tasks.md`
 - **Test Results**: `chrome-extension/manual-test-results.md`
 - **Testing Guide**: `chrome-extension/MANUAL_TESTING_GUIDE.md`

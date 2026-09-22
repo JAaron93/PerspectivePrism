@@ -287,7 +287,7 @@ retry::{ videoId }::{ attempt }; // Retry alarms
 
 - Client: `chrome-extension/client.js`
 - Background: `chrome-extension/background.js`
-- Tasks: `.kiro/specs/youtube-chrome-extension/tasks.md`
+- Tasks: `docs/archive/specs/youtube-chrome-extension/tasks.md`
 
 ### External Resources
 

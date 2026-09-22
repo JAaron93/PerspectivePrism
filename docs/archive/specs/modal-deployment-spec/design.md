@@ -1,0 +1,43 @@
+---
+status: completed
+lifecycle: historical-archive
+closed_date: 2026-09-22
+---
+
+> [!IMPORTANT]
+> **HISTORICAL SPECIFICATION — IMMUTABLE RECORD**:
+> This specification represents a completed milestone and is permanently preserved for architectural provenance and design history.
+> **DO NOT EDIT, APPEND TASKS, OR MODIFY REQUIREMENTS IN THIS FILE.**
+> All post-launch enhancements, refactors, and follow-up work must be documented in living repository documentation (`README.md`, `docs/adr/`) or in a new, dedicated feature spec.
+
+# Modal Labs Deployment Design Specification
+
+## 1. Overview
+PerspectivePrism is currently running locally. This specification outlines the architecture and deployment strategy for migrating the FastAPI backend to Modal Labs. Modal Labs provides a serverless platform that aligns perfectly with our need for a scalable, zero-maintenance backend that leverages a free tier for portfolio demonstration.
+
+## 2. Architecture Constraints & Modal Integration
+The backend is a standard FastAPI application. Modal natively supports ASGI apps (like FastAPI) using the `@modal.asgi_app()` decorator.
+- **Compute Instance**: 1 CPU core, 1 GB Memory.
+- **Scaling**: Modal scales containers to 0 when there are no incoming requests. This ensures we only pay for active execution time (I/O wait time during LLM and Search API calls).
+- **Environment**: Secrets (`GEMINI_API_KEY`, `GOOGLE_API_KEY`, and `GOOGLE_CSE_ID`) will be securely injected via Modal Secrets. OpenAI is not used.
+
+## 3. Rust Extension Compilation
+A critical constraint is the `prism_sanitizer_rs` Rust extension. The Modal container image must be built from a Debian base, install standard build tools, and install the Rust toolchain (`rustup`) before executing `pip install -e .` or `pip install -r requirements.txt`.
+
+## 4. Cost & Usage Estimates
+Modal Labs provides a $30/month free tier of compute credits. Modal charges per CPU/RAM second of execution time.
+- **CPU Cost**: ~$0.0000131 / core / second
+- **RAM Cost**: ~$0.00000222 / GiB / second
+- **Total Instance Cost**: ~$0.00001532 / second (1 CPU, 1 GB RAM)
+
+**Usage Projections:**
+- **Assume**: 1 claim analysis takes approximately 30 seconds of compute time (mostly waiting for external APIs).
+- **Assume**: 1 user performs 30 claim analyses per month (1 per day).
+- **User Cost**: 30 * 30s = 900 seconds. 900 * $0.00001532 = **$0.0138 per user / month** (exactly $0.013788).
+- **Capacity**: $30.00 / $0.013788 = **~2,176 active users per month.**
+
+## 5. Graceful Exhaustion Mechanism
+This project is primarily a portfolio project and is not intended to be a scaled commercial product. It relies on the free tier of Modal Labs, which can only support around **~2,000 monthly users**. Because I do not have the funds to scale this infrastructure, the system must handle compute exhaustion gracefully:
+- [PLANNED] When Modal credits are exhausted, the API will fail to start the container, resulting in HTTP 402, 429, 502, or 503 errors.
+- [PLANNED] The Chrome Extension (`client.js` and UI scripts) will be updated to detect these errors.
+- [PLANNED] Instead of showing a generic "Backend Unavailable" error, it will present a custom UI state: *"PerspectivePrism has reached its monthly server limit. To continue using the extension, you can easily self-host it on your own machine. [Learn how on GitHub]"*

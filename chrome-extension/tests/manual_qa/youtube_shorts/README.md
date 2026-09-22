@@ -287,7 +287,7 @@ Use these YouTube Shorts URLs for testing:
 
 ## References
 
-- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
-- Requirements: `.kiro/specs/youtube-chrome-extension/requirements.md`
+- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`
+- Requirements: `docs/archive/specs/youtube-chrome-extension/requirements.md`
 - Content Script: `chrome-extension/content.js`
 - Manifest: `chrome-extension/manifest.json`

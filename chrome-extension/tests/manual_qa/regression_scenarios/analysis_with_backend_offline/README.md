@@ -160,7 +160,7 @@ This test suite validates:
 - **Requirement 6.5**: Retry functionality
 - **Requirement 3.2**: Timeout handling (120 seconds)
 
-See: `.kiro/specs/youtube-chrome-extension/requirements.md`
+See: `docs/archive/specs/youtube-chrome-extension/requirements.md`
 
 ## Related Design Sections
 
@@ -168,7 +168,7 @@ See: `.kiro/specs/youtube-chrome-extension/requirements.md`
 - Client Error Formatting (Design Document - `formatUserError`)
 - Retry Logic (Design Document - `shouldRetryError`)
 
-See: `.kiro/specs/youtube-chrome-extension/design.md`
+See: `docs/archive/specs/youtube-chrome-extension/design.md`
 
 ## Test History
 
@@ -217,7 +217,7 @@ When reporting issues found during testing:
 
 ### Design Document
 
-`.kiro/specs/youtube-chrome-extension/design.md` - Technical design and error handling specifications
+`docs/archive/specs/youtube-chrome-extension/design.md` - Technical design and error handling specifications
 
 ## Contributing
 

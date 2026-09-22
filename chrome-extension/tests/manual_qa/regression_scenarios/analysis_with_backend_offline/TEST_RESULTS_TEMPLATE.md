@@ -325,4 +325,4 @@ Example:
 - Test Plan: `TEST_PLAN.md`
 - Interactive Test: `chrome-extension/test-backend-offline.html`
 - Manual Testing Guide: `chrome-extension/MANUAL_TESTING_GUIDE.md`
-- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
+- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`

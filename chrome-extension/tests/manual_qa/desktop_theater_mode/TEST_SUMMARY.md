@@ -301,9 +301,9 @@ Theater mode is a YouTube viewing mode that expands the video player horizontall
 
 ### Extension Documentation
 - Main README: `chrome-extension/README.md`
-- Design Document: `.kiro/specs/youtube-chrome-extension/design.md`
-- Requirements: `.kiro/specs/youtube-chrome-extension/requirements.md`
-- Tasks: `.kiro/specs/youtube-chrome-extension/tasks.md`
+- Design Document: `docs/archive/specs/youtube-chrome-extension/design.md`
+- Requirements: `docs/archive/specs/youtube-chrome-extension/requirements.md`
+- Tasks: `docs/archive/specs/youtube-chrome-extension/tasks.md`
 
 ### Other Layout Tests
 - Desktop Standard: `../desktop_standard_layout/`
