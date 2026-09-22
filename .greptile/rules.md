@@ -177,6 +177,7 @@ This is a **Catch-22 Oscillation boundary**: any review finding that demands a n
   * Vitest unit tests in JSDOM must properly mock Chrome Extension APIs (`chrome.storage.local`, `chrome.runtime`).
   * Playwright integration tests (`chrome-extension/tests/integration/`) must use realistic domain fixtures and persistent extension contexts loading directly from the unpacked source root.
 * **Benchmark & Documentation Integrity**: `.benchmarks/**/*` and documentation (`*.md`) must be checked for factual accuracy against the codebase state.
+* **Historical Specification Immutability**: All specification files located under `docs/archive/specs/` are permanent historical artifacts representing completed milestones. Greptile must NOT request modifications, task appending, or requirements updates to archived specs during code reviews. All ongoing architectural discussions, new tasks, or post-launch enhancements belong in `README.md`, `docs/adr/`, or a new dedicated feature specification.
 
 ---
 

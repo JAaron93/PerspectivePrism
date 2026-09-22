@@ -83,7 +83,7 @@ Remaining manual testing checklist items:
 - [Testing Guide](./MANUAL_TESTING_GUIDE.md)
 - [Test Summary](./TEST_SUMMARY.md)
 - [Visual Documentation](./DESKTOP_STANDARD_LAYOUT_TEST.md)
-- [Task List](../.kiro/specs/youtube-chrome-extension/tasks.md)
+- [Task List](../../../../.kiro/specs/youtube-chrome-extension/tasks.md)
 
 ---
 

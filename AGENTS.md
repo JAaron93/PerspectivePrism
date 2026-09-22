@@ -96,7 +96,8 @@ This CLI-first, MCP-sparing doctrine is a permanent, indefinite architectural st
 ├── chrome-extension/    # Manifest V3 browser extension (Zero-build vanilla JS + Side Panel)
 │   └── tests/           # Vitest unit tests + Playwright integration tests
 ├── docs/
-│   └── adr/             # Architecture Decision Records (ADR 001 - 007)
+│   ├── adr/             # Architecture Decision Records (ADR 001 - 007)
+│   └── archive/specs/   # Completed, immutable historical specifications
 ├── walkthroughs/        # Developer walkthroughs and implementation guides
 └── AGENTS.md            # This Constitution & Rules Index
 ```

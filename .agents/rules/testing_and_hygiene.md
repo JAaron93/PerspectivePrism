@@ -90,6 +90,11 @@ This document defines repository-wide test execution standards, test fixture dis
 
 * **Spec Gate Before Implementation**: Whenever a new technical specification (e.g. under `docs/*-spec/`) or Architecture Decision Record (ADR) is generated or updated via `/spec-creator` or architectural planning, the specification documents (`design.md`, `requirements.md`, `tasks.md`, `ADR-*.md`) MUST be committed, pushed to a dedicated feature branch, and have a GitHub Pull Request opened for human review **before** beginning any code implementation, build configuration changes, or test harness modifications.
 * **Cascading Update Integrity**: When modifying existing specifications, updates must strictly follow the design-first cascade (`design.md` → `requirements.md` → `tasks.md`). Never implement un-versioned or uncommitted architectural tasks.
+* **Specification Lifecycle & Archive Boundary**:
+  - **Active vs. Completed Spec Locations**: Active feature specifications during design and active implementation live under `docs/<feature-name>-spec/`. Once all tasks in `tasks.md` are completed and verified in production/main, specifications transition to historical archive status and must be migrated to `docs/archive/specs/<feature-name>-spec/`.
+  - **Immutability of Archived Specs**: Files in `docs/archive/specs/` are permanent, immutable historical records. Agents and automated tools MUST NEVER edit, append tasks to, or modify requirements in archived specs. All post-launch enhancements, bugfixes, refactors, and follow-up work must be documented in living repository documentation (`README.md`, `docs/adr/`) or in a new, dedicated feature spec.
+  - **Standardized Immutability Frontmatter & Warning Banner**: Every archived spec file must maintain YAML frontmatter (`status: completed`, `lifecycle: historical-archive`) and the `[!IMPORTANT]` historical record banner.
+  - **Legacy `.kiro/specs/` Deprecation**: The legacy `.kiro/specs/` directory is permanently deprecated and consolidated into `docs/archive/specs/`. Active and new specs must never be created in or moved to `.kiro/`.
 
 ---
 
