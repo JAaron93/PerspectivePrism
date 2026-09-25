@@ -109,13 +109,13 @@ async def health_check_llm(probe: bool = False):
                 "total_tokens": getattr(token_resp, "total_tokens", 1),
             }
         except Exception as exc:
-            logger.error("Live Vertex AI health probe failed: %s", exc)
+            logger.exception("Live Vertex AI health probe failed")
             status["probe"] = {
                 "success": False,
-                "error": str(exc),
+                "error": "Live provider probe failed",
             }
             status["status"] = "unhealthy"
-            status["message"] = f"Live Vertex AI probe failed: {exc}"
+            status["message"] = "Live Vertex AI probe failed."
             return status
 
     # Analyze effective status
