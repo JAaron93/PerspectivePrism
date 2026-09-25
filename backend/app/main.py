@@ -1,8 +1,9 @@
 import re
 import copy
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.models.schemas import (
     VideoRequest, AnalysisResponse, PerspectiveType,
@@ -82,9 +83,22 @@ def health_check():
     return {"status": "healthy"}
 
 @app.get("/health/llm")
-async def health_check_llm(probe: bool = False):
-    """Checks the status of the configured LLM provider and circuit breaker."""
-    status = {
+async def health_check_llm(
+    probe: bool = False,
+    x_probe_key: str = Header(default=""),
+):
+    """Checks the status of the configured LLM provider and circuit breaker.
+
+    When ``probe=true`` is requested the handler performs a live ``count_tokens``
+    call to verify outbound Vertex AI connectivity.  If ``PROBE_SECRET`` is
+    configured in settings, the caller must supply a matching ``X-Probe-Key``
+    header; requests that omit or mismatch the key receive HTTP 401 so that
+    open-internet callers cannot drain Vertex AI quota.
+    """
+    if probe and settings.PROBE_SECRET and x_probe_key != settings.PROBE_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    status: dict = {
         "primary_model": settings.LLM_MODEL,
         "gemini_tier": getattr(analysis_service, "gemini_tier", "unknown"),
         "max_concurrency": settings.tier_max_concurrency,
@@ -109,14 +123,16 @@ async def health_check_llm(probe: bool = False):
                 "total_tokens": getattr(token_resp, "total_tokens", 1),
             }
         except Exception as exc:
-            logger.exception("Live Vertex AI health probe failed")
+            # Log full details server-side; return sanitized fixed text to the caller
+            # so internal provider error messages are never exposed publicly.
+            logger.error("Live Vertex AI health probe failed: %s", exc)
             status["probe"] = {
                 "success": False,
                 "error": "Live provider probe failed",
             }
             status["status"] = "unhealthy"
-            status["message"] = "Live Vertex AI probe failed."
-            return status
+            status["message"] = "Live provider probe failed"
+            return JSONResponse(content=status, status_code=503)
 
     # Analyze effective status
     if analysis_service.cb_open:
@@ -131,7 +147,7 @@ async def health_check_llm(probe: bool = False):
     else:
         status["status"] = "healthy"
         status["message"] = "Primary provider operational."
-        
+
     return status
 
 async def cleanup_jobs():

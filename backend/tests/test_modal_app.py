@@ -88,7 +88,7 @@ async def test_health_llm_probe_success():
 
 @pytest.mark.asyncio
 async def test_health_llm_probe_failure():
-    """Verifies GET /health/llm?probe=true handles live connectivity failures gracefully."""
+    """Verifies GET /health/llm?probe=true returns HTTP 503 with sanitized error on failure."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         mock_client = MagicMock()
@@ -96,12 +96,49 @@ async def test_health_llm_probe_failure():
 
         with patch("app.utils.llm_utils.get_genai_client", return_value=mock_client):
             response = await ac.get("/health/llm?probe=true")
-            assert response.status_code == 200
+            assert response.status_code == 503
             data = response.json()
             assert data["status"] == "unhealthy"
             assert data["probe"]["success"] is False
-            assert "Vertex AI unreachable" in data["probe"]["error"]
-            assert "Live Vertex AI probe failed" in data["message"]
+            # Sanitized fixed text — raw provider details must NOT leak to callers.
+            assert data["probe"]["error"] == "Live provider probe failed"
+            assert data["message"] == "Live provider probe failed"
+            assert "Vertex AI unreachable" not in data["probe"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_health_llm_probe_auth_rejected_when_secret_mismatch(monkeypatch):
+    """Verifies GET /health/llm?probe=true returns HTTP 401 when PROBE_SECRET is set and key is wrong."""
+    monkeypatch.setattr("app.main.settings.PROBE_SECRET", "correct-secret")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/health/llm?probe=true", headers={"X-Probe-Key": "wrong-secret"})
+        assert response.status_code == 401
+
+        # No header at all also rejected
+        response2 = await ac.get("/health/llm?probe=true")
+        assert response2.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_health_llm_probe_auth_accepted_with_correct_key(monkeypatch):
+    """Verifies GET /health/llm?probe=true is accepted when PROBE_SECRET matches X-Probe-Key."""
+    monkeypatch.setattr("app.main.settings.PROBE_SECRET", "correct-secret")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        mock_client = MagicMock()
+        mock_token_resp = MagicMock()
+        mock_token_resp.total_tokens = 4
+        mock_client.aio.models.count_tokens = AsyncMock(return_value=mock_token_resp)
+
+        with patch("app.utils.llm_utils.get_genai_client", return_value=mock_client):
+            response = await ac.get(
+                "/health/llm?probe=true",
+                headers={"X-Probe-Key": "correct-secret"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["probe"]["success"] is True
 
 
 def test_modal_fastapi_app_factory():
@@ -113,4 +150,3 @@ def test_modal_fastapi_app_factory():
         mock_bootstrap.assert_called_once()
         assert fastapi_inst is not None
         assert hasattr(fastapi_inst, "routes")
-

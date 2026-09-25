@@ -5,7 +5,6 @@ and ASGI application mount connecting to Google Cloud Platform Vertex AI.
 """
 
 import os
-import stat
 from pathlib import Path
 import modal
 
@@ -47,8 +46,12 @@ def _bootstrap_gcp_credentials(target_path: Path | None = None) -> str | None:
 
     dest_file = target_path or SA_CREDENTIALS_PATH
     dest_file.parent.mkdir(parents=True, exist_ok=True)
-    dest_file.write_text(sa_json.strip(), encoding="utf-8")
-    dest_file.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+
+    # Create the file atomically with 0600 permissions so there is no window
+    # in which broader permissions exist before chmod restricts them.
+    fd = os.open(str(dest_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(sa_json.strip())
 
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(dest_file)
     return str(dest_file)
