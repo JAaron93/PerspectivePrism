@@ -2,22 +2,22 @@
 
 ## Track 1: Modal Infrastructure & Cross-Cloud GCP Configuration (Backend)
 
-- [ ] **T1.1: Create Modal Deployment Entrypoint Script**
+- [x] **T1.1: Create Modal Deployment Entrypoint Script**
   - **Description**: Create `backend/modal_app.py` as the entrypoint for Modal Labs deployment. Import the FastAPI `app` from `app.main`. Implement a startup hook that parses the `GCP_SERVICE_ACCOUNT_JSON` Modal Secret, writes it to `/tmp/gcp_sa.json`, and exports `GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_sa.json` for GCP Vertex AI authentication.
   - **Dependencies**: None
   - **Traceability**: FR1, FR3, NFR3, US1
 
-- [ ] **T1.2: Define Modal Container Image with Rust Native Core Engine**
+- [x] **T1.2: Define Modal Container Image with Rust Native Core Engine**
   - **Description**: In `backend/modal_app.py`, define a `modal.Image.debian_slim(python_version="3.11")`. Add `apt_install` for `curl`, `build-essential`, `pkg-config`, and `gcc`. Install the Rust toolchain via `rustup`. Copy `backend/prism_sanitizer_rs` into `/root/prism_sanitizer_rs` and compile directly into the image environment via `PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs` (preserving system PATH directories). Install `backend/requirements.txt` (excluding the already installed editable crate) and copy `backend/app`.
   - **Dependencies**: T1.1
   - **Traceability**: FR2, US2
 
-- [ ] **T1.3: Configure Modal Secrets & Single-Container Asynchronous Polling Settings**
-  - **Description**: Decorate the ASGI function with `@app.function()` utilizing the built image and Modal Secret `perspective-prism-gcp-secrets` (injecting `GCP_SERVICE_ACCOUNT_JSON`, `GCP_PROJECT`, `GCP_LOCATION`, `GEMINI_TIER="paid"`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, `CHROME_EXTENSION_IDS` formatted as a JSON array string `["..."]`, and `BACKEND_CORS_ORIGINS`). Configure `concurrency_limit=1` to pin requests to a single container (preventing 404 polling mismatches), `allow_concurrent_inputs=10`, and `scaledown_window=120` (2 minutes keep-warm).
+- [x] **T1.3: Configure Modal Secrets & Single-Container Asynchronous Polling Settings**
+  - **Description**: Decorate the ASGI function with `@app.function()` utilizing the built image and Modal Secret `perspective-prism-gcp-secrets` (injecting `GCP_SERVICE_ACCOUNT_JSON`, `GCP_PROJECT`, `GCP_LOCATION`, `GEMINI_TIER="paid"`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, `CHROME_EXTENSION_IDS` formatted as a JSON array string `["..."]`, and `BACKEND_CORS_ORIGINS`). Configure `max_containers=1` to pin requests to a single container (preventing 404 polling mismatches), `@modal.concurrent(max_inputs=10)` (modal 1.x syntax replacing `allow_concurrent_inputs=10`), and `scaledown_window=120` (2 minutes keep-warm).
   - **Dependencies**: T1.1, T1.2
   - **Traceability**: FR1, FR3, FR4, FR8, NFR1
 
-- [ ] **T1.4: Cross-Cloud Live Health Probe Verification**
+- [x] **T1.4: Cross-Cloud Live Health Probe Verification**
   - **Description**: Implement active outbound verification in `/health/llm` (e.g. `GET /health/llm?probe=true` executing a minimal `client.aio.models.count_tokens` call) or a dedicated deployment test command. Confirm that the deployed Modal container successfully authenticates to GCP Vertex AI and receives a valid response from `gemini-3.8-flash` with `circuit_breaker_open=false`.
   - **Dependencies**: T1.3
   - **Traceability**: FR5
