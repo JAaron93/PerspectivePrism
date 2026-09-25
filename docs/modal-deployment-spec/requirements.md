@@ -12,17 +12,18 @@ Perspective Prism utilizes a cross-cloud architecture combining serverless compu
 - **FR1 - Modal ASGI App**: The system MUST define a `modal.App` in `backend/modal_app.py` exposing the FastAPI application from `app.main` via the `@modal.asgi_app()` decorator.
 - **FR2 - Container Image with Rust Native Core Engine**: The system MUST define a `modal.Image.debian_slim()` that:
   1. Installs essential Debian packages (`curl`, `build-essential`, `pkg-config`, `gcc`).
-  2. Installs the Rust toolchain via `rustup` (`cargo`, `rustc`) and exports it to `PATH`.
+  2. Installs the Rust toolchain via `rustup` (`cargo`, `rustc`).
   3. Copies the local `backend/prism_sanitizer_rs` source directory into `/root/prism_sanitizer_rs`.
-  4. Compiles and installs the native Rust extension directly into the container's Python environment via `pip install -e /root/prism_sanitizer_rs` (utilizing `maturin>=1.15,<2.0`), providing a single consistent installation path without requiring a separate virtual environment.
+  4. Compiles and installs the native Rust extension directly into the container's Python environment via `PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs` (utilizing `maturin>=1.15,<2.0`), executing within the subshell so that `$PATH` expands dynamically and preserves standard Linux binary directories (`/usr/local/bin`, `/usr/bin`, `/bin`).
   5. Installs all remaining Python dependencies from `backend/requirements.txt` (excluding the already installed editable crate) and copies `backend/app`.
 - **FR3 - Cross-Cloud Secret Management (Option A)**: The deployment MUST inject GCP credentials, search keys, and extension configuration using Modal Secrets (`perspective-prism-gcp-secrets`):
   1. Store the GCP Service Account JSON key content as a Modal Secret string (`GCP_SERVICE_ACCOUNT_JSON`).
   2. Write this secret to `/tmp/gcp_sa.json` at container startup and export `GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_sa.json`.
   3. Inject `GCP_PROJECT` (or `GOOGLE_CLOUD_PROJECT`), `GCP_LOCATION="global"`, and `GEMINI_TIER="paid"`.
   4. Inject Google Custom Search credentials (`GOOGLE_API_KEY`, `GOOGLE_CSE_ID`).
-  5. Inject `CHROME_EXTENSION_IDS` (comma-separated string or JSON list) and `BACKEND_CORS_ORIGINS` to dynamically configure CORS origin validation.
-  6. Strictly prohibit legacy AI Studio keys (`GEMINI_API_KEY`, `LLM_API_KEY`) under ADR 003.
+  5. Inject `CHROME_EXTENSION_IDS` formatted strictly as a valid JSON array string (e.g. `'["amnjngnkcgooljnblcejpmkdhpikcdlp"]'`) to satisfy `pydantic-settings` native `list[str]` deserialization without triggering validation errors on app import.
+  6. Inject `BACKEND_CORS_ORIGINS` to configure allowed web origins.
+  7. Strictly prohibit legacy AI Studio keys (`GEMINI_API_KEY`, `LLM_API_KEY`) under ADR 003.
 - **FR4 - Serverless Asynchronous Polling Job Routing (Option A)**: The deployment MUST preserve background analysis jobs (`POST /analyze/jobs` -> `GET /analyze/jobs/{job_id}`) across polling intervals:
   1. Set `concurrency_limit=1` on the Modal ASGI function to strictly pin all incoming traffic to the single active container instance, preventing multi-container routing mismatches where status polls return 404 against a different container.
   2. Set `allow_concurrent_inputs=10` to process up to 10 concurrent requests within that single container.
@@ -57,6 +58,6 @@ Perspective Prism utilizes a cross-cloud architecture combining serverless compu
 ## User Stories
 
 - **US1 (Developer Deployment)**: As a developer, I want to run `modal deploy backend/modal_app.py` to package and deploy the backend to Modal Labs so that my serverless API connects seamlessly to GCP Vertex AI without manual infrastructure provisioning.
-- **US2 (Reproducible Rust Core Compilation)**: As a developer, I want the Modal container build to automatically compile `prism_sanitizer_rs` into the container environment via `pip install -e` and `maturin` so that the Rust Native Core Engine runs identically in production and local environments without venv errors.
+- **US2 (Reproducible Rust Core Compilation)**: As a developer, I want the Modal container build to automatically compile `prism_sanitizer_rs` into the container environment via subshell PATH expansion and `pip install -e` so that the Rust Native Core Engine runs identically in production and local environments without venv or PATH errors.
 - **US3 (User Exhaustion Guidance)**: As an end-user, if the hosted portfolio backend runs out of monthly credits, I want to be informed clearly in the Side Panel with instructions on how to self-host the backend, rather than encountering a broken interface.
 - **US4 (Flexible Client Configuration)**: As an end-user, I want to configure the deployed Modal endpoint URL in the extension options page so I can switch between local development and cloud-hosted backends seamlessly.

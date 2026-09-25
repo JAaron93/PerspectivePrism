@@ -71,7 +71,7 @@ GCP credentials, search keys, and extension origins are provisioned securely via
    * `GEMINI_TIER`: `"paid"`.
    * `GOOGLE_API_KEY`: Google Custom Search API key.
    * `GOOGLE_CSE_ID`: Custom Search Engine ID.
-   * `CHROME_EXTENSION_IDS`: Comma-separated list of allowed extension IDs (e.g. `amnjngnkcgooljnblcejpmkdhpikcdlp`). The backend parses this into `build_chrome_extension_regex` to dynamically permit the deployed extension.
+   * `CHROME_EXTENSION_IDS`: JSON array string of allowed extension IDs (e.g. `'["amnjngnkcgooljnblcejpmkdhpikcdlp"]'`), matching `pydantic-settings` native `list[str]` parsing. The backend parses this into `build_chrome_extension_regex` to dynamically permit the deployed extension.
    * `BACKEND_CORS_ORIGINS`: Comma-separated allowed web origins.
 2. **Container Startup Hook**: In `backend/modal_app.py`, a startup initialization hook reads `os.environ["GCP_SERVICE_ACCOUNT_JSON"]`, writes it to `/tmp/gcp_sa.json`, and sets `os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/gcp_sa.json"`.
 3. **No AI Studio Keys**: Legacy `GEMINI_API_KEY` is completely absent, ensuring 100% compliance with [ADR 003](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md).
@@ -89,7 +89,7 @@ The container image must build the PyO3 Rust extension (`prism_sanitizer_rs`) wi
 * **Python Build Tool**: `maturin>=1.15,<2.0`.
 
 ### 3.2 Modal Image Layering Strategy
-To avoid virtual environment errors associated with bare `maturin develop --release` commands, the image compiles and installs `prism_sanitizer_rs` directly into the container's environment via `pip install`:
+To avoid virtual environment errors associated with bare `maturin develop` commands, and to prevent literal `$PATH` truncation from `Image.env()`, the image compiles and installs `prism_sanitizer_rs` with dynamic subshell PATH expansion:
 
 ```python
 image = (
@@ -97,23 +97,25 @@ image = (
     .apt_install("curl", "build-essential", "pkg-config", "gcc")
     .run_commands(
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
-        "echo 'source $HOME/.cargo/env' >> /root/.bashrc",
     )
-    .env({"PATH": "/root/.cargo/bin:$PATH"})
-    .pip_install("maturin>=1.15,<2.0")
     .copy_local_dir("backend/prism_sanitizer_rs", "/root/prism_sanitizer_rs")
-    .run_commands("pip install -e /root/prism_sanitizer_rs")
+    .run_commands(
+        "PATH=\"/root/.cargo/bin:$PATH\" pip install -e /root/prism_sanitizer_rs",
+    )
     .copy_local_file("backend/requirements.txt", "/root/requirements.txt")
-    .run_commands("grep -v 'prism_sanitizer_rs' /root/requirements.txt > /root/requirements_clean.txt")
-    .pip_install_from_requirements("/root/requirements_clean.txt")
+    .run_commands(
+        "grep -v 'prism_sanitizer_rs' /root/requirements.txt > /root/requirements_clean.txt",
+        "pip install -r /root/requirements_clean.txt",
+    )
     .copy_local_dir("backend/app", "/root/app")
 )
 ```
 This layering ensures:
 1. Rust toolchain and crate compilation are cached across container builds.
-2. `pip install -e /root/prism_sanitizer_rs` utilizes `maturin` under the hood to compile the PyO3 extension directly into system Python without requiring an activated virtualenv.
-3. Filtering `requirements.txt` prevents duplicate or conflicting editable installations.
-4. Subsequent edits to `app/` do not invalidate the slow Rust compilation layer.
+2. `PATH="/root/.cargo/bin:$PATH"` is dynamically evaluated inside the shell for the `pip install` step, preserving all standard system directories (`/usr/local/bin`, `/usr/bin`, `/bin`) while exposing `cargo` and `rustc`.
+3. `pip install -e /root/prism_sanitizer_rs` invokes `maturin` to compile the PyO3 extension directly into container Python without requiring an activated virtualenv.
+4. Filtering `requirements.txt` prevents duplicate or conflicting editable installations.
+5. Subsequent edits to `app/` do not invalidate the slow Rust compilation layer.
 
 ---
 
@@ -181,7 +183,7 @@ The legacy in-page DOM overlay was completely excised (ADR 002). The exhaustion 
 
 | Architectural Invariant | Specification Compliance Mechanism |
 | :--- | :--- |
-| **ADR 001 / ADR 006 (Rust Native Core)** | Container image compiles `prism_sanitizer_rs` with `maturin` via `pip install -e`. Fast-path Aho-Corasick DFA and prompt nonces run in native code without virtualenv errors. |
+| **ADR 001 / ADR 006 (Rust Native Core)** | Container image compiles `prism_sanitizer_rs` with `maturin` via `pip install -e` in a subshell preserving system PATH. Fast-path Aho-Corasick DFA and prompt nonces run in native code without virtualenv or PATH errors. |
 | **ADR 002 / ADR 004 (Side Panel & Zero-Build)** | UI is 100% Native Side Panel (`sidepanel.html`). Client and side panel scripts use zero-build vanilla JS typed via ambient JSDoc. |
 | **ADR 003 (100% GCP Vertex AI Mode)** | Modal Secret injects GCP Service Account JSON key (`GOOGLE_APPLICATION_CREDENTIALS`). AI Studio keys (`GEMINI_API_KEY`) are permanently barred. |
 | **ADR 005 (Pre-Classifier & Alethiology)** | Pipeline includes sub-millisecond eligibility screening and 6-theory epistemic truth evaluation with dynamic delimiter nonces. |
