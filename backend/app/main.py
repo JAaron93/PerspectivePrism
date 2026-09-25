@@ -82,7 +82,7 @@ def health_check():
     return {"status": "healthy"}
 
 @app.get("/health/llm")
-async def health_check_llm():
+async def health_check_llm(probe: bool = False):
     """Checks the status of the configured LLM provider and circuit breaker."""
     status = {
         "primary_model": settings.LLM_MODEL,
@@ -94,7 +94,30 @@ async def health_check_llm():
             "failures_count": analysis_service.cb_failures,
         }
     }
-    
+
+    if probe:
+        try:
+            from app.utils.llm_utils import get_genai_client
+            client = get_genai_client(settings)
+            token_resp = await client.aio.models.count_tokens(
+                model=settings.LLM_MODEL,
+                contents="health check probe",
+            )
+            status["probe"] = {
+                "success": True,
+                "model": settings.LLM_MODEL,
+                "total_tokens": getattr(token_resp, "total_tokens", 1),
+            }
+        except Exception as exc:
+            logger.error("Live Vertex AI health probe failed: %s", exc)
+            status["probe"] = {
+                "success": False,
+                "error": str(exc),
+            }
+            status["status"] = "unhealthy"
+            status["message"] = f"Live Vertex AI probe failed: {exc}"
+            return status
+
     # Analyze effective status
     if analysis_service.cb_open:
         status["status"] = "degraded"
