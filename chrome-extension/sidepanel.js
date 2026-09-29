@@ -11,6 +11,7 @@ import DOMPurify from "./vendor/dompurify.js";
  */
 function sanitizeText(input) {
   if (typeof input !== "string") return input;
+  // @ts-ignore
   return DOMPurify.sanitize(input, {
     ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
     ALLOWED_ATTR: ["class", "title", "data-*"],
@@ -29,6 +30,7 @@ function sanitizeUrl(url) {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      // @ts-ignore
       return DOMPurify.sanitize(parsed.href, {
         ALLOWED_TAGS: [],
         ALLOWED_ATTR: [],
@@ -61,6 +63,7 @@ const stateLoading = document.getElementById("state-loading");
 const stateError = document.getElementById("state-error");
 const stateResults = document.getElementById("state-results");
 const stateIneligible = document.getElementById("state-ineligible");
+const stateQuotaExhausted = document.getElementById("state-quota-exhausted");
 
 const disclaimerTitle = document.getElementById("disclaimer-title");
 const disclaimerCategoryBadge = document.getElementById("disclaimer-category-badge");
@@ -76,6 +79,10 @@ const skeletonContainer = document.getElementById("skeleton-container");
 const errorTitle = document.getElementById("error-title");
 const errorMessage = document.getElementById("error-message");
 const retryBtn = document.getElementById("pp-retry-btn");
+
+const quotaExhaustedMessage = document.getElementById("quota-exhausted-message");
+const selfHostBtn = document.getElementById("pp-self-host-btn");
+const quotaOptionsBtn = document.getElementById("pp-quota-options-btn");
 
 const overallAssessmentBadge = document.getElementById("overall-assessment-badge");
 const analysisMetadata = document.getElementById("analysis-metadata");
@@ -154,6 +161,7 @@ function showState(stateName) {
   if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
   if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
   if (stateIneligible) stateIneligible.style.display = stateName === "ineligible" ? "flex" : "none";
+  if (stateQuotaExhausted) stateQuotaExhausted.style.display = stateName === "quota-exhausted" ? "flex" : "none";
 }
 
 /**
@@ -242,6 +250,11 @@ async function startAnalysis(videoId, options = {}) {
     } else if (response && response.isRetry) {
       // Intermediate retry: analysis is actively being retried in background; maintain loading UI
       loadingSubmessage.textContent = "Retrying analysis...";
+    } else if (response && (response.code === "QUOTA_EXHAUSTED" || response.isExhaustion)) {
+      showState("quota-exhausted");
+      if (quotaExhaustedMessage && response.error) {
+        quotaExhaustedMessage.textContent = response.error;
+      }
     } else {
       showState("error");
       if (errorMessage) {
@@ -250,9 +263,16 @@ async function startAnalysis(videoId, options = {}) {
     }
   } catch (err) {
     if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
-    showState("error");
-    if (errorMessage) {
-      errorMessage.textContent = err?.message || "Analysis request failed";
+    if (err && (err.code === "QUOTA_EXHAUSTED" || err.isExhaustion)) {
+      showState("quota-exhausted");
+      if (quotaExhaustedMessage && err.message) {
+        quotaExhaustedMessage.textContent = err.message;
+      }
+    } else {
+      showState("error");
+      if (errorMessage) {
+        errorMessage.textContent = err?.message || "Analysis request failed";
+      }
     }
   } finally {
     if (activeRequestId === requestId) {
@@ -856,8 +876,15 @@ function handleAnalysisState(state) {
         activeAnalysisStartTime = 0;
         activeAnalysisVideoId = null;
       }
-      showState("error");
-      errorMessage.textContent = state.errorMessage || "An error occurred during analysis.";
+      if (state.code === "QUOTA_EXHAUSTED" || state.isExhaustion) {
+        showState("quota-exhausted");
+        if (quotaExhaustedMessage && state.errorMessage) {
+          quotaExhaustedMessage.textContent = state.errorMessage;
+        }
+      } else {
+        showState("error");
+        errorMessage.textContent = state.errorMessage || "An error occurred during analysis.";
+      }
       break;
       
     case "cancelled": {
@@ -1014,6 +1041,27 @@ if (retryBtn) {
   });
 }
 
+// Quota Exhausted - Self-Hosting Guide CTA
+if (selfHostBtn) {
+  selfHostBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({
+        url: "https://github.com/JAaron93/PerspectivePrism#setup-installation",
+      });
+    }
+  });
+}
+
+// Quota Exhausted - Options button
+if (quotaOptionsBtn) {
+  quotaOptionsBtn.addEventListener("click", () => {
+    if (chrome.runtime && chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    }
+  });
+}
+
 // Monitor tab updates/activation to track YouTube video URL changes
 if (chrome.tabs && chrome.tabs.onUpdated) {
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -1040,6 +1088,7 @@ if (typeof document !== "undefined") {
 }
 
 export {
+  showState,
   sanitizeText,
   sanitizeUrl,
   renderResults,
