@@ -161,9 +161,7 @@ curl -s https://<workspace-name>--perspective-prism-backend-fastapi-app.modal.ru
 Expected output:
 ```json
 {
-  "status": "healthy",
-  "app_name": "Perspective Prism",
-  "version": "0.1.0"
+  "status": "healthy"
 }
 ```
 
@@ -176,12 +174,21 @@ curl -s -H "X-Probe-Key: <PROBE_SECRET>" \
 
 # Expected output:
 # {
-#   "status": "healthy",
-#   "model": "gemini-3.8-flash",
+#   "primary_model": "gemini-3.8-flash",
+#   "gemini_tier": "paid",
+#   "max_concurrency": 10,
+#   "circuit_breaker_open": false,
+#   "features": {
+#     "backup_configured": true,
+#     "failures_count": 0
+#   },
 #   "probe": {
 #     "success": true,
+#     "model": "gemini-3.8-flash",
 #     "total_tokens": 4
-#   }
+#   },
+#   "status": "healthy",
+#   "message": "Primary provider operational."
 # }
 ```
 
@@ -207,7 +214,7 @@ Because Perspective Prism operates within Modal Labs' free-tier allowance ($30/m
 * **Client Interception**: The Chrome extension (`client.js`) intercepts this response, assigns structured error code `QUOTA_EXHAUSTED`, and suppresses retries.
 * **Native Side Panel UI**: The Side Panel transitions to `#state-quota-exhausted`, presenting:
   1. A clear message explaining that free-tier server credits on Modal Labs have been reached.
-  2. A primary CTA button linking directly to the [Self-Hosting Guide](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/README.md#setup-installation) on GitHub.
+  2. A primary CTA button linking directly to the [Self-Hosting Guide](../README.md#setup-installation) on GitHub.
   3. A button to open Extension Settings (`options.html`) to connect to a local or custom backend.
 
 ---
