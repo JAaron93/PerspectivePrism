@@ -231,7 +231,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handleAsync = (handlerPromise) => {
     handlerPromise
       .then((response) => sendResponse(response))
-      .catch((error) => sendResponse({ success: false, error: error.message }));
+      .catch((error) =>
+        sendResponse({
+          success: false,
+          error: error.message,
+          code: error.code,
+          isExhaustion: Boolean(error.isExhaustion),
+        })
+      );
     return true; // Keep channel open
   };
 
@@ -404,6 +411,8 @@ async function handleAnalysisRequest(message) {
           errorMessage: result.error || "Analysis failed",
           errorDetails: "",
           requestId: requestId,
+          code: result.code,
+          isExhaustion: Boolean(result.isExhaustion),
         });
       } else {
         logger.info(`[Perspective Prism] Superseded error ignored for ${videoId} (active=${currentState.requestId}, old=${requestId})`);
@@ -430,9 +439,11 @@ async function handleAnalysisRequest(message) {
     if (!currentState || currentState.requestId === requestId) {
       await setAnalysisState(videoId, {
         status: "error",
-        errorMessage: "Analysis failed",
+        errorMessage: error.isExhaustion ? error.message : "Analysis failed",
         errorDetails: error.message,
         requestId: requestId,
+        code: error.code,
+        isExhaustion: Boolean(error.isExhaustion),
       });
     } else {
       logger.info(`[Perspective Prism] Superseded exception error ignored for ${videoId} (active=${currentState.requestId}, old=${requestId})`);

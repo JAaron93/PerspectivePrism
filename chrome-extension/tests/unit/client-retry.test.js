@@ -51,6 +51,83 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       const error = new HttpError(500, "Internal Server Error");
       expect(client.shouldRetryError(error)).toBe(true);
     });
+
+    it("should retry on transient HTTP 429 status without credit exhaustion", () => {
+      const error = new HttpError(429, "Too Many Requests");
+      expect(client.shouldRetryError(error)).toBe(true);
+    });
+
+    it("should NOT retry when error code is QUOTA_EXHAUSTED", () => {
+      const error = new HttpError(402, "Payment Required");
+      error.code = "QUOTA_EXHAUSTED";
+      error.isExhaustion = true;
+      expect(client.shouldRetryError(error)).toBe(false);
+    });
+
+    it("should NOT retry when isExhaustion flag is true", () => {
+      const error = new Error("Out of credits");
+      // @ts-ignore
+      error.isExhaustion = true;
+      expect(client.shouldRetryError(error)).toBe(false);
+    });
+  });
+
+  describe("Quota Exhaustion Interception (T2.1 / FR6)", () => {
+    it("should throw HttpError with QUOTA_EXHAUSTED on HTTP 402", async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        statusText: "Payment Required",
+        text: () => Promise.resolve("Payment required: account credits depleted"),
+      });
+
+      try {
+        await client.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
+        expect.unreachable("Should have thrown HttpError");
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpError);
+        expect(err.status).toBe(402);
+        expect(err.code).toBe("QUOTA_EXHAUSTED");
+        expect(err.isExhaustion).toBe(true);
+      }
+    });
+
+    it("should throw HttpError with QUOTA_EXHAUSTED on *.modal.run 429 with out of credits", async () => {
+      const modalClient = new PerspectivePrismClient("https://workspace--app.modal.run");
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: () => Promise.resolve("Modal error: out of credits"),
+      });
+
+      try {
+        await modalClient.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
+        expect.unreachable("Should have thrown HttpError");
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpError);
+        expect(err.code).toBe("QUOTA_EXHAUSTED");
+        expect(err.isExhaustion).toBe(true);
+      }
+    });
+
+    it("should NOT throw QUOTA_EXHAUSTED on generic non-modal 429", async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: () => Promise.resolve("Rate limit exceeded"),
+      });
+
+      try {
+        await client.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
+        expect.unreachable("Should have thrown HttpError");
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpError);
+        expect(err.code).toBeUndefined();
+        expect(err.isExhaustion).toBeFalsy();
+      }
+    });
   });
 
   describe("executeAnalysisRequest()", () => {
