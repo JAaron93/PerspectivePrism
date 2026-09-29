@@ -73,7 +73,8 @@ describe("PerspectivePrismClient - Retry Logic", () => {
   });
 
   describe("Quota Exhaustion Interception (T2.1 / FR6)", () => {
-    it("should throw HttpError with QUOTA_EXHAUSTED on HTTP 402", async () => {
+    it("should throw HttpError with QUOTA_EXHAUSTED on HTTP 402 for modal host", async () => {
+      const modalClient = new PerspectivePrismClient("https://workspace--app.modal.run");
       global.fetch.mockResolvedValueOnce({
         ok: false,
         status: 402,
@@ -82,7 +83,7 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       });
 
       try {
-        await client.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
+        await modalClient.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
         expect.unreachable("Should have thrown HttpError");
       } catch (err) {
         expect(err).toBeInstanceOf(HttpError);
@@ -92,13 +93,32 @@ describe("PerspectivePrismClient - Retry Logic", () => {
       }
     });
 
-    it("should throw HttpError with QUOTA_EXHAUSTED on *.modal.run 429 with out of credits", async () => {
+    it("should NOT throw QUOTA_EXHAUSTED on HTTP 402 for self-hosted / non-modal host", async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        statusText: "Payment Required",
+        text: () => Promise.resolve("Subscription payment required"),
+      });
+
+      try {
+        await client.createAnalysisJob("https://www.youtube.com/watch?v=12345678901");
+        expect.unreachable("Should have thrown HttpError");
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpError);
+        expect(err.status).toBe(402);
+        expect(err.code).toBeUndefined();
+        expect(err.isExhaustion).toBe(false);
+      }
+    });
+
+    it("should throw HttpError with QUOTA_EXHAUSTED on *.modal.run 429 with case-insensitive credits message", async () => {
       const modalClient = new PerspectivePrismClient("https://workspace--app.modal.run");
       global.fetch.mockResolvedValueOnce({
         ok: false,
         status: 429,
         statusText: "Too Many Requests",
-        text: () => Promise.resolve("Modal error: out of credits"),
+        text: () => Promise.resolve("Modal error: Out of compute credits"),
       });
 
       try {

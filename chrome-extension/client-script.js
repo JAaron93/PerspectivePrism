@@ -130,6 +130,8 @@
         return {
           success: false,
           error: error.message || "Analysis failed",
+          code: error.code,
+          isExhaustion: Boolean(error.isExhaustion),
         };
       }
     }
@@ -143,11 +145,12 @@
       }
 
       const isModalHost = Boolean(this.baseUrl && this.baseUrl.includes(".modal.run"));
+      const lowerText = responseText.toLowerCase();
       const isExhaustion =
-        response.status === 402 ||
-        (isModalHost &&
-          response.status === 429 &&
-          (responseText.includes("out of credits") || responseText.includes("out of compute credits")));
+        isModalHost &&
+        (response.status === 402 ||
+          (response.status === 429 &&
+            (lowerText.includes("out of credits") || lowerText.includes("out of compute credits"))));
 
       const error = new HttpError(response.status, response.statusText);
       if (isExhaustion) {
