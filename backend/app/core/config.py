@@ -67,6 +67,11 @@ class Settings(BaseSettings):
         "amnjngnkcgooljnblcejpmkdhpikcdlp",  # Default local dev ID
     ]
 
+    # Health probe authentication.
+    # When non-empty, GET /health/llm?probe=true requires a matching
+    # X-Probe-Key header so that open internet callers cannot burn Vertex AI quota.
+    PROBE_SECRET: str = ""
+
     # Deception Analysis Thresholds (valid range: 0.0 to 10.0)
     DECEPTION_THRESHOLD_HIGH: float = 7.0
     DECEPTION_THRESHOLD_MODERATE: float = 5.0
