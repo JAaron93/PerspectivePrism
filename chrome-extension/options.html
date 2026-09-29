@@ -37,7 +37,7 @@
             type="url"
             id="backend-url"
             name="backend-url"
-            placeholder="https://api.example.com"
+            placeholder="https://workspace--perspective-prism-backend-fastapi-app.modal.run"
             aria-describedby="backend-url-error backend-url-help"
             required
           />
@@ -49,6 +49,9 @@
           >
             Test Connection
           </button>
+        </div>
+        <div id="backend-url-help" class="label-description" style="margin-top: 6px;">
+          Connect to your local server (e.g., <code>http://localhost:8000</code>) or a deployed Modal Labs HTTPS endpoint (e.g., <code>https://workspace--perspective-prism-backend-fastapi-app.modal.run</code>).
         </div>
         <div id="backend-url-error" class="error-message" role="alert"></div>
         <div
