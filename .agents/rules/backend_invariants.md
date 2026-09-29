@@ -176,3 +176,58 @@ This document defines the implementation guidelines, security invariants, testin
     4. **News & Politics**: `politic`, `news`, `commentary`, `legislation`, `policy`, `congress`, `investigat` $\to$ `"News & Politics"`.
     5. **Science, Technology & Documentaries**: `science`, `tech`, `semiconductor`, `lithography`, `hardware`, `software`, `engineering`, `documentary`, `essay` $\to$ `"Science & Technology"`.
     6. **Education, Lectures & Academic Tutorials**: `education`, `lecture`, `tutorial`, `academic`, `course` $\to$ `"Education & Science"`.
+
+---
+
+## 7. Modal App & Health Probe Invariants
+
+* **Modal SDK `_is_web_endpoint` Callable Guard**:
+  - In `test_modal_app.py`, never assert `modal_app.fastapi_app._is_web_endpoint is True` directly. In current Modal SDK versions (`>=1.5`), `_is_web_endpoint` is a **bound method**, not a boolean attribute — bare `is True` comparisons always fail. Use a callable guard for forward-compatibility across SDK versions:
+    ```python
+    assert (
+        modal_app.fastapi_app._is_web_endpoint()
+        if callable(modal_app.fastapi_app._is_web_endpoint)
+        else modal_app.fastapi_app._is_web_endpoint is True
+    )
+    ```
+* **Modal App Structural Assertion Checklist**:
+  - `test_modal_app_configuration` MUST assert all of the following:
+    1. `modal_app.app.name == "perspective-prism-backend"` — app name invariant.
+    2. `isinstance(modal_app.image, modal.Image)` — image is a `modal.Image` instance.
+    3. `isinstance(modal_app.fastapi_app, modal.Function)` — fastapi_app is a `modal.Function`.
+    4. Web endpoint designation — using the callable guard above.
+    5. `modal_app.SA_CREDENTIALS_PATH == Path("/tmp/gcp_sa.json")` — credentials path invariant.
+  - Do NOT assert deprecated attributes (`Function.info`, `App.registered_functions`, `Function.spec`) — these are removed in `modal >= 1.6.0`.
+* **Probe Endpoint Authentication (`PROBE_SECRET`)**:
+  - `GET /health/llm?probe=true` MUST require a secret token header `X-Probe-Key: <PROBE_SECRET>`.
+  - If `PROBE_SECRET` is configured and the header is missing or incorrect, the endpoint MUST return HTTP 401 (Unauthorized) without executing the live Vertex AI probe.
+  - `PROBE_SECRET` MUST be documented in `backend/.env.example` with an explanatory comment.
+  - Test coverage MUST include: (a) valid key returns 200/healthy, (b) missing key returns 401, (c) wrong key returns 401.
+* **Probe Failure Must Return HTTP 503**:
+  - When `GET /health/llm?probe=true` runs a live Vertex AI token probe and the probe fails (exception thrown), the endpoint MUST return HTTP 503 (Service Unavailable), not HTTP 200.
+  - The error message embedded in the 503 response body MUST be a sanitized fixed-text string (e.g., `"LLM probe failed"`) — never the raw exception message, stack trace, or internal service details.
+  - Use `JSONResponse(status_code=503, content={...})` explicitly rather than returning a plain dict.
+* **Atomic GCP SA Credential File Creation**:
+  - In `_bootstrap_gcp_credentials()` (and any function writing sensitive credential files), NEVER use `path.write_text()` followed by `path.chmod(0o600)`. This creates a brief window with overly broad permissions.
+  - Always use `os.open()` with `os.O_CREAT | os.O_WRONLY | os.O_TRUNC` and mode `0o600` from the start, then `os.write()` and `os.close()`:
+    ```python
+    import os
+    fd = os.open(str(sa_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, sa_json.encode())
+    finally:
+        os.close(fd)
+    ```
+  - This ensures the file is created with restricted permissions atomically, with no window of exposure.
+
+
+---
+
+## 8. Deployment Documentation Accuracy
+
+* **Verify Route Response Shapes Before Writing Docs**:
+  - Before writing or updating health check response examples in deployment guides (`docs/modal_deployment_guide.md`, `README.md`), always inspect the actual route handler in `backend/app/main.py` to confirm the exact JSON response shape. Do NOT guess or extrapolate fields.
+  - **`GET /health`**: Returns ONLY `{"status": "healthy"}`. Do NOT document non-existent `app_name` or `version` fields.
+  - **`GET /health/llm?probe=true`** (on success): Returns `primary_model`, `gemini_tier`, `max_concurrency`, `circuit_breaker_open`, `features` (dict with `backup_configured`, `failures_count`), `probe` (dict with `success`, `model`, `total_tokens`), `status`, and `message`. Do NOT simplify to a subset of these keys.
+* **No `file:///` Absolute Paths in Committed Docs**:
+  - All committed markdown (deployment guides, READMEs, walkthroughs) MUST use portable repository-relative links (`../README.md#setup-installation`), never machine-local absolute paths (`file:///Users/...`). Violations cause Greptile review failures and break cross-platform link resolution.
