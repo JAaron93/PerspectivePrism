@@ -21,6 +21,9 @@
       this.name = "HttpError";
       this.status = status;
       this.statusText = statusText;
+      this.code = undefined;
+      this.isExhaustion = false;
+      this.details = undefined;
     }
   }
 
@@ -127,8 +130,35 @@
         return {
           success: false,
           error: error.message || "Analysis failed",
+          code: error.code,
+          isExhaustion: Boolean(error.isExhaustion),
         };
       }
+    }
+
+    async handleFetchError(response) {
+      let responseText = "";
+      try {
+        responseText = await response.text();
+      } catch (_e) {
+        // Ignore text read failure
+      }
+
+      const isModalHost = Boolean(this.baseUrl && this.baseUrl.includes(".modal.run"));
+      const lowerText = responseText.toLowerCase();
+      const isExhaustion =
+        isModalHost &&
+        (response.status === 402 ||
+          (response.status === 429 &&
+            (lowerText.includes("out of credits") || lowerText.includes("out of compute credits"))));
+
+      const error = new HttpError(response.status, response.statusText);
+      if (isExhaustion) {
+        error.code = "QUOTA_EXHAUSTED";
+        error.isExhaustion = true;
+        error.details = responseText;
+      }
+      return error;
     }
 
     async createAnalysisJob(videoUrl, options = {}) {
@@ -151,7 +181,7 @@
       });
 
       if (!response.ok) {
-        throw new HttpError(response.status, response.statusText);
+        throw await this.handleFetchError(response);
       }
 
       const jobData = await response.json();
@@ -192,7 +222,7 @@
         });
 
         if (!response.ok) {
-          throw new HttpError(response.status, response.statusText);
+          throw await this.handleFetchError(response);
         }
 
         const job = await response.json();

@@ -25,6 +25,13 @@ describe("Side Panel UI & Message Handling", () => {
         <div id="error-message">Error message</div>
         <button id="pp-retry-btn">Retry</button>
       </div>
+      <div id="state-quota-exhausted" style="display: none;">
+        <span class="logo-icon disclaimer-icon">💳</span>
+        <h2 id="quota-exhausted-title">Server Quota Exhausted</h2>
+        <p id="quota-exhausted-message">Perspective Prism has reached its monthly free-tier server limit on Modal Labs. You can continue analyzing videos by easily self-hosting the backend on your own machine.</p>
+        <a id="pp-self-host-btn" href="https://github.com/JAaron93/PerspectivePrism#setup-installation">View Self-Hosting Guide on GitHub</a>
+        <button id="pp-quota-options-btn">Open Extension Settings</button>
+      </div>
       <div id="state-results" style="display: none;">
         <span id="overall-assessment-badge">Likely True</span>
         <div id="analysis-metadata">Metadata</div>
@@ -412,4 +419,98 @@ describe("Side Panel UI & Message Handling", () => {
       expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" })
     );
   });
+
+  describe("Quota Exhaustion State UI (T2.2 / FR7)", () => {
+    it("should display #state-quota-exhausted and hide other states on showState('quota-exhausted')", async () => {
+      sidepanelModule = await import("../../sidepanel.js");
+      await vi.waitFor(() => {
+        expect(chrome.tabs.query).toHaveBeenCalled();
+      });
+
+      sidepanelModule.showState("quota-exhausted");
+
+      expect(document.getElementById("state-quota-exhausted").style.display).toBe("flex");
+      expect(document.getElementById("state-idle").style.display).toBe("none");
+      expect(document.getElementById("state-loading").style.display).toBe("none");
+      expect(document.getElementById("state-error").style.display).toBe("none");
+      expect(document.getElementById("state-results").style.display).toBe("none");
+    });
+
+    it("should transition to #state-quota-exhausted when analysis fails with QUOTA_EXHAUSTED", async () => {
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "ANALYZE_VIDEO") {
+          return Promise.resolve({
+            success: false,
+            error: "Perspective Prism has reached its monthly free-tier server limit on Modal Labs.",
+            code: "QUOTA_EXHAUSTED",
+            isExhaustion: true,
+          });
+        }
+        return Promise.resolve({ success: true, state: { status: "idle" } });
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+      await vi.waitFor(() => {
+        expect(chrome.tabs.query).toHaveBeenCalled();
+      });
+
+      await sidepanelModule.startAnalysis("abcdefghijk");
+
+      expect(document.getElementById("state-quota-exhausted").style.display).toBe("flex");
+      expect(document.getElementById("state-error").style.display).toBe("none");
+      expect(document.getElementById("quota-exhausted-message").textContent).toContain("monthly free-tier server limit");
+    });
+
+    it("should transition to #state-quota-exhausted when receiving background error state with QUOTA_EXHAUSTED", async () => {
+      let messageListener;
+      chrome.runtime.onMessage.addListener.mockImplementation((listener) => {
+        messageListener = listener;
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+      await vi.waitFor(() => {
+        expect(messageListener).toBeDefined();
+      });
+
+      messageListener(
+        {
+          type: "ANALYSIS_STATE_CHANGED",
+          videoId: "abcdefghijk",
+          state: {
+            status: "error",
+            code: "QUOTA_EXHAUSTED",
+            isExhaustion: true,
+            errorMessage: "Perspective Prism has reached its monthly free-tier server limit on Modal Labs.",
+          },
+        },
+        {},
+        () => {}
+      );
+
+      expect(document.getElementById("state-quota-exhausted").style.display).toBe("flex");
+      expect(document.getElementById("state-error").style.display).toBe("none");
+    });
+
+    it("should trigger self-hosting guide link and options page button", async () => {
+      chrome.tabs.create = vi.fn();
+      chrome.runtime.openOptionsPage = vi.fn();
+
+      sidepanelModule = await import("../../sidepanel.js");
+      await vi.waitFor(() => {
+        expect(chrome.tabs.query).toHaveBeenCalled();
+      });
+
+      const selfHostBtn = document.getElementById("pp-self-host-btn");
+      const quotaOptionsBtn = document.getElementById("pp-quota-options-btn");
+
+      selfHostBtn.click();
+      expect(chrome.tabs.create).toHaveBeenCalledWith({
+        url: "https://github.com/JAaron93/PerspectivePrism#setup-installation",
+      });
+
+      quotaOptionsBtn.click();
+      expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
+    });
+  });
 });
+

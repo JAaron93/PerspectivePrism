@@ -359,6 +359,8 @@ class PerspectivePrismClient {
           success: false,
           error: userMessage,
           originalError: error.message,
+          code: error.code,
+          isExhaustion: Boolean(error.isExhaustion),
         };
         this.notifyCompletion(videoId, errorResult);
         return errorResult;
@@ -434,6 +436,37 @@ class PerspectivePrismClient {
   }
 
   /**
+   * Helper to inspect error responses and differentiate Modal quota exhaustion
+   * (HTTP 402 or *.modal.run 429 out of credits) from transient network errors.
+   * @param {Response} response - Fetch response object
+   * @returns {Promise<HttpError>}
+   */
+  async handleFetchError(response) {
+    let responseText = "";
+    try {
+      responseText = await response.text();
+    } catch (_e) {
+      // Ignore text read failure
+    }
+
+    const isModalHost = Boolean(this.baseUrl && this.baseUrl.includes(".modal.run"));
+    const lowerText = responseText.toLowerCase();
+    const isExhaustion =
+      isModalHost &&
+      (response.status === 402 ||
+        (response.status === 429 &&
+          (lowerText.includes("out of credits") || lowerText.includes("out of compute credits"))));
+
+    const error = new HttpError(response.status, response.statusText);
+    if (isExhaustion) {
+      error.code = "QUOTA_EXHAUSTED";
+      error.isExhaustion = true;
+      error.details = responseText;
+    }
+    return error;
+  }
+
+  /**
    * Create an analysis job on the backend.
    * @param {string} videoUrl - Full YouTube video URL.
    * @param {Object} [options] - Options including forceOverride, metadata, and signal.
@@ -459,7 +492,7 @@ class PerspectivePrismClient {
     });
 
     if (!response.ok) {
-      throw new HttpError(response.status, response.statusText);
+      throw await this.handleFetchError(response);
     }
 
     const jobData = await response.json();
@@ -562,8 +595,8 @@ class PerspectivePrismClient {
         });
 
         if (!response.ok) {
-          // If 404, maybe job lost? Treat as error.
-          throw new HttpError(response.status, response.statusText);
+          // Check for quota exhaustion or propagate HTTP error
+          throw await this.handleFetchError(response);
         }
 
         const statusData = await response.json();
@@ -608,6 +641,11 @@ class PerspectivePrismClient {
   }
 
   shouldRetryError(error) {
+    // Never retry on quota exhaustion
+    if (error && (error.code === "QUOTA_EXHAUSTED" || error.isExhaustion)) {
+      return false;
+    }
+
     // Don't retry validation errors or cancellations
     if (
       error instanceof ValidationError ||
@@ -638,6 +676,9 @@ class PerspectivePrismClient {
   }
 
   formatUserError(error) {
+    if (error && (error.code === "QUOTA_EXHAUSTED" || error.isExhaustion)) {
+      return "Perspective Prism has reached its monthly free-tier server limit on Modal Labs. You can continue analyzing videos by easily self-hosting the backend on your own machine.";
+    }
     if (error instanceof ValidationError) {
       return "The analysis data received was invalid. Please try again.";
     }
@@ -1837,6 +1878,9 @@ class HttpError extends Error {
     this.name = "HttpError";
     this.status = status;
     this.statusText = statusText;
+    this.code = undefined;
+    this.isExhaustion = false;
+    this.details = undefined;
   }
 }
 

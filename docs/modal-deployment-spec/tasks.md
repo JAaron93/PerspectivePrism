@@ -29,22 +29,22 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 2 can be developed and tested in parallel with Track 1 by mocking API error responses in Vitest.
 
-- [ ] **T2.1: Update Client Error Handling for Differentiated Status Codes**
+- [x] **T2.1: Update Client Error Handling for Differentiated Status Codes**
   - **Description**: Modify `chrome-extension/client.js` to inspect HTTP response status and host URL. Intercept HTTP 402 (Payment Required) or explicit `out of credits` payloads from `*.modal.run` hosts, throwing an `HttpError` with `code = "QUOTA_EXHAUSTED"` and `isExhaustion = true`. Treat HTTP 429, 502, and 503 as transient errors subjected to standard exponential backoff retries. Update `background.js` to propagate the structured exhaustion error across runtime messaging.
   - **Dependencies**: None
   - **Traceability**: FR6
 
-- [ ] **T2.2: Implement Graceful Exhaustion UI in Native Side Panel**
+- [x] **T2.2: Implement Graceful Exhaustion UI in Native Side Panel**
   - **Description**: In `chrome-extension/sidepanel.html`, add a dedicated `#state-quota-exhausted` container styled with standard CSS variables. In `chrome-extension/sidepanel.js`, handle `QUOTA_EXHAUSTED` in `showState("quota-exhausted")`. Display a user-friendly message explaining the monthly free-tier server limit, a primary CTA button linking to the GitHub self-hosting guide (`https://github.com/JAaron93/PerspectivePrism#setup-installation`), and a secondary button opening `options.html`.
   - **Dependencies**: T2.1
   - **Traceability**: FR7, US3
 
-- [ ] **T2.3: Verify Timeout Runway & Polling Resilience**
+- [x] **T2.3: Verify Timeout Runway & Polling Resilience**
   - **Description**: Verify that `TIMEOUT_MS = 120000` (120s) and 2-second polling intervals in `client.js` properly accommodate Modal container cold-starts (3–8s) alongside Gemini 3.8 Flash high-thinking reasoning loops (30–90s) without triggering premature aborts.
   - **Dependencies**: None
   - **Traceability**: NFR2
 
-- [ ] **T2.4: Configure Host Permissions & Options Page**
+- [x] **T2.4: Configure Host Permissions & Options Page**
   - **Description**: Update `chrome-extension/manifest.json` `host_permissions` to include `"https://*.modal.run/*"`. Ensure the settings page (`options.html` and `options.js`) allows users to test and save a deployed Modal HTTPS endpoint.
   - **Dependencies**: None
   - **Traceability**: FR8, US4

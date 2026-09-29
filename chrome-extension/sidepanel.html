@@ -61,6 +61,17 @@
       <button id="pp-retry-btn" class="btn btn-primary">Retry Analysis</button>
     </div>
 
+    <!-- Quota Exhausted State (Modal Labs Free Tier Cap) -->
+    <div id="state-quota-exhausted" class="state-container" style="display: none;">
+      <span class="logo-icon disclaimer-icon" style="font-size: 48px; color: var(--color-warning);">💳</span>
+      <h2 id="quota-exhausted-title" class="state-title">Server Quota Exhausted</h2>
+      <p id="quota-exhausted-message" class="state-description">Perspective Prism has reached its monthly free-tier server limit on Modal Labs. You can continue analyzing videos by easily self-hosting the backend on your own machine.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 16px;">
+        <a id="pp-self-host-btn" href="https://github.com/JAaron93/PerspectivePrism#setup-installation" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="text-align: center; text-decoration: none;">View Self-Hosting Guide on GitHub</a>
+        <button id="pp-quota-options-btn" class="btn">Open Extension Settings</button>
+      </div>
+    </div>
+
     <!-- Results State -->
     <div id="state-results" class="claims-list" style="display: none;">
       <div class="video-summary">
