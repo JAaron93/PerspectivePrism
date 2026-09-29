@@ -197,7 +197,8 @@ This document defines the implementation guidelines, security invariants, testin
     3. `isinstance(modal_app.fastapi_app, modal.Function)` — fastapi_app is a `modal.Function`.
     4. Web endpoint designation — using the callable guard above.
     5. `modal_app.SA_CREDENTIALS_PATH == Path("/tmp/gcp_sa.json")` — credentials path invariant.
-  - Do NOT assert deprecated attributes (`Function.info`, `App.registered_functions`, `Function.spec`) — these are removed in `modal >= 1.6.0`.
+    6. Attached secret binding — assert `"perspective-prism-gcp-secrets"` is in `[s.name for s in getattr(modal_app.fastapi_app, "_spec_", modal_app.fastapi_app).secrets]`.
+  - Do NOT assert deprecated attributes (`Function.info`, `App.registered_functions`, `Function.spec`) — access `_spec_` to avoid deprecation errors in `modal >= 1.5.0`.
 * **Probe Endpoint Authentication (`PROBE_SECRET`)**:
   - `GET /health/llm?probe=true` MUST require a secret token header `X-Probe-Key: <PROBE_SECRET>`.
   - If `PROBE_SECRET` is configured and the header is missing or incorrect, the endpoint MUST return HTTP 401 (Unauthorized) without executing the live Vertex AI probe.

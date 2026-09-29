@@ -59,6 +59,15 @@ def test_modal_app_configuration():
     )
     assert modal_app.SA_CREDENTIALS_PATH == Path("/tmp/gcp_sa.json")
 
+    # Verify attached Modal secret binding
+    spec = getattr(modal_app.fastapi_app, "_spec_", None)
+    if spec is None:
+        spec = getattr(modal_app.fastapi_app, "spec", None)
+    secrets = getattr(spec, "secrets", [])
+    secret_names = [getattr(s, "name", getattr(s, "_name", None)) for s in secrets]
+    assert "perspective-prism-gcp-secrets" in secret_names
+
+
 
 @pytest.mark.asyncio
 async def test_health_llm_probe_default_passive():
