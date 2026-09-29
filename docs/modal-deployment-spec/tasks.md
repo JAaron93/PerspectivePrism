@@ -53,17 +53,17 @@
 
 ## Track 3: Verification, Testing & Documentation
 
-- [ ] **T3.1: Unit Tests for Extension Quota Exhaustion & Side Panel State**
+- [x] **T3.1: Unit Tests for Extension Quota Exhaustion & Side Panel State**
   - **Description**: Add Vitest unit tests in `chrome-extension/tests/unit/client-retry.test.js` asserting that HTTP 402 triggers `QUOTA_EXHAUSTED`, while 429/502/503 trigger retries. Add unit tests in `chrome-extension/tests/unit/sidepanel.test.js` verifying UI transition into `#state-quota-exhausted` with the `#setup-installation` link.
   - **Dependencies**: T2.1, T2.2
   - **Traceability**: FR6, FR7
 
-- [ ] **T3.2: Backend Unit Tests for Modal App Specification**
+- [x] **T3.2: Backend Unit Tests for Modal App Specification**
   - **Description**: Add Pytest tests in `backend/tests/test_modal_app.py` verifying that `backend/modal_app.py` correctly defines the image, secret bindings, and ASGI mount without raising configuration or import errors.
   - **Dependencies**: T1.1, T1.2, T1.3
   - **Traceability**: FR1, FR2, FR3
 
-- [ ] **T3.3: Update Documentation & Deployment Guide**
+- [x] **T3.3: Update Documentation & Deployment Guide**
   - **Description**: Update `README.md` and create a deployment guide detailing:
     1. Modal CLI setup (`pip install modal` and `modal setup`).
     2. GCP Service Account creation (`roles/aiplatform.user`) and JSON key export.

@@ -172,11 +172,12 @@ Reports and traces are written to `backend/artifacts/eval_results/` and `backend
 
 ## ☁️ Deployment Strategy
 
-Perspective Prism's backend is designed to be deployed to **Modal Labs** using their serverless infrastructure. 
+Perspective Prism features a serverless backend deployed to **Modal Labs** with a cross-cloud connection to **GCP Vertex AI** and **Google Custom Search**:
 
-**Important Note on Capacity:** This project is primarily a **portfolio project**, not a commercial product. The backend relies on the $30/month free tier of compute credits provided by Modal Labs. Based on standard usage (1 claim analysis per user per day), this free tier can only handle around **~2,000 monthly users**. 
-
-Since there are no funds allocated to scale this extension further, the extension is planned to fail gracefully. In a future release, if the monthly compute credits run out, the Chrome extension will detect the server exhaustion and display a message directing users to self-host the backend locally. You can find instructions on how to run it yourself in the [Setup & Installation](#setup-installation) section below.
+* **Serverless Compute**: Defined in [`backend/modal_app.py`](backend/modal_app.py), the backend runs on a lightweight container image compiling the Rust PyO3 native core engine (`prism_sanitizer_rs`).
+* **Single-Container Asynchronous Polling**: Configured with `max_containers=1`, `scaledown_window=120`, and `@modal.concurrent(max_inputs=10)` to pin analysis job polling state and prevent multi-container 404 routing mismatches while bounding compute costs.
+* **Graceful Quota Degradation**: Since this is an open-source portfolio project operating on Modal's $30/month free-tier allowance, the Chrome Extension natively detects credit exhaustion (HTTP 402 or Modal 429 `"out of credits"`) and seamlessly transitions the Side Panel into `#state-quota-exhausted`, guiding users to self-host the backend locally.
+* **Full Deployment Guide**: Detailed step-by-step instructions for deploying to Modal Labs, setting up GCP Service Account credentials, configuring Modal Secrets, and setting up the Chrome Extension can be found in **[`docs/modal_deployment_guide.md`](docs/modal_deployment_guide.md)**.
 
 ## 🛠️ Tech Stack
 
@@ -206,7 +207,11 @@ Since there are no funds allocated to scale this extension further, the extensio
 <a id="setup-installation"></a>
 ## ⚙️ Setup & Installation
 
-### Backend
+You can run Perspective Prism in two modes:
+* **Cloud-Hosted (Modal Labs)**: Deploy to serverless compute using our step-by-step **[Modal Deployment Guide](docs/modal_deployment_guide.md)**.
+* **Local Self-Hosting**: Follow the instructions below to run the backend locally.
+
+### Backend Self-Hosting
 
 1. Navigate to the backend directory:
 
