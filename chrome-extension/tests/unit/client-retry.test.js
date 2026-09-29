@@ -8,6 +8,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { PerspectivePrismClient, HttpError } from "../../client.js";
 
 describe("PerspectivePrismClient - Retry Logic", () => {
@@ -49,6 +51,16 @@ describe("PerspectivePrismClient - Retry Logic", () => {
 
     it("should retry on 500 status", () => {
       const error = new HttpError(500, "Internal Server Error");
+      expect(client.shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry on 502 Bad Gateway status", () => {
+      const error = new HttpError(502, "Bad Gateway");
+      expect(client.shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry on 503 Service Unavailable status", () => {
+      const error = new HttpError(503, "Service Unavailable");
       expect(client.shouldRetryError(error)).toBe(true);
     });
 
@@ -204,6 +216,57 @@ describe("PerspectivePrismClient - Retry Logic", () => {
 
         // Should call cleanup
         expect(client.cleanupPersistedRequest).toHaveBeenCalledWith("vid123");
+    });
+  });
+
+  describe("Classic client-script.js Parity", () => {
+    let ScriptClient;
+
+    beforeEach(() => {
+      const scriptPath = resolve(__dirname, "../../client-script.js");
+      const code = readFileSync(scriptPath, "utf-8");
+      // eslint-disable-next-line no-new-func
+      new Function("window", code)(globalThis);
+      // @ts-ignore
+      ScriptClient = globalThis.PerspectivePrismClient;
+    });
+
+    it("should preserve code and isExhaustion in executeAnalysisRequest on quota exhaustion", async () => {
+      const scriptClient = new ScriptClient("https://workspace--app.modal.run");
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        statusText: "Payment Required",
+        text: () => Promise.resolve("Out of compute credits"),
+      });
+
+      const result = await scriptClient.executeAnalysisRequest(
+        "12345678901",
+        "https://www.youtube.com/watch?v=12345678901",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe("QUOTA_EXHAUSTED");
+      expect(result.isExhaustion).toBe(true);
+    });
+
+    it("should return standard error fields on non-exhaustion failure", async () => {
+      const scriptClient = new ScriptClient("https://api.example.com");
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        text: () => Promise.resolve("Server crashed"),
+      });
+
+      const result = await scriptClient.executeAnalysisRequest(
+        "12345678901",
+        "https://www.youtube.com/watch?v=12345678901",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBeUndefined();
+      expect(result.isExhaustion).toBe(false);
     });
   });
 });
