@@ -124,3 +124,22 @@ This document defines the implementation guidelines, security invariants, storag
   - State MUST only be transitioned to `cancelled` if `currentState.requestId === targetRequestId`.
 * **Post-Persistence Abort Cleanup**:
   - In `client.js` `executeAnalysisRequest()`, the controller signal MUST be checked both before and after `await this.persistRequestState()`. If aborted post-persistence, the client MUST call `await this.cleanupPersistedRequest(videoId)` to prevent stranded recovery state in storage.
+
+---
+
+## 6. Quota Exhaustion & Client Fallback Invariants
+
+* **`isModalHost` Gate for HTTP 402 Quota Detection**:
+  - In `client.js` and `client-script.js`, the quota exhaustion path (`code: "QUOTA_EXHAUSTED"`, `isExhaustion: true`) MUST only activate when BOTH conditions are true:
+    1. The HTTP response status is 402.
+    2. `isModalHost` is `true` (i.e., `backendUrl` matches `*.modal.run`).
+  - A non-Modal host returning 402 MUST be treated as a generic error, not a quota exhaustion event.
+  - Tests MUST assert that a non-modal 402 does NOT set `isExhaustion: true` or `code: "QUOTA_EXHAUSTED"`.
+* **Case-Insensitive Body Scanning for Exhaustion Signals**:
+  - All response body text checks for quota/credit exhaustion signals MUST normalize to lowercase first:
+    ```js
+    const bodyText = (await response.text()).toLowerCase();
+    const isExhausted = bodyText.includes("out of credits") || bodyText.includes("quota exceeded");
+    ```
+  - Never use bare `.includes("Out of credits")` (capital-O) or any case-sensitive variant. Modal's error message casing is not guaranteed stable across SDK versions.
+

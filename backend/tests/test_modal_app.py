@@ -45,11 +45,28 @@ def test_bootstrap_gcp_credentials_noop_when_missing(monkeypatch):
 
 
 def test_modal_app_configuration():
-    """Verifies modal.App name and ASGI function configuration parameters."""
+    """Verifies modal.App name, image, and ASGI function configuration parameters."""
+    import modal
     import modal_app
 
     assert modal_app.app.name == "perspective-prism-backend"
     assert hasattr(modal_app, "fastapi_app")
+    assert isinstance(modal_app.image, modal.Image)
+    assert (
+        modal_app.fastapi_app._is_web_endpoint()
+        if callable(modal_app.fastapi_app._is_web_endpoint)
+        else modal_app.fastapi_app._is_web_endpoint is True
+    )
+    assert modal_app.SA_CREDENTIALS_PATH == Path("/tmp/gcp_sa.json")
+
+    # Verify attached Modal secret binding
+    spec = getattr(modal_app.fastapi_app, "_spec_", None)
+    if spec is None:
+        spec = getattr(modal_app.fastapi_app, "spec", None)
+    secrets = getattr(spec, "secrets", [])
+    secret_names = [getattr(s, "name", getattr(s, "_name", None)) for s in secrets]
+    assert "perspective-prism-gcp-secrets" in secret_names
+
 
 
 @pytest.mark.asyncio

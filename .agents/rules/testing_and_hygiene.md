@@ -12,7 +12,22 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Domain-Relevant Test Fixtures**: **Never use pop music videos or dummy Rick Astley IDs (`dQw4w9WgXcQ`) for automated testing or browser QA**. Always use realistic journalism, news analysis, science reporting, or policy documentary video URLs/IDs (e.g. PBS NewsHour, BBC News, DW News, or Veritasium claims) so test data accurately reflects Perspective Prism's claim extraction domain.
 * **Network Mocking & Stubbing (MSW v2)**: Use **MSW (Mock Service Worker v2)** (`msw` package in `chrome-extension/`) for intercepting FastAPI backend requests (`/analyze/jobs`), simulating stream progress chunks, testing network errors (500/429), and verifying local cache hit/miss behavior without making live API calls.
 * **Linux CI/CD Virtual Display (`xvfb-run`)**: Chrome Extensions cannot initialize background Service Workers or Side Panel APIs in pure headless mode on Linux. In GitHub Actions, launch Playwright with `headless: false` wrapped in `xvfb-run npm run test:integration`.
-* **Vitest Script Evaluation**: To test `*-script.js` files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment using `new Function("window", code)(globalThis)` inside a `beforeAll` block.
+* **Vitest Script Evaluation**: To test `*-script.js` IIFE files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment. Required setup:
+  1. Import `readFileSync` from `"fs"` and `resolve` from `"path"` at the top of the test file.
+  2. Inside `beforeEach` (not `beforeAll`), read and execute the script:
+     ```js
+     import { readFileSync } from "fs";
+     import { resolve } from "path";
+
+     let ScriptClient;
+     beforeEach(() => {
+       const code = readFileSync(resolve(__dirname, "../../client-script.js"), "utf-8");
+       // eslint-disable-next-line no-new-func
+       new Function("window", code)(globalThis);
+       ScriptClient = globalThis.PerspectivePrismClient;
+     });
+     ```
+  Use `beforeEach` (not `beforeAll`) when individual tests mutate `fetch` mocks or need a clean module execution per test, since the IIFE re-runs on every `beforeEach` call and re-attaches fresh state to `globalThis`. Use `beforeAll` only when all tests in the describe block share an immutable snapshot of the module's initial state.
 * **Vitest Async Init Guards**: Any Vitest test suite executing a module with top-level asynchronous initialization (such as `sidepanel.js` calling `checkCurrentTabState()`) MUST wait for the initial outbound `chrome.runtime.sendMessage` payload inside a `vi.waitFor` block prior to dispatching synthetic listener messages.
 * **Prototype-Safe Global Object Mocking**:
   - When test fixtures augment global browser or Node runtime objects (`performance`, `crypto`, `console`, `location`), tests MUST use `Object.defineProperty(global.target, "property", ...)` or mutate properties directly (`global.target.property = ...`).
