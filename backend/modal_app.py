@@ -20,7 +20,12 @@ image = (
     .run_commands(
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
     )
-    .add_local_dir(str(BACKEND_DIR / "prism_sanitizer_rs"), "/root/prism_sanitizer_rs", copy=True)
+    .add_local_dir(
+        str(BACKEND_DIR / "prism_sanitizer_rs"),
+        "/root/prism_sanitizer_rs",
+        copy=True,
+        ignore=["target"],
+    )
     .run_commands(
         'PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs',
     )
@@ -29,7 +34,12 @@ image = (
         "grep -v 'prism_sanitizer_rs' /root/requirements.txt > /root/requirements_clean.txt",
         "pip install -r /root/requirements_clean.txt",
     )
-    .add_local_dir(str(BACKEND_DIR / "app"), "/root/app", copy=True)
+    .add_local_dir(
+        str(BACKEND_DIR / "app"),
+        "/root/app",
+        copy=True,
+        ignore=["**/__pycache__/*", "*.pyc"],
+    )
 )
 
 
