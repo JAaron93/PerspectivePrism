@@ -15,7 +15,7 @@ app = modal.App("perspective-prism-backend")
 
 # Container Image Definition (FR2, US2)
 image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "build-essential", "pkg-config", "gcc")
     .run_commands(
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
@@ -66,6 +66,11 @@ def _bootstrap_gcp_credentials(target_path: Path | None = None) -> str | None:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(dest_file)
     os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "true"
     os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+    if gcp_project := os.environ.get("GCP_PROJECT"):
+        os.environ["GOOGLE_CLOUD_PROJECT"] = gcp_project
+    if gcp_location := os.environ.get("GCP_LOCATION"):
+        os.environ["GOOGLE_CLOUD_LOCATION"] = gcp_location
+    os.environ.pop("GOOGLE_API_KEY", None)
     return str(dest_file)
 
 

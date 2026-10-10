@@ -250,6 +250,8 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
     os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
     os.environ["GCP_PROJECT"] = gcp_project
     os.environ["GCP_LOCATION"] = gcp_location
+    os.environ["GOOGLE_CLOUD_PROJECT"] = gcp_project
+    os.environ["GOOGLE_CLOUD_LOCATION"] = gcp_location
     os.environ["GEMINI_TIER"] = "paid"
     os.environ.pop("GEMINI_API_KEY", None)
     os.environ.pop("LLM_API_KEY", None)
