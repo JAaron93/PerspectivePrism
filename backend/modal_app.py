@@ -70,7 +70,11 @@ def _bootstrap_gcp_credentials(target_path: Path | None = None) -> str | None:
         os.environ["GOOGLE_CLOUD_PROJECT"] = gcp_project
     if gcp_location := os.environ.get("GCP_LOCATION"):
         os.environ["GOOGLE_CLOUD_LOCATION"] = gcp_location
-    os.environ.pop("GOOGLE_API_KEY", None)
+    # NOTE: Do NOT pop GOOGLE_API_KEY here. Settings() hasn't been constructed
+    # yet — EvidenceRetriever.__init__ reads settings.GOOGLE_API_KEY which
+    # pydantic-settings populates from os.environ at import time. The pop
+    # happens later in configure_provider_env() (config.py), after the value
+    # is safely captured, and before the google-genai Client is constructed.
     return str(dest_file)
 
 
