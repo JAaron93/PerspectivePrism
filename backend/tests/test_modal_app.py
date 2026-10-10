@@ -167,3 +167,62 @@ def test_modal_fastapi_app_factory():
         mock_bootstrap.assert_called_once()
         assert fastapi_inst is not None
         assert hasattr(fastapi_inst, "routes")
+
+
+def test_startup_google_api_key_ordering(monkeypatch):
+    """Pins the cold-start key-ordering contract for GOOGLE_API_KEY.
+
+    Regression guard for the auth isolation fix in configure_provider_env()
+    (config.py:258-262). Verifies three invariants in sequence:
+
+    1. Settings() captures GOOGLE_API_KEY into settings.GOOGLE_API_KEY while
+       the key is still present in os.environ (as pydantic-settings requires).
+    2. configure_provider_env() purges GOOGLE_API_KEY from os.environ so the
+       google-genai SDK cannot enter Express Mode using the Custom Search key.
+    3. The captured value on the Settings instance is unaffected by the pop —
+       EvidenceRetriever.api_key = settings.GOOGLE_API_KEY remains valid.
+
+    The test is fully isolated: it constructs a fresh Settings() from a
+    controlled environment dict and passes it explicitly to
+    configure_provider_env(), so neither the global `settings` singleton nor
+    other tests are affected.
+    """
+    from app.core.config import Settings, configure_provider_env
+
+    search_key = "test-custom-search-api-key-abc123"
+    base_env = {
+        "GCP_PROJECT": "test-prism-project",
+        "GOOGLE_CLOUD_PROJECT": "test-prism-project",
+        "GOOGLE_API_KEY": search_key,
+        "GOOGLE_CSE_ID": "test-cse-id",
+        "LLM_API_KEY": "dummy",
+        "GEMINI_TIER": "paid",
+    }
+
+    # Patch os.environ for the duration of Settings() construction only.
+    # monkeypatch restores the original environment after the test.
+    for key, value in base_env.items():
+        monkeypatch.setenv(key, value)
+
+    # --- Invariant 1: Settings() captures the key while it is in os.environ ---
+    fresh_settings = Settings()
+    assert fresh_settings.GOOGLE_API_KEY == search_key, (
+        "Settings() must capture GOOGLE_API_KEY from os.environ at construction time. "
+        "If this fails, pydantic-settings did not read the env var before it was popped."
+    )
+
+    # --- Invariant 2: configure_provider_env() removes GOOGLE_API_KEY from os.environ ---
+    configure_provider_env(active_settings=fresh_settings)
+    assert os.environ.get("GOOGLE_API_KEY") is None, (
+        "configure_provider_env() must pop GOOGLE_API_KEY from os.environ so the "
+        "google-genai SDK cannot use it for Express Mode authentication against "
+        "aiplatform.googleapis.com (which rejects Custom Search keys with "
+        "API_KEY_SERVICE_BLOCKED / PERMISSION_DENIED)."
+    )
+
+    # --- Invariant 3: The captured Settings field is unaffected by the environ pop ---
+    assert fresh_settings.GOOGLE_API_KEY == search_key, (
+        "The pop of os.environ['GOOGLE_API_KEY'] must not mutate the already-constructed "
+        "Settings instance. EvidenceRetriever.api_key = settings.GOOGLE_API_KEY must "
+        "remain valid after configure_provider_env() runs."
+    )

@@ -250,9 +250,16 @@ def configure_provider_env(active_settings=None) -> dict[str, str]:
     os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
     os.environ["GCP_PROJECT"] = gcp_project
     os.environ["GCP_LOCATION"] = gcp_location
+    os.environ["GOOGLE_CLOUD_PROJECT"] = gcp_project
+    os.environ["GOOGLE_CLOUD_LOCATION"] = gcp_location
     os.environ["GEMINI_TIER"] = "paid"
     os.environ.pop("GEMINI_API_KEY", None)
     os.environ.pop("LLM_API_KEY", None)
+    # Purge GOOGLE_API_KEY from os.environ so google-genai / Vertex AI SDK exclusively
+    # uses Application Default Credentials (ADC) rather than attempting Express Mode
+    # with the Google Custom Search API key. The search key remains safely preserved
+    # in Settings.GOOGLE_API_KEY.
+    os.environ.pop("GOOGLE_API_KEY", None)
 
     return {
         "mode": "vertex",

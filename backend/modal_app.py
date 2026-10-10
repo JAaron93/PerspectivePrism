@@ -15,12 +15,17 @@ app = modal.App("perspective-prism-backend")
 
 # Container Image Definition (FR2, US2)
 image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "build-essential", "pkg-config", "gcc")
     .run_commands(
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
     )
-    .add_local_dir(str(BACKEND_DIR / "prism_sanitizer_rs"), "/root/prism_sanitizer_rs", copy=True)
+    .add_local_dir(
+        str(BACKEND_DIR / "prism_sanitizer_rs"),
+        "/root/prism_sanitizer_rs",
+        copy=True,
+        ignore=["target"],
+    )
     .run_commands(
         'PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs',
     )
@@ -29,7 +34,12 @@ image = (
         "grep -v 'prism_sanitizer_rs' /root/requirements.txt > /root/requirements_clean.txt",
         "pip install -r /root/requirements_clean.txt",
     )
-    .add_local_dir(str(BACKEND_DIR / "app"), "/root/app", copy=True)
+    .add_local_dir(
+        str(BACKEND_DIR / "app"),
+        "/root/app",
+        copy=True,
+        ignore=["**/__pycache__/*", "*.pyc"],
+    )
 )
 
 
@@ -54,6 +64,17 @@ def _bootstrap_gcp_credentials(target_path: Path | None = None) -> str | None:
         fh.write(sa_json.strip())
 
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(dest_file)
+    os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "true"
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+    if gcp_project := os.environ.get("GCP_PROJECT"):
+        os.environ["GOOGLE_CLOUD_PROJECT"] = gcp_project
+    if gcp_location := os.environ.get("GCP_LOCATION"):
+        os.environ["GOOGLE_CLOUD_LOCATION"] = gcp_location
+    # NOTE: Do NOT pop GOOGLE_API_KEY here. Settings() hasn't been constructed
+    # yet — EvidenceRetriever.__init__ reads settings.GOOGLE_API_KEY which
+    # pydantic-settings populates from os.environ at import time. The pop
+    # happens later in configure_provider_env() (config.py), after the value
+    # is safely captured, and before the google-genai Client is constructed.
     return str(dest_file)
 
 
