@@ -64,6 +64,8 @@ def _bootstrap_gcp_credentials(target_path: Path | None = None) -> str | None:
         fh.write(sa_json.strip())
 
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(dest_file)
+    os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "true"
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
     return str(dest_file)
 
 
