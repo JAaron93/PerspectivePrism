@@ -3,6 +3,8 @@ import logging
 import unicodedata
 from typing import Any, List
 
+import httpx
+
 from app.core.config import configure_provider_env, settings
 from app.models.schemas import Claim, Transcript, TranscriptSegment, ClaimsOutput
 from app.utils.input_sanitizer import (
@@ -29,6 +31,9 @@ __all__ = [
     "settings",
     "TranscriptUnavailableError",
     "TranscriptRetrievalError",
+    "SupadataQuotaExhaustedError",
+    "SupadataKeyRequiredError",
+    "SupadataKeyInvalidError",
 ]
 
 try:
@@ -48,6 +53,19 @@ class TranscriptUnavailableError(Exception):
 class TranscriptRetrievalError(Exception):
     """Raised when transcript retrieval fails due to transient network, API, or rate-limit errors."""
     pass
+
+
+class SupadataQuotaExhaustedError(TranscriptRetrievalError):
+    code = "SUPADATA_QUOTA_EXHAUSTED"
+
+
+class SupadataKeyRequiredError(TranscriptRetrievalError):
+    code = "SUPADATA_KEY_REQUIRED"
+
+
+class SupadataKeyInvalidError(TranscriptRetrievalError):
+    code = "SUPADATA_KEY_INVALID"
+
 
 
 class ClaimExtractor:
@@ -90,39 +108,122 @@ class ClaimExtractor:
         """
         return extract_video_id(url)
 
-    async def get_transcript(self, video_id: str) -> Transcript:
-        """
-        Fetches the transcript for a given video ID asynchronously without blocking the event loop.
-        """
-        try:
-            api = YouTubeTranscriptApi()
-            # Fetch transcript offloaded to worker thread
-            fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
+    def _parse_supadata_response(self, data: dict, video_id: str = "") -> Transcript:
+        """Parses the Supadata /v1/youtube/transcript JSON response into a Transcript schema.
 
-            # Convert to our schema
-            segments = []
-            for item in fetched_transcript:
-                try:
-                    # FetchedTranscriptSnippet objects have .text, .start, .duration attributes
-                    segments.append(
-                        TranscriptSegment(
-                            text=item.text if hasattr(item, 'text') else "",
-                            start=item.start if hasattr(item, 'start') else 0.0,
-                            duration=item.duration if hasattr(item, 'duration') else 0.0,
-                        )
-                    )
-                except (KeyError, TypeError) as e:
-                    logger.warning(f"Skipping malformed transcript segment: {e}")
+        Maps offset (ms) -> start (seconds) and duration (ms) -> duration (seconds).
+        """
+        if not isinstance(data, dict):
+            raise TranscriptRetrievalError("Malformed Supadata response: expected JSON object")
+        raw_content = data.get("content")
+        if not isinstance(raw_content, list):
+            raise TranscriptRetrievalError("Malformed Supadata response: expected content list")
+
+        segments: List[TranscriptSegment] = []
+        for item in raw_content:
+            if not isinstance(item, dict):
+                logger.warning("Skipping malformed Supadata segment item: %s", item)
+                continue
+            try:
+                text = str(item.get("text") or "").strip()
+                if not text:
                     continue
+                offset_val = item.get("offset", 0.0)
+                duration_val = item.get("duration", 0.0)
+                offset_ms = float(offset_val)
+                duration_ms = float(duration_val)
+                start_sec = max(0.0, offset_ms / 1000.0)
+                duration_sec = max(0.0, duration_ms / 1000.0)
+                segments.append(
+                    TranscriptSegment(
+                        text=text,
+                        start=start_sec,
+                        duration=duration_sec,
+                    )
+                )
+            except (ValueError, TypeError) as e:
+                logger.warning("Skipping malformed Supadata segment fields: %s", e)
+                continue
 
-            full_text = " ".join([s.text for s in segments])
-            return Transcript(video_id=video_id, segments=segments, full_text=full_text)
-        except (TranscriptsDisabled, NoTranscriptFound) as e:
-            logger.info(f"No transcripts available for video {video_id}: {e}")
-            raise TranscriptUnavailableError(f"Transcripts unavailable: {str(e)}") from e
-        except Exception as e:
-            logger.error(f"Failed to fetch transcript for {video_id}: {e}")
-            raise TranscriptRetrievalError(f"Failed to fetch transcript: {str(e)}") from e
+        full_text = " ".join([s.text for s in segments])
+        return Transcript(video_id=video_id, segments=segments, full_text=full_text)
+
+    async def get_transcript(self, video_id: str, supadata_key: str | None = None) -> Transcript:
+        request_key = supadata_key.strip() if isinstance(supadata_key, str) else ""
+        raw_key = request_key or getattr(self.settings, "SUPADATA_API_KEY", None)
+        effective_key = raw_key.strip() if isinstance(raw_key, str) and raw_key.strip() else None
+
+        if effective_key:
+            base_url = getattr(self.settings, "SUPADATA_BASE_URL", "https://api.supadata.ai/v1")
+            timeout_sec = float(getattr(self.settings, "SUPADATA_TIMEOUT", 20.0))
+            endpoint = f"{base_url.rstrip('/')}/youtube/transcript"
+            params = {"url": f"https://www.youtube.com/watch?v={video_id}"}
+            headers = {"x-api-key": effective_key}
+
+            try:
+                async with httpx.AsyncClient(timeout=timeout_sec) as client:
+                    response = await client.get(
+                        endpoint,
+                        params=params,
+                        headers=headers,
+                        timeout=timeout_sec,
+                    )
+            except httpx.TimeoutException as e:
+                logger.error("Supadata request timed out for video %s", video_id)
+                raise TranscriptRetrievalError("Supadata request timed out.") from e
+            except httpx.RequestError as e:
+                logger.error("Supadata request error for video %s: %s", video_id, e)
+                raise TranscriptRetrievalError(f"Supadata request failed: {e}") from e
+
+            if response.status_code == 402:
+                logger.warning("Supadata monthly transcript quota reached for video %s", video_id)
+                raise SupadataQuotaExhaustedError("Supadata monthly transcript quota reached.")
+            elif response.status_code in (401, 403):
+                logger.warning("Invalid Supadata API key for video %s", video_id)
+                raise SupadataKeyInvalidError("Invalid Supadata API key.")
+            elif response.status_code >= 400:
+                logger.error("Supadata returned HTTP %s for video %s", response.status_code, video_id)
+                raise TranscriptRetrievalError(f"Supadata returned HTTP {response.status_code}")
+
+            try:
+                payload = response.json()
+            except Exception as e:
+                raise TranscriptRetrievalError(f"Failed to decode Supadata JSON response: {e}") from e
+
+            return self._parse_supadata_response(payload, video_id=video_id)
+
+        # effective_key is absent
+        if bool(getattr(self.settings, "SUPADATA_FALLBACK_LOCAL", False)):
+            try:
+                api = YouTubeTranscriptApi()
+                # Fetch transcript offloaded to worker thread
+                fetched_transcript = await asyncio.to_thread(api.fetch, video_id)
+
+                # Convert to our schema
+                segments = []
+                for item in fetched_transcript:
+                    try:
+                        segments.append(
+                            TranscriptSegment(
+                                text=item.text if hasattr(item, 'text') else "",
+                                start=item.start if hasattr(item, 'start') else 0.0,
+                                duration=item.duration if hasattr(item, 'duration') else 0.0,
+                            )
+                        )
+                    except (KeyError, TypeError) as e:
+                        logger.warning(f"Skipping malformed transcript segment: {e}")
+                        continue
+
+                full_text = " ".join([s.text for s in segments])
+                return Transcript(video_id=video_id, segments=segments, full_text=full_text)
+            except (TranscriptsDisabled, NoTranscriptFound) as e:
+                logger.info(f"No transcripts available for video {video_id}: {e}")
+                raise TranscriptUnavailableError(f"Transcripts unavailable: {str(e)}") from e
+            except Exception as e:
+                logger.error(f"Failed to fetch transcript for {video_id}: {e}")
+                raise TranscriptRetrievalError(f"Failed to fetch transcript: {str(e)}") from e
+
+        raise SupadataKeyRequiredError("No Supadata API key provided and local fallback is disabled.")
 
     async def extract_claims(self, transcript: Transcript) -> List[Claim]:
         """

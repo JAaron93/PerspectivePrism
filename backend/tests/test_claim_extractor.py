@@ -338,4 +338,272 @@ async def test_long_escape_expanding_transcript_parity():
     assert "\n...[TRUNCATED]..." in captured_prompts[True]
 
 
+# ============================================================================
+# Track 1: Supadata Transcript Parsing & BYOK Fetch Tests
+# ============================================================================
+
+class TestSupadataTranscriptFetch:
+    """Unit tests for Supadata response parsing, BYOK fetch, fallback, and domain exceptions."""
+
+    @pytest.fixture
+    def mock_settings(self):
+        return MagicMock(
+            effective_gcp_project="test",
+            GCP_LOCATION="global",
+            GEMINI_TIER="paid",
+            LLM_MODEL="gemini-3.8-flash",
+            SUPADATA_BASE_URL="https://api.supadata.ai/v1",
+            SUPADATA_TIMEOUT=20.0,
+            SUPADATA_API_KEY="",
+            SUPADATA_FALLBACK_LOCAL=False,
+        )
+
+    def test_parse_supadata_response_valid(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor
+        extractor = ClaimExtractor(settings=mock_settings)
+        data = {
+            "content": [
+                {"text": "Hello world", "offset": 1500, "duration": 3000},
+                {"text": "Second segment", "offset": 4500, "duration": 2000},
+            ]
+        }
+        transcript = extractor._parse_supadata_response(data, video_id="vid123")
+        assert transcript.video_id == "vid123"
+        assert len(transcript.segments) == 2
+        assert transcript.segments[0].start == 1.5
+        assert transcript.segments[0].duration == 3.0
+        assert transcript.segments[0].text == "Hello world"
+        assert transcript.segments[1].start == 4.5
+        assert transcript.segments[1].duration == 2.0
+        assert transcript.full_text == "Hello world Second segment"
+
+    def test_parse_supadata_response_missing_fields_and_malformed(self, mock_settings, caplog):
+        from app.services.claim_extractor import ClaimExtractor
+        extractor = ClaimExtractor(settings=mock_settings)
+        data = {
+            "content": [
+                {"text": "Valid text", "offset": 1000},  # missing duration
+                "not-a-dict",  # malformed entry
+                {"offset": 2000, "duration": 1000},  # missing text
+                {"text": "Another valid", "offset": "invalid_offset", "duration": 1000},  # invalid type
+            ]
+        }
+        transcript = extractor._parse_supadata_response(data, video_id="vid_edge")
+        assert transcript.video_id == "vid_edge"
+        # The first segment with missing duration defaults duration to 0.0
+        assert len(transcript.segments) == 1
+        assert transcript.segments[0].text == "Valid text"
+        assert transcript.segments[0].start == 1.0
+        assert transcript.segments[0].duration == 0.0
+
+    def test_parse_supadata_response_empty_content(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor
+        extractor = ClaimExtractor(settings=mock_settings)
+        transcript = extractor._parse_supadata_response({"content": []}, video_id="vid_empty")
+        assert transcript.video_id == "vid_empty"
+        assert len(transcript.segments) == 0
+        assert transcript.full_text == ""
+
+    def test_parse_supadata_response_missing_content_raises(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor, TranscriptRetrievalError
+        extractor = ClaimExtractor(settings=mock_settings)
+        with pytest.raises(TranscriptRetrievalError) as exc_info:
+            extractor._parse_supadata_response({}, video_id="vid_bad")
+        assert "expected content list" in str(exc_info.value)
+
+        with pytest.raises(TranscriptRetrievalError) as exc_info:
+            extractor._parse_supadata_response({"content": "not-a-list"}, video_id="vid_bad")
+        assert "expected content list" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_supadata_success(self, mock_settings):
+        import httpx
+        from app.services.claim_extractor import ClaimExtractor
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "content": [{"text": "Supadata fetched text", "offset": 2000, "duration": 4000}]
+        }
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            transcript = await extractor.get_transcript("vid_123", supadata_key="user-key-abc")
+
+            assert transcript.video_id == "vid_123"
+            assert transcript.full_text == "Supadata fetched text"
+            mock_get.assert_called_once_with(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                params={"url": "https://www.youtube.com/watch?v=vid_123"},
+                headers={"x-api-key": "user-key-abc"},
+                timeout=20.0,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_supadata_quota_exhausted(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor, SupadataQuotaExhaustedError
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 402
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            with pytest.raises(SupadataQuotaExhaustedError) as exc_info:
+                await extractor.get_transcript("vid_123", supadata_key="quota-key")
+
+            assert exc_info.value.code == "SUPADATA_QUOTA_EXHAUSTED"
+            assert "quota" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [401, 403])
+    async def test_get_transcript_supadata_key_invalid(self, mock_settings, status_code):
+        from app.services.claim_extractor import ClaimExtractor, SupadataKeyInvalidError
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            with pytest.raises(SupadataKeyInvalidError) as exc_info:
+                await extractor.get_transcript("vid_123", supadata_key="invalid-key")
+
+            assert exc_info.value.code == "SUPADATA_KEY_INVALID"
+            assert "invalid" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_supadata_timeout(self, mock_settings):
+        import httpx
+        from app.services.claim_extractor import ClaimExtractor, TranscriptRetrievalError
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.side_effect = httpx.TimeoutException("Connection timed out")
+            with pytest.raises(TranscriptRetrievalError) as exc_info:
+                await extractor.get_transcript("vid_123", supadata_key="timeout-key")
+
+            assert "timed out" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_no_key_local_fallback_enabled(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor
+        mock_settings.SUPADATA_FALLBACK_LOCAL = True
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_snippet = MagicMock()
+        mock_snippet.text = "Local fallback text"
+        mock_snippet.start = 0.0
+        mock_snippet.duration = 5.0
+
+        with patch("app.services.claim_extractor.YouTubeTranscriptApi") as mock_api_cls:
+            mock_api = MagicMock()
+            mock_api.fetch.return_value = [mock_snippet]
+            mock_api_cls.return_value = mock_api
+
+            transcript = await extractor.get_transcript("vid_fallback")
+            assert transcript.full_text == "Local fallback text"
+            mock_api.fetch.assert_called_once_with("vid_fallback")
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_no_key_local_fallback_disabled(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor, SupadataKeyRequiredError
+        mock_settings.SUPADATA_FALLBACK_LOCAL = False
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        with pytest.raises(SupadataKeyRequiredError) as exc_info:
+            await extractor.get_transcript("vid_disabled")
+
+        assert exc_info.value.code == "SUPADATA_KEY_REQUIRED"
+        assert "no supadata api key provided" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_server_key_fallback(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor
+        mock_settings.SUPADATA_API_KEY = "server-side-configured-key"
+        mock_settings.SUPADATA_FALLBACK_LOCAL = False
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"content": [{"text": "Server key fetch", "offset": 0, "duration": 1000}]}
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            transcript = await extractor.get_transcript("vid_server")
+
+            assert transcript.full_text == "Server key fetch"
+            mock_get.assert_called_once_with(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                params={"url": "https://www.youtube.com/watch?v=vid_server"},
+                headers={"x-api-key": "server-side-configured-key"},
+                timeout=20.0,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_request_key_precedence(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor
+        mock_settings.SUPADATA_API_KEY = "server-default-key"
+        mock_settings.SUPADATA_FALLBACK_LOCAL = False
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"content": [{"text": "Override key fetch", "offset": 0, "duration": 1000}]}
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            transcript = await extractor.get_transcript("vid_override", supadata_key="user-override-key")
+
+            assert transcript.full_text == "Override key fetch"
+            mock_get.assert_called_once_with(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                params={"url": "https://www.youtube.com/watch?v=vid_override"},
+                headers={"x-api-key": "user-override-key"},
+                timeout=20.0,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_transcript_key_confidentiality(self, mock_settings, caplog):
+        from app.services.claim_extractor import ClaimExtractor
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"content": [{"text": "Safe text", "offset": 0, "duration": 1000}]}
+
+        secret_key = "supadata-ultra-secret-key-999"
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            await extractor.get_transcript("vid_secret", supadata_key=secret_key)
+
+        assert secret_key not in caplog.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("blank_key", ["", "   ", "\t"])
+    async def test_get_transcript_empty_request_key_uses_server_key(self, mock_settings, blank_key):
+        from app.services.claim_extractor import ClaimExtractor
+        mock_settings.SUPADATA_API_KEY = "configured-server-key"
+        mock_settings.SUPADATA_FALLBACK_LOCAL = False
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"content": [{"text": "Server fallback text", "offset": 0, "duration": 1000}]}
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            transcript = await extractor.get_transcript("vid_blank_header", supadata_key=blank_key)
+
+            assert transcript.full_text == "Server fallback text"
+            mock_get.assert_called_once_with(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                params={"url": "https://www.youtube.com/watch?v=vid_blank_header"},
+                headers={"x-api-key": "configured-server-key"},
+                timeout=20.0,
+            )
+
+
+
 

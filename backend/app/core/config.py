@@ -67,6 +67,12 @@ class Settings(BaseSettings):
         "amnjngnkcgooljnblcejpmkdhpikcdlp",  # Default local dev ID
     ]
 
+    # Supadata Transcript API (BYOK)
+    SUPADATA_API_KEY: str = ""
+    SUPADATA_FALLBACK_LOCAL: bool = False
+    SUPADATA_BASE_URL: str = "https://api.supadata.ai/v1"
+    SUPADATA_TIMEOUT: float = 20.0
+
     # Health probe authentication.
     # When non-empty, GET /health/llm?probe=true requires a matching
     # X-Probe-Key header so that open internet callers cannot burn Vertex AI quota.
@@ -177,6 +183,35 @@ class Settings(BaseSettings):
                 f"GEMINI_HTTP_TIMEOUT must be at least 10.0 seconds, got {v}"
             )
         return v
+
+    @field_validator("SUPADATA_TIMEOUT", mode="after")
+    @classmethod
+    def validate_supadata_timeout(cls, v: float) -> float:
+        if v < 1.0:
+            raise ValueError(
+                f"SUPADATA_TIMEOUT must be at least 1.0 second, got {v}"
+            )
+        return v
+
+    @field_validator("SUPADATA_BASE_URL", mode="after")
+    @classmethod
+    def validate_supadata_base_url(cls, v: str) -> str:
+        import os
+        url = (v or "").strip()
+        is_test = bool(
+            os.environ.get("PYTEST_CURRENT_TEST")
+            or os.environ.get("TESTING")
+            or os.environ.get("ENVIRONMENT") == "test"
+        )
+        if not (url.startswith("https://") or url.startswith("http://")):
+            raise ValueError(
+                f"SUPADATA_BASE_URL must be a valid HTTP or HTTPS URL, got '{v}'"
+            )
+        if not is_test and not url.startswith("https://"):
+            raise ValueError(
+                f"SUPADATA_BASE_URL must use HTTPS in non-test environments, got '{v}'"
+            )
+        return url
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

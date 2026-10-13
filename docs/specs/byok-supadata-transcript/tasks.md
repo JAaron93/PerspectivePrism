@@ -36,7 +36,7 @@
 ## Track 1 — Backend: Settings, Supadata Fetch & Header Threading
 > Sequential. Each task depends on the previous.
 
-- [ ] **T1.1 — Add Supadata Settings Fields**
+- [x] **T1.1 — Add Supadata Settings Fields**
   - **Description**: In `backend/app/core/config.py`, add four new fields to `Settings`:
     - `SUPADATA_API_KEY: str = ""`
     - `SUPADATA_FALLBACK_LOCAL: bool = False`
@@ -47,12 +47,12 @@
   - **Dependencies**: None
   - **Traceability**: FR10, NFR2
 
-- [ ] **T1.2 — Document New Fields in `.env.example`**
+- [x] **T1.2 — Document New Fields in `.env.example`**
   - **Description**: Add a `# Supadata Transcript API (BYOK)` section to `backend/.env.example` documenting all four new fields with inline comments explaining purpose, the free-tier note (100 fetches/month), the server-side default for web deployments, and that `SUPADATA_FALLBACK_LOCAL=true` enables local-dev `youtube-transcript-api` fallback.
   - **Dependencies**: T1.1
   - **Traceability**: FR12, FR14
 
-- [ ] **T1.3 — Implement Supadata Fetch & Structured Domain Exceptions in `ClaimExtractor`**
+- [x] **T1.3 — Implement Supadata Fetch & Structured Domain Exceptions in `ClaimExtractor`**
   - **Description**: Modify `backend/app/services/claim_extractor.py`:
     1. Define domain exceptions:
        - `class SupadataQuotaExhaustedError(TranscriptRetrievalError): code = "SUPADATA_QUOTA_EXHAUSTED"`
@@ -80,7 +80,7 @@
   - **Dependencies**: T1.1
   - **Traceability**: FR5, FR8, FR9, FR11, NFR1, NFR2, NFR3, NFR4
 
-- [ ] **T1.4 — Thread `supadata_key` and Structured `error_code` Through Backend Pipeline**
+- [x] **T1.4 — Thread `supadata_key` and Structured `error_code` Through Backend Pipeline**
   - **Description**: Modify `backend/app/models/schemas.py` and `backend/app/main.py`:
     1. In `backend/app/models/schemas.py`: Add `error_code: Optional[str] = None` to `JobStatusResponse`.
     2. In `backend/app/main.py`:
@@ -106,7 +106,7 @@
   - **Dependencies**: T1.3
   - **Traceability**: FR5, FR7, FR11, NFR1, NFR4
 
-- [ ] **T1.5 — Map Supadata Response Schema to `Transcript`**
+- [x] **T1.5 — Map Supadata Response Schema to `Transcript`**
   - **Description**: In `backend/app/services/claim_extractor.py`, implement private helper `_parse_supadata_response(data: dict) -> Transcript` mapping Supadata's `/v1/youtube/transcript` `{ "content": [{ "text": str, "offset": int, "duration": int }, ...] }`:
     - `offset` (ms) → `start` (seconds: `offset / 1000.0`)
     - `duration` (ms) → `duration` (seconds: `duration / 1000.0`)
