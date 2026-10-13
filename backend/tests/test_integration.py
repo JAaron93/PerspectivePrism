@@ -137,3 +137,103 @@ def test_build_chrome_extension_regex():
     assert build_chrome_extension_regex(["abc"]) == r"chrome-extension://(abc)"
     assert build_chrome_extension_regex(["abc", "def123"]) == r"chrome-extension://(abc|def123)"
 
+
+# ============================================================================
+# Track 1: Header Threading & Structured Error Code Integration Tests
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_integration_x_supadata_key_forwarding(monkeypatch):
+    """Verify X-Supadata-Key header is passed to get_transcript and not stored in jobs dictionary."""
+    from app.main import claim_extractor, jobs
+    from app.models.schemas import Transcript, TranscriptSegment
+
+    from unittest.mock import AsyncMock
+
+    captured_kwargs = {}
+
+    async def mock_get_transcript(video_id, **kwargs):
+        captured_kwargs.update(kwargs)
+        return Transcript(
+            video_id=video_id,
+            segments=[TranscriptSegment(text="Key test transcript", start=0.0, duration=5.0)],
+            full_text="Key test transcript",
+        )
+
+    monkeypatch.setattr(claim_extractor, "get_transcript", mock_get_transcript)
+    monkeypatch.setattr(claim_extractor, "extract_claims", AsyncMock(return_value=[]))
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "force_override": True},
+            headers={"X-Supadata-Key": "test-key-xyz"},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] in ("completed", "failed")
+
+        # Verify key was passed to get_transcript
+        assert captured_kwargs.get("supadata_key") == "test-key-xyz"
+
+        # Verify key was never stored in jobs{}
+        job_record = jobs.get(job_id, {})
+        assert "test-key-xyz" not in str(job_record)
+
+
+@pytest.mark.asyncio
+async def test_integration_supadata_quota_exhausted_error_code(monkeypatch):
+    """Verify SupadataQuotaExhaustedError results in failed job with SUPADATA_QUOTA_EXHAUSTED error_code."""
+    from app.main import claim_extractor
+    from app.services.claim_extractor import SupadataQuotaExhaustedError
+
+    async def mock_get_transcript(video_id, **kwargs):
+        raise SupadataQuotaExhaustedError("Supadata monthly transcript quota reached.")
+
+    monkeypatch.setattr(claim_extractor, "get_transcript", mock_get_transcript)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            headers={"X-Supadata-Key": "quota-key-123"},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "failed"
+        assert status_data.get("error_code") == "SUPADATA_QUOTA_EXHAUSTED"
+        assert "quota" in status_data.get("error", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_integration_supadata_key_required_error_code(monkeypatch):
+    """Verify SupadataKeyRequiredError results in failed job with SUPADATA_KEY_REQUIRED error_code."""
+    from app.main import claim_extractor
+    from app.services.claim_extractor import SupadataKeyRequiredError
+
+    async def mock_get_transcript(video_id, **kwargs):
+        raise SupadataKeyRequiredError("No Supadata API key provided and local fallback is disabled.")
+
+    monkeypatch.setattr(claim_extractor, "get_transcript", mock_get_transcript)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "failed"
+        assert status_data.get("error_code") == "SUPADATA_KEY_REQUIRED"
+        assert "no supadata api key provided" in status_data.get("error", "").lower()
+
+

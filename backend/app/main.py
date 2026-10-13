@@ -212,7 +212,7 @@ def compute_overall_assessment(p_analyses: list[PerspectiveAnalysis], deception_
     
     return assessment
 
-async def process_analysis(job_id: str, request: VideoRequest):
+async def process_analysis(job_id: str, request: VideoRequest, supadata_key: str | None = None):
     """
     Background task to process the video analysis.
     """
@@ -232,12 +232,12 @@ async def process_analysis(job_id: str, request: VideoRequest):
 
         if request.force_override:
             logger.info("Job %s: Force override enabled. Bypassing Pre-Classification Guardrail Gate.", job_id)
-            transcript = await claim_extractor.get_transcript(video_id)
+            transcript = await claim_extractor.get_transcript(video_id, supadata_key=supadata_key)
         else:
             # Fetch transcript preview or full transcript
             transcript_preview = ""
             try:
-                transcript = await claim_extractor.get_transcript(video_id)
+                transcript = await claim_extractor.get_transcript(video_id, supadata_key=supadata_key)
                 if transcript and transcript.full_text:
                     transcript_preview = transcript.full_text[:2000]
             except TranscriptUnavailableError as e:
@@ -416,9 +416,14 @@ async def process_analysis(job_id: str, request: VideoRequest):
             if job_id in jobs:
                 jobs[job_id]["status"] = JobStatus.FAILED
                 jobs[job_id]["error"] = str(e)
+                jobs[job_id]["error_code"] = getattr(e, "code", None)
 
 @app.post("/analyze/jobs", response_model=JobResponse)
-async def create_analysis_job(request: VideoRequest, background_tasks: BackgroundTasks):
+async def create_analysis_job(
+    request: VideoRequest,
+    background_tasks: BackgroundTasks,
+    x_supadata_key: str | None = Header(default=None, alias="X-Supadata-Key"),
+):
     """
     Starts a background job to analyze a YouTube video.
     """
@@ -434,10 +439,11 @@ async def create_analysis_job(request: VideoRequest, background_tasks: Backgroun
             "status": JobStatus.PENDING,
             "result": None,
             "error": None,
+            "error_code": None,
             "created_at": datetime.now(timezone.utc)
         }
     
-    background_tasks.add_task(process_analysis, job_id, request)
+    background_tasks.add_task(process_analysis, job_id, request, supadata_key=x_supadata_key)
     
     return JobResponse(job_id=job_id)
 
@@ -456,7 +462,8 @@ async def get_job_status(job_id: str):
             job_id=job_id,
             status=job["status"],
             result=job["result"],
-            error=job["error"]
+            error=job["error"],
+            error_code=job.get("error_code")
         )
 
 # Deprecated synchronous endpoint (kept for backward compatibility if needed, but we'll remove it or wrap it)

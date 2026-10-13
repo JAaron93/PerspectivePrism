@@ -113,3 +113,32 @@ class TestVerifyEnvironment:
         with patch.dict("os.environ", env_vars, clear=True):
             # Run a small 5-request burst test with 0s delay
             await run_burst_test(concurrency_count=5, mock_delay=0.0)
+
+
+class TestSupadataSettings:
+    """Tests for Supadata BYOK Settings fields and validators (T1.1)."""
+
+    def test_supadata_settings_defaults(self):
+        from app.core.config import Settings
+        s = Settings(GCP_PROJECT="test-project")
+        assert s.SUPADATA_API_KEY == ""
+        assert s.SUPADATA_FALLBACK_LOCAL is False
+        assert s.SUPADATA_BASE_URL == "https://api.supadata.ai/v1"
+        assert s.SUPADATA_TIMEOUT == 20.0
+
+    def test_supadata_timeout_validation(self):
+        from app.core.config import Settings
+        with pytest.raises(ValueError, match="SUPADATA_TIMEOUT must be at least 1.0"):
+            Settings(GCP_PROJECT="test-project", SUPADATA_TIMEOUT=0.5)
+
+    def test_supadata_base_url_validation_invalid_protocol(self):
+        from app.core.config import Settings
+        with pytest.raises(ValueError, match="SUPADATA_BASE_URL"):
+            Settings(GCP_PROJECT="test-project", SUPADATA_BASE_URL="ftp://api.supadata.ai")
+
+    def test_supadata_base_url_validation_enforces_https_in_prod(self):
+        from app.core.config import Settings
+        with patch.dict("os.environ", {}, clear=True):
+            with pytest.raises(ValueError, match="HTTPS"):
+                Settings(GCP_PROJECT="test-project", SUPADATA_BASE_URL="http://api.supadata.ai/v1")
+

@@ -210,3 +210,5 @@ class JobStatusResponse(BaseModel):
     status: JobStatus
     result: Optional[AnalysisResponse] = None
     error: Optional[str] = None
+    error_code: Optional[str] = None
+
