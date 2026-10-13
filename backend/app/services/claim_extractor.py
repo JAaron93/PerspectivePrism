@@ -117,7 +117,7 @@ class ClaimExtractor:
             raise TranscriptRetrievalError("Malformed Supadata response: expected JSON object")
         raw_content = data.get("content")
         if not isinstance(raw_content, list):
-            raw_content = []
+            raise TranscriptRetrievalError("Malformed Supadata response: expected content list")
 
         segments: List[TranscriptSegment] = []
         for item in raw_content:
@@ -149,8 +149,8 @@ class ClaimExtractor:
         return Transcript(video_id=video_id, segments=segments, full_text=full_text)
 
     async def get_transcript(self, video_id: str, supadata_key: str | None = None) -> Transcript:
-        """Fetches transcript for video_id via Supadata API or local fallback when enabled."""
-        raw_key = supadata_key if supadata_key is not None else getattr(self.settings, "SUPADATA_API_KEY", None)
+        request_key = supadata_key.strip() if isinstance(supadata_key, str) else ""
+        raw_key = request_key or getattr(self.settings, "SUPADATA_API_KEY", None)
         effective_key = raw_key.strip() if isinstance(raw_key, str) and raw_key.strip() else None
 
         if effective_key:

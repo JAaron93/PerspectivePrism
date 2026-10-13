@@ -404,6 +404,17 @@ class TestSupadataTranscriptFetch:
         assert len(transcript.segments) == 0
         assert transcript.full_text == ""
 
+    def test_parse_supadata_response_missing_content_raises(self, mock_settings):
+        from app.services.claim_extractor import ClaimExtractor, TranscriptRetrievalError
+        extractor = ClaimExtractor(settings=mock_settings)
+        with pytest.raises(TranscriptRetrievalError) as exc_info:
+            extractor._parse_supadata_response({}, video_id="vid_bad")
+        assert "expected content list" in str(exc_info.value)
+
+        with pytest.raises(TranscriptRetrievalError) as exc_info:
+            extractor._parse_supadata_response({"content": "not-a-list"}, video_id="vid_bad")
+        assert "expected content list" in str(exc_info.value)
+
     @pytest.mark.asyncio
     async def test_get_transcript_supadata_success(self, mock_settings):
         import httpx
@@ -568,6 +579,30 @@ class TestSupadataTranscriptFetch:
             await extractor.get_transcript("vid_secret", supadata_key=secret_key)
 
         assert secret_key not in caplog.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("blank_key", ["", "   ", "\t"])
+    async def test_get_transcript_empty_request_key_uses_server_key(self, mock_settings, blank_key):
+        from app.services.claim_extractor import ClaimExtractor
+        mock_settings.SUPADATA_API_KEY = "configured-server-key"
+        mock_settings.SUPADATA_FALLBACK_LOCAL = False
+        extractor = ClaimExtractor(settings=mock_settings)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"content": [{"text": "Server fallback text", "offset": 0, "duration": 1000}]}
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_resp
+            transcript = await extractor.get_transcript("vid_blank_header", supadata_key=blank_key)
+
+            assert transcript.full_text == "Server fallback text"
+            mock_get.assert_called_once_with(
+                "https://api.supadata.ai/v1/youtube/transcript",
+                params={"url": "https://www.youtube.com/watch?v=vid_blank_header"},
+                headers={"x-api-key": "configured-server-key"},
+                timeout=20.0,
+            )
 
 
 
