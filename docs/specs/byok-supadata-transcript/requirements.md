@@ -108,14 +108,15 @@ Calling `ConfigManager.save()` with the same `supadataApiKey` value multiple tim
 
 ---
 
-## User Stories
+## User Stories & Acceptance Criteria
 
-### US1 — First-Time Setup
+### Browser & Extension User Stories (Playwright persistent context suite)
+
+#### US1 — First-Time Onboarding
 > As a new user who has just installed the extension, when I open the Side Panel on a YouTube video, I want to see a clear onboarding screen explaining how to get a free Supadata key, so that I can complete setup in under two minutes without needing to read external documentation.
 
-**Acceptance criteria (Gherkin):**
 ```gherkin
-Feature: Supadata BYOK onboarding
+Feature: Extension BYOK Onboarding UX
 
   Scenario: First install with no key stored
     Given the extension is newly installed
@@ -135,45 +136,26 @@ Feature: Supadata BYOK onboarding
     And the side panel transitions away from "#state-onboarding-key"
 ```
 
-### US2 — Analysing a Video with a Key Present
-> As a returning user with a saved Supadata key, when I click "Analyse" on a YouTube video, I want the analysis to fetch the transcript transparently via Supadata so I get accurate results from the cloud without any proxy setup.
+#### US3 (Browser) — Quota Exhausted UI
+> As a user whose monthly Supadata quota is exhausted, when I run an analysis in the Side Panel, I want the UI to inform me of the quota limit with an upgrade link and a way to enter a new key.
 
-**Acceptance criteria (Gherkin):**
 ```gherkin
-  Scenario: Analysis request includes Supadata key header
-    Given chrome.storage.local["config"].supadataApiKey is "test-key-abc"
-    When the user triggers video analysis
-    Then createAnalysisJob() sends POST /analyze/jobs
-    And the request headers include "X-Supadata-Key: test-key-abc"
+Feature: Extension Quota Exhausted UI
 
-  Scenario: Backend uses header key for Supadata fetch
-    Given the POST /analyze/jobs request contains header X-Supadata-Key: "test-key-abc"
-    When the backend processes the job
-    Then ClaimExtractor.get_transcript() calls the Supadata API
-    And the Supadata request includes header "x-api-key: test-key-abc"
-    And the key is not written to os.environ or the jobs store
-```
-
-### US3 — Quota Exhausted
-> As a user who has used all 100 free transcript fetches this month, when I try to analyse a video, I want a clear message telling me my quota is exhausted and a direct link to upgrade, so I can decide whether to pay for more or wait until next month.
-
-**Acceptance criteria (Gherkin):**
-```gherkin
-  Scenario: Quota exhausted error is surfaced via job polling
-    Given the Supadata API returns HTTP 402 for the transcript request
-    When the analysis job is submitted and polled to completion
-    Then GET /analyze/jobs/{job_id} returns status "failed" and error_code "SUPADATA_QUOTA_EXHAUSTED"
-    And pollJobStatus() throws an Error with error.code equal to "SUPADATA_QUOTA_EXHAUSTED"
-    And the side panel displays "#state-supadata-quota"
+  Scenario: Side Panel renders quota exhausted state on error
+    Given an analysis job fails with error_code "SUPADATA_QUOTA_EXHAUSTED"
+    When the Side Panel processes the failed analysis result
+    Then the side panel displays "#state-supadata-quota"
     And the panel contains a link to "https://supadata.ai/pricing"
     And the panel contains a "Change API Key" button
 ```
 
-### US4 — Updating the Key in Settings & Sync to Open Panel
+#### US4 — Updating the Key in Settings & Sync to Open Panel
 > As an existing user who wants to switch to a different Supadata account, I want to be able to update my API key from the Settings/Options page without going through the full onboarding flow again, and I want an already-open Side Panel to pick up the new key immediately without needing a reload.
 
-**Acceptance criteria (Gherkin):**
 ```gherkin
+Feature: Options Page to Active Side Panel Live Key Sync
+
   Scenario: Key updated via options page propagates to active Side Panel
     Given the Side Panel is currently open in a YouTube tab
     And the user opens the options page in another tab
@@ -183,41 +165,107 @@ Feature: Supadata BYOK onboarding
     And the request headers include "X-Supadata-Key: new-test-key-456"
 ```
 
-### US5 — Local Development Without a Supadata Key
-> As a developer running the backend locally, I want to be able to test the full pipeline without a Supadata key by enabling a fallback to youtube-transcript-api, so I can develop and unit-test claim extraction without a paid third-party dependency.
+---
 
-**Acceptance criteria (Gherkin):**
+### Backend API User Stories (`pytest-bdd` suite in `backend/tests/bdd/`)
+
+#### US2 — Header Key Propagation & Server Key Precedence
+> As a client making analysis requests, I want my Supadata key in the X-Supadata-Key header to be forwarded to Supadata, or fall back to the server key when absent, without storing the key on the server.
+
 ```gherkin
-  Scenario: Local fallback enabled
-    Given settings.SUPADATA_FALLBACK_LOCAL is True
-    And no X-Supadata-Key header is present
-    When ClaimExtractor.get_transcript() is called
-    Then the youtube-transcript-api fetch path is attempted
-    And no Supadata HTTP request is made
+Feature: Supadata API Key Header Propagation and Precedence
 
-  Scenario: Local fallback disabled in production
-    Given settings.SUPADATA_FALLBACK_LOCAL is False
-    And no X-Supadata-Key header is present
-    When ClaimExtractor.get_transcript() is called
-    Then TranscriptRetrievalError is raised immediately
-    And no youtube-transcript-api fetch is attempted
+  Scenario: Request with X-Supadata-Key header forwards key to Supadata API
+    Given the backend receives a POST to /analyze/jobs
+    And the request header "X-Supadata-Key" is "test-key-abc"
+    When the analysis job is processed
+    Then ClaimExtractor.get_transcript() is called with supadata_key "test-key-abc"
+    And the Supadata API receives header "x-api-key" equal to "test-key-abc"
+    And the key is not stored in os.environ or the jobs repository
+
+  Scenario: Request without header uses server-side configured key
+    Given the backend receives a POST to /analyze/jobs
+    And no "X-Supadata-Key" header is present
+    And settings.SUPADATA_API_KEY is configured as "server-side-key-123"
+    When the analysis job is processed
+    Then ClaimExtractor.get_transcript() is called with supadata_key "server-side-key-123"
+    And the Supadata API receives header "x-api-key" equal to "server-side-key-123"
+
+  Scenario: Request header takes precedence over server-side configured key
+    Given settings.SUPADATA_API_KEY is configured as "server-default-key"
+    And the backend receives a POST to /analyze/jobs
+    And the request header "X-Supadata-Key" is "user-override-key"
+    When the analysis job is processed
+    Then ClaimExtractor.get_transcript() is called with supadata_key "user-override-key"
 ```
 
-### US6 — Web Frontend Transcript Fetching
+#### US3 (Backend) — Transcript Error and Quota Status Reporting
+> As a client polling for analysis status, I want failures due to quota exhaustion or missing keys to be reported with structured error codes so that client UIs can display actionable states.
+
+```gherkin
+Feature: Backend Transcript Error and Quota Status Reporting
+
+  Scenario: Supadata 402 returns SUPADATA_QUOTA_EXHAUSTED error code
+    Given the Supadata API returns HTTP 402 for the transcript request
+    When an analysis job is submitted and polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "failed"
+    And the response error_code is "SUPADATA_QUOTA_EXHAUSTED"
+
+  Scenario: Supadata 401 returns SUPADATA_KEY_INVALID error code
+    Given the Supadata API returns HTTP 401 for the transcript request
+    When an analysis job is submitted and polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "failed"
+    And the response error_code is "SUPADATA_KEY_INVALID"
+
+  Scenario: Missing key with fallback disabled returns SUPADATA_KEY_REQUIRED
+    Given settings.SUPADATA_FALLBACK_LOCAL is False
+    And settings.SUPADATA_API_KEY is ""
+    And no "X-Supadata-Key" header is present in the request
+    When an analysis job is submitted and polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "failed"
+    And the response error_code is "SUPADATA_KEY_REQUIRED"
+```
+
+#### US5 — Local Development Without a Supadata Key
+> As a developer running the backend locally, I want to be able to test the full pipeline without a Supadata key by enabling a fallback to youtube-transcript-api, so I can develop and unit-test claim extraction without a paid third-party dependency.
+
+```gherkin
+Feature: Local Development Transcript Fallback
+
+  Scenario: Local fallback enabled attempts youtube-transcript-api
+    Given settings.SUPADATA_FALLBACK_LOCAL is True
+    And settings.SUPADATA_API_KEY is ""
+    And no "X-Supadata-Key" header is present in the request
+    When ClaimExtractor.get_transcript() is called for video "test-video-id"
+    Then the youtube-transcript-api fallback path is attempted
+    And no Supadata HTTP request is dispatched
+
+  Scenario: Local fallback disabled raises SupadataKeyRequiredError immediately
+    Given settings.SUPADATA_FALLBACK_LOCAL is False
+    And settings.SUPADATA_API_KEY is ""
+    And no "X-Supadata-Key" header is present in the request
+    When ClaimExtractor.get_transcript() is called for video "test-video-id"
+    Then a SupadataKeyRequiredError exception is raised immediately
+    And no youtube-transcript-api fallback is attempted
+```
+
+#### US6 — Web Frontend Transcript Fetching
 > As a user or tester accessing Perspective Prism via the standalone React web application, I want transcript fetching to succeed either by providing my Supadata key in the web interface or by leveraging the server's configured key, so that web-based analyses complete without cloud IP blocking errors.
 
-**Acceptance criteria (Gherkin):**
 ```gherkin
-  Scenario: Web frontend request with user-supplied key
-    Given localStorage contains "perspective_prism_supadata_key" equal to "web-user-key"
-    When the user starts analysis from the web frontend
-    Then POST /analyze/jobs is sent with header "X-Supadata-Key: web-user-key"
-    And the job processes with supadata_key "web-user-key"
+Feature: Web Frontend Job Analysis Callers
 
-  Scenario: Keyless web frontend request on deployment with server key
-    Given no key is entered in the web frontend
-    And settings.SUPADATA_API_KEY is configured on the backend
-    When the user starts analysis from the web frontend
-    Then POST /analyze/jobs is sent without an X-Supadata-Key header
-    And the backend processes the job using settings.SUPADATA_API_KEY
+  Scenario: Web frontend caller with user-supplied key succeeds
+    Given the backend receives a POST to /analyze/jobs
+    And the request header "X-Supadata-Key" is "web-user-key"
+    And the Supadata API returns a valid transcript
+    When the analysis job is polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "completed"
+
+  Scenario: Keyless web frontend caller on server with default key succeeds
+    Given settings.SUPADATA_API_KEY is configured as "server-web-key"
+    And the backend receives a POST to /analyze/jobs without an "X-Supadata-Key" header
+    And the Supadata API returns a valid transcript
+    When the analysis job is polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "completed"
 ```

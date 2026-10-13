@@ -225,19 +225,24 @@
 
 - [ ] **T3.3 — Add `#state-supadata-quota` Side Panel State and Error Routing**
   - **Description**:
-    1. In `chrome-extension/sidepanel.html`, add `<div id="state-supadata-quota" class="state-container" hidden>` with:
+    1. Define how missing-key and quota codes reach the job response:
+       - In backend (T1.4), `process_analysis()` catches `SupadataQuotaExhaustedError` and `SupadataKeyRequiredError`, setting `status = "failed"` and `error_code` on `jobs[job_id]`.
+       - Polling endpoint `GET /analyze/jobs/{job_id}` serializes `JobStatusResponse.error_code`.
+       - Extension client `pollJobStatus()` (T2.4) inspects `statusData.error_code` and attaches `err.code = statusData.error_code` before throwing.
+    2. In `chrome-extension/sidepanel.html`, add `<div id="state-supadata-quota" class="state-container" hidden>` with:
        - A heading: "Transcript Quota Reached"
        - A message explaining the 100/month free tier is exhausted.
        - A link to `https://supadata.ai/pricing` labelled "Upgrade Plan ↗".
        - A button `#pp-quota-change-key-btn` ("Change API Key") that calls `showState("onboarding-key")`.
-    2. In `chrome-extension/sidepanel.js`:
+    3. In `chrome-extension/sidepanel.js`:
        - In the error catch block for `ANALYZE_VIDEO`:
          - If `error.code === "SUPADATA_QUOTA_EXHAUSTED"`: call `showState("supadata-quota")`.
          - If `error.code === "SUPADATA_KEY_REQUIRED"` or `error.code === "SUPADATA_KEY_INVALID"`: call `showState("onboarding-key")`.
   - **TDD**: Add Vitest + jsdom unit tests in `chrome-extension/tests/unit/sidepanel-quota.test.js`:
-    - When `makeAnalysisRequest()` rejects with `Error` having `code: "SUPADATA_QUOTA_EXHAUSTED"`: assert `showState("supadata-quota")` is rendered with the pricing link.
+    - Test quota exhaustion by submitting and polling a job: mock `POST /analyze/jobs` returning `{ job_id: "test-quota-job" }`, and mock `GET /analyze/jobs/test-quota-job` returning `{ status: "failed", error: "Monthly quota reached", error_code: "SUPADATA_QUOTA_EXHAUSTED" }`.
+    - Trigger `client.makeAnalysisRequest()` / sidepanel analysis: assert `pollJobStatus()` throws with `error.code === "SUPADATA_QUOTA_EXHAUSTED"` and the Side Panel renders `#state-supadata-quota` with the pricing link.
     - Click "Change API Key" on `#state-supadata-quota` → assert `showState("onboarding-key")` is rendered.
-    - When `makeAnalysisRequest()` rejects with `Error` having `code: "SUPADATA_KEY_REQUIRED"`: assert `showState("onboarding-key")` is rendered.
+    - Test missing key by polling a job returning `{ status: "failed", error_code: "SUPADATA_KEY_REQUIRED" }`: assert `pollJobStatus()` throws with `error.code === "SUPADATA_KEY_REQUIRED"` and Side Panel renders `#state-onboarding-key`.
   - **Dependencies**: T3.2, T2.4
   - **Traceability**: FR5, NFR5
 
@@ -297,12 +302,13 @@
   - **Dependencies**: T1.4, T1.3
   - **Traceability**: FR5, FR9
 
-- [ ] **T5.3 — Playwright Integration Test: Onboarding & Multi-View Sync**
-  - **Description**: Add Playwright persistent-context integration tests in `chrome-extension/tests/integration/byok-onboarding.test.js`:
-    1. **Initial Onboarding**: Open Side Panel on YouTube watch page without key stored → verify `#state-onboarding-key` is visible → enter key and click Save → verify `#state-onboarding-key` transitions away and key is saved in storage.
-    2. **Active Sync Across Pages**: Open Side Panel on YouTube watch page with key "key-1". Open Options page in a second tab and save key "key-2". Return to Side Panel without reloading, trigger analysis → intercept outbound request and verify `X-Supadata-Key` header carries "key-2".
-  - **Dependencies**: T2.3, T3.2, T4.2
-  - **Traceability**: US1, US4, FR13
+- [ ] **T5.3 — Playwright Integration Test: Browser Acceptance Scenarios**
+  - **Description**: Add Playwright persistent-context integration tests in `chrome-extension/tests/integration/byok-onboarding.test.js` covering all browser user stories:
+    1. **Initial Onboarding (US1)**: Open Side Panel on YouTube watch page without key stored → verify `#state-onboarding-key` is visible with 100/mo text and "Get Free Key" link → enter key and click "Save & Continue" → verify `#state-onboarding-key` transitions away and key is saved in storage.
+    2. **Quota Exhausted UI (US3 Browser)**: Trigger analysis where backend job fails with `error_code: "SUPADATA_QUOTA_EXHAUSTED"` → verify Side Panel renders `#state-supadata-quota` with upgrade link and "Change API Key" button.
+    3. **Active Sync Across Pages (US4)**: Open Side Panel on YouTube watch page with key "key-1". Open Options page in a second tab and save key "key-2". Return to Side Panel without reloading, trigger analysis → intercept outbound request and verify `X-Supadata-Key` header carries "key-2".
+  - **Dependencies**: T2.3, T3.2, T3.3, T4.2
+  - **Traceability**: US1, US3, US4, FR13
 
 - [ ] **T5.4 — Update `backend/.env.example` and `README.md`**
   - **Description**:
@@ -334,19 +340,102 @@
   - **Dependencies**: None
   - **Traceability**: BDD
 
-- [ ] **T6.2 — Write `.feature` Files for All User Stories**
-  - **Description**: Transcribe the Gherkin scenarios from `requirements.md` verbatim into executable `.feature` files under `backend/tests/features/byok_supadata/`:
-    - `us1_first_time_setup.feature` (US1)
-    - `us2_analysis_with_key.feature` (US2)
-    - `us3_quota_exhausted.feature` (US3)
-    - `us4_updating_key.feature` (US4)
-    - `us5_local_dev_fallback.feature` (US5)
-    - `us6_web_frontend.feature` (US6)
+- [ ] **T6.2 — Write Backend-Only `.feature` Files with Explicit Headers**
+  - **Description**: Create four backend-only `.feature` files under `backend/tests/features/byok_supadata/` with valid Gherkin syntax and `Feature:` headers (browser steps are assigned to Playwright in T5.3):
+    1. **`transcript_key_propagation.feature`** (US2):
+       ```gherkin
+       Feature: Supadata API Key Header Propagation and Precedence
+
+         Scenario: Request with X-Supadata-Key header forwards key to Supadata API
+           Given the backend receives a POST to /analyze/jobs
+           And the request header "X-Supadata-Key" is "test-key-abc"
+           When the analysis job is processed
+           Then ClaimExtractor.get_transcript() is called with supadata_key "test-key-abc"
+           And the Supadata API receives header "x-api-key" equal to "test-key-abc"
+           And the key is not stored in os.environ or the jobs repository
+
+         Scenario: Request without header uses server-side configured key
+           Given the backend receives a POST to /analyze/jobs
+           And no "X-Supadata-Key" header is present
+           And settings.SUPADATA_API_KEY is configured as "server-side-key-123"
+           When the analysis job is processed
+           Then ClaimExtractor.get_transcript() is called with supadata_key "server-side-key-123"
+           And the Supadata API receives header "x-api-key" equal to "server-side-key-123"
+
+         Scenario: Request header takes precedence over server-side configured key
+           Given settings.SUPADATA_API_KEY is configured as "server-default-key"
+           And the backend receives a POST to /analyze/jobs
+           And the request header "X-Supadata-Key" is "user-override-key"
+           When the analysis job is processed
+           Then ClaimExtractor.get_transcript() is called with supadata_key "user-override-key"
+       ```
+    2. **`transcript_quota_and_errors.feature`** (US3 Backend):
+       ```gherkin
+       Feature: Backend Transcript Error and Quota Status Reporting
+
+         Scenario: Supadata 402 returns SUPADATA_QUOTA_EXHAUSTED error code
+           Given the Supadata API returns HTTP 402 for the transcript request
+           When an analysis job is submitted and polled to completion
+           Then GET /analyze/jobs/{job_id} returns status "failed"
+           And the response error_code is "SUPADATA_QUOTA_EXHAUSTED"
+
+         Scenario: Supadata 401 returns SUPADATA_KEY_INVALID error code
+           Given the Supadata API returns HTTP 401 for the transcript request
+           When an analysis job is submitted and polled to completion
+           Then GET /analyze/jobs/{job_id} returns status "failed"
+           And the response error_code is "SUPADATA_KEY_INVALID"
+
+         Scenario: Missing key with fallback disabled returns SUPADATA_KEY_REQUIRED
+           Given settings.SUPADATA_FALLBACK_LOCAL is False
+           And settings.SUPADATA_API_KEY is ""
+           And no "X-Supadata-Key" header is present in the request
+           When an analysis job is submitted and polled to completion
+           Then GET /analyze/jobs/{job_id} returns status "failed"
+           And the response error_code is "SUPADATA_KEY_REQUIRED"
+       ```
+    3. **`local_dev_fallback.feature`** (US5):
+       ```gherkin
+       Feature: Local Development Transcript Fallback
+
+         Scenario: Local fallback enabled attempts youtube-transcript-api
+           Given settings.SUPADATA_FALLBACK_LOCAL is True
+           And settings.SUPADATA_API_KEY is ""
+           And no "X-Supadata-Key" header is present in the request
+           When ClaimExtractor.get_transcript() is called for video "test-video-id"
+           Then the youtube-transcript-api fallback path is attempted
+           And no Supadata HTTP request is dispatched
+
+         Scenario: Local fallback disabled raises SupadataKeyRequiredError immediately
+           Given settings.SUPADATA_FALLBACK_LOCAL is False
+           And settings.SUPADATA_API_KEY is ""
+           And no "X-Supadata-Key" header is present in the request
+           When ClaimExtractor.get_transcript() is called for video "test-video-id"
+           Then a SupadataKeyRequiredError exception is raised immediately
+           And no youtube-transcript-api fallback is attempted
+       ```
+    4. **`web_frontend_callers.feature`** (US6):
+       ```gherkin
+       Feature: Web Frontend Job Analysis Callers
+
+         Scenario: Web frontend caller with user-supplied key succeeds
+           Given the backend receives a POST to /analyze/jobs
+           And the request header "X-Supadata-Key" is "web-user-key"
+           And the Supadata API returns a valid transcript
+           When the analysis job is polled to completion
+           Then GET /analyze/jobs/{job_id} returns status "completed"
+
+         Scenario: Keyless web frontend caller on server with default key succeeds
+           Given settings.SUPADATA_API_KEY is configured as "server-web-key"
+           And the backend receives a POST to /analyze/jobs without an "X-Supadata-Key" header
+           And the Supadata API returns a valid transcript
+           When the analysis job is polled to completion
+           Then GET /analyze/jobs/{job_id} returns status "completed"
+       ```
   - **Dependencies**: T6.1
-  - **Traceability**: BDD, US1–US6
+  - **Traceability**: BDD, US2, US3, US5, US6
 
 - [ ] **T6.3 — Implement Step Definitions for Backend-Scope Scenarios via ASGITransport**
-  - **Description**: Create `backend/tests/bdd/test_byok_supadata.py`. Implement `pytest-bdd` step definitions using `@given`, `@when`, `@then` decorators and the `scenarios()` collector for backend-scoped scenarios (`us2`, `us3`, `us4`, `us5`, `us6`).
+  - **Description**: Create `backend/tests/bdd/test_byok_supadata.py`. Implement `pytest-bdd` step definitions using `@given`, `@when`, `@then` decorators and the `scenarios()` collector for all four backend `.feature` files:
     - Use `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:` for all HTTP steps (matching `httpx>=0.28.1`).
     - Control `settings.SUPADATA_FALLBACK_LOCAL` and `settings.SUPADATA_API_KEY` via `pytest` `monkeypatch`.
     - Mock Supadata responses via `unittest.mock.patch("httpx.AsyncClient.get")`.
@@ -374,7 +463,7 @@
 ## Track 7 — Web Frontend: BYOK Setup Path & Server Fallback
 > Can run in parallel with Track 2 and Track 3.
 
-- [ ] **T7.1 — Web Frontend BYOK Key Support in `App.tsx`**
+- [ ] **T7.1 — Web Frontend BYOK Key Support in `App.tsx` & Component Tests**
   - **Description**: In `frontend/src/App.tsx`:
     1. Add state `supadataKey` initialized from `localStorage.getItem("perspective_prism_supadata_key") || ""`.
     2. Add an optional API key input or modal dialog allowing users to enter/update their Supadata API key, saving to `localStorage`.
@@ -385,7 +474,7 @@
        - If `statusData.status === 'failed'`:
          - If `statusData.error_code === 'SUPADATA_KEY_REQUIRED'`: set an actionable error message guiding the user to enter their Supadata API key or sign up at `supadata.ai`.
          - If `statusData.error_code === 'SUPADATA_QUOTA_EXHAUSTED'`: set an actionable error message informing the user their 100/month free quota is exhausted with a link to `supadata.ai/pricing`.
-  - **TDD**: Write unit tests in `frontend/src/App.test.tsx`:
+  - **TDD**: Write unit tests in `frontend/src/components/__tests__/app.test.tsx` (strictly inside `src/**/__tests__/*` so it is excluded from `tsc -b` and the Vite browser build):
     - Assert that when `localStorage` has `"perspective_prism_supadata_key": "web-key"`, `POST /analyze/jobs` is called with header `X-Supadata-Key: web-key`.
     - Assert that when backend returns `status: "failed", error_code: "SUPADATA_KEY_REQUIRED"`, the UI renders the key entry guidance.
   - **Dependencies**: T1.4
@@ -397,3 +486,12 @@
     2. **Web client caller with user-supplied key**: POST `/analyze/jobs` with `X-Supadata-Key: web-user-key` when `settings.SUPADATA_API_KEY = ""`. Mock Supadata response. Poll job status → verify job completes successfully using the client header key.
   - **Dependencies**: T1.4, T7.1
   - **Traceability**: FR11, FR14, US6
+
+- [ ] **T7.3 — Update Frontend `test` Script in `package.json` for Glob Test Discovery**
+  - **Description**: In `frontend/package.json`, update the `"test"` script from:
+    `"esbuild src/components/__tests__/components.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outfile=dist/test.mjs && node --test dist/test.mjs"`
+    to:
+    `"esbuild src/components/__tests__/*.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outdir=dist/test-dist && node --test dist/test-dist/*.js"`
+    Verify that `npm test` executes both `components.test.tsx` and `app.test.tsx` outside the browser application build (`tsc -b`), maintaining zero build pollution.
+  - **Dependencies**: T7.1
+  - **Traceability**: FR14
