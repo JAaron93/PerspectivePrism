@@ -37,11 +37,17 @@ The Side Panel MUST display `#state-onboarding-key` when `supadataApiKey` is abs
 ### FR4 — Key Header on Analysis Request (Extension)
 `PerspectivePrismClient.createAnalysisJob()` MUST include the `X-Supadata-Key` header in the `POST /analyze/jobs` request whenever `supadataApiKey` is non-empty. The header MUST be omitted (not sent as an empty string) when `supadataApiKey` is absent.
 
-### FR5 — Quota-Exhausted Side Panel State (Extension)
-When the backend returns error code `SUPADATA_QUOTA_EXHAUSTED`, the Side Panel MUST transition to a new `#state-supadata-quota` state displaying:
-- A message explaining the user's free tier (100/month) has been reached.
-- A "Upgrade Plan" link to `https://supadata.ai/pricing`.
-- A "Change API Key" button that re-triggers `#state-onboarding-key`.
+### FR5 — Structured Error Codes & Quota Handling
+`JobStatusResponse` MUST include an optional `error_code: Optional[str] = None` field.
+- When transcript retrieval fails due to quota exhaustion (HTTP 402 from Supadata), the backend background worker MUST set `status = "failed"` and `error_code = "SUPADATA_QUOTA_EXHAUSTED"`.
+- When transcript retrieval fails due to missing key and local fallback is disabled (`SUPADATA_FALLBACK_LOCAL=False`), the backend background worker MUST set `status = "failed"` and `error_code = "SUPADATA_KEY_REQUIRED"`.
+- When transcript retrieval fails due to invalid key (HTTP 401/403 from Supadata), the backend background worker MUST set `status = "failed"` and `error_code = "SUPADATA_KEY_INVALID"`.
+- `PerspectivePrismClient.pollJobStatus()` MUST propagate `error_code` from the failed job response onto the thrown `Error` instance (`err.code = statusData.error_code`).
+- When the extension client catches `SUPADATA_QUOTA_EXHAUSTED`, the Side Panel MUST transition to `#state-supadata-quota` displaying:
+  - A message explaining the user's free tier (100/month) has been reached.
+  - An "Upgrade Plan" link to `https://supadata.ai/pricing`.
+  - A "Change API Key" button that re-triggers `#state-onboarding-key`.
+- When the extension client catches `SUPADATA_KEY_REQUIRED` or `SUPADATA_KEY_INVALID`, the Side Panel MUST transition to `#state-onboarding-key`.
 
 ### FR6 — Options Page API Key Section (Extension)
 The options page (`options.html` / `options.js`) MUST include an "API Keys" section with a field for `supadataApiKey`, matching the onboarding panel input (masked, toggle-visible). Saving MUST call `ConfigManager.save()` and display a confirmation message.
@@ -59,10 +65,16 @@ When `supadata_key` is absent AND `settings.SUPADATA_FALLBACK_LOCAL` is `True`, 
 `Settings` in `config.py` MUST expose: `SUPADATA_API_KEY: str = ""`, `SUPADATA_FALLBACK_LOCAL: bool = False`, `SUPADATA_BASE_URL: str = "https://api.supadata.ai/v1"`, `SUPADATA_TIMEOUT: float = 20.0`.
 
 ### FR11 — Server-Side Key Precedence (Backend)
-If `x_supadata_key` from the request header is absent but `settings.SUPADATA_API_KEY` is non-empty, `process_analysis()` MUST use `settings.SUPADATA_API_KEY` as the effective key. This allows the developer to run end-to-end tests without the extension.
+If `x_supadata_key` from the request header is absent but `settings.SUPADATA_API_KEY` is non-empty, `process_analysis()` MUST use `settings.SUPADATA_API_KEY` as the effective key. This allows deployments serving the web frontend and developer test suites to run without requiring client-supplied keys.
 
 ### FR12 — `.env.example` Documentation (Backend)
-`backend/.env.example` MUST document all four new Supadata settings fields with comments explaining their purpose and the local-dev fallback flag.
+`backend/.env.example` MUST document all four new Supadata settings fields with comments explaining their purpose, the server fallback behavior, and the local-dev fallback flag.
+
+### FR13 — Active Storage Synchronization (Extension)
+`sidepanel.js` and `background.js` MUST listen to `chrome.storage.onChanged` for changes to the `config` object in `local` storage, and `sidepanel.js` MUST re-read `ConfigManager.load()` before initiating each analysis request. Any key update saved in the options page MUST immediately apply to an already-open Side Panel without requiring a panel reload.
+
+### FR14 — Web Frontend BYOK & Server Key Fallback (Frontend)
+The standalone React SPA (`frontend/src/App.tsx`) MUST support entering a Supadata API key, persisted in `localStorage` under `perspective_prism_supadata_key`, and forward it via the `X-Supadata-Key` header on `POST /analyze/jobs`. For deployments where the web frontend is accessed without client-side keys, `settings.SUPADATA_API_KEY` MUST be configured in the backend environment to serve as the default transcript provider.
 
 ---
 
@@ -147,28 +159,28 @@ Feature: Supadata BYOK onboarding
 
 **Acceptance criteria (Gherkin):**
 ```gherkin
-  Scenario: Quota exhausted error is surfaced
+  Scenario: Quota exhausted error is surfaced via job polling
     Given the Supadata API returns HTTP 402 for the transcript request
-    When the analysis job completes
-    And the extension receives the SUPADATA_QUOTA_EXHAUSTED error code
-    Then the side panel displays "#state-supadata-quota"
+    When the analysis job is submitted and polled to completion
+    Then GET /analyze/jobs/{job_id} returns status "failed" and error_code "SUPADATA_QUOTA_EXHAUSTED"
+    And pollJobStatus() throws an Error with error.code equal to "SUPADATA_QUOTA_EXHAUSTED"
+    And the side panel displays "#state-supadata-quota"
     And the panel contains a link to "https://supadata.ai/pricing"
     And the panel contains a "Change API Key" button
 ```
 
-### US4 — Updating the Key in Settings
-> As an existing user who wants to switch to a different Supadata account, I want to be able to update my API key from the Settings/Options page without going through the full onboarding flow again.
+### US4 — Updating the Key in Settings & Sync to Open Panel
+> As an existing user who wants to switch to a different Supadata account, I want to be able to update my API key from the Settings/Options page without going through the full onboarding flow again, and I want an already-open Side Panel to pick up the new key immediately without needing a reload.
 
 **Acceptance criteria (Gherkin):**
 ```gherkin
-  Scenario: Key updated via options page
-    Given the options page is open
-    And the "API Keys" section is visible
-    When the user clears the existing key and types a new one
-    And clicks "Save"
-    Then ConfigManager.save() is called with the new supadataApiKey
-    And a success confirmation message is displayed
-    And subsequent analysis requests use the new key in X-Supadata-Key
+  Scenario: Key updated via options page propagates to active Side Panel
+    Given the Side Panel is currently open in a YouTube tab
+    And the user opens the options page in another tab
+    When the user saves a new supadataApiKey "new-test-key-456" in the options page
+    And switches back to the open Side Panel and triggers an analysis
+    Then createAnalysisJob() dispatches POST /analyze/jobs
+    And the request headers include "X-Supadata-Key: new-test-key-456"
 ```
 
 ### US5 — Local Development Without a Supadata Key
@@ -189,4 +201,23 @@ Feature: Supadata BYOK onboarding
     When ClaimExtractor.get_transcript() is called
     Then TranscriptRetrievalError is raised immediately
     And no youtube-transcript-api fetch is attempted
+```
+
+### US6 — Web Frontend Transcript Fetching
+> As a user or tester accessing Perspective Prism via the standalone React web application, I want transcript fetching to succeed either by providing my Supadata key in the web interface or by leveraging the server's configured key, so that web-based analyses complete without cloud IP blocking errors.
+
+**Acceptance criteria (Gherkin):**
+```gherkin
+  Scenario: Web frontend request with user-supplied key
+    Given localStorage contains "perspective_prism_supadata_key" equal to "web-user-key"
+    When the user starts analysis from the web frontend
+    Then POST /analyze/jobs is sent with header "X-Supadata-Key: web-user-key"
+    And the job processes with supadata_key "web-user-key"
+
+  Scenario: Keyless web frontend request on deployment with server key
+    Given no key is entered in the web frontend
+    And settings.SUPADATA_API_KEY is configured on the backend
+    When the user starts analysis from the web frontend
+    Then POST /analyze/jobs is sent without an X-Supadata-Key header
+    And the backend processes the job using settings.SUPADATA_API_KEY
 ```
