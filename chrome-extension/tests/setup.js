@@ -39,6 +39,10 @@ installStorageShim("sessionStorage");
 const createChromeMock = () => {
   return {
     storage: {
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
       sync: {
         get: vi.fn(),
         set: vi.fn(),

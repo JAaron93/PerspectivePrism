@@ -1,6 +1,95 @@
-import { test, expect } from "./fixtures";
+import { createServer } from "node:http";
+import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Side Panel Integration Flow", () => {
+  test("uses live local Supadata keys without reloading the panel", async ({ page, context, extensionId }) => {
+    const videoId = "science0001";
+    const keys = ["track2-browser-key-old", "track2-browser-key-new"];
+    const requests = [];
+    const logs = [];
+    const background = await getBackgroundWorker(context);
+    const captureLog = (message) => logs.push(message.text());
+    page.on("console", captureLog);
+    background.on("console", captureLog);
+
+    const server = createServer(async (request, response) => {
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Supadata-Key");
+      response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.setHeader("Access-Control-Allow-Private-Network", "true");
+      response.setHeader("Content-Type", "application/json");
+      if (request.method === "OPTIONS") {
+        response.writeHead(204).end();
+        return;
+      }
+      if (request.method === "POST" && request.url === "/analyze/jobs") {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        requests.push({ key: request.headers["x-supadata-key"], body: JSON.parse(body) });
+        response.end(JSON.stringify({ job_id: `science-job-${requests.length}` }));
+      } else if (request.method === "GET" && request.url.startsWith("/analyze/jobs/")) {
+        response.end(JSON.stringify({
+          status: "completed",
+          result: buildMockResult(videoId, "PBS NewsHour examines evidence for climate policy.", "Scientific"),
+        }));
+      } else {
+        response.writeHead(404).end(JSON.stringify({ error: "Unexpected test request" }));
+      }
+    });
+
+    try {
+      await new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(8000, "localhost", resolve);
+      });
+      await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+      await page.waitForFunction(() => typeof window.startAnalysis === "function");
+      const settingsPage = await context.newPage();
+      settingsPage.on("console", captureLog);
+      await settingsPage.goto(`chrome-extension://${extensionId}/options.html`);
+      const youtubePage = await context.newPage();
+      await youtubePage.goto(`https://www.youtube.com/watch?v=${videoId}`);
+
+      for (const key of [...keys, "", null]) {
+        await settingsPage.evaluate(async (supadataApiKey) => {
+          const { config } = await chrome.storage.local.get("config");
+          if (supadataApiKey === null) {
+            delete config.supadataApiKey;
+          } else {
+            config.supadataApiKey = supadataApiKey;
+          }
+          await chrome.storage.local.set({ config });
+        }, key);
+        await page.evaluate(async (id) => {
+          await window.startAnalysis(id, {
+            forceOverride: true,
+            metadata: { title: "Climate policy evidence", channel_name: "PBS NewsHour" },
+          });
+        }, videoId);
+        await expect(page.locator("#state-results")).toBeVisible();
+        expect(requests.at(-1).key).toBe(key || undefined);
+        expect(requests.at(-1).body).toEqual({
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          force_override: true,
+          metadata: { title: "Climate policy evidence", channel_name: "PBS NewsHour" },
+        });
+      }
+      expect(requests).toHaveLength(4);
+      const storage = await background.evaluate(async () => ({
+        local: await chrome.storage.local.get(null),
+        session: await chrome.storage.session.get(null),
+      }));
+      for (const key of keys) {
+        expect(JSON.stringify(storage)).not.toContain(key);
+        expect(logs.join("\n")).not.toContain(key);
+      }
+    } finally {
+      background.off("console", captureLog);
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
   test("should request background to open side panel on button click", async ({
     page,
     context,

@@ -1,5 +1,5 @@
 // Background service worker
-import { ConfigManager } from "./config.js";
+import { ConfigManager, DEFAULT_CONFIG } from "./config.js";
 import { logger } from "./logging-utils.js";
 import PerspectivePrismClient from "./client.js";
 import CacheManager from "./cache-manager.js";
@@ -9,6 +9,22 @@ logger.info("Perspective Prism background service worker loaded");
 let client;
 const configManager = new ConfigManager();
 const cacheManager = new CacheManager();
+let config = configManager.get();
+let configRevision = 0;
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.config) return;
+
+  const newConfig = changes.config.newValue;
+  configRevision += 1;
+  config = {
+    ...DEFAULT_CONFIG,
+    ...newConfig,
+    supadataApiKey: typeof newConfig?.supadataApiKey === "string"
+      ? newConfig.supadataApiKey
+      : "",
+  };
+});
 
 /**
  * StateManager handles persistence of analysis state using chrome.storage.session.
@@ -82,8 +98,19 @@ let clientPromise = null;
 function getClient() {
   if (!clientPromise) {
     clientPromise = (async () => {
-      const config = await configManager.load();
-      client = new PerspectivePrismClient(config.backendUrl);
+      const revision = configRevision;
+      const loadedConfig = await configManager.load();
+      // A storage event may have supplied a newer key while startup was loading.
+      if (revision === configRevision) {
+        config = {
+          ...DEFAULT_CONFIG,
+          ...loadedConfig,
+          supadataApiKey: typeof loadedConfig.supadataApiKey === "string"
+            ? loadedConfig.supadataApiKey
+            : "",
+        };
+      }
+      client = new PerspectivePrismClient(loadedConfig.backendUrl);
       try {
         await cacheManager.evictExpiredAndLRU();
         await client.cleanupExpiredCache();
@@ -326,6 +353,7 @@ async function handleAnalysisRequest(message) {
   const options = {
     forceOverride: Boolean(message.forceOverride || message.force_override),
     metadata: message.metadata || undefined,
+    supadataApiKey: message.supadataApiKey || config.supadataApiKey,
   };
 
   const isForce = Boolean(options.forceOverride);

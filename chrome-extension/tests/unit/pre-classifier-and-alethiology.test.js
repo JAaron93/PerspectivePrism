@@ -473,16 +473,17 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
 
       forceBtn.click();
 
-      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "ANALYZE_VIDEO",
-          videoId: "abcdefghijk",
-          forceOverride: true,
-        }),
-      );
-
       const stateLoading = document.getElementById("state-loading");
       expect(stateLoading.style.display).toBe("flex");
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "ANALYZE_VIDEO",
+            videoId: "abcdefghijk",
+            forceOverride: true,
+          }),
+        );
+      });
     });
 
     it("should render Epistemic Lens card with chips and collapsible quotes", async () => {
@@ -587,6 +588,7 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
 
       // 1. Initial analysis for video A (slow)
       const p1 = sidepanelModule.startAnalysis("videoA11char");
+      await vi.waitFor(() => expect(resolveFirstAnalysis).toBeTypeOf("function"));
 
       // 2. User starts a new forced analysis for the same video A
       const p2 = sidepanelModule.startAnalysis("videoA11char", { forceOverride: true });
@@ -646,6 +648,7 @@ describe("Track 5: Pre-Classifier and Alethiology Client & Sidepanel Unit Tests"
 
       // 1. User starts analysis on Video A
       const p1 = sidepanelModule.startAnalysis("videoA11char");
+      await vi.waitFor(() => expect(resolveVideoA1).toBeTypeOf("function"));
 
       // 2. User navigates to Video B
       chrome.tabs.query.mockImplementation((queryInfo, callback) => {

@@ -5,6 +5,7 @@ const DEFAULT_CONFIG = {
   cacheDuration: 168,
   allowInsecureUrls: false, // Never enable in production
   privacyPolicyUrl: undefined, // Use built-in policy by default
+  supadataApiKey: "",
 };
 
 // Configuration validator
@@ -53,6 +54,13 @@ class ConfigValidator {
           "SECURITY WARNING: allowInsecureUrls is enabled. This should only be used for local development.",
         );
       }
+    }
+
+    if (
+      config.supadataApiKey !== undefined &&
+      typeof config.supadataApiKey !== "string"
+    ) {
+      errors.push("supadataApiKey must be a string");
     }
 
     return {
