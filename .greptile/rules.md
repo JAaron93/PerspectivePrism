@@ -126,6 +126,12 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Do NOT suggest replacing the in-memory job store (`POST /analyze/jobs` ➔ `GET /analyze/jobs/{job_id}`) with Redis, Celery, or SQL databases. Completed jobs are cleaned up after 1 hour by a background task.
   * Preserve the circuit breaker pattern (`cb_open`, `cb_failures`, `backup_client`) in `AnalysisService`.
   * Configuration must strictly rely on `pydantic-settings` (`backend/app/core/config.py`).
+* **BYOK Header Normalization & Server Key Preservation**:
+  * Flag any per-request API key override implementation where an empty string (`""` or whitespace) suppresses a configured server-side default key.
+  * Verify that request headers are normalized via `.strip()` and only non-empty strings override server credentials (`request_key = key.strip() if isinstance(key, str) else ""; raw_key = request_key or server_key`).
+* **External API Schema Integrity (No Error-to-Silence Coercion)**:
+  * Flag external API response parsers that treat missing, non-dict, or non-list response fields as valid empty transcripts or empty payloads.
+  * Parsers must explicitly validate collection types (e.g. `if not isinstance(data.get("content"), list): raise ...`) to ensure upstream API errors or schema shifts fail fast with explicit retrieval errors rather than mimicking zero-length speech/content.
 * **Evaluation Runner & Pairwise Benchmark Invariants**:
   * In pairwise evaluation benchmarks (`backend/app/evals/runners/pairwise_runner.py`):
     - Candidate model output sanitization must normalize text with NFKC upfront and allocate a dynamic $4\times$ escaping expansion multiplier (`ceiling = max(len(unicodedata.normalize("NFKC", text)) * 4, 2097152)`) to ensure post-normalization and post-escaping character expansion never triggers silent ellipsis truncation before judging.
