@@ -18,6 +18,10 @@ let saveSettingsBtn;
 let resetDefaultsBtn;
 let saveSuccess;
 let saveError;
+let supadataKeyInput;
+let supadataKeyToggleBtn;
+let saveKeysBtn;
+let keyStatus;
 
 // Configuration manager instance
 let configManager;
@@ -25,6 +29,13 @@ let configManager;
 // Validation state
 let isBackendUrlValid = false;
 let isCacheDurationValid = true;
+
+// Auto-hide timer for the API key status message
+let keyStatusTimer = null;
+
+// Shared guard: overlapping read-modify-write saves would drop each
+// other's config fields, so only one save may run at a time
+let isConfigSaveInFlight = false;
 
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", async () => {
@@ -43,6 +54,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   resetDefaultsBtn = document.getElementById("reset-defaults");
   saveSuccess = document.getElementById("save-success");
   saveError = document.getElementById("save-error");
+  supadataKeyInput = document.getElementById("options-supadata-key");
+  supadataKeyToggleBtn = document.getElementById("options-supadata-key-toggle");
+  saveKeysBtn = document.getElementById("options-save-keys");
+  keyStatus = document.getElementById("options-key-status");
 
   // Initialize config manager
   configManager = new ConfigManager();
@@ -73,6 +88,7 @@ async function loadSettings() {
     cacheEnabledCheckbox.checked = config.cacheEnabled !== false;
     cacheDurationInput.value = config.cacheDuration || 168;
     allowAnalysisCheckbox.checked = config.allowAnalysis !== false;
+    supadataKeyInput.value = config.supadataApiKey || "";
 
     logger.info("Settings loaded:", config);
   } catch (error) {
@@ -127,6 +143,15 @@ function setupEventListeners() {
   cacheEnabledCheckbox.addEventListener("change", () => {
     cacheDurationInput.disabled = !cacheEnabledCheckbox.checked;
   });
+
+  // Supadata API key visibility toggle
+  supadataKeyToggleBtn.addEventListener("click", toggleSupadataKeyVisibility);
+
+  // Supadata API key save
+  saveKeysBtn.addEventListener("click", saveApiKeys);
+
+  // Clear API key status while typing
+  supadataKeyInput.addEventListener("input", clearKeyStatus);
 }
 
 /**
@@ -293,6 +318,12 @@ async function saveSettings() {
     return;
   }
 
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
+  saveKeysBtn.disabled = true;
+
   // Clear previous messages
   clearMessages();
 
@@ -301,8 +332,11 @@ async function saveSettings() {
   saveSettingsBtn.innerHTML = '<span class="spinner"></span> Saving...';
 
   try {
-    // Build config object
+    // Read-modify-write so fields managed elsewhere (e.g. supadataApiKey)
+    // are not dropped when general settings are saved
+    const current = await configManager.load();
     const config = {
+      ...current,
       backendUrl: backendUrlInput.value.trim(),
       cacheEnabled: cacheEnabledCheckbox.checked,
       cacheDuration: parseInt(cacheDurationInput.value, 10),
@@ -322,9 +356,86 @@ async function saveSettings() {
     logger.error("Failed to save settings:", error);
   } finally {
     // Restore button state
+    isConfigSaveInFlight = false;
     saveSettingsBtn.disabled = false;
     saveSettingsBtn.textContent = "Save Settings";
+    saveKeysBtn.disabled = false;
   }
+}
+
+/**
+ * Toggle Supadata API key visibility between masked and plain text
+ */
+function toggleSupadataKeyVisibility() {
+  const show = supadataKeyInput.type === "password";
+  supadataKeyInput.type = show ? "text" : "password";
+  supadataKeyToggleBtn.setAttribute(
+    "aria-label",
+    show ? "Hide API key" : "Show API key",
+  );
+}
+
+/**
+ * Save the Supadata API key via read-modify-write so unrelated config
+ * fields are preserved
+ */
+async function saveApiKeys() {
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
+  saveKeysBtn.disabled = true;
+  saveSettingsBtn.disabled = true;
+
+  try {
+    const current = await configManager.load();
+    await configManager.save({
+      ...current,
+      supadataApiKey: supadataKeyInput.value.trim(),
+    });
+
+    showKeyStatus("Saved.", false);
+  } catch (error) {
+    showKeyStatus(`Failed to save API key: ${error.message}`, true);
+    logger.error("Failed to save API key:", error);
+  } finally {
+    isConfigSaveInFlight = false;
+    saveKeysBtn.disabled = false;
+    updateButtonStates();
+  }
+}
+
+/**
+ * Show API key save status (success auto-hides, errors persist)
+ */
+function showKeyStatus(message, isError) {
+  if (keyStatusTimer) {
+    clearTimeout(keyStatusTimer);
+    keyStatusTimer = null;
+  }
+
+  keyStatus.textContent = message;
+  keyStatus.className = isError
+    ? "error-message visible"
+    : "success-message visible";
+
+  if (!isError) {
+    keyStatusTimer = setTimeout(() => {
+      keyStatus.classList.remove("visible");
+    }, 5000);
+  }
+}
+
+/**
+ * Clear the API key status message
+ */
+function clearKeyStatus() {
+  if (keyStatusTimer) {
+    clearTimeout(keyStatusTimer);
+    keyStatusTimer = null;
+  }
+  keyStatus.textContent = "";
+  keyStatus.className = "";
 }
 
 /**
@@ -334,6 +445,13 @@ async function resetToDefaults() {
   if (!confirm("Are you sure you want to reset all settings to defaults?")) {
     return;
   }
+
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
+  saveKeysBtn.disabled = true;
+  saveSettingsBtn.disabled = true;
 
   try {
     // Save default config
@@ -352,6 +470,10 @@ async function resetToDefaults() {
   } catch (error) {
     showSaveError(`Failed to reset settings: ${error.message}`);
     logger.error("Failed to reset settings:", error);
+  } finally {
+    isConfigSaveInFlight = false;
+    saveKeysBtn.disabled = false;
+    updateButtonStates();
   }
 }
 
