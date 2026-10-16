@@ -390,6 +390,7 @@ Access settings by right-clicking the extension icon and selecting **Options**:
 - **Backend URL**: Endpoint for the Perspective Prism backend (HTTPS required for external servers, HTTP allowed for localhost/127.0.0.1).
 - **Cache Settings**: Enable/disable cache and configure the cache duration (defaults to 7 days, using content-hashed storage keys `cache_${videoId}_${contentHash}` with 10MB auto-LRU eviction).
 - **Privacy Notice & Consent**: Review the current privacy policy and grant or revoke analysis consent. Revoking consent instantly clears all local caches, aborts pending jobs, and deletes background alarms.
+- **API Keys**: Manage the locally-stored Supadata transcript API key used for BYOK transcript fetching (masked input with visibility toggle; stored only in `chrome.storage.local`).
 
 ## 🧪 Testing
 
@@ -504,7 +505,7 @@ The project is organized as follows:
   - **UI Pages**:
     - `sidepanel.html/js/css`: Native Chrome Side Panel UI showing claim timeline, progressive perspective streams, and truth profiles
     - `popup.html/js/css`: Extension popup showing analysis status and cache statistics
-    - `options.html/js/css`: Settings page for backend URL configuration, cache controls, and privacy settings
+    - `options.html/js/css`: Settings page for backend URL configuration, cache controls, privacy settings, and BYOK API key management
     - `welcome.html/js/css`: Onboarding page for first-time users
     - `privacy.html`: Privacy policy with data handling disclosure
   - **Utilities**:
