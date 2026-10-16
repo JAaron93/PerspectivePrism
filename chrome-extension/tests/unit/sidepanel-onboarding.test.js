@@ -369,7 +369,7 @@ describe("T3.1 & T3.2: Side Panel Onboarding Key UI & Logic", () => {
         if (message.type === "GET_ANALYSIS_STATE") {
           return Promise.resolve({
             success: true,
-            state: { status: "error", code: "SUPADATA_KEY_REQUIRED" },
+            state: { status: "error", code: "SUPADATA_KEY_REQUIRED", apiKey: "" },
           });
         }
         return Promise.resolve({ success: true });
@@ -388,6 +388,48 @@ describe("T3.1 & T3.2: Side Panel Onboarding Key UI & Logic", () => {
       expect(onboarding.style.display).toBe("none");
       const idle = document.getElementById("state-idle");
       expect(idle.style.display).toBe("flex");
+    });
+
+    it("should keep onboarding form visible on tab update when key error occurred with same invalid key", async () => {
+      chrome.storage.local.get.mockImplementation((keys, callback) => {
+        const result = { config: { supadataApiKey: "bad-key-xyz" } };
+        if (callback) callback(result);
+        return Promise.resolve(result);
+      });
+
+      // Background holds SUPADATA_KEY_INVALID for this video with the same key
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "GET_ANALYSIS_STATE") {
+          return Promise.resolve({
+            success: true,
+            state: {
+              status: "error",
+              code: "SUPADATA_KEY_INVALID",
+              errorMessage: "Invalid API key provided.",
+              apiKey: "bad-key-xyz",
+            },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+
+      await vi.waitFor(() => {
+        expect(chrome.tabs.query).toHaveBeenCalled();
+      });
+
+      await sidepanelModule.checkCurrentTabState();
+
+      // Since the key has NOT changed, the onboarding form should remain visible
+      const onboarding = document.getElementById("state-onboarding-key");
+      expect(onboarding.style.display).toBe("flex");
+      expect(document.getElementById("state-idle").style.display).toBe("none");
+
+      // And the error message should be displayed
+      const errorMsg = document.getElementById("supadata-key-error");
+      expect(errorMsg.style.display).toBe("block");
+      expect(errorMsg.textContent).toContain("Invalid API key");
     });
   });
 });

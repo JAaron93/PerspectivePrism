@@ -68,6 +68,7 @@ let lastCompletedAnalyzedAt = 0;
 const supersededRequestIds = new Set();
 const completedRequestIds = new Set();
 let requestCounter = 0;
+let lastFailedApiKey = null;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -337,7 +338,12 @@ async function startAnalysis(videoId, options = {}) {
       // Intermediate retry: analysis is actively being retried in background; maintain loading UI
       loadingSubmessage.textContent = "Retrying analysis...";
     } else if (response && (response.code === "SUPADATA_KEY_REQUIRED" || response.code === "SUPADATA_KEY_INVALID")) {
+      lastFailedApiKey = supadataApiKey;
       showState("onboarding-key");
+      if (response.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+        keyErrorMsg.textContent = response.error || "The Supadata API key is invalid. Please enter a valid key.";
+        keyErrorMsg.style.display = "block";
+      }
     } else if (response && response.code === "SUPADATA_QUOTA_EXHAUSTED") {
       showState("supadata-quota");
     } else if (response && (response.code === "QUOTA_EXHAUSTED" || response.isExhaustion)) {
@@ -354,7 +360,12 @@ async function startAnalysis(videoId, options = {}) {
   } catch (err) {
     if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
     if (err && (err.code === "SUPADATA_KEY_REQUIRED" || err.code === "SUPADATA_KEY_INVALID")) {
+      lastFailedApiKey = supadataApiKey;
       showState("onboarding-key");
+      if (err.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+        keyErrorMsg.textContent = err.message || "The Supadata API key is invalid. Please enter a valid key.";
+        keyErrorMsg.style.display = "block";
+      }
     } else if (err && err.code === "SUPADATA_QUOTA_EXHAUSTED") {
       showState("supadata-quota");
     } else if (err && (err.code === "QUOTA_EXHAUSTED" || err.isExhaustion)) {
@@ -847,13 +858,20 @@ async function checkCurrentTabState() {
     });
 
     if (response && response.success && response.state) {
-      if (
+      const isKeyError =
         response.state.status === "error" &&
-        (response.state.code === "SUPADATA_KEY_REQUIRED" || response.state.code === "SUPADATA_KEY_INVALID") &&
-        supadataApiKey
-      ) {
+        (response.state.code === "SUPADATA_KEY_REQUIRED" || response.state.code === "SUPADATA_KEY_INVALID");
+      const keyChanged =
+        isKeyError &&
+        ((response.state.code === "SUPADATA_KEY_REQUIRED" && supadataApiKey !== "") ||
+         (lastFailedApiKey !== null && supadataApiKey !== lastFailedApiKey));
+
+      if (isKeyError && keyChanged) {
         showState("idle");
       } else {
+        if (isKeyError && lastFailedApiKey === null) {
+          lastFailedApiKey = supadataApiKey;
+        }
         handleAnalysisState(response.state);
       }
     } else {
@@ -996,10 +1014,11 @@ function handleAnalysisState(state) {
         activeAnalysisVideoId = null;
       }
       if (state.code === "SUPADATA_KEY_REQUIRED" || state.code === "SUPADATA_KEY_INVALID") {
-        if (shouldShowOnboarding()) {
-          showState("onboarding-key");
-        } else {
-          showState("idle");
+        lastFailedApiKey = state.apiKey !== undefined ? state.apiKey : supadataApiKey;
+        showState("onboarding-key");
+        if (state.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+          keyErrorMsg.textContent = state.errorMessage || "The Supadata API key is invalid. Please enter a valid key.";
+          keyErrorMsg.style.display = "block";
         }
       } else if (state.code === "SUPADATA_QUOTA_EXHAUSTED") {
         showState("supadata-quota");
@@ -1229,6 +1248,7 @@ if (keySaveBtn && keyInputField) {
       const currentConfig = await configManager.load();
       await configManager.save({ ...currentConfig, supadataApiKey: keyVal });
       supadataApiKey = keyVal;
+      lastFailedApiKey = null;
       showState("idle");
 
       let targetVideoId = currentVideoId;
