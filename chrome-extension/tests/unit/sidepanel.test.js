@@ -415,9 +415,149 @@ describe("Side Panel UI & Message Handling", () => {
     );
 
     retryBtn.click();
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" })
-    );
+    await vi.waitFor(() => {
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" })
+      );
+    });
+  });
+
+  describe("Supadata key synchronization", () => {
+    let config;
+
+    beforeEach(async () => {
+      config = { backendUrl: "http://localhost:8000", supadataApiKey: "key-old" };
+      chrome.storage.local.get.mockImplementation(async (key) =>
+        key === "config" ? { config: { ...config } } : {},
+      );
+      sidepanelModule = await import("../../sidepanel.js");
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "GET_ANALYSIS_STATE" }),
+        );
+      });
+    });
+
+    it("registers one listener and reloads the latest key before each dispatch", async () => {
+      expect(chrome.storage.onChanged.addListener).toHaveBeenCalledTimes(1);
+      const onChanged = chrome.storage.onChanged.addListener.mock.calls[0][0];
+      await sidepanelModule.startAnalysis("abcdefghijk");
+      expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supadataApiKey: "key-old" }),
+      );
+      config = { ...config, supadataApiKey: "key-new" };
+      onChanged({ config: { newValue: config } }, "local");
+      await sidepanelModule.startAnalysis("abcdefghijk", { forceOverride: true });
+      expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supadataApiKey: "key-new", forceOverride: true }),
+      );
+      config.supadataApiKey = "key-without-event";
+      await sidepanelModule.startAnalysis("abcdefghijk");
+      expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supadataApiKey: "key-without-event" }),
+      );
+      expect(chrome.storage.local.get.mock.calls.filter(([key]) => key === "config")).toHaveLength(3);
+      expect(chrome.storage.sync.set).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["replacement", { supadataApiKey: "key-new" }, "key-new"],
+      ["empty", { supadataApiKey: "" }, ""],
+      ["field removal", {}, ""],
+      ["config deletion", undefined, ""],
+    ])("applies %s during an older config read", async (_label, newValue, expectedKey) => {
+      let finishLoad;
+      chrome.storage.local.get.mockImplementationOnce(() => new Promise((resolve) => {
+        finishLoad = resolve;
+      }));
+      const request = sidepanelModule.startAnalysis("abcdefghijk");
+      const onChanged = chrome.storage.onChanged.addListener.mock.calls[0]?.[0];
+      expect(onChanged).toBeTypeOf("function");
+      onChanged({ config: { newValue } }, "local");
+      finishLoad({ config });
+      await request;
+      expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supadataApiKey: expectedKey }),
+      );
+    });
+
+    it.each([
+      [{ config: { newValue: { supadataApiKey: "wrong-key" } } }, "sync"],
+      [{ config: { newValue: { supadataApiKey: "wrong-key" } } }, "session"],
+      [{ other: { newValue: { supadataApiKey: "wrong-key" } } }, "local"],
+    ])("ignores unrelated storage events during loading", async (changes, area) => {
+      let finishLoad;
+      chrome.storage.local.get.mockImplementationOnce(() => new Promise((resolve) => {
+        finishLoad = resolve;
+      }));
+      const request = sidepanelModule.startAnalysis("abcdefghijk");
+      const onChanged = chrome.storage.onChanged.addListener.mock.calls[0]?.[0];
+      expect(onChanged).toBeTypeOf("function");
+      onChanged(changes, area);
+      finishLoad({ config });
+      await request;
+      expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ supadataApiKey: "key-old" }),
+      );
+    });
+
+    it("does not dispatch a superseded request after its config read completes", async () => {
+      let finishLoad;
+      chrome.storage.local.get.mockImplementationOnce(() => new Promise((resolve) => {
+        finishLoad = resolve;
+      }));
+      const first = sidepanelModule.startAnalysis("abcdefghijk");
+      expect(document.getElementById("state-loading").style.display).toBe("flex");
+      await sidepanelModule.startAnalysis("lmnopqrstuv");
+      expect(finishLoad).toBeTypeOf("function");
+      finishLoad({ config });
+      await first;
+      const messages = chrome.runtime.sendMessage.mock.calls
+        .map(([message]) => message).filter((message) => message.type === "ANALYZE_VIDEO");
+      expect(messages).toHaveLength(1);
+      expect(messages[0].videoId).toBe("lmnopqrstuv");
+    });
+
+    it("does not dispatch after cancellation while config is loading", async () => {
+      let finishLoad;
+      chrome.storage.local.get.mockImplementationOnce(() => new Promise((resolve) => {
+        finishLoad = resolve;
+      }));
+      const request = sidepanelModule.startAnalysis("abcdefghijk");
+      document.getElementById("pp-cancel-btn").click();
+      expect(finishLoad).toBeTypeOf("function");
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+      expect(document.getElementById("state-loading").style.display).toBe("none");
+      finishLoad({ config });
+      await request;
+      expect(chrome.runtime.sendMessage.mock.calls.some(([message]) => message.type === "ANALYZE_VIDEO")).toBe(false);
+    });
+
+    it("returns to idle when cancelling an in-flight dispatch", async () => {
+      let resolveAnalysis;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "ANALYZE_VIDEO") {
+          return new Promise((resolve) => {
+            resolveAnalysis = resolve;
+          });
+        }
+        return Promise.resolve({ success: true, state: { status: "idle" } });
+      });
+      const request = sidepanelModule.startAnalysis("abcdefghijk");
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" }),
+        );
+      });
+
+      document.getElementById("pp-cancel-btn").click();
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+
+      resolveAnalysis({ success: true, data: { claims: [] } });
+      await request;
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+      expect(document.getElementById("state-results").style.display).toBe("none");
+    });
   });
 
   describe("Quota Exhaustion State UI (T2.2 / FR7)", () => {

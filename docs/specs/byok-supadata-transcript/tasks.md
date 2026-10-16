@@ -124,7 +124,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 2 tasks T2.1–T2.4 can be developed and unit-tested in parallel with Track 1 by mocking the backend with MSW v2 handlers.
 
-- [ ] **T2.1 — Add `supadataApiKey` to Extension Config**
+- [x] **T2.1 — Add `supadataApiKey` to Extension Config**
   - **Description**: In `chrome-extension/config.js`:
     1. Add `supadataApiKey: ""` to `DEFAULT_CONFIG`.
     2. Add a validator block in `ConfigValidator.validate()`: if `config.supadataApiKey !== undefined`, assert `typeof config.supadataApiKey === "string"` → push error if not.
@@ -138,7 +138,7 @@
   - **Dependencies**: None
   - **Traceability**: FR1, FR3
 
-- [ ] **T2.2 — Send `X-Supadata-Key` Header in `createAnalysisJob()`**
+- [x] **T2.2 — Send `X-Supadata-Key` Header in `createAnalysisJob()`**
   - **Description**: In `chrome-extension/client.js`, modify `createAnalysisJob(videoUrl, options = {})`:
     1. Read `supadataApiKey` from `options.supadataApiKey`.
     2. Build a `headers` object starting with `"Content-Type": "application/json"`.
@@ -152,7 +152,7 @@
   - **Dependencies**: T2.1
   - **Traceability**: FR4, NFR1
 
-- [ ] **T2.3 — Thread Key from Side Panel to Client with Active Storage Sync**
+- [x] **T2.3 — Thread Key from Side Panel to Client with Active Storage Sync**
   - **Description**: In `chrome-extension/sidepanel.js` and `chrome-extension/background.js`:
     1. In `sidepanel.js`:
        - Register a `chrome.storage.onChanged` listener for changes to `"config"` in `local` storage. When detected, update the in-memory `supadataApiKey` state immediately.
@@ -169,7 +169,7 @@
   - **Dependencies**: T2.2
   - **Traceability**: FR4, FR13, NFR1
 
-- [ ] **T2.4 — Propagate Structured `error_code` in `pollJobStatus()`**
+- [x] **T2.4 — Propagate Structured `error_code` in `pollJobStatus()`**
   - **Description**: In `chrome-extension/client.js`, update `pollJobStatus(jobId, signal)`:
     When `statusData.status === "failed"`:
     1. Construct `const err = new Error(statusData.error || "Job failed without error message");`

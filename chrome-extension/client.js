@@ -285,6 +285,21 @@ class PerspectivePrismClient {
     }
 
     try {
+      // Recovery state omits credentials; explicit keys (including empty) take precedence.
+      if (!Object.prototype.hasOwnProperty.call(options, "supadataApiKey")) {
+        const { config } = await chrome.storage.local.get("config");
+        options = { ...options, supadataApiKey: config?.supadataApiKey };
+
+        if (controller?.signal?.aborted || (!isForce && this.activeOverrideVideoIds?.has(videoId))) {
+          await this.cleanupPersistedRequest(videoId);
+          return {
+            success: false,
+            error: "Analysis cancelled",
+            isCancelled: true,
+          };
+        }
+      }
+
       const result = await this.makeAnalysisRequest(
         videoUrl,
         videoId,
@@ -482,11 +497,15 @@ class PerspectivePrismClient {
       requestBody.metadata = options.metadata;
     }
 
+    /** @type {Record<string, string>} */
+    const headers = { "Content-Type": "application/json" };
+    if (typeof options.supadataApiKey === "string" && options.supadataApiKey.length > 0) {
+      headers["X-Supadata-Key"] = options.supadataApiKey;
+    }
+
     const response = await fetch(`${this.baseUrl}/analyze/jobs`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(requestBody),
       signal: options.signal,
     });
@@ -607,9 +626,14 @@ class PerspectivePrismClient {
         if (statusData.status === "completed") {
           return statusData.result;
         } else if (statusData.status === "failed") {
-          throw new Error(
+          /** @type {Error & {code?: string}} */
+          const error = new Error(
             statusData.error || "Job failed without error message",
           );
+          if (statusData.error_code) {
+            error.code = statusData.error_code;
+          }
+          throw error;
         }
 
         // If pending or processing, wait and retry
@@ -1408,6 +1432,11 @@ class PerspectivePrismClient {
       // but preserving startTime from existing if not in new (or if we want to enforce original)
       // For now, we just merge.
       const newState = { ...existingState, ...state };
+      if (newState.options) {
+        // Copy after merging so partial updates also sanitize existing options.
+        newState.options = { ...newState.options };
+        delete newState.options.supadataApiKey;
+      }
 
       // If we want to strictly preserve original startTime even if state has a new one:
       if (existingState.startTime) {

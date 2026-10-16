@@ -3,6 +3,18 @@ import { logger } from "./logging-utils.js";
 import { extractVideoIdFromUrl } from "./video-utils.js";
 import { parseTimestampToSeconds } from "./timeline-utils.js";
 import DOMPurify from "./vendor/dompurify.js";
+import { ConfigManager } from "./config.js";
+
+const configManager = new ConfigManager();
+let supadataApiKey = "";
+let configRevision = 0;
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.config) return;
+  configRevision++;
+  const key = changes.config.newValue?.supadataApiKey;
+  supadataApiKey = typeof key === "string" ? key : "";
+});
 
 /**
  * Sanitize text / HTML content using DOMPurify
@@ -224,12 +236,20 @@ async function startAnalysis(videoId, options = {}) {
 
   pendingCheckCacheToken++;
   try {
+    const revision = configRevision;
+    const config = await configManager.load();
+    if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
+    // A storage event can supersede an in-flight config snapshot.
+    if (configRevision === revision) {
+      supadataApiKey = config.supadataApiKey || "";
+    }
     const response = await chrome.runtime.sendMessage({
       type: "ANALYZE_VIDEO",
       videoId: videoId,
       forceOverride: Boolean(options.forceOverride || options.force_override),
       metadata: options.metadata,
       requestId: requestId,
+      supadataApiKey,
     });
 
     // Discard if navigation has changed the active video OR if a newer analysis was triggered
@@ -1015,6 +1035,10 @@ if (optionsBtn) {
 if (cancelBtn) {
   cancelBtn.addEventListener("click", () => {
     if (currentVideoId) {
+      // Invalidate any start still awaiting its config read so it cannot dispatch,
+      // and restore the idle view: a pre-dispatch cancel produces no background event.
+      activeAnalysisToken++;
+      showState("idle");
       chrome.runtime.sendMessage({
         type: "CANCEL_ANALYSIS",
         videoId: currentVideoId

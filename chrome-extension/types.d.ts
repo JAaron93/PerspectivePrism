@@ -216,7 +216,7 @@ interface CacheStats {
 // ============================================================================
 
 /**
- * Extension configuration stored in chrome.storage.sync
+ * Extension configuration stored in chrome.storage.local
  */
 interface ExtensionConfig {
   backendUrl: string;
@@ -224,6 +224,7 @@ interface ExtensionConfig {
   cacheDuration: number; // hours
   allowInsecureUrls?: boolean; // Developer flag for HTTP URLs (default: false)
   privacyPolicyUrl?: string; // Optional external privacy policy URL
+  supadataApiKey?: string;
 }
 
 /**

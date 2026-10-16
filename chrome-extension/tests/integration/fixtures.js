@@ -1,4 +1,5 @@
 import { test as base, chromium } from "@playwright/test";
+import net from "node:net";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -8,14 +9,34 @@ const __dirname = path.dirname(__filename);
 // Path to the extension build directory (root of chrome-extension)
 const extensionPath = path.resolve(__dirname, "../../");
 
+let mockBackendPortPromise;
+function getMockBackendPort() {
+  mockBackendPortPromise ??= new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+  return mockBackendPortPromise;
+}
+
 export const test = base.extend({
+  // Ephemeral port for live HTTP fixtures; Chromium resolves localhost:8000 to
+  // it so tests never conflict with a developer-run backend on the real port.
+  mockBackendPort: async ({}, use) => {
+    await use(await getMockBackendPort());
+  },
   context: async ({}, use) => {
     const pathToExtension = extensionPath;
+    const mockBackendPort = await getMockBackendPort();
     const context = await chromium.launchPersistentContext("", {
       headless: false,
       args: [
         `--disable-extensions-except=${pathToExtension}`,
         `--load-extension=${pathToExtension}`,
+        `--host-resolver-rules=MAP localhost:8000 127.0.0.1:${mockBackendPort}`,
       ],
     });
 
