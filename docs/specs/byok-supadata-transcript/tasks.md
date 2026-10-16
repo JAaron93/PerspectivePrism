@@ -188,7 +188,7 @@
 ## Track 3 — Extension: Onboarding Panel UX & Quota Handling
 > Sequential. Depends on Track 2 config foundation (T2.1, T2.4).
 
-- [ ] **T3.1 — Add `#state-onboarding-key` to Side Panel HTML**
+- [x] **T3.1 — Add `#state-onboarding-key` to Side Panel HTML**
   - **Description**: In `chrome-extension/sidepanel.html`, add a new `<div id="state-onboarding-key" class="state-container" hidden>` containing:
     - A heading: "Set Up Your Free Transcript Key"
     - An explanatory paragraph mentioning the 100 fetches/month free tier.
@@ -203,7 +203,7 @@
   - **Dependencies**: T2.1
   - **Traceability**: FR2, NFR5
 
-- [ ] **T3.2 — Implement Onboarding State Logic in `sidepanel.js`**
+- [x] **T3.2 — Implement Onboarding State Logic in `sidepanel.js`**
   - **Description**: In `chrome-extension/sidepanel.js`:
     1. After `ConfigManager.load()`, check if `config.supadataApiKey` is empty. If so, call `showState("onboarding-key")`.
     2. Implement `showState("onboarding-key")`: hide all other states, show `#state-onboarding-key`, set focus to `#supadata-key-input`.
@@ -223,7 +223,7 @@
   - **Dependencies**: T3.1, T2.1
   - **Traceability**: FR2, FR3, NFR1, NFR5
 
-- [ ] **T3.3 — Add `#state-supadata-quota` Side Panel State and Error Routing**
+- [x] **T3.3 — Add `#state-supadata-quota` Side Panel State and Error Routing**
   - **Description**:
     1. Define how missing-key and quota codes reach the job response:
        - In backend (T1.4), `process_analysis()` catches `SupadataQuotaExhaustedError` and `SupadataKeyRequiredError`, setting `status = "failed"` and `error_code` on `jobs[job_id]`.

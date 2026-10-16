@@ -665,8 +665,15 @@ class PerspectivePrismClient {
   }
 
   shouldRetryError(error) {
-    // Never retry on quota exhaustion
-    if (error && (error.code === "QUOTA_EXHAUSTED" || error.isExhaustion)) {
+    // Never retry on server or Supadata quota exhaustion, or missing/invalid key credentials
+    if (
+      error &&
+      (error.code === "QUOTA_EXHAUSTED" ||
+        error.isExhaustion ||
+        error.code === "SUPADATA_QUOTA_EXHAUSTED" ||
+        error.code === "SUPADATA_KEY_REQUIRED" ||
+        error.code === "SUPADATA_KEY_INVALID")
+    ) {
       return false;
     }
 
@@ -700,6 +707,12 @@ class PerspectivePrismClient {
   }
 
   formatUserError(error) {
+    if (error && error.code === "SUPADATA_QUOTA_EXHAUSTED") {
+      return "Your monthly free tier of 100 transcript fetches on Supadata has been exhausted.";
+    }
+    if (error && (error.code === "SUPADATA_KEY_REQUIRED" || error.code === "SUPADATA_KEY_INVALID")) {
+      return "A valid Supadata API key is required to fetch transcripts.";
+    }
     if (error && (error.code === "QUOTA_EXHAUSTED" || error.isExhaustion)) {
       return "Perspective Prism has reached its monthly free-tier server limit on Modal Labs. You can continue analyzing videos by easily self-hosting the backend on your own machine.";
     }
