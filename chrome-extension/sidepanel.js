@@ -1035,7 +1035,10 @@ if (optionsBtn) {
 if (cancelBtn) {
   cancelBtn.addEventListener("click", () => {
     if (currentVideoId) {
+      // Invalidate any start still awaiting its config read so it cannot dispatch,
+      // and restore the idle view: a pre-dispatch cancel produces no background event.
       activeAnalysisToken++;
+      showState("idle");
       chrome.runtime.sendMessage({
         type: "CANCEL_ANALYSIS",
         videoId: currentVideoId

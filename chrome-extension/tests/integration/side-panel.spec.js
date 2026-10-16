@@ -2,15 +2,11 @@ import { createServer } from "node:http";
 import { test, expect, getBackgroundWorker, buildMockResult } from "./fixtures";
 
 test.describe("Side Panel Integration Flow", () => {
-  test("uses live local Supadata keys without reloading the panel", async ({ page, context, extensionId }) => {
+  test("uses live local Supadata keys without reloading the panel", async ({ page, context, extensionId, mockBackendPort }) => {
     const videoId = "science0001";
     const keys = ["track2-browser-key-old", "track2-browser-key-new"];
     const requests = [];
     const logs = [];
-    const background = await getBackgroundWorker(context);
-    const captureLog = (message) => logs.push(message.text());
-    page.on("console", captureLog);
-    background.on("console", captureLog);
 
     const server = createServer(async (request, response) => {
       response.setHeader("Access-Control-Allow-Origin", "*");
@@ -38,10 +34,17 @@ test.describe("Side Panel Integration Flow", () => {
     });
 
     try {
+      // The fixture maps localhost:8000 to this ephemeral port, so the extension's
+      // default backend URL reaches this server without clashing with a live backend.
       await new Promise((resolve, reject) => {
         server.once("error", reject);
-        server.listen(8000, "localhost", resolve);
+        server.listen(mockBackendPort, "127.0.0.1", resolve);
       });
+      const background = await getBackgroundWorker(context);
+      const captureLog = (message) => logs.push(message.text());
+      background.on("console", captureLog);
+      page.on("console", captureLog);
+
       await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
       await page.waitForFunction(() => typeof window.startAnalysis === "function");
       const settingsPage = await context.newPage();
@@ -84,7 +87,6 @@ test.describe("Side Panel Integration Flow", () => {
         expect(logs.join("\n")).not.toContain(key);
       }
     } finally {
-      background.off("console", captureLog);
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
     }

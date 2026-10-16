@@ -526,9 +526,37 @@ describe("Side Panel UI & Message Handling", () => {
       const request = sidepanelModule.startAnalysis("abcdefghijk");
       document.getElementById("pp-cancel-btn").click();
       expect(finishLoad).toBeTypeOf("function");
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+      expect(document.getElementById("state-loading").style.display).toBe("none");
       finishLoad({ config });
       await request;
       expect(chrome.runtime.sendMessage.mock.calls.some(([message]) => message.type === "ANALYZE_VIDEO")).toBe(false);
+    });
+
+    it("returns to idle when cancelling an in-flight dispatch", async () => {
+      let resolveAnalysis;
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "ANALYZE_VIDEO") {
+          return new Promise((resolve) => {
+            resolveAnalysis = resolve;
+          });
+        }
+        return Promise.resolve({ success: true, state: { status: "idle" } });
+      });
+      const request = sidepanelModule.startAnalysis("abcdefghijk");
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "ANALYZE_VIDEO", videoId: "abcdefghijk" }),
+        );
+      });
+
+      document.getElementById("pp-cancel-btn").click();
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+
+      resolveAnalysis({ success: true, data: { claims: [] } });
+      await request;
+      expect(document.getElementById("state-idle").style.display).toBe("flex");
+      expect(document.getElementById("state-results").style.display).toBe("none");
     });
   });
 
