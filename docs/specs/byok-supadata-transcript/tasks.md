@@ -254,7 +254,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 4 can be developed in parallel with Track 3. It only requires T2.1 (config field exists).
 
-- [ ] **T4.1 — Add "API Keys" Section to Options Page HTML**
+- [x] **T4.1 — Add "API Keys" Section to Options Page HTML**
   - **Description**: In `chrome-extension/options.html`, add an "API Keys" `<section>` containing:
     - A section heading "API Keys".
     - A `<label for="options-supadata-key">Supadata API Key</label>`.
@@ -266,7 +266,7 @@
   - **Dependencies**: T2.1
   - **Traceability**: FR6, NFR5
 
-- [ ] **T4.2 — Implement Options Page Key Save Logic**
+- [x] **T4.2 — Implement Options Page Key Save Logic**
   - **Description**: In `chrome-extension/options.js`:
     1. On page load, call `ConfigManager.load()` and populate `#options-supadata-key` with the stored value (show as masked).
     2. Wire toggle-visibility button on the options input (same pattern as T3.2).

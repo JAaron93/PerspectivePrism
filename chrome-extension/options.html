@@ -184,6 +184,59 @@
       </div>
     </section>
 
+    <!-- API Keys Section -->
+    <section class="section">
+      <h2 class="section-title">
+        <span aria-hidden="true">🔑</span>
+        API Keys
+      </h2>
+      <p class="section-description">
+        Manage the API key used to fetch YouTube transcripts. Your key is
+        stored locally in this browser and never synced.
+      </p>
+
+      <div class="form-group">
+        <label for="options-supadata-key">
+          Supadata API Key
+          <span class="label-description">
+            Free tier: 100 transcript fetches per month
+          </span>
+        </label>
+        <div class="input-button-group">
+          <input
+            type="password"
+            id="options-supadata-key"
+            name="options-supadata-key"
+            autocomplete="off"
+            spellcheck="false"
+            aria-describedby="options-key-help options-key-status"
+          />
+          <button
+            type="button"
+            id="options-supadata-key-toggle"
+            class="secondary"
+            aria-label="Show API key"
+          >
+            <span aria-hidden="true">👁</span>
+          </button>
+        </div>
+        <div id="options-key-help" class="label-description" style="margin-top: 6px;">
+          <a href="https://supadata.ai" target="_blank" rel="noopener noreferrer">How to get a free key ↗</a>
+        </div>
+        <div class="button-group">
+          <button
+            type="button"
+            id="options-save-keys"
+            class="primary"
+            aria-label="Save API keys"
+          >
+            Save
+          </button>
+        </div>
+        <p id="options-key-status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <!-- Save Settings Section -->
     <section class="section">
       <div class="button-group">
