@@ -33,6 +33,10 @@ let isCacheDurationValid = true;
 // Auto-hide timer for the API key status message
 let keyStatusTimer = null;
 
+// Shared guard: overlapping read-modify-write saves would drop each
+// other's config fields, so only one save may run at a time
+let isConfigSaveInFlight = false;
+
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", async () => {
   // Get DOM elements
@@ -314,6 +318,12 @@ async function saveSettings() {
     return;
   }
 
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
+  saveKeysBtn.disabled = true;
+
   // Clear previous messages
   clearMessages();
 
@@ -346,8 +356,10 @@ async function saveSettings() {
     logger.error("Failed to save settings:", error);
   } finally {
     // Restore button state
+    isConfigSaveInFlight = false;
     saveSettingsBtn.disabled = false;
     saveSettingsBtn.textContent = "Save Settings";
+    saveKeysBtn.disabled = false;
   }
 }
 
@@ -368,7 +380,12 @@ function toggleSupadataKeyVisibility() {
  * fields are preserved
  */
 async function saveApiKeys() {
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
   saveKeysBtn.disabled = true;
+  saveSettingsBtn.disabled = true;
 
   try {
     const current = await configManager.load();
@@ -382,7 +399,9 @@ async function saveApiKeys() {
     showKeyStatus(`Failed to save API key: ${error.message}`, true);
     logger.error("Failed to save API key:", error);
   } finally {
+    isConfigSaveInFlight = false;
     saveKeysBtn.disabled = false;
+    updateButtonStates();
   }
 }
 
@@ -427,6 +446,13 @@ async function resetToDefaults() {
     return;
   }
 
+  if (isConfigSaveInFlight) {
+    return;
+  }
+  isConfigSaveInFlight = true;
+  saveKeysBtn.disabled = true;
+  saveSettingsBtn.disabled = true;
+
   try {
     // Save default config
     await configManager.save(DEFAULT_CONFIG);
@@ -444,6 +470,10 @@ async function resetToDefaults() {
   } catch (error) {
     showSaveError(`Failed to reset settings: ${error.message}`);
     logger.error("Failed to reset settings:", error);
+  } finally {
+    isConfigSaveInFlight = false;
+    saveKeysBtn.disabled = false;
+    updateButtonStates();
   }
 }
 

@@ -275,4 +275,31 @@ describe("Options Page API Keys section (Track 4)", () => {
     expect(payload.backendUrl).toBe("https://api.example.org");
     expect(payload.supadataApiKey).toBe("existing-key");
   });
+
+  it("prevents overlapping saves from dropping each other's changes", async () => {
+    await initOptions();
+
+    const resolvers = [];
+    chrome.storage.local.get.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve)),
+    );
+
+    document.getElementById("save-settings").click();
+
+    // Second save attempt while the first is in flight must be ignored
+    document.getElementById("options-supadata-key").value = "new-key";
+    document.getElementById("options-save-keys").click();
+
+    for (const resolve of resolvers) {
+      resolve({ config: { ...STORED_CONFIG, supadataApiKey: "old-key" } });
+    }
+
+    await vi.waitFor(() => {
+      expect(configSaveCalls().length).toBeGreaterThan(0);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(configSaveCalls().length).toBe(1);
+    expect(configSaveCalls()[0][0].config.supadataApiKey).toBe("old-key");
+  });
 });
