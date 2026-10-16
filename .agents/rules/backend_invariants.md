@@ -91,11 +91,38 @@ This document defines the implementation guidelines, security invariants, testin
 * Use structured logging via the `logging` module; log details server-side and return generic errors to clients.
 * Catch specific exceptions; avoid bare `except` clauses.
 * All configuration must pass through `pydantic-settings` and `.env` files — never hardcode secrets.
+* **BYOK Per-Request Header Credential Normalization**:
+  - In Bring-Your-Own-Key (BYOK) endpoints and per-request credential override patterns, HTTP clients, Chrome extension options, or reverse proxies frequently forward empty string headers (e.g. `X-*-Key: ""` or whitespace) when no user key is set in local storage.
+  - Never evaluate raw presence via `if header_value is not None:`.
+  - Always normalize the request header string first (`request_key = header_val.strip() if isinstance(header_val, str) else ""`), and only treat non-empty strings as active client overrides:
+    ```python
+    request_key = supadata_key.strip() if isinstance(supadata_key, str) else ""
+    raw_key = request_key or getattr(self.settings, "SUPADATA_API_KEY", None)
+    effective_key = raw_key.strip() if isinstance(raw_key, str) and raw_key.strip() else None
+    ```
+  - This guarantees that empty client headers never mask or suppress configured server-side default API keys.
+* **External API Response Shape Validation (No Silent Failure Masking)**:
+  - When parsing responses from third-party or external REST APIs, parsers MUST validate the expected top-level response payload schema and collection types (e.g. `raw_content = data.get("content"); if not isinstance(raw_content, list): raise TranscriptRetrievalError(...)`).
+  - Never default missing, `None`, or non-collection fields to empty lists (`[]`) or empty strings (`""`) without validation. Coercing malformed schema responses into empty structures masks upstream API contract breakages as valid empty media/silence, causing pipelines to misclassify errors as non-speech content.
 
 ---
 
 ## 5. Backend Testing & Mocking Invariants
 
+* **Module-Level Service Singleton State Isolation (`conftest.py`)**:
+  - In FastAPI applications, module-level service singletons (such as `analysis_service` in `app.main`) maintain stateful in-memory counters (e.g., `cb_failures`, circuit breaker status, background task sets).
+  - Integration and unit tests that simulate failures can mutate these counters and leak state across tests within the same pytest session, causing downstream health checks or probes to fail unexpectedly.
+  - `backend/tests/conftest.py` MUST register an `autouse=True` fixture that resets singleton service state before each test:
+    ```python
+    @pytest.fixture(autouse=True)
+    def reset_analysis_service_circuit_breaker():
+        from app.main import analysis_service
+        analysis_service.cb_failures = 0
+        analysis_service.cb_open = False
+        yield
+        analysis_service.cb_failures = 0
+        analysis_service.cb_open = False
+    ```
 * **Local Test Execution**: When running tests locally, always pass dummy environment variables for required credentials:
   ```bash
   GCP_PROJECT=test-project LLM_API_KEY=dummy GOOGLE_API_KEY=dummy GOOGLE_CSE_ID=dummy pytest

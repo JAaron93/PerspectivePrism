@@ -98,6 +98,13 @@ This document defines repository-wide test execution standards, test fixture dis
   - **Collision Detection**: When resolving merge conflicts against `main`, inspect `docs/adr/` for newly merged ADRs that share the same sequential index as the feature branch's new ADR.
   - **Renumbering**: If a collision occurs (e.g. both branches introduced `006-*`), renumber the newer feature branch ADR to the next available sequential integer (e.g. `007-*`) using `git mv` to preserve git file tracking.
   - **Cross-Reference Synchronization**: Update the ADR title heading, `AGENTS.md` Supreme Architecture Invariants, `.agents/rules/` domain rulebooks, and `.greptile/rules.md` references before concluding the merge commit.
+* **Multi-Worktree Post-Merge Sync & Branch Cleanup**:
+  - In Git multi-worktree environments, a local branch cannot be deleted (`git branch -d`) while it remains checked out by a worktree. Furthermore, running `git checkout main` inside a secondary worktree will fail if `main` is already checked out in the primary repository root (`fatal: 'main' is already checked out`).
+  - When a PR feature branch has been merged into `main` and deleted remotely:
+    1. **Prune remote branches**: Run `git fetch origin --prune`.
+    2. **Detach worktree HEAD**: Inside the worktree, detach HEAD to `origin/main` (`git checkout --detach origin/main`). This releases the worktree's hold on the local feature branch without deleting the worktree directory.
+    3. **Fast-forward primary main**: In the primary repository root, update `main` with `git pull --ff-only origin main`.
+    4. **Delete local branch**: In the primary repository root, safely delete the merged local branch: `git branch -d <feature-branch>`.
 * **Documentation Hygiene & Test Suite Claims**:
   - **No Brittle Test Item Counts**: In `README.md` and public docs, avoid hardcoding static test item numbers that drift from glob-based runners. Describe covered module scope and document runnable commands (`npm test`, `npm run test:integration`, `pytest`).
   - **Verifiable Performance & Storage Claims**: Ensure performance/latency statements are internally consistent and match actual code behavior (e.g. state `<20ms cache hit load` rather than mixing `<20ms` with `sub-millisecond`).
