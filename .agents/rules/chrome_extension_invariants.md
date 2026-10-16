@@ -143,3 +143,19 @@ This document defines the implementation guidelines, security invariants, storag
     ```
   - Never use bare `.includes("Out of credits")` (capital-O) or any case-sensitive variant. Modal's error message casing is not guaranteed stable across SDK versions.
 
+---
+
+## 7. BYOK Config & Live Key Synchronization Invariants
+
+* **New Config Fields Must Survive Options Saves**:
+  - `options.js` `saveSettings()` reconstructs the config object from known fields only, so any field added to `DEFAULT_CONFIG` (in BOTH `config.js` and `config-script.js`) is silently dropped when a user saves general settings.
+  - New fields MUST either be included in that reconstruction or the save path MUST switch to read-modify-write (`{ ...await configManager.load(), ...updates }`). The Options-page Supadata key controls (Track 4 of the BYOK spec) own reconciling `supadataApiKey`.
+* **Single Live-Sync Listener & Fresh Dispatch**:
+  - `sidepanel.js` and `background.js` MUST each register exactly one `chrome.storage.onChanged` listener scoped to local `config` changes, normalizing missing/non-string keys to `""` (never reusing a stale key after deletion).
+  - The side panel MUST re-read `ConfigManager.load()` immediately before every `ANALYZE_VIDEO` dispatch, with request-ownership/token rechecks after the await; the background MUST resolve `message.supadataApiKey || config.supadataApiKey` from its event-updated snapshot.
+  - Key changes MUST NOT recreate the analysis client; the `getClient()` cached-Promise identity is preserved across config updates.
+* **Credential Lifetime Boundary**:
+  - `supadataApiKey` MUST NOT be persisted into pending/retry request state; `persistRequestState()` strips it from the merged options copy without mutating caller-owned objects.
+  - Request execution rehydrates the latest local-config key only when options lack their own `supadataApiKey` property (explicit empty strings are preserved, so keyless intent stays keyless).
+  - `createAnalysisJob()` sends `X-Supadata-Key` only for a non-empty string options key, and `pollJobStatus()` attaches `statusData.error_code` (canonical backend field) to the thrown error as `err.code`.
+
