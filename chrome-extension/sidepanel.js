@@ -233,6 +233,16 @@ async function checkOnboardingState() {
 }
 
 /**
+ * Helper to determine if the onboarding screen should be shown instead of idle.
+ * True when the user has no configured Supadata API key and the onboarding UI exists.
+ * @returns {boolean}
+ */
+function shouldShowOnboarding() {
+  const onboardingEl = stateOnboardingKey || document.getElementById("state-onboarding-key");
+  return Boolean(!supadataApiKey && onboardingEl);
+}
+
+/**
  * Render ineligible disclaimer state (Pre-Classifier Guardrail Gate)
  * @param {Object} eligibility - ContentEligibilityResult object from backend
  */
@@ -821,7 +831,11 @@ async function checkCurrentTabState() {
 
     if (!videoId) {
       currentVideoId = null;
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       return;
     }
 
@@ -833,13 +847,29 @@ async function checkCurrentTabState() {
     });
 
     if (response && response.success && response.state) {
-      handleAnalysisState(response.state);
+      if (
+        response.state.status === "error" &&
+        (response.state.code === "SUPADATA_KEY_REQUIRED" || response.state.code === "SUPADATA_KEY_INVALID") &&
+        supadataApiKey
+      ) {
+        showState("idle");
+      } else {
+        handleAnalysisState(response.state);
+      }
     } else {
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
     }
   } catch (error) {
     logger.error("Failed to check tab state:", error);
-    showState("idle");
+    if (shouldShowOnboarding()) {
+      showState("onboarding-key");
+    } else {
+      showState("idle");
+    }
   }
 }
 
@@ -849,7 +879,11 @@ function handleAnalysisState(state) {
 
   switch (state.status) {
     case "idle":
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       break;
       
     case "in_progress": {
@@ -962,7 +996,11 @@ function handleAnalysisState(state) {
         activeAnalysisVideoId = null;
       }
       if (state.code === "SUPADATA_KEY_REQUIRED" || state.code === "SUPADATA_KEY_INVALID") {
-        showState("onboarding-key");
+        if (shouldShowOnboarding()) {
+          showState("onboarding-key");
+        } else {
+          showState("idle");
+        }
       } else if (state.code === "SUPADATA_QUOTA_EXHAUSTED") {
         showState("supadata-quota");
       } else if (state.code === "QUOTA_EXHAUSTED" || state.isExhaustion) {
@@ -988,7 +1026,11 @@ function handleAnalysisState(state) {
       }
       activeAnalysisToken++;
       pendingCheckCacheToken++;
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       break;
     }
   }
@@ -1188,7 +1230,22 @@ if (keySaveBtn && keyInputField) {
       await configManager.save({ ...currentConfig, supadataApiKey: keyVal });
       supadataApiKey = keyVal;
       showState("idle");
-      await checkCurrentTabState();
+
+      let targetVideoId = currentVideoId;
+      if (!targetVideoId && chrome.tabs && chrome.tabs.query) {
+        try {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tabs && tabs[0]) {
+            targetVideoId = extractVideoIdFromUrl(tabs[0].url || "");
+          }
+        } catch (_e) {
+          // ignore
+        }
+      }
+
+      if (targetVideoId) {
+        await startAnalysis(targetVideoId);
+      }
     } catch (err) {
       logger.error("Failed to save Supadata API key:", err);
       if (keyErrorMsg) {
@@ -1228,8 +1285,8 @@ if (chrome.tabs && chrome.tabs.onUpdated) {
 
 // Run initialization
 async function initSidePanel() {
-  await checkCurrentTabState();
   await checkOnboardingState();
+  await checkCurrentTabState();
 }
 
 if (typeof document !== "undefined") {

@@ -257,5 +257,137 @@ describe("T3.1 & T3.2: Side Panel Onboarding Key UI & Logic", () => {
       expect(onboarding.style.display).toBe("flex");
       expect(document.getElementById("state-error").style.display).toBe("none");
     });
+
+    it("should trigger fresh analysis for current video when saving key instead of restoring stale error", async () => {
+      let storedConfig = { supadataApiKey: "" };
+      chrome.storage.local.get.mockImplementation((keys, callback) => {
+        const result = { config: { ...storedConfig } };
+        if (callback) callback(result);
+        return Promise.resolve(result);
+      });
+      chrome.storage.local.set.mockImplementation((items, callback) => {
+        if (items.config) storedConfig = { ...items.config };
+        if (callback) callback();
+        return Promise.resolve();
+      });
+
+      chrome.tabs.query.mockImplementation((queryInfo, callback) => {
+        const tabs = [{ id: 101, url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }];
+        if (callback) callback(tabs);
+        return Promise.resolve(tabs);
+      });
+
+      // Background session state simulates a prior missing key error
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "GET_ANALYSIS_STATE") {
+          return Promise.resolve({
+            success: true,
+            state: { status: "error", code: "SUPADATA_KEY_REQUIRED" },
+          });
+        }
+        if (message.type === "ANALYZE_VIDEO") {
+          return Promise.resolve({
+            success: true,
+            data: { video_id: message.videoId, claims: [] },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+
+      await vi.waitFor(() => {
+        const onboarding = document.getElementById("state-onboarding-key");
+        expect(onboarding.style.display).toBe("flex");
+      });
+
+      const input = document.getElementById("supadata-key-input");
+      const saveBtn = document.getElementById("supadata-key-save");
+
+      input.value = "new-valid-supadata-key";
+      saveBtn.click();
+
+      // Verify that ANALYZE_VIDEO was dispatched for the active video with the new key
+      await vi.waitFor(() => {
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "ANALYZE_VIDEO",
+            videoId: "dQw4w9WgXcQ",
+            supadataApiKey: "new-valid-supadata-key",
+          }),
+        );
+      });
+    });
+
+    it("should maintain onboarding state across tab switching to a non-video tab and back when key is not configured", async () => {
+      chrome.storage.local.get.mockImplementation((keys, callback) => {
+        const result = { config: { supadataApiKey: "" } };
+        if (callback) callback(result);
+        return Promise.resolve(result);
+      });
+
+      let currentActiveTabs = [{ id: 101, url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }];
+      chrome.tabs.query.mockImplementation((queryInfo, callback) => {
+        if (callback) callback(currentActiveTabs);
+        return Promise.resolve(currentActiveTabs);
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+
+      await vi.waitFor(() => {
+        const onboarding = document.getElementById("state-onboarding-key");
+        expect(onboarding.style.display).toBe("flex");
+      });
+
+      // 1. User opens a new tab to sign up (non-YouTube URL)
+      currentActiveTabs = [{ id: 102, url: "https://supadata.ai" }];
+      await sidepanelModule.checkCurrentTabState();
+
+      // Should still show onboarding-key, NOT idle
+      const onboarding = document.getElementById("state-onboarding-key");
+      expect(onboarding.style.display).toBe("flex");
+      expect(document.getElementById("state-idle").style.display).toBe("none");
+
+      // 2. User switches back to YouTube video
+      currentActiveTabs = [{ id: 101, url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }];
+      await sidepanelModule.checkCurrentTabState();
+
+      // Should still show onboarding-key, NOT idle
+      expect(onboarding.style.display).toBe("flex");
+      expect(document.getElementById("state-idle").style.display).toBe("none");
+    });
+
+    it("should discard stale SUPADATA_KEY_REQUIRED error on tab update if key is now configured", async () => {
+      chrome.storage.local.get.mockImplementation((keys, callback) => {
+        const result = { config: { supadataApiKey: "configured-key-123" } };
+        if (callback) callback(result);
+        return Promise.resolve(result);
+      });
+
+      // Background still holds a stale error state for this video
+      chrome.runtime.sendMessage.mockImplementation((message) => {
+        if (message.type === "GET_ANALYSIS_STATE") {
+          return Promise.resolve({
+            success: true,
+            state: { status: "error", code: "SUPADATA_KEY_REQUIRED" },
+          });
+        }
+        return Promise.resolve({ success: true });
+      });
+
+      sidepanelModule = await import("../../sidepanel.js");
+
+      await vi.waitFor(() => {
+        expect(chrome.tabs.query).toHaveBeenCalled();
+      });
+
+      await sidepanelModule.checkCurrentTabState();
+
+      // Since key is configured, stale error should be discarded and idle shown
+      const onboarding = document.getElementById("state-onboarding-key");
+      expect(onboarding.style.display).toBe("none");
+      const idle = document.getElementById("state-idle");
+      expect(idle.style.display).toBe("flex");
+    });
   });
 });
