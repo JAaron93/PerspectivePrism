@@ -1280,6 +1280,14 @@ if (keyInputField && keyErrorMsg) {
   keyInputField.addEventListener("input", () => {
     keyErrorMsg.style.display = "none";
   });
+  keyInputField.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (keySaveBtn) {
+        keySaveBtn.click();
+      }
+    }
+  });
 }
 
 // Quota - Change API Key button
