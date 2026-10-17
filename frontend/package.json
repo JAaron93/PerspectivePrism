@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "esbuild src/components/__tests__/components.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outfile=dist/test.mjs && node --test dist/test.mjs",
+    "test": "esbuild src/components/__tests__/*.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outdir=dist/test-dist && node --test dist/test-dist/*.js",
     "preview": "vite preview"
   },
   "dependencies": {

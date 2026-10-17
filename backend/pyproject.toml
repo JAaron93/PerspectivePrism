@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio"]
+dev = ["pytest", "pytest-asyncio", "pytest-bdd>=9.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -43,6 +43,7 @@ markers = [
     "redteam: prompt-injection red-team suite",
     "eval: mark test as component-level evaluation benchmark",
     "component: mark test as component-level test (runs offline against golden fixtures)",
+    "bdd: mark test as a BDD acceptance scenario (Gherkin .feature file)",
 ]
 filterwarnings = [
     "ignore:BaseAgentConfig is deprecated:DeprecationWarning",

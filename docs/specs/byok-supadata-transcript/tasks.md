@@ -329,7 +329,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 6 can be developed in parallel with Track 1 (T1.3–T1.4) once T6.1 (infrastructure) is done. The `.feature` files can be written immediately; step implementations fill in as Track 1 code is built.
 
-- [ ] **T6.1 — Install `pytest-bdd` and Register `bdd` Marker**
+- [x] **T6.1 — Install `pytest-bdd` and Register `bdd` Marker**
   - **Description**:
     1. Add `pytest-bdd>=9.0.0` to `[project.optional-dependencies] dev` in `backend/pyproject.toml`.
     2. Add `"bdd: mark test as a BDD acceptance scenario (Gherkin .feature file)"` to `[tool.pytest.ini_options] markers` in `pyproject.toml`.
@@ -340,7 +340,7 @@
   - **Dependencies**: None
   - **Traceability**: BDD
 
-- [ ] **T6.2 — Write Backend-Only `.feature` Files with Explicit Headers**
+- [x] **T6.2 — Write Backend-Only `.feature` Files with Explicit Headers**
   - **Description**: Create four backend-only `.feature` files under `backend/tests/features/byok_supadata/` with valid Gherkin syntax and `Feature:` headers (browser steps are assigned to Playwright in T5.3):
     1. **`transcript_key_propagation.feature`** (US2):
        ```gherkin
@@ -434,7 +434,7 @@
   - **Dependencies**: T6.1
   - **Traceability**: BDD, US2, US3, US5, US6
 
-- [ ] **T6.3 — Implement Step Definitions for Backend-Scope Scenarios via ASGITransport**
+- [x] **T6.3 — Implement Step Definitions for Backend-Scope Scenarios via ASGITransport**
   - **Description**: Create `backend/tests/bdd/test_byok_supadata.py`. Implement `pytest-bdd` step definitions using `@given`, `@when`, `@then` decorators and the `scenarios()` collector for all four backend `.feature` files:
     - Use `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:` for all HTTP steps (matching `httpx>=0.28.1`).
     - Control `settings.SUPADATA_FALLBACK_LOCAL` and `settings.SUPADATA_API_KEY` via `pytest` `monkeypatch`.
@@ -448,7 +448,7 @@
   - **Dependencies**: T6.2, T1.3, T1.4
   - **Traceability**: BDD, FR5, FR7, FR8, FR9, FR11, NFR1, NFR4
 
-- [ ] **T6.4 — Register `bdd` Marker in `pyproject.toml` and Verify CI Command**
+- [x] **T6.4 — Register `bdd` Marker in `pyproject.toml` and Verify CI Command**
   - **Description**: Confirm that `pytest -m bdd backend/tests/` selects exactly and only the BDD scenario tests. Add the BDD test run as a documented command in `README.md` under the Testing section:
     ```bash
     # Run executable Gherkin BDD acceptance scenarios
@@ -463,7 +463,7 @@
 ## Track 7 — Web Frontend: BYOK Setup Path & Server Fallback
 > Can run in parallel with Track 2 and Track 3.
 
-- [ ] **T7.1 — Web Frontend BYOK Key Support in `App.tsx` & Component Tests**
+- [x] **T7.1 — Web Frontend BYOK Key Support in `App.tsx` & Component Tests**
   - **Description**: In `frontend/src/App.tsx`:
     1. Add state `supadataKey` initialized from `localStorage.getItem("perspective_prism_supadata_key") || ""`.
     2. Add an optional API key input or modal dialog allowing users to enter/update their Supadata API key, saving to `localStorage`.
@@ -480,14 +480,14 @@
   - **Dependencies**: T1.4
   - **Traceability**: FR14, US6
 
-- [ ] **T7.2 — Backend Integration Test for Web Frontend Caller**
+- [x] **T7.2 — Backend Integration Test for Web Frontend Caller**
   - **Description**: In `backend/tests/test_integration.py`, add integration tests covering web frontend callers using `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:`:
     1. **Keyless caller with server fallback configured**: POST `/analyze/jobs` with no `X-Supadata-Key` header when `settings.SUPADATA_API_KEY = "server-key"`. Mock Supadata response. Poll job status → verify job completes successfully.
     2. **Web client caller with user-supplied key**: POST `/analyze/jobs` with `X-Supadata-Key: web-user-key` when `settings.SUPADATA_API_KEY = ""`. Mock Supadata response. Poll job status → verify job completes successfully using the client header key.
   - **Dependencies**: T1.4, T7.1
   - **Traceability**: FR11, FR14, US6
 
-- [ ] **T7.3 — Update Frontend `test` Script in `package.json` for Glob Test Discovery**
+- [x] **T7.3 — Update Frontend `test` Script in `package.json` for Glob Test Discovery**
   - **Description**: In `frontend/package.json`, update the `"test"` script from:
     `"esbuild src/components/__tests__/components.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outfile=dist/test.mjs && node --test dist/test.mjs"`
     to:
