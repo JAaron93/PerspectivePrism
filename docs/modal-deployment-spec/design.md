@@ -73,6 +73,7 @@ GCP credentials, search keys, and extension origins are provisioned securely via
    * `GOOGLE_CSE_ID`: Custom Search Engine ID.
    * `CHROME_EXTENSION_IDS`: JSON array string of allowed extension IDs (e.g. `'["amnjngnkcgooljnblcejpmkdhpikcdlp"]'`), matching `pydantic-settings` native `list[str]` parsing. The backend parses this into `build_chrome_extension_regex` to dynamically permit the deployed extension.
    * `BACKEND_CORS_ORIGINS`: Comma-separated allowed web origins.
+   * `SUPADATA_API_KEY`: (Optional) Server-side Supadata API key serving as the default fallback for requests made from the standalone web frontend and server-side integration tests. Extension users provide their own BYOK key via the `X-Supadata-Key` request header.
 2. **Container Startup Hook**: In `backend/modal_app.py`, a startup initialization hook reads `os.environ["GCP_SERVICE_ACCOUNT_JSON"]`, writes it to `/tmp/gcp_sa.json`, and sets `os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/gcp_sa.json"`.
 3. **No AI Studio Keys**: Legacy `GEMINI_API_KEY` is completely absent, ensuring 100% compliance with [ADR 003](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md).
 

@@ -50,8 +50,8 @@ export default defineConfig({
       ]
     },
     
-    // Test file patterns
-    include: ['tests/unit/**/*.test.js', 'tests/integration/**/*.test.js'],
+    // Test file patterns (unit tests only; integration tests run via Playwright)
+    include: ['tests/unit/**/*.test.js'],
     
     // Test timeout (30 seconds)
     testTimeout: 30000
