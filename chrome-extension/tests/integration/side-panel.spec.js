@@ -138,23 +138,32 @@ test.describe("Side Panel Integration Flow", () => {
     const sidePanelUrl = `chrome-extension://${extensionId}/sidepanel.html`;
     await page.goto(sidePanelUrl);
 
-    // 1. Verify idle state is displayed initially
+    // 1. Verify onboarding key state is displayed initially when no API key is configured
+    await expect(page.locator("#state-onboarding-key")).toBeVisible();
+    await expect(page.locator("#supadata-key-input")).toBeVisible();
+
+    // 2. Transition and verify idle state
+    await page.evaluate(() => window.showState("idle"));
     const idleState = page.locator("#state-idle");
     await expect(idleState).toBeVisible();
     await expect(page.locator("text=No Video Loaded")).toBeVisible();
 
-    // 2. Transition and verify loading state
+    // 3. Transition and verify loading state
     await page.evaluate(() => window.showState("loading"));
     await expect(page.locator("#state-loading")).toBeVisible();
     await expect(page.locator("#pp-cancel-btn")).toBeVisible();
 
-    // 3. Transition and verify error state
+    // 4. Transition and verify error state
     await page.evaluate(() => window.showState("error"));
     await expect(page.locator("#state-error")).toBeVisible();
     await expect(page.locator("#pp-retry-btn")).toBeVisible();
 
-    // 4. Transition and verify results state
+    // 5. Transition and verify results state
     await page.evaluate(() => window.showState("results"));
     await expect(page.locator("#state-results")).toBeVisible();
+
+    // 6. Transition and verify Supadata quota state
+    await page.evaluate(() => window.showState("supadata-quota"));
+    await expect(page.locator("#state-supadata-quota")).toBeVisible();
   });
 });

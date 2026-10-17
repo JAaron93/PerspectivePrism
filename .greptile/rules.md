@@ -60,6 +60,9 @@ This rulebook defines the core architectural invariants, security boundaries, an
 * **Pre-Classification & Epistemic Lens UI**:
   * The Side Panel must render the `#state-ineligible` disclaimer with category tags, confidence meter, and `[⚡ Analyze Anyway]` force-override action.
   * Epistemic Lens cards in `#state-results` must sanitize all quote evidences and epistemic summary text before DOM injection.
+* **Onboarding Form Accessibility & Enter Key Submission**:
+  * All form input fields in the Side Panel (such as `#supadata-key-input`) lacking a wrapping `<form>` element MUST implement an explicit `keydown` handler for the `"Enter"` key that calls `e.preventDefault()` and programmatically clicks the primary action button (`keySaveBtn.click()`), preventing unhandled form submissions and avoiding page reloads.
+  * Interactive onboarding inputs MUST include associated `<label>` elements with matching `for`/`id` attributes, dynamic `aria-label` updates on visibility toggles, and auto-focus (`input.focus()`) on state entry.
 * **Analysis Concurrency & Override Lifecycle**:
   * When `forceOverride` replaces an in-flight or recovered request, `client.js` must abort running controllers, clear scheduled retry alarms, track the override in `activeOverrideVideoIds`, and await promise settlement before starting.
   * Alarm listeners must pre-register `pendingRequests` and `AbortController` instances synchronously before yielding to asynchronous persistence in `executeAnalysisRequest`.
@@ -183,6 +186,9 @@ This is a **Catch-22 Oscillation boundary**: any review finding that demands a n
 * **Extension Tests (Vitest & Playwright)**:
   * Vitest unit tests in JSDOM must properly mock Chrome Extension APIs (`chrome.storage.local`, `chrome.runtime`).
   * Playwright integration tests (`chrome-extension/tests/integration/`) must use realistic domain fixtures and persistent extension contexts loading directly from the unpacked source root.
+  * **Playwright Clean Profile State Expectations & Resilient Pathing**:
+    - Integration tests loading the extension in a clean Chromium persistent context must account for pre-flight onboarding gates. When unconfigured credentials intercept the default state on a clean profile to show an onboarding view (`#state-onboarding-key`), tests must verify the onboarding view first before transitioning, or pre-configure mock credentials in `chrome.storage.local`.
+    - Visual QA screenshot suites must resolve target paths dynamically (checking environment variables or local directories) with safe fallback to `test-results/` rather than hardcoding developer absolute paths.
 * **Benchmark & Documentation Integrity**: `.benchmarks/**/*` and documentation (`*.md`) must be checked for factual accuracy against the codebase state.
 * **Historical Specification Immutability**: All specification files located under `docs/archive/specs/` are permanent historical artifacts representing completed milestones. Greptile must NOT request modifications, task appending, or requirements updates to archived specs during code reviews. All ongoing architectural discussions, new tasks, or post-launch enhancements belong in `README.md`, `docs/adr/`, or a new dedicated feature specification.
 

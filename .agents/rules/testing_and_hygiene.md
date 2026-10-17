@@ -68,6 +68,13 @@ This document defines repository-wide test execution standards, test fixture dis
     - In Marimo notebooks, markdown documentation cells must place `mo.md(...)` as a bare expression as the final statement in the cell (not `return mo.md(...)`), ensuring the Marimo reactive runtime captures it as displayable output.
     - Markdown cells positioned before library imports cannot reference `mo`.
     - When running headless exports non-interactively (`marimo export html ...`), pipe user confirmation (`echo y | marimo export html ... --output ...`) to prevent interactive overwrite prompt blockage.
+* **Integration Test Initial State Expectations on Clean Profiles**:
+  - When writing or updating Playwright integration tests that load the extension in a clean Chromium persistent context (e.g. `sidepanel.html`), tests MUST account for pre-flight onboarding or credential gates.
+  - If an unconfigured credential or required setting (such as `supadataApiKey`) intercepts the default UI state on a clean profile to display an onboarding screen (e.g. `#state-onboarding-key`), tests MUST NOT assume the UI boots directly to `#state-idle`.
+  - Tests must either verify the onboarding screen first before transitioning through states (`window.showState("idle")`), or explicitly seed mock credentials in `chrome.storage.local` prior to navigation.
+* **Environment-Resilient Screenshot Pathing for Automated Visual QA**:
+  - In Playwright integration tests that capture full-page screenshots or automated visual verification artifacts, target paths MUST NOT be hardcoded to machine-local absolute paths.
+  - Tests must resolve screenshot target paths dynamically using an environment-aware resolver (e.g., checking `process.env.ARTIFACT_DIR` or local artifact path existence, falling back safely to `path.join(process.cwd(), "test-results")` and ensuring the directory exists).
 
 ---
 

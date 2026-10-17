@@ -620,4 +620,99 @@ body {
   line-height: 1.35;
 }
 
+/* ==========================================================================
+   Onboarding & Quota State Styles (BYOK Setup)
+   ========================================================================== */
+
+#state-onboarding-key,
+#state-supadata-quota {
+  max-width: 360px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.onboarding-steps {
+  text-align: left;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.form-group {
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.input-with-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 36px 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.input-with-button .btn-icon {
+  position: absolute;
+  right: 6px;
+  padding: 4px;
+  font-size: 14px;
+}
+
+.input-error {
+  font-size: 12px;
+  color: var(--color-danger);
+  line-height: 1.3;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.privacy-notice {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 12px;
+  text-align: center;
+  max-width: 320px;
+}
+
 

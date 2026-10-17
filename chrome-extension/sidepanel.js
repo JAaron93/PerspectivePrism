@@ -68,6 +68,7 @@ let lastCompletedAnalyzedAt = 0;
 const supersededRequestIds = new Set();
 const completedRequestIds = new Set();
 let requestCounter = 0;
+let lastFailedApiKey = null;
 
 // DOM Elements
 const stateIdle = document.getElementById("state-idle");
@@ -76,6 +77,14 @@ const stateError = document.getElementById("state-error");
 const stateResults = document.getElementById("state-results");
 const stateIneligible = document.getElementById("state-ineligible");
 const stateQuotaExhausted = document.getElementById("state-quota-exhausted");
+const stateOnboardingKey = document.getElementById("state-onboarding-key");
+const stateSupadataQuota = document.getElementById("state-supadata-quota");
+
+const supadataKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById("supadata-key-input"));
+const supadataKeyToggle = document.getElementById("supadata-key-toggle");
+const supadataKeyError = document.getElementById("supadata-key-error");
+const supadataKeySave = document.getElementById("supadata-key-save");
+const quotaChangeKeyBtn = document.getElementById("pp-quota-change-key-btn");
 
 const disclaimerTitle = document.getElementById("disclaimer-title");
 const disclaimerCategoryBadge = document.getElementById("disclaimer-category-badge");
@@ -168,12 +177,70 @@ function renderOptimisticSkeletons(force = false) {
 
 // Show specific state in UI
 function showState(stateName) {
+  const currentOnboarding = stateOnboardingKey || document.getElementById("state-onboarding-key");
+  const currentQuota = stateSupadataQuota || document.getElementById("state-supadata-quota");
+
   if (stateIdle) stateIdle.style.display = stateName === "idle" ? "flex" : "none";
   if (stateLoading) stateLoading.style.display = stateName === "loading" ? "flex" : "none";
   if (stateError) stateError.style.display = stateName === "error" ? "flex" : "none";
   if (stateResults) stateResults.style.display = stateName === "results" ? "flex" : "none";
   if (stateIneligible) stateIneligible.style.display = stateName === "ineligible" ? "flex" : "none";
   if (stateQuotaExhausted) stateQuotaExhausted.style.display = stateName === "quota-exhausted" ? "flex" : "none";
+
+  if (currentOnboarding) {
+    const isOnboarding = stateName === "onboarding-key";
+    currentOnboarding.style.display = isOnboarding ? "flex" : "none";
+    if (isOnboarding) {
+      currentOnboarding.removeAttribute("hidden");
+      const input = supadataKeyInput || document.getElementById("supadata-key-input");
+      if (input && typeof input.focus === "function") {
+        input.focus();
+      }
+    } else {
+      currentOnboarding.setAttribute("hidden", "");
+    }
+  }
+
+  if (currentQuota) {
+    const isQuota = stateName === "supadata-quota";
+    currentQuota.style.display = isQuota ? "flex" : "none";
+    if (isQuota) {
+      currentQuota.removeAttribute("hidden");
+    } else {
+      currentQuota.setAttribute("hidden", "");
+    }
+  }
+}
+
+/**
+ * Check if the user needs to onboard their Supadata API key.
+ * If config.supadataApiKey is empty, transitions UI to onboarding-key state.
+ * @returns {Promise<boolean>} True if onboarding state was triggered, false otherwise.
+ */
+async function checkOnboardingState() {
+  const onboardingEl = stateOnboardingKey || document.getElementById("state-onboarding-key");
+  if (!onboardingEl) return false;
+  try {
+    const config = await configManager.load();
+    supadataApiKey = typeof config.supadataApiKey === "string" ? config.supadataApiKey : "";
+    if (!supadataApiKey) {
+      showState("onboarding-key");
+      return true;
+    }
+  } catch (err) {
+    logger.error("Failed to load config for onboarding check:", err);
+  }
+  return false;
+}
+
+/**
+ * Helper to determine if the onboarding screen should be shown instead of idle.
+ * True when the user has no configured Supadata API key and the onboarding UI exists.
+ * @returns {boolean}
+ */
+function shouldShowOnboarding() {
+  const onboardingEl = stateOnboardingKey || document.getElementById("state-onboarding-key");
+  return Boolean(!supadataApiKey && onboardingEl);
 }
 
 /**
@@ -270,6 +337,15 @@ async function startAnalysis(videoId, options = {}) {
     } else if (response && response.isRetry) {
       // Intermediate retry: analysis is actively being retried in background; maintain loading UI
       loadingSubmessage.textContent = "Retrying analysis...";
+    } else if (response && (response.code === "SUPADATA_KEY_REQUIRED" || response.code === "SUPADATA_KEY_INVALID")) {
+      lastFailedApiKey = supadataApiKey;
+      showState("onboarding-key");
+      if (response.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+        keyErrorMsg.textContent = response.error || "The Supadata API key is invalid. Please enter a valid key.";
+        keyErrorMsg.style.display = "block";
+      }
+    } else if (response && response.code === "SUPADATA_QUOTA_EXHAUSTED") {
+      showState("supadata-quota");
     } else if (response && (response.code === "QUOTA_EXHAUSTED" || response.isExhaustion)) {
       showState("quota-exhausted");
       if (quotaExhaustedMessage && response.error) {
@@ -283,7 +359,16 @@ async function startAnalysis(videoId, options = {}) {
     }
   } catch (err) {
     if (currentVideoId !== requestedVideoId || activeAnalysisToken !== analysisToken) return;
-    if (err && (err.code === "QUOTA_EXHAUSTED" || err.isExhaustion)) {
+    if (err && (err.code === "SUPADATA_KEY_REQUIRED" || err.code === "SUPADATA_KEY_INVALID")) {
+      lastFailedApiKey = supadataApiKey;
+      showState("onboarding-key");
+      if (err.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+        keyErrorMsg.textContent = err.message || "The Supadata API key is invalid. Please enter a valid key.";
+        keyErrorMsg.style.display = "block";
+      }
+    } else if (err && err.code === "SUPADATA_QUOTA_EXHAUSTED") {
+      showState("supadata-quota");
+    } else if (err && (err.code === "QUOTA_EXHAUSTED" || err.isExhaustion)) {
       showState("quota-exhausted");
       if (quotaExhaustedMessage && err.message) {
         quotaExhaustedMessage.textContent = err.message;
@@ -294,7 +379,8 @@ async function startAnalysis(videoId, options = {}) {
         errorMessage.textContent = err?.message || "Analysis request failed";
       }
     }
-  } finally {
+  }
+ finally {
     if (activeRequestId === requestId) {
       activeRequestId = null;
       activeAnalysisStartTime = 0;
@@ -756,7 +842,11 @@ async function checkCurrentTabState() {
 
     if (!videoId) {
       currentVideoId = null;
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       return;
     }
 
@@ -768,13 +858,36 @@ async function checkCurrentTabState() {
     });
 
     if (response && response.success && response.state) {
-      handleAnalysisState(response.state);
+      const isKeyError =
+        response.state.status === "error" &&
+        (response.state.code === "SUPADATA_KEY_REQUIRED" || response.state.code === "SUPADATA_KEY_INVALID");
+      const keyChanged =
+        isKeyError &&
+        ((response.state.code === "SUPADATA_KEY_REQUIRED" && supadataApiKey !== "") ||
+         (lastFailedApiKey !== null && supadataApiKey !== lastFailedApiKey));
+
+      if (isKeyError && keyChanged) {
+        showState("idle");
+      } else {
+        if (isKeyError && lastFailedApiKey === null) {
+          lastFailedApiKey = supadataApiKey;
+        }
+        handleAnalysisState(response.state);
+      }
     } else {
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
     }
   } catch (error) {
     logger.error("Failed to check tab state:", error);
-    showState("idle");
+    if (shouldShowOnboarding()) {
+      showState("onboarding-key");
+    } else {
+      showState("idle");
+    }
   }
 }
 
@@ -784,7 +897,11 @@ function handleAnalysisState(state) {
 
   switch (state.status) {
     case "idle":
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       break;
       
     case "in_progress": {
@@ -896,7 +1013,16 @@ function handleAnalysisState(state) {
         activeAnalysisStartTime = 0;
         activeAnalysisVideoId = null;
       }
-      if (state.code === "QUOTA_EXHAUSTED" || state.isExhaustion) {
+      if (state.code === "SUPADATA_KEY_REQUIRED" || state.code === "SUPADATA_KEY_INVALID") {
+        lastFailedApiKey = state.apiKey !== undefined ? state.apiKey : supadataApiKey;
+        showState("onboarding-key");
+        if (state.code === "SUPADATA_KEY_INVALID" && keyErrorMsg) {
+          keyErrorMsg.textContent = state.errorMessage || "The Supadata API key is invalid. Please enter a valid key.";
+          keyErrorMsg.style.display = "block";
+        }
+      } else if (state.code === "SUPADATA_QUOTA_EXHAUSTED") {
+        showState("supadata-quota");
+      } else if (state.code === "QUOTA_EXHAUSTED" || state.isExhaustion) {
         showState("quota-exhausted");
         if (quotaExhaustedMessage && state.errorMessage) {
           quotaExhaustedMessage.textContent = state.errorMessage;
@@ -919,7 +1045,11 @@ function handleAnalysisState(state) {
       }
       activeAnalysisToken++;
       pendingCheckCacheToken++;
-      showState("idle");
+      if (shouldShowOnboarding()) {
+        showState("onboarding-key");
+      } else {
+        showState("idle");
+      }
       break;
     }
   }
@@ -1086,6 +1216,88 @@ if (quotaOptionsBtn) {
   });
 }
 
+// Onboarding Key - Toggle visibility button
+const keyToggleBtn = supadataKeyToggle || document.getElementById("supadata-key-toggle");
+const keyInputField = /** @type {HTMLInputElement | null} */ (supadataKeyInput || document.getElementById("supadata-key-input"));
+if (keyToggleBtn && keyInputField) {
+  keyToggleBtn.addEventListener("click", () => {
+    const isPassword = keyInputField.type === "password";
+    keyInputField.type = isPassword ? "text" : "password";
+    keyToggleBtn.setAttribute("aria-label", isPassword ? "Hide API key" : "Show API key");
+    keyToggleBtn.textContent = isPassword ? "🙈" : "👁";
+  });
+}
+
+// Onboarding Key - Save button
+const keySaveBtn = supadataKeySave || document.getElementById("supadata-key-save");
+const keyErrorMsg = supadataKeyError || document.getElementById("supadata-key-error");
+if (keySaveBtn && keyInputField) {
+  keySaveBtn.addEventListener("click", async () => {
+    const keyVal = keyInputField.value.trim();
+    if (!keyVal) {
+      if (keyErrorMsg) {
+        keyErrorMsg.textContent = "Please enter a valid Supadata API key.";
+        keyErrorMsg.style.display = "block";
+      }
+      return;
+    }
+    if (keyErrorMsg) {
+      keyErrorMsg.style.display = "none";
+    }
+    try {
+      const currentConfig = await configManager.load();
+      await configManager.save({ ...currentConfig, supadataApiKey: keyVal });
+      supadataApiKey = keyVal;
+      lastFailedApiKey = null;
+      showState("idle");
+
+      let targetVideoId = currentVideoId;
+      if (!targetVideoId && chrome.tabs && chrome.tabs.query) {
+        try {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tabs && tabs[0]) {
+            targetVideoId = extractVideoIdFromUrl(tabs[0].url || "");
+          }
+        } catch (_e) {
+          // ignore
+        }
+      }
+
+      if (targetVideoId) {
+        await startAnalysis(targetVideoId);
+      }
+    } catch (err) {
+      logger.error("Failed to save Supadata API key:", err);
+      if (keyErrorMsg) {
+        keyErrorMsg.textContent = "Failed to save API key. Please try again.";
+        keyErrorMsg.style.display = "block";
+      }
+    }
+  });
+}
+
+if (keyInputField && keyErrorMsg) {
+  keyInputField.addEventListener("input", () => {
+    keyErrorMsg.style.display = "none";
+  });
+  keyInputField.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (keySaveBtn) {
+        keySaveBtn.click();
+      }
+    }
+  });
+}
+
+// Quota - Change API Key button
+const quotaChangeBtn = quotaChangeKeyBtn || document.getElementById("pp-quota-change-key-btn");
+if (quotaChangeBtn) {
+  quotaChangeBtn.addEventListener("click", () => {
+    showState("onboarding-key");
+  });
+}
+
 // Monitor tab updates/activation to track YouTube video URL changes
 if (chrome.tabs && chrome.tabs.onUpdated) {
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -1100,19 +1312,26 @@ if (chrome.tabs && chrome.tabs.onUpdated) {
 }
 
 // Run initialization
+async function initSidePanel() {
+  await checkOnboardingState();
+  await checkCurrentTabState();
+}
+
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
-    checkCurrentTabState();
+    initSidePanel();
   });
   
   // Also run immediately in case DOMContentLoaded already fired
   if (document.readyState === "interactive" || document.readyState === "complete") {
-    checkCurrentTabState();
+    initSidePanel();
   }
 }
 
 export {
   showState,
+  checkOnboardingState,
+  initSidePanel,
   sanitizeText,
   sanitizeUrl,
   renderResults,

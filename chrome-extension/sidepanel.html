@@ -28,6 +28,33 @@
       <p class="state-description">Open a YouTube video to analyze its claims, bias, and deception.</p>
     </div>
 
+    <!-- Onboarding Key State (BYOK Setup) -->
+    <div id="state-onboarding-key" class="state-container" hidden style="display: none;">
+      <span class="logo-icon" style="font-size: 48px;">🔑</span>
+      <h2 class="state-title">Set Up Your Free Transcript Key</h2>
+      <p class="state-description">Perspective Prism uses Supadata to fetch YouTube transcripts from the cloud. Supadata's free tier includes 100 transcript fetches per month — no credit card required.</p>
+      <ol class="onboarding-steps">
+        <li>Sign up at supadata.ai (free, ~30 seconds)</li>
+        <li>Copy your API key from the dashboard</li>
+        <li>Paste it below and click Save</li>
+      </ol>
+      <div class="form-group">
+        <label for="supadata-key-input" class="form-label">API Key</label>
+        <div class="input-with-button">
+          <input type="password" id="supadata-key-input" class="form-input" autocomplete="off" spellcheck="false" placeholder="Paste your API key here">
+          <button type="button" id="supadata-key-toggle" class="btn-icon" aria-label="Show API key" title="Toggle key visibility">👁</button>
+        </div>
+        <p id="supadata-key-error" class="input-error" role="alert" style="display: none;"></p>
+      </div>
+      <div class="onboarding-actions">
+        <a id="supadata-get-key-btn" href="https://supadata.ai" target="_blank" rel="noopener noreferrer" class="btn">Get Free Key ↗</a>
+        <button type="button" id="supadata-key-save" class="btn btn-primary">Save & Continue</button>
+      </div>
+      <p class="privacy-notice">
+        ℹ️ Your key is stored locally on this device only. It is sent to Supadata on your behalf to fetch transcripts and never stored on our servers.
+      </p>
+    </div>
+
     <!-- Loading State -->
     <div id="state-loading" class="state-container" style="display: none;">
       <div class="spinner"></div>
@@ -69,6 +96,17 @@
       <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 16px;">
         <a id="pp-self-host-btn" href="https://github.com/JAaron93/PerspectivePrism#setup-installation" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="text-align: center; text-decoration: none;">View Self-Hosting Guide on GitHub</a>
         <button id="pp-quota-options-btn" class="btn">Open Extension Settings</button>
+      </div>
+    </div>
+
+    <!-- Supadata Quota Exhausted State (BYOK Free Tier Cap) -->
+    <div id="state-supadata-quota" class="state-container" hidden style="display: none;">
+      <span class="logo-icon disclaimer-icon" style="font-size: 48px; color: var(--color-warning);">💳</span>
+      <h2 id="supadata-quota-title" class="state-title">Transcript Quota Reached</h2>
+      <p id="supadata-quota-message" class="state-description">Your monthly free tier of 100 transcript fetches on Supadata has been exhausted. You can upgrade your Supadata plan or change your API key to continue.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; margin-top: 16px;">
+        <a id="pp-quota-upgrade-btn" href="https://supadata.ai/pricing" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="text-align: center; text-decoration: none;">Upgrade Plan ↗</a>
+        <button type="button" id="pp-quota-change-key-btn" class="btn">Change API Key</button>
       </div>
     </div>
 

@@ -73,6 +73,9 @@ This document defines the implementation guidelines, security invariants, storag
 * **Idempotent Service Worker Promise Getters**: Lazy initialization getters (`getClient()`) must return the cached Promise reference (`clientPromise`) directly to preserve promise identity during Service Worker wake-up.
 * **Pre-Classification Disclaimer State**: When the backend returns an ineligible result (`eligibility.is_analysable === false`), the Side Panel MUST render `#state-ineligible` with category tags, confidence meter, and a prominent `[⚡ Analyze Anyway]` force-override button.
 * **Epistemic Lens UI Component**: In `#state-results`, each claim card MUST render the interactive Epistemic Lens badge (primary/secondary theory chips), neutral summary, and collapsible quote accordion, ensuring all text content is sanitized prior to DOM insertion.
+* **Onboarding Form Accessibility & Enter Key Submission**:
+  - All form input fields in the Side Panel (such as `#supadata-key-input`) that lack a wrapping `<form>` element MUST implement an explicit `keydown` handler for the `"Enter"` key that prevents default form submission (`e.preventDefault()`) and programmatically triggers the primary action button (`keySaveBtn.click()`), ensuring seamless keyboard submission without page reloads.
+  - Interactive onboarding inputs MUST include associated `<label>` elements with matching `for`/`id` attributes, dynamic `aria-label` updates on visibility toggles, and auto-focus (`input.focus()`) on state entry.
 
 ---
 
