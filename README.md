@@ -281,8 +281,10 @@ Perspective Prism uses [Supadata](https://supadata.ai) to reliably fetch YouTube
   1. Sign up for a free account at [supadata.ai](https://supadata.ai).
   2. Copy your API key from the Supadata developer dashboard.
   3. Paste the key directly into the Chrome Extension's onboarding screen or the Options page (**API Keys** section).
+- **Web Frontend BYOK Panel (React SPA)**:
+  The standalone React web application (`frontend/`) includes a built-in **Configure Supadata API Key (BYOK)** panel in the analysis form. Click the 🔑 button to expand the panel, paste your Supadata API key, and click **Save Key**. The key is persisted in `localStorage` under `perspective_prism_supadata_key` and forwarded as an `X-Supadata-Key` header on every outbound analysis request. Inline error guidance is shown for `SUPADATA_KEY_REQUIRED` (prompts to enter a key) and `SUPADATA_QUOTA_EXHAUSTED` (links to the Supadata pricing page).
 - **Web Frontend & Server Fallback (`SUPADATA_API_KEY`)**:
-  When deploying the standalone web application or running server-side tests, configure `SUPADATA_API_KEY` in `backend/.env` (or via Modal Secrets). This key serves as the default fallback for requests made from the web interface without extension credentials.
+  When deploying the standalone web application or running server-side tests, configure `SUPADATA_API_KEY` in `backend/.env` (or via Modal Secrets). This key serves as the default fallback for requests made from the web interface without extension credentials. The backend resolves the effective key as: user-supplied `X-Supadata-Key` header → server-side `SUPADATA_API_KEY` → `None`.
 - **Local Dev Fallback (`SUPADATA_FALLBACK_LOCAL`)**:
   In local development, set `SUPADATA_FALLBACK_LOCAL=true` in `backend/.env` to fall back to unproxied `youtube-transcript-api` if no Supadata API key is provided. In production deployments, keep this `false`.
 
