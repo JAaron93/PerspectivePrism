@@ -43,6 +43,7 @@ This rulebook defines the core architectural invariants, security boundaries, an
   * Third-party vendor bundles in `chrome-extension/vendor/` MUST include `// @ts-nocheck` and be excluded from `tsconfig.json`. DOM element attribute setters must cast numbers/booleans via `String(...)` to ensure strict type compliance.
 * **Security & Credential Isolation**:
   * **Storage Isolation**: User API keys and sensitive tokens must be stored strictly in `chrome.storage.local` (NEVER `chrome.storage.sync`).
+  * **Serialized Read-Modify-Write Config Saves**: Flag any options-page save path (`options.js`) that reconstructs the full `config` object without read-modify-write (`{ ...await configManager.load(), ...updates }`), or that guards concurrency only by disabling its own button while another config-writing control stays enabled — all config-writing save paths must share the `isConfigSaveInFlight` guard. This is a resolved architectural decision (PR #108); do NOT re-open it or suggest per-button disabling or save-queue alternatives.
   * **IPC Origin Verification**: `background.js` must validate `sender.id === chrome.runtime.id` for all `chrome.runtime.onMessage` handlers.
   * **Production Manifest Hygiene**: Production `manifest.json` must be free of `http://localhost` or `http://127.0.0.1` host permissions and configure an explicit MV3 CSP (`extension_pages`).
   * **DOM Sanitization**: Dynamic AI outputs rendered in `sidepanel.js` or popup DOM must be sanitized via `textContent` or DOMPurify before DOM insertion to prevent XSS.
