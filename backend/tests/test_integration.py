@@ -139,16 +139,18 @@ def test_build_chrome_extension_regex():
 
 
 # ============================================================================
-# Track 1: Header Threading & Structured Error Code Integration Tests
+# Track 1 & Track 5: Header Threading, Caplog & Structured Error Code Integration Tests
 # ============================================================================
 
 @pytest.mark.asyncio
-async def test_integration_x_supadata_key_forwarding(monkeypatch):
-    """Verify X-Supadata-Key header is passed to get_transcript and not stored in jobs dictionary."""
+async def test_integration_x_supadata_key_forwarding(monkeypatch, caplog):
+    """Verify X-Supadata-Key header is passed to get_transcript, not logged, and not stored in jobs."""
+    import logging
     from app.main import claim_extractor, jobs
     from app.models.schemas import Transcript, TranscriptSegment
-
     from unittest.mock import AsyncMock
+
+    caplog.set_level(logging.DEBUG)
 
     captured_kwargs = {}
 
@@ -167,8 +169,8 @@ async def test_integration_x_supadata_key_forwarding(monkeypatch):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post(
             "/analyze/jobs",
-            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "force_override": True},
-            headers={"X-Supadata-Key": "test-key-xyz"},
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy", "force_override": True},
+            headers={"X-Supadata-Key": "integration-test-key"},
         )
         assert response.status_code == 200
         job_id = response.json()["job_id"]
@@ -177,11 +179,14 @@ async def test_integration_x_supadata_key_forwarding(monkeypatch):
         assert status_data["status"] in ("completed", "failed")
 
         # Verify key was passed to get_transcript
-        assert captured_kwargs.get("supadata_key") == "test-key-xyz"
+        assert captured_kwargs.get("supadata_key") == "integration-test-key"
 
         # Verify key was never stored in jobs{}
         job_record = jobs.get(job_id, {})
-        assert "test-key-xyz" not in str(job_record)
+        assert "integration-test-key" not in str(job_record)
+
+        # Verify key does not appear in any log output captured by caplog
+        assert "integration-test-key" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -199,8 +204,45 @@ async def test_integration_supadata_quota_exhausted_error_code(monkeypatch):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post(
             "/analyze/jobs",
-            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy"},
             headers={"X-Supadata-Key": "quota-key-123"},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "failed"
+        assert status_data.get("error_code") == "SUPADATA_QUOTA_EXHAUSTED"
+        assert "quota" in status_data.get("error", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_integration_supadata_quota_exhausted_e2e_http_mock(monkeypatch):
+    """
+    End-to-end integration test verifying that when Supadata returns HTTP 402,
+    the job fails with SUPADATA_QUOTA_EXHAUSTED error code via the real ClaimExtractor.
+    """
+    import httpx
+    from unittest.mock import MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 402
+
+    real_get = httpx.AsyncClient.get
+
+    async def mock_get(self, url, *args, **kwargs):
+        if "supadata.ai" in str(url):
+            return mock_resp
+        return await real_get(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy", "force_override": True},
+            headers={"X-Supadata-Key": "exhausted-key-e2e"},
         )
         assert response.status_code == 200
         job_id = response.json()["job_id"]
@@ -226,7 +268,7 @@ async def test_integration_supadata_key_required_error_code(monkeypatch):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.post(
             "/analyze/jobs",
-            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy"},
         )
         assert response.status_code == 200
         job_id = response.json()["job_id"]
@@ -235,5 +277,32 @@ async def test_integration_supadata_key_required_error_code(monkeypatch):
         assert status_data["status"] == "failed"
         assert status_data.get("error_code") == "SUPADATA_KEY_REQUIRED"
         assert "no supadata api key provided" in status_data.get("error", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_integration_supadata_missing_key_e2e_rejection(monkeypatch):
+    """
+    End-to-end integration test verifying that when no key is provided and local fallback
+    is disabled, the job fails with SUPADATA_KEY_REQUIRED error code via real ClaimExtractor.
+    """
+    from app.main import claim_extractor
+
+    monkeypatch.setattr(claim_extractor.settings, "SUPADATA_FALLBACK_LOCAL", False)
+    monkeypatch.setattr(claim_extractor.settings, "SUPADATA_API_KEY", "")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy", "force_override": True},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "failed"
+        assert status_data.get("error_code") == "SUPADATA_KEY_REQUIRED"
+        assert "no supadata api key provided" in status_data.get("error", "").lower()
+
 
 

@@ -272,6 +272,20 @@ Additional configuration:
    - `GOOGLE_CSE_ID`: Google Custom Search Engine ID
    - `CHROME_EXTENSION_IDS`: List of allowed extension IDs.
 
+### 4. Transcript API Setup (Supadata BYOK)
+
+Perspective Prism uses [Supadata](https://supadata.ai) to reliably fetch YouTube transcripts from the cloud through residential proxy infrastructure, preventing IP bans and datacenter blocking in serverless and containerized environments (Modal Labs, Google Cloud Run).
+
+- **Free Tier (100 fetches/month)**: Supadata offers a free plan with 100 transcript fetches every month with no credit card required.
+- **Get a Free Key**:
+  1. Sign up for a free account at [supadata.ai](https://supadata.ai).
+  2. Copy your API key from the Supadata developer dashboard.
+  3. Paste the key directly into the Chrome Extension's onboarding screen or the Options page (**API Keys** section).
+- **Web Frontend & Server Fallback (`SUPADATA_API_KEY`)**:
+  When deploying the standalone web application or running server-side tests, configure `SUPADATA_API_KEY` in `backend/.env` (or via Modal Secrets). This key serves as the default fallback for requests made from the web interface without extension credentials.
+- **Local Dev Fallback (`SUPADATA_FALLBACK_LOCAL`)**:
+  In local development, set `SUPADATA_FALLBACK_LOCAL=true` in `backend/.env` to fall back to unproxied `youtube-transcript-api` if no Supadata API key is provided. In production deployments, keep this `false`.
+
 #### Production Ingress Security & TLS Requirements
 For production backend deployments:
 - **HTTPS Enforcement**: All external client-to-backend API communication MUST use HTTPS. Cleartext HTTP is restricted to `localhost` / `127.0.0.1` environments.

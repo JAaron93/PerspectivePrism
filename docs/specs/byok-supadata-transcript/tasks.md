@@ -285,7 +285,7 @@
 ## Track 5 — Integration Tests & Documentation
 > Sequential. Depends on Tracks 1, 2, 3, and 4.
 
-- [ ] **T5.1 — Backend Integration Test: Key Header Thread-Through via ASGITransport**
+- [x] **T5.1 — Backend Integration Test: Key Header Thread-Through via ASGITransport**
   - **Description**: Add a pytest async test in `backend/tests/test_integration.py` using `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:`:
     1. Mock `ClaimExtractor.get_transcript` to capture the `supadata_key` kwarg.
     2. POST `/analyze/jobs` with header `X-Supadata-Key: integration-test-key`.
@@ -295,14 +295,14 @@
   - **Dependencies**: T1.4, T1.3
   - **Traceability**: FR7, FR8, NFR1, NFR4
 
-- [ ] **T5.2 — Backend Integration Test: End-to-End Quota & Missing Key Polling**
+- [x] **T5.2 — Backend Integration Test: End-to-End Quota & Missing Key Polling**
   - **Description**: Add pytest async tests in `backend/tests/test_integration.py` using `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:`:
     1. **Quota Exhaustion**: Submit a job with `X-Supadata-Key: exhausted-key`. Mock Supadata HTTP endpoint to return status 402. Poll `GET /analyze/jobs/{job_id}` until completion. Assert job `status == "failed"` and `error_code == "SUPADATA_QUOTA_EXHAUSTED"`.
     2. **Missing Key**: Submit a job with no `X-Supadata-Key` header with `settings.SUPADATA_FALLBACK_LOCAL = False` and `settings.SUPADATA_API_KEY = ""`. Poll `GET /analyze/jobs/{job_id}` until completion. Assert job `status == "failed"` and `error_code == "SUPADATA_KEY_REQUIRED"`.
   - **Dependencies**: T1.4, T1.3
   - **Traceability**: FR5, FR9
 
-- [ ] **T5.3 — Playwright Integration Test: Browser Acceptance Scenarios**
+- [x] **T5.3 — Playwright Integration Test: Browser Acceptance Scenarios**
   - **Description**: Add Playwright persistent-context integration tests in `chrome-extension/tests/integration/byok-onboarding.test.js` covering all browser user stories:
     1. **Initial Onboarding (US1)**: Open Side Panel on YouTube watch page without key stored → verify `#state-onboarding-key` is visible with 100/mo text and "Get Free Key" link → enter key and click "Save & Continue" → verify `#state-onboarding-key` transitions away and key is saved in storage.
     2. **Quota Exhausted UI (US3 Browser)**: Trigger analysis where backend job fails with `error_code: "SUPADATA_QUOTA_EXHAUSTED"` → verify Side Panel renders `#state-supadata-quota` with upgrade link and "Change API Key" button.
@@ -310,14 +310,14 @@
   - **Dependencies**: T2.3, T3.2, T3.3, T4.2
   - **Traceability**: US1, US3, US4, FR13
 
-- [ ] **T5.4 — Update `backend/.env.example` and `README.md`**
+- [x] **T5.4 — Update `backend/.env.example` and `README.md`**
   - **Description**:
     1. In `backend/.env.example`, add the four Supadata fields under a new `# Supadata Transcript API (BYOK)` section with comments explaining server fallback for web deployments.
     2. In `README.md`, add a "Transcript API Setup" subsection under Setup/Installation explaining: what Supadata is, the free 100/month tier, web frontend configuration (`SUPADATA_API_KEY`), and how to get a key at `supadata.ai`.
   - **Dependencies**: T1.2
   - **Traceability**: FR12, FR14
 
-- [ ] **T5.5 — Update `perspective-prism-gcp-secrets` Modal Secret Documentation**
+- [x] **T5.5 — Update `perspective-prism-gcp-secrets` Modal Secret Documentation**
   - **Description**: Update `docs/modal-deployment-spec/design.md` §2.3 Cross-Cloud Secret Management to note that `SUPADATA_API_KEY` is an optional entry in the Modal secret serving as the default key for web frontend requests and server-side testing. Update `docs/modal_deployment_guide.md` with the same note.
   - **Dependencies**: T1.1
   - **Traceability**: FR11, FR12, FR14

@@ -113,8 +113,12 @@ modal secret create perspective-prism-gcp-secrets \
     GOOGLE_CSE_ID="YOUR_GOOGLE_SEARCH_ENGINE_ID" \
     CHROME_EXTENSION_IDS='["YOUR_CHROME_EXTENSION_ID"]' \
     BACKEND_CORS_ORIGINS='["http://localhost:5173"]' \
+    SUPADATA_API_KEY="YOUR_OPTIONAL_SUPADATA_API_KEY" \
     PROBE_SECRET="${PROBE_SECRET}"
 ```
+
+> [!NOTE]
+> `SUPADATA_API_KEY` is an optional entry serving as the server-side default fallback for requests originating from the web frontend or automated testing. Browser extension users configure their own BYOK Supadata key via the extension UI, which is forwarded via the `X-Supadata-Key` request header.
 
 Once the secret is created, securely delete your local key file:
 

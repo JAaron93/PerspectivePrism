@@ -50,8 +50,8 @@ export default defineConfig({
       ]
     },
     
-    // Test file patterns
-    include: ['tests/unit/**/*.test.js', 'tests/integration/**/*.test.js'],
+    // Test file patterns (unit tests and Vitest memory integration test; Playwright runs browser specs separately)
+    include: ['tests/unit/**/*.test.js', 'tests/integration/test-memory-usage.test.js'],
     
     // Test timeout (30 seconds)
     testTimeout: 30000
