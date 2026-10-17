@@ -230,14 +230,16 @@ async def process_analysis(job_id: str, request: VideoRequest, supadata_key: str
         eligibility = None
         transcript = None
 
+        effective_supadata_key = supadata_key or getattr(settings, "SUPADATA_API_KEY", None) or None
+
         if request.force_override:
             logger.info("Job %s: Force override enabled. Bypassing Pre-Classification Guardrail Gate.", job_id)
-            transcript = await claim_extractor.get_transcript(video_id, supadata_key=supadata_key)
+            transcript = await claim_extractor.get_transcript(video_id, supadata_key=effective_supadata_key)
         else:
             # Fetch transcript preview or full transcript
             transcript_preview = ""
             try:
-                transcript = await claim_extractor.get_transcript(video_id, supadata_key=supadata_key)
+                transcript = await claim_extractor.get_transcript(video_id, supadata_key=effective_supadata_key)
                 if transcript and transcript.full_text:
                     transcript_preview = transcript.full_text[:2000]
             except TranscriptUnavailableError as e:

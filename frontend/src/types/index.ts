@@ -92,4 +92,5 @@ export interface JobStatusResponse {
   status: "pending" | "processing" | "completed" | "failed";
   result?: AnalysisResponse | null;
   error?: string | null;
+  error_code?: string | null;
 }

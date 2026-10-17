@@ -415,6 +415,9 @@ cd backend
 # Run all tests
 pytest
 
+# Run executable Gherkin BDD acceptance scenarios
+pytest -m bdd backend/tests/
+
 # Run specific reliability tests
 pytest tests/test_reliability.py
 ```
