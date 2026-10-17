@@ -52,7 +52,7 @@ test('T7.1: App loads stored Supadata key from localStorage', () => {
   }
 });
 
-test('T7.1: Outbound analysis request includes X-Supadata-Key header when key is configured', async () => {
+test('T7.1: Outbound analysis request exercises submit through App and forwards X-Supadata-Key', async () => {
   const originalLocalStorage = globalThis.localStorage;
   const originalFetch = globalThis.fetch;
 
@@ -66,40 +66,46 @@ test('T7.1: Outbound analysis request includes X-Supadata-Key header when key is
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = String(input);
     if (urlStr.includes('/analyze/jobs')) {
-      capturedHeaders = init?.headers;
-      capturedBody = init?.body as string;
+      if (init?.method === 'POST') {
+        capturedHeaders = init?.headers;
+        capturedBody = init?.body as string;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ job_id: 'mock-web-job-123' }),
+        } as Response;
+      }
       return {
         ok: true,
         status: 200,
-        json: async () => ({ job_id: 'mock-web-job-123' }),
+        json: async () => ({
+          job_id: 'mock-web-job-123',
+          status: 'completed',
+          result: { video_id: 'mock_vid', metadata: { analyzed_at: '' }, claims: [] },
+        }),
       } as Response;
     }
     return {
-      ok: true,
-      status: 200,
-      json: async () => ({
-        job_id: 'mock-web-job-123',
-        status: 'completed',
-        result: { video_id: 'mock_vid', metadata: { analyzed_at: '' }, claims: [] },
-      }),
+      ok: false,
+      status: 404,
+      json: async () => ({ detail: 'Not found' }),
     } as Response;
   }) as typeof fetch;
 
   try {
-    // We verify headers contract directly by calling fetch with the BYOK logic
-    const activeKey = mockStorage.getItem('perspective_prism_supadata_key');
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (activeKey && activeKey.trim()) {
-      headers['X-Supadata-Key'] = activeKey.trim();
-    }
+    let appActions: { startAnalysis: (url: string, force?: boolean) => Promise<void> } | undefined;
+    renderToStaticMarkup(
+      <App
+        onInit={(actions) => {
+          appActions = actions;
+        }}
+      />
+    );
 
-    await globalThis.fetch('http://localhost:8000/analyze/jobs', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ url: 'https://www.youtube.com/watch?v=mock_video' }),
-    });
+    assert.ok(appActions, 'App component must expose startAnalysis through onInit hook');
+    await appActions.startAnalysis('https://www.youtube.com/watch?v=mock_video');
 
-    assert.ok(capturedHeaders);
+    assert.ok(capturedHeaders, 'Expected headers to be captured from outbound submit request in App');
     const headersMap = new Headers(capturedHeaders);
     assert.equal(headersMap.get('X-Supadata-Key'), 'web-client-test-key');
     assert.match(capturedBody || '', /mock_video/);
@@ -109,15 +115,116 @@ test('T7.1: Outbound analysis request includes X-Supadata-Key header when key is
   }
 });
 
-test('T7.1: Actionable error messages for SUPADATA_KEY_REQUIRED and SUPADATA_QUOTA_EXHAUSTED', () => {
-  // Test error text contracts directly
-  const keyRequiredMsg =
-    'A Supadata API key is required to retrieve transcripts. Please enter your API key in the settings below or sign up for a free key at supadata.ai (100 free fetches/month).';
-  assert.match(keyRequiredMsg, /supadata\.ai/);
-  assert.match(keyRequiredMsg, /100 free fetches\/month/);
+test('T7.1: App polling handles failed job states and renders actionable error guidance for SUPADATA_KEY_REQUIRED and SUPADATA_QUOTA_EXHAUSTED', async () => {
+  const originalFetch = globalThis.fetch;
 
-  const quotaExhaustedMsg =
-    'Your Supadata monthly transcript quota has been reached (100 free fetches/month). Please upgrade your plan at supadata.ai/pricing or provide a different key.';
-  assert.match(quotaExhaustedMsg, /supadata\.ai\/pricing/);
-  assert.match(quotaExhaustedMsg, /quota has been reached/);
+  // 1. Verify SUPADATA_KEY_REQUIRED failed job handling through App submit & polling
+  let keyRequiredError: string | null = null;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = String(input);
+    if (urlStr.includes('/analyze/jobs')) {
+      if (init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ job_id: 'job-key-required' }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_id: 'job-key-required',
+          status: 'failed',
+          error_code: 'SUPADATA_KEY_REQUIRED',
+          error: 'A Supadata API key is required to retrieve transcripts.',
+        }),
+      } as Response;
+    }
+    return { ok: false, status: 404, json: async () => ({}) } as Response;
+  }) as typeof fetch;
+
+  try {
+    let appActions: { startAnalysis: (url: string, force?: boolean) => Promise<void> } | undefined;
+    renderToStaticMarkup(
+      <App
+        onInit={(actions) => {
+          appActions = actions;
+        }}
+        onErrorChange={(err) => {
+          keyRequiredError = err;
+        }}
+      />
+    );
+
+    assert.ok(appActions);
+    await appActions.startAnalysis('https://www.youtube.com/watch?v=mock_video');
+
+    assert.ok(keyRequiredError, 'App must update error state on failed job with SUPADATA_KEY_REQUIRED');
+    assert.match(keyRequiredError, /supadata\.ai/);
+    assert.match(keyRequiredError, /100 free fetches\/month/);
+
+    // Verify rendered guidance in App
+    const renderedKeyRequired = renderToStaticMarkup(
+      <App initialError={keyRequiredError} initialShowKeyInput={true} />
+    );
+    assert.match(renderedKeyRequired, /role="alert"/);
+    assert.match(renderedKeyRequired, /Get Free Key at Supadata\.ai ↗/);
+    assert.match(renderedKeyRequired, /href="https:\/\/supadata\.ai"/);
+    assert.match(renderedKeyRequired, /Enter API Key/);
+
+    // 2. Verify SUPADATA_QUOTA_EXHAUSTED failed job handling through App submit & polling
+    let quotaExhaustedError: string | null = null;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const urlStr = String(input);
+      if (urlStr.includes('/analyze/jobs')) {
+        if (init?.method === 'POST') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ job_id: 'job-quota-exhausted' }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            job_id: 'job-quota-exhausted',
+            status: 'failed',
+            error_code: 'SUPADATA_QUOTA_EXHAUSTED',
+            error: 'Transcript quota exhausted',
+          }),
+        } as Response;
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    renderToStaticMarkup(
+      <App
+        onInit={(actions) => {
+          appActions = actions;
+        }}
+        onErrorChange={(err) => {
+          quotaExhaustedError = err;
+        }}
+      />
+    );
+
+    assert.ok(appActions);
+    await appActions.startAnalysis('https://www.youtube.com/watch?v=mock_video');
+
+    assert.ok(quotaExhaustedError, 'App must update error state on failed job with SUPADATA_QUOTA_EXHAUSTED');
+    assert.match(quotaExhaustedError, /supadata\.ai\/pricing/);
+    assert.match(quotaExhaustedError, /quota has been reached/);
+
+    // Verify rendered guidance in App
+    const renderedQuotaExhausted = renderToStaticMarkup(
+      <App initialError={quotaExhaustedError} />
+    );
+    assert.match(renderedQuotaExhausted, /role="alert"/);
+    assert.match(renderedQuotaExhausted, /Upgrade Plan at Supadata ↗/);
+    assert.match(renderedQuotaExhausted, /href="https:\/\/supadata\.ai\/pricing"/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

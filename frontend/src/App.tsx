@@ -28,20 +28,69 @@ const getLocalStorage = (): Storage | null => {
   return null
 }
 
-function App() {
-  const [url, setUrl] = useState('')
+export interface AppProps {
+  initialUrl?: string;
+  initialSupadataKey?: string;
+  initialLoading?: boolean;
+  initialError?: string | null;
+  initialResults?: AnalysisResponse | null;
+  initialShowKeyInput?: boolean;
+  onInit?: (actions: {
+    startAnalysis: (targetUrl: string, forceOverride?: boolean) => Promise<void>;
+  }) => void;
+  onErrorChange?: (error: string | null) => void;
+}
+
+export function getJobErrorMessage(statusData: JobStatusResponse): { message: string; showKeyInput?: boolean } {
+  if (statusData.error_code === 'SUPADATA_KEY_REQUIRED') {
+    return {
+      message:
+        'A Supadata API key is required to retrieve transcripts. Please enter your API key in the settings below or sign up for a free key at supadata.ai (100 free fetches/month).',
+      showKeyInput: true,
+    }
+  }
+  if (statusData.error_code === 'SUPADATA_QUOTA_EXHAUSTED') {
+    return {
+      message:
+        'Your Supadata monthly transcript quota has been reached (100 free fetches/month). Please upgrade your plan at supadata.ai/pricing or provide a different key.',
+    }
+  }
+  return {
+    message: statusData.error || 'Analysis failed',
+  }
+}
+
+function App({
+  initialUrl = '',
+  initialSupadataKey,
+  initialLoading = false,
+  initialError = null,
+  initialResults = null,
+  initialShowKeyInput = false,
+  onInit,
+  onErrorChange,
+}: AppProps = {}) {
+  const [url, setUrl] = useState(initialUrl)
   const [analyzedUrl, setAnalyzedUrl] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(initialLoading)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [results, setResults] = useState<AnalysisResponse | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
+  const [results, setResults] = useState<AnalysisResponse | null>(initialResults)
   const [supadataKey, setSupadataKey] = useState<string>(() => {
+    if (initialSupadataKey !== undefined) return initialSupadataKey
     const storage = getLocalStorage()
     return (storage && storage.getItem('perspective_prism_supadata_key')) || ''
   })
-  const [showKeyInput, setShowKeyInput] = useState(false)
+  const [showKeyInput, setShowKeyInput] = useState(initialShowKeyInput)
   const [showKeySecret, setShowKeySecret] = useState(false)
   const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null)
+
+  const updateError = (newError: string | null) => {
+    setError(newError)
+    if (onErrorChange) {
+      onErrorChange(newError)
+    }
+  }
 
   const handleSaveKey = (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,12 +123,12 @@ function App() {
   const startAnalysis = async (targetUrl: string, forceOverride: boolean = false) => {
     setLoading(true)
     setIsStreaming(false)
-    setError(null)
+    updateError(null)
     setResults(null)
     setAnalyzedUrl(targetUrl)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const apiUrl = import.meta.env?.VITE_API_URL || 'http://localhost:8000'
 
       const storage = getLocalStorage()
       const activeKey = (storage && storage.getItem('perspective_prism_supadata_key')) || supadataKey
@@ -157,17 +206,10 @@ function App() {
             setIsStreaming(false)
             currentPollInterval = INITIAL_POLL_INTERVAL
           } else if (statusData.status === 'failed') {
-            if (statusData.error_code === 'SUPADATA_KEY_REQUIRED') {
-              setError(
-                'A Supadata API key is required to retrieve transcripts. Please enter your API key in the settings below or sign up for a free key at supadata.ai (100 free fetches/month).'
-              )
+            const { message, showKeyInput: shouldShowKey } = getJobErrorMessage(statusData)
+            updateError(message)
+            if (shouldShowKey) {
               setShowKeyInput(true)
-            } else if (statusData.error_code === 'SUPADATA_QUOTA_EXHAUSTED') {
-              setError(
-                'Your Supadata monthly transcript quota has been reached (100 free fetches/month). Please upgrade your plan at supadata.ai/pricing or provide a different key.'
-              )
-            } else {
-              setError(statusData.error || 'Analysis failed')
             }
             setLoading(false)
             setIsStreaming(false)
@@ -183,17 +225,17 @@ function App() {
             setTimeout(checkStatus, currentPollInterval)
           }
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error checking status')
+          updateError(err instanceof Error ? err.message : 'Error checking status')
           setLoading(false)
           setIsStreaming(false)
         }
       }
 
       // Start polling
-      checkStatus()
+      await checkStatus()
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      updateError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
       setIsStreaming(false)
     }
@@ -230,6 +272,10 @@ function App() {
   const isIneligible = Boolean(
     results?.eligibility && !results.eligibility.is_analysable
   )
+
+  if (onInit) {
+    onInit({ startAnalysis })
+  }
 
   return (
     <div className="app">
