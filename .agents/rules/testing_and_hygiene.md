@@ -15,6 +15,17 @@ This document defines repository-wide test execution standards, test fixture dis
 * **Playwright Chromium Provisioning**: `npm run test:integration` requires the Playwright-pinned Chromium build. On fresh environments or after Playwright version bumps, run `npx playwright install chromium` first; a missing pinned executable fails every persistent-context test before any assertion runs.
 * **Live-HTTP Test Backends via Host-Resolver Rule**: Integration tests that assert real service-worker HTTP MUST bind the `mockBackendPort` fixture from `chrome-extension/tests/integration/fixtures.js` (Chromium launches with `--host-resolver-rules=MAP localhost:8000 127.0.0.1:<ephemeral>`). Never bind `localhost:8000` directly; it conflicts with developer-run backends and fails with `EADDRINUSE` before any assertion.
 * **No Extension Restarts in Integration Tests**: Playwright cannot observe a restarted extension service worker (`chrome.runtime.reload()` produces no new `serviceworker` event and no change in `context.serviceWorkers()`). Reconfigure behavior through storage or fixture surfaces (e.g. the host-resolver rule) instead of restarting the extension mid-test.
+* **Dual-Runner Discovery Isolation (Vitest vs. Playwright)**:
+  - In hybrid codebases where both Vitest (in-memory unit/JSDOM integration tests) and Playwright (real browser end-to-end specs) coexist, test runner discovery patterns MUST NOT shadow or omit test files.
+  - When narrowing Vitest's `include` pattern to prevent it from executing Playwright browser tests, verify that existing non-browser integration tests (e.g. `tests/integration/test-memory-usage.test.js`) are not dropped from execution.
+  - Vitest configurations must explicitly include both unit tests and Vitest-based integration tests (`include: ['tests/unit/**/*.test.js', 'tests/integration/test-memory-usage.test.js']`), or enforce strict file-extension separation (`*.spec.js` for Playwright browser tests, `*.test.js` for Vitest).
+* **Playwright Config `testDir` CLI Path Resolution**:
+  - When invoking Playwright via CLI with a configuration file residing in a subdirectory (e.g. `tests/integration/playwright.config.js` defining `testDir: "./"`), Playwright resolves test path arguments relative to `testDir`.
+  - Do NOT pass full repository-relative paths (e.g. `tests/integration/byok-onboarding.test.js`), which causes `Error: No tests found`.
+  - Pass the file path relative to `testDir` (e.g. `byok-onboarding.test.js`), or invoke via the package script: `npm run test:integration -- <file>`.
+* **Selective Outbound HTTP Mocking in ASGI Integration Tests**:
+  - In FastAPI integration tests utilizing `httpx.AsyncClient` with `ASGITransport` to poll `/analyze/jobs/{job_id}`, monkeypatching `httpx.AsyncClient.get` globally intercepts both outbound API calls and internal test client polling requests.
+  - Mock wrappers for `httpx.AsyncClient.get` MUST inspect the target URL and only return mock responses when the URL matches the external service under test (e.g. `"supadata.ai"`), delegating all internal application routes to the original unmocked method.
 * **Vitest Script Evaluation**: To test `*-script.js` IIFE files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment. Required setup:
   1. Import `readFileSync` from `"fs"` and `resolve` from `"path"` at the top of the test file.
   2. Inside `beforeEach` (not `beforeAll`), read and execute the script:
