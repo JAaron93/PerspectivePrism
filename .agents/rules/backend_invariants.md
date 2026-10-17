@@ -144,6 +144,19 @@ This document defines the implementation guidelines, security invariants, testin
 * **Unicode NFKC Normalization**: `sanitize_input()` MUST apply `unicodedata.normalize("NFKC", text)` prior to regex pattern and control character matching to collapse full-width Latin, circled/enclosed characters, and compatibility homoglyphs to ASCII before denylist evaluation.
 * **Red-Team Report Confidentiality & Baseline Omission Tracking**: Red-team reports (`redteam-report.json`, `redteam-report.md`) MUST reference corpus-relative payload IDs only with zero raw payload text. Baseline diff comparisons (`diff_against_baseline`) MUST treat removed/omitted baselined payloads as regressions to prevent silent security test coverage loss. Baseline updates MUST be strictly explicit (`--update-baseline`).
 * **Circuit Breaker Half-Open Probe Isolation**: In circuit breaker implementations with half-open probing (`cb_half_open`, `cb_probing`), single-probe ownership must be assigned exclusively to the initiating request (`is_probe = True`) within the lock. In-flight non-probe requests completing while `cb_half_open == True` must NEVER transition the breaker or mutate `cb_half_open`/`cb_probing`/`cb_failures`. Only the designated probe caller (`if is_probe:`) is authorized to close or reopen the circuit breaker upon completion.
+* **pytest-bdd 9.0+ Sync Step Wrapper for Async ASGI Tests**:
+  - `pytest-bdd >= 9.0` invokes step functions synchronously. Defining step functions as `async def` leaves coroutines unawaited, producing `RuntimeWarning: coroutine was never awaited` and silently skipped async assertions.
+  - **Correct pattern**: Define step functions as `def` (not `async def`) and wrap async ASGI calls inside `asyncio.run()`:
+    ```python
+    @then("the transcript is retrieved successfully")
+    def step_transcript_retrieved(context):
+        async def _run():
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.post("/analyze/jobs", json={...})
+            assert response.status_code == 200
+        asyncio.run(_run())
+    ```
+  - **Do NOT** decorate async step functions with `@pytest.mark.anyio` or call `asyncio.get_event_loop().run_until_complete()` — only `asyncio.run()` inside a sync step body is safe with pytest-bdd 9.0's synchronous runner.
 
 ---
 
