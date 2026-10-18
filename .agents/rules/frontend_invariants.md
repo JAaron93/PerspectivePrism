@@ -93,18 +93,20 @@ This document defines the implementation guidelines, compiler architecture, and 
 * **API Mocking (No Live Backend / LLM)**:
   - Default: Playwright `page.route()` / `context.route()` interception of FastAPI endpoints (`/analyze/jobs*`) with canned `JobResponse` / `JobStatusResponse` payloads. Zero app-code changes, and the component's real `fetch`/polling/submit logic executes — per the section 5 anti-pattern rule, scenarios MUST drive the UI's own action flows, never synthetic fetches that bypass them.
   - MSW v2 remains the shared handler-authoring surface (as in `chrome-extension/`). If browser-level MSW parity is desired, run the MSW **browser worker** gated behind a Vite env flag (e.g. `VITE_ENABLE_MSW`) so production builds stay clean. Critical gotcha: MSW's Node `setupServer` used in the Playwright runner process does NOT intercept in-browser fetches.
-* **Runner Discovery Isolation**: Two runner types coexist in `frontend/`: `node --test` unit suites (`src/**/__tests__/*.test.tsx`, esbuild-bundled per section 5) and Playwright BDD specs. Discovery MUST stay mutually exclusive: Playwright's `testDir` must never overlap `src/`, and the generated BDD spec output directory (configurable via `defineBddConfig`'s `outputDir`) MUST be gitignored, never hand-edited, and excluded from `tsconfig.app.json` compilation per the section 5 compiler-scope separation.
-* **Commands**:
+* **Runner Discovery Isolation**: Two runner types coexist in `frontend/`: `node --test` unit suites (`src/**/__tests__/*.test.tsx`, esbuild-bundled per section 5) and Playwright BDD specs. Discovery MUST stay mutually exclusive: Playwright's `testDir` must never overlap `src/`, and the generated BDD spec output directory (`.features-gen/` by default, configurable via `defineBddConfig`'s `outputDir`) MUST be gitignored, never hand-edited, and excluded from `tsconfig.app.json` compilation per the section 5 compiler-scope separation.
+* **Commands (two-phase: generate, then run)**:
   ```bash
   cd frontend
   npx playwright install chromium   # first run / after version bumps
-  npx playwright test              # runs Gherkin scenarios (specs auto-generated at test time)
+  npx bddgen                        # compile .feature files -> generated specs (REQUIRED pre-step)
+  npx playwright test               # run the generated specs
   ```
+  `npx playwright test` does NOT generate specs from `.feature` files by itself: with only the `defineBddConfig` wiring above, a clean checkout reports "No tests found" and a full run generates nothing (verified empirically on playwright-bdd 9.2.1). `npx bddgen` is a mandatory pre-step before EVERY test invocation — including filtered runs — and MUST be re-run after ANY `.feature` edit; stale specs otherwise execute silently (an edited scenario keeps running under its old text until regeneration).
   Scenario runs MUST be fully offline: mocked endpoints only, zero Vertex AI / Supadata / Google CSE traffic.
 * **Fixture Discipline**: Domain-relevant journalism/news video URLs only — never Rick Astley or `dQw4w9WgXcQ` (per `testing_and_hygiene.md`). Scenarios follow the backend BDD precedent: scenario-first red → green, one labelled commit per domain.
 * **Accepted Tradeoffs (by design, not defects)**:
   - Slower than `node --test` unit suites (browser boot + dev server): BDD scenarios complement, never replace, the section 5 component tests.
   - Each suite run pays a Vite dev-server spin-up plus route mocking — the accepted price of real-browser acceptance fidelity over a jsdom runner.
-  - Continuous-mode `npx playwright test` requires the webServer handoff; debugging single scenarios uses `npx playwright test --grep "<scenario name>"` with the same mocks.
+  - Continuous-mode `npx playwright test` requires the webServer handoff; debugging single scenarios uses `npx bddgen && npx playwright test --grep "<scenario name>"` with the same mocks — the `bddgen` pre-step applies to filtered runs too.
 
 
