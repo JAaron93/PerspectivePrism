@@ -305,4 +305,102 @@ async def test_integration_supadata_missing_key_e2e_rejection(monkeypatch):
         assert "no supadata api key provided" in status_data.get("error", "").lower()
 
 
+# ============================================================================
+# Track 7: Web Frontend Caller Integration Tests
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_integration_web_frontend_keyless_server_fallback(monkeypatch):
+    """
+    Verify keyless web frontend caller succeeds by falling back to server-side
+    configured SUPADATA_API_KEY.
+    """
+    import httpx
+    from unittest.mock import AsyncMock, MagicMock
+    from app.main import claim_extractor, settings
+
+    monkeypatch.setattr(settings, "SUPADATA_API_KEY", "server-fallback-key")
+    monkeypatch.setattr(claim_extractor.settings, "SUPADATA_API_KEY", "server-fallback-key")
+    monkeypatch.setattr(claim_extractor, "extract_claims", AsyncMock(return_value=[]))
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "content": [{"text": "Server fallback transcript", "offset": 0, "duration": 2000}]
+    }
+
+    captured_headers = {}
+    real_get = httpx.AsyncClient.get
+
+    async def mock_get(self, url, *args, **kwargs):
+        if "supadata.ai" in str(url):
+            captured_headers.update(kwargs.get("headers", {}))
+            return mock_resp
+        return await real_get(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy", "force_override": True},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "completed"
+        assert status_data.get("result") is not None
+        assert captured_headers.get("x-api-key") == "server-fallback-key"
+
+
+@pytest.mark.asyncio
+async def test_integration_web_frontend_user_supplied_key(monkeypatch):
+    """
+    Verify web client caller providing X-Supadata-Key succeeds and uses the client key
+    even when server-side SUPADATA_API_KEY is empty.
+    """
+    import httpx
+    from unittest.mock import AsyncMock, MagicMock
+    from app.main import claim_extractor, settings
+
+    monkeypatch.setattr(settings, "SUPADATA_API_KEY", "")
+    monkeypatch.setattr(claim_extractor.settings, "SUPADATA_API_KEY", "")
+    monkeypatch.setattr(claim_extractor, "extract_claims", AsyncMock(return_value=[]))
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "content": [{"text": "User key transcript", "offset": 0, "duration": 2000}]
+    }
+
+    captured_headers = {}
+    real_get = httpx.AsyncClient.get
+
+    async def mock_get(self, url, *args, **kwargs):
+        if "supadata.ai" in str(url):
+            captured_headers.update(kwargs.get("headers", {}))
+            return mock_resp
+        return await real_get(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/analyze/jobs",
+            json={"url": "https://www.youtube.com/watch?v=PBSNewsHour_ClimatePolicy", "force_override": True},
+            headers={"X-Supadata-Key": "web-user-provided-key"},
+        )
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+
+        status_data = await _poll_until_done(ac, job_id)
+        assert status_data["status"] == "completed"
+        assert status_data.get("result") is not None
+        assert captured_headers.get("x-api-key") == "web-user-provided-key"
+
+
+
 

@@ -14,30 +14,136 @@ const ALL_PERSPECTIVES = [
   "Partisan (Right)"
 ] as const
 
-function App() {
-  const [url, setUrl] = useState('')
+const getLocalStorage = (): Storage | null => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage
+    }
+    if (typeof localStorage !== 'undefined') {
+      return localStorage
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+export interface AppProps {
+  initialUrl?: string;
+  initialSupadataKey?: string;
+  initialLoading?: boolean;
+  initialError?: string | null;
+  initialResults?: AnalysisResponse | null;
+  initialShowKeyInput?: boolean;
+  onInit?: (actions: {
+    startAnalysis: (targetUrl: string, forceOverride?: boolean) => Promise<void>;
+  }) => void;
+  onErrorChange?: (error: string | null) => void;
+}
+
+export function getJobErrorMessage(statusData: JobStatusResponse): { message: string; showKeyInput?: boolean } {
+  if (statusData.error_code === 'SUPADATA_KEY_REQUIRED') {
+    return {
+      message:
+        'A Supadata API key is required to retrieve transcripts. Please enter your API key in the settings below or sign up for a free key at supadata.ai (100 free fetches/month).',
+      showKeyInput: true,
+    }
+  }
+  if (statusData.error_code === 'SUPADATA_QUOTA_EXHAUSTED') {
+    return {
+      message:
+        'Your Supadata monthly transcript quota has been reached (100 free fetches/month). Please upgrade your plan at supadata.ai/pricing or provide a different key.',
+    }
+  }
+  return {
+    message: statusData.error || 'Analysis failed',
+  }
+}
+
+function App({
+  initialUrl = '',
+  initialSupadataKey,
+  initialLoading = false,
+  initialError = null,
+  initialResults = null,
+  initialShowKeyInput = false,
+  onInit,
+  onErrorChange,
+}: AppProps = {}) {
+  const [url, setUrl] = useState(initialUrl)
   const [analyzedUrl, setAnalyzedUrl] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(initialLoading)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [results, setResults] = useState<AnalysisResponse | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
+  const [results, setResults] = useState<AnalysisResponse | null>(initialResults)
+  const [supadataKey, setSupadataKey] = useState<string>(() => {
+    if (initialSupadataKey !== undefined) return initialSupadataKey
+    const storage = getLocalStorage()
+    return (storage && storage.getItem('perspective_prism_supadata_key')) || ''
+  })
+  const [showKeyInput, setShowKeyInput] = useState(initialShowKeyInput)
+  const [showKeySecret, setShowKeySecret] = useState(false)
+  const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null)
+
+  const updateError = (newError: string | null) => {
+    setError(newError)
+    if (onErrorChange) {
+      onErrorChange(newError)
+    }
+  }
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const storage = getLocalStorage()
+      if (storage) {
+        storage.setItem('perspective_prism_supadata_key', supadataKey.trim())
+        setKeySavedMessage('API Key saved.')
+        setTimeout(() => setKeySavedMessage(null), 3000)
+      }
+    } catch {
+      setKeySavedMessage('Failed to save API key to local storage.')
+    }
+  }
+
+  const handleClearKey = () => {
+    setSupadataKey('')
+    try {
+      const storage = getLocalStorage()
+      if (storage) {
+        storage.removeItem('perspective_prism_supadata_key')
+        setKeySavedMessage('API Key cleared.')
+        setTimeout(() => setKeySavedMessage(null), 3000)
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const startAnalysis = async (targetUrl: string, forceOverride: boolean = false) => {
     setLoading(true)
     setIsStreaming(false)
-    setError(null)
+    updateError(null)
     setResults(null)
     setAnalyzedUrl(targetUrl)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const apiUrl = import.meta.env?.VITE_API_URL || 'http://localhost:8000'
+
+      const storage = getLocalStorage()
+      const activeKey = (storage && storage.getItem('perspective_prism_supadata_key')) || supadataKey
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      if (activeKey && activeKey.trim()) {
+        headers['X-Supadata-Key'] = activeKey.trim()
+      }
 
       // 1. Create Job with optional force_override
       const createResponse = await fetch(`${apiUrl}/analyze/jobs`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           url: targetUrl,
           force_override: forceOverride,
@@ -100,7 +206,11 @@ function App() {
             setIsStreaming(false)
             currentPollInterval = INITIAL_POLL_INTERVAL
           } else if (statusData.status === 'failed') {
-            setError(statusData.error || 'Analysis failed')
+            const { message, showKeyInput: shouldShowKey } = getJobErrorMessage(statusData)
+            updateError(message)
+            if (shouldShowKey) {
+              setShowKeyInput(true)
+            }
             setLoading(false)
             setIsStreaming(false)
           } else {
@@ -115,17 +225,17 @@ function App() {
             setTimeout(checkStatus, currentPollInterval)
           }
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error checking status')
+          updateError(err instanceof Error ? err.message : 'Error checking status')
           setLoading(false)
           setIsStreaming(false)
         }
       }
 
       // Start polling
-      checkStatus()
+      await checkStatus()
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      updateError(err instanceof Error ? err.message : 'An error occurred')
       setLoading(false)
       setIsStreaming(false)
     }
@@ -163,6 +273,10 @@ function App() {
     results?.eligibility && !results.eligibility.is_analysable
   )
 
+  if (onInit) {
+    onInit({ startAnalysis })
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -191,6 +305,78 @@ function App() {
             {loading ? 'Analyzing...' : isStreaming ? 'Streaming...' : 'Analyze'}
           </button>
         </form>
+
+        <div className="byok-settings">
+          <button
+            type="button"
+            className="byok-toggle-btn"
+            onClick={() => setShowKeyInput(!showKeyInput)}
+            aria-expanded={showKeyInput}
+            id="byok-toggle-btn"
+          >
+            🔑 {supadataKey ? 'Supadata API Key (Configured)' : 'Configure Supadata API Key (BYOK)'} {showKeyInput ? '▲' : '▼'}
+          </button>
+
+          {showKeyInput && (
+            <div className="byok-card" id="byok-config-panel">
+              <p className="byok-description">
+                Perspective Prism uses Supadata to fetch YouTube transcripts without cloud IP blocking.
+                Free tier includes 100 fetches/month with no credit card required.
+              </p>
+              <form onSubmit={handleSaveKey} className="byok-form">
+                <div className="byok-input-wrapper">
+                  <label htmlFor="supadata-key-input">Supadata API Key</label>
+                  <div className="byok-input-row">
+                    <input
+                      id="supadata-key-input"
+                      type={showKeySecret ? 'text' : 'password'}
+                      value={supadataKey}
+                      onChange={(e) => setSupadataKey(e.target.value)}
+                      placeholder="Paste your Supadata API key here"
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                    <button
+                      type="button"
+                      className="byok-visibility-btn"
+                      onClick={() => setShowKeySecret(!showKeySecret)}
+                      aria-label={showKeySecret ? 'Hide API key' : 'Show API key'}
+                    >
+                      {showKeySecret ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+                <div className="byok-actions">
+                  <button type="submit" className="byok-save-btn" id="byok-save-btn">
+                    Save Key
+                  </button>
+                  <a
+                    href="https://supadata.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="byok-link-btn"
+                  >
+                    Get Free Key ↗
+                  </a>
+                  {supadataKey && (
+                    <button
+                      type="button"
+                      className="byok-clear-btn"
+                      onClick={handleClearKey}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {keySavedMessage && (
+                  <p className="byok-status-message" aria-live="polite">
+                    {keySavedMessage}
+                  </p>
+                )}
+              </form>
+            </div>
+          )}
+        </div>
       </section>
 
       {loading && (
@@ -201,8 +387,39 @@ function App() {
       )}
 
       {error && (
-        <div className="error">
+        <div className="error" role="alert">
           <strong>Error:</strong> {error}
+          {error.includes('supadata.ai/pricing') && (
+            <div className="error-actions">
+              <a
+                href="https://supadata.ai/pricing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="error-link-btn"
+              >
+                Upgrade Plan at Supadata ↗
+              </a>
+            </div>
+          )}
+          {error.includes('supadata.ai') && !error.includes('pricing') && (
+            <div className="error-actions">
+              <a
+                href="https://supadata.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="error-link-btn"
+              >
+                Get Free Key at Supadata.ai ↗
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowKeyInput(true)}
+                className="error-action-btn"
+              >
+                Enter API Key
+              </button>
+            </div>
+          )}
         </div>
       )}
 

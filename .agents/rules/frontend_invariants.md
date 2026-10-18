@@ -62,4 +62,14 @@ This document defines the implementation guidelines, compiler architecture, and 
 * **Browser vs. Node Compiler Scope Separation**:
   - `tsconfig.app.json` is reserved exclusively for browser client types (`"types": ["vite/client"]`).
   - Unit test files containing Node imports (`node:test`, `node:assert/strict`) MUST be explicitly excluded in `tsconfig.app.json` via `"exclude": ["src/**/__tests__/*"]` to ensure `npm run build` (`tsc -b && vite build`) compiles with zero Node type leakage.
+* **React Testability Pattern for Vite SPA Components (`onInit` + `onErrorChange` hooks)**:
+  When a component contains Vite-specific globals (`import.meta.env`) or async polling (`setTimeout`/`fetch`) whose state changes are invisible from static `renderToStaticMarkup` snapshots, add testability hooks to its `Props` interface rather than wiring stubs around it:
+  1. **`import.meta.env` Node safety**: Access Vite env vars with optional chaining (`import.meta.env?.VITE_API_URL`) to avoid `Cannot read properties of undefined` crashes in Node `--test` runners.
+  2. **`onInit` action hook**: Export an `onInit?: (actions: { startAnalysis: ... }) => void` prop. During `renderToStaticMarkup(...)`, the component invokes `onInit` synchronously, exposing the fully-configured action function to the test. The test then `await appActions.startAnalysis(url)` to drive the full submit+polling path.
+  3. **`onErrorChange` state hook**: Export an `onErrorChange?: (error: string | null) => void` prop. The component calls this alongside `setError(...)`. Tests capture the error value from this callback — no DOM querying required.
+  4. **`initialError` / `initialShowKeyInput` / `initialResults` props**: Accept initial state props so tests can render `<App initialError={capturedError} />` and assert rendered error guidance (alerts, action links) independently of the polling flow that produced the error.
+  5. **`await checkStatus()`**: Make the initial polling call awaitable (`await checkStatus()` inside the submit handler) so errors propagate synchronously when tests `await startAnalysis()`, rather than being swallowed in a fire-and-forget `setTimeout` chain.
+  - **Anti-pattern (reject in code review)**: Tests that construct their own fetch calls instead of calling through the component's action functions (`startAnalysis`) bypass the actual submit/header-forwarding/error-routing logic. Such tests pass even if the real forwarding is removed — Greptile will flag this as "tests bypass the actual page".
+  - **Extracted helpers**: Internal logic branches (e.g. `getJobErrorMessage(statusData)` for error-code routing) should be exported as named functions so they are independently unit-testable without requiring a full component render.
+
 

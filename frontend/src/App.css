@@ -651,3 +651,175 @@
   font-style: italic;
   color: rgba(255, 255, 255, 0.85);
 }
+
+/* BYOK API Key Settings */
+.byok-settings {
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1.25rem;
+}
+
+.byok-toggle-btn {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  color: var(--color-text-secondary);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.byok-toggle-btn:hover {
+  border-color: var(--color-primary);
+  color: #fff;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.byok-card {
+  margin-top: 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.byok-description {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 0;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.byok-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.byok-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.byok-input-wrapper label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.byok-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.byok-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.byok-input-row input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.byok-visibility-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.byok-visibility-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.byok-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.byok-save-btn {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.byok-link-btn {
+  color: #818cf8;
+  font-size: 0.85rem;
+  text-decoration: none;
+  padding: 0.5rem;
+}
+
+.byok-link-btn:hover {
+  text-decoration: underline;
+  color: #a5b4fc;
+}
+
+.byok-clear-btn {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-error);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.byok-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.byok-status-message {
+  font-size: 0.85rem;
+  color: var(--color-success);
+  margin: 0;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  align-items: center;
+}
+
+.error-link-btn {
+  color: #fca5a5;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.error-link-btn:hover {
+  color: #fff;
+}
+
+.error-action-btn {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.error-action-btn:hover {
+  background: rgba(239, 68, 68, 0.35);
+}
