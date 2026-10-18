@@ -23,9 +23,10 @@ This document defines repository-wide test execution standards, test fixture dis
   - When invoking Playwright via CLI with a configuration file residing in a subdirectory (e.g. `tests/integration/playwright.config.js` defining `testDir: "./"`), Playwright resolves test path arguments relative to `testDir`.
   - Do NOT pass full repository-relative paths (e.g. `tests/integration/byok-onboarding.test.js`), which causes `Error: No tests found`.
   - Pass the file path relative to `testDir` (e.g. `byok-onboarding.test.js`), or invoke via the package script: `npm run test:integration -- <file>`.
-* **Selective Outbound HTTP Mocking in ASGI Integration Tests**:
+* **Selective Outbound HTTP Mocking in ASGI Integration & BDD Tests**:
   - In FastAPI integration tests utilizing `httpx.AsyncClient` with `ASGITransport` to poll `/analyze/jobs/{job_id}`, monkeypatching `httpx.AsyncClient.get` globally intercepts both outbound API calls and internal test client polling requests.
-  - Mock wrappers for `httpx.AsyncClient.get` MUST inspect the target URL and only return mock responses when the URL matches the external service under test (e.g. `"supadata.ai"`), delegating all internal application routes to the original unmocked method.
+  - Mock wrappers for `httpx.AsyncClient.get` MUST inspect the target URL and only return mock responses when the URL matches an external service under test (e.g. `"supadata.ai"` for transcript retrieval, `"googleapis.com"` for Google Custom Search), delegating all internal application routes to the original unmocked method.
+  - Reuse the shared helper `install_url_scoped_httpx_mock(monkeypatch, url_marker, responder)` in `backend/tests/bdd/conftest.py` instead of hand-rolling per-test interception.
 * **Vitest Script Evaluation**: To test `*-script.js` IIFE files (which lack `export` statements and attach directly to `window`), evaluate them in Vitest's JSDOM environment. Required setup:
   1. Import `readFileSync` from `"fs"` and `resolve` from `"path"` at the top of the test file.
   2. Inside `beforeEach` (not `beforeAll`), read and execute the script:

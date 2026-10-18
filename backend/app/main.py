@@ -150,6 +150,25 @@ async def health_check_llm(
 
     return status
 
+async def purge_expired_jobs() -> int:
+    """Purges jobs older than the 1-hour TTL from the in-memory store.
+
+    Returns the number of jobs removed.
+    """
+    async with jobs_lock:
+        now = datetime.now(timezone.utc)
+        jobs_to_remove = [
+            job_id for job_id, job in jobs.items()
+            if now - job["created_at"] > timedelta(hours=1)
+        ]
+
+        for job_id in jobs_to_remove:
+            del jobs[job_id]
+
+        if jobs_to_remove:
+            logger.info(f"Cleaned up {len(jobs_to_remove)} old jobs")
+        return len(jobs_to_remove)
+
 async def cleanup_jobs():
     """
     Background task to clean up old jobs.
@@ -157,18 +176,7 @@ async def cleanup_jobs():
     while True:
         try:
             await asyncio.sleep(300)  # Run every 5 minutes
-            async with jobs_lock:
-                now = datetime.now(timezone.utc)
-                jobs_to_remove = []
-                for job_id, job in jobs.items():
-                    if now - job["created_at"] > timedelta(hours=1):
-                        jobs_to_remove.append(job_id)
-                
-                for job_id in jobs_to_remove:
-                    del jobs[job_id]
-                
-                if jobs_to_remove:
-                    logger.info(f"Cleaned up {len(jobs_to_remove)} old jobs")
+            await purge_expired_jobs()
         except asyncio.CancelledError:
             logger.info("Cleanup jobs task cancelled")
             raise
