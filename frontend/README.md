@@ -40,6 +40,7 @@ Executes component unit tests (`components.test.tsx`) asserting disclaimer rende
 
 ### Gherkin BDD Acceptance Scenarios
 ```bash
+npx playwright install chromium   # first run / after version bumps — browsers are NOT installed by npm install
 npx bddgen && npx playwright test
 ```
 Runs executable Gherkin scenarios (`tests/features/`, step definitions in `tests/steps/`) via `playwright-bdd` on the Playwright runner. **`npx bddgen` is a required pre-step before every run** — `playwright test` does not generate specs from `.feature` files, and edited features keep running as stale specs until regeneration. Playwright boots the Vite dev server automatically (`webServer`), and all backend traffic is mocked via `page.route`, so scenarios run fully offline. Convention details: `.agents/rules/frontend_invariants.md` §6.

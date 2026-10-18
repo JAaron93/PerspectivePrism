@@ -440,6 +440,10 @@ cd frontend
 # Run component unit tests
 npm test
 
+# First run / after version bumps: provision the Playwright-pinned Chromium build
+# (browsers are NOT installed by npm install)
+npx playwright install chromium
+
 # Run Gherkin BDD scenarios — two-phase: generate specs, then run (see .agents/rules/frontend_invariants.md §6)
 npx bddgen && npx playwright test
 
