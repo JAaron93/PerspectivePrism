@@ -1,10 +1,13 @@
 import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
+import type { JobResponse, JobStatusResponse } from '../../src/types'
 
 const { Given, When, Then } = createBdd()
 
 const NEWS_VIDEO_URL = 'https://www.youtube.com/watch?v=PBSNewsHour_BudgetBriefing'
 const JOB_ID = 'bdd-smoke-job-1'
+
+const CREATE_JOB_RESPONSE = { job_id: JOB_ID } satisfies JobResponse
 
 const COMPLETED_JOB_STATUS = {
   job_id: JOB_ID,
@@ -23,10 +26,62 @@ const COMPLETED_JOB_STATUS = {
         truth_profile: {
           overall_assessment: 'Likely True',
           perspectives: {
-            Scientific: { stance: 'Support', confidence: 0.9, explanation: 'Budget documents confirm the allocation.' },
-            Journalistic: { stance: 'Support', confidence: 0.85, explanation: 'Multiple outlets report the same figure.' },
-            'Partisan (Left)': { stance: 'Refute', confidence: 0.7, explanation: 'Commentators dispute the projection.' },
-            'Partisan (Right)': { stance: 'Ambiguous', confidence: 0.6, explanation: 'Coverage is mixed.' },
+            Scientific: {
+              perspective: 'Scientific',
+              stance: 'Support',
+              confidence: 0.9,
+              explanation: 'Budget documents confirm the allocation.',
+              evidence: [
+                {
+                  url: 'https://www.nature.com/articles/infrastructure-analysis',
+                  title: 'Nature analysis of infrastructure spending',
+                  snippet: 'Budget documents confirm the 500 billion dollar allocation.',
+                  source: 'nature.com',
+                },
+              ],
+            },
+            Journalistic: {
+              perspective: 'Journalistic',
+              stance: 'Support',
+              confidence: 0.85,
+              explanation: 'Multiple outlets report the same figure.',
+              evidence: [
+                {
+                  url: 'https://www.reuters.com/world/us/infrastructure-bill-breakdown',
+                  title: 'Reuters breaks down the infrastructure bill',
+                  snippet: 'Reuters reviews the ten-year spending schedule.',
+                  source: 'reuters.com',
+                },
+              ],
+            },
+            'Partisan (Left)': {
+              perspective: 'Partisan (Left)',
+              stance: 'Refute',
+              confidence: 0.7,
+              explanation: 'Commentators dispute the projection.',
+              evidence: [
+                {
+                  url: 'https://www.vox.com/policy/infrastructure-spending-analysis',
+                  title: 'Vox questions the infrastructure job projections',
+                  snippet: 'Policy analysts dispute the projected job growth.',
+                  source: 'vox.com',
+                },
+              ],
+            },
+            'Partisan (Right)': {
+              perspective: 'Partisan (Right)',
+              stance: 'Ambiguous',
+              confidence: 0.6,
+              explanation: 'Coverage is mixed.',
+              evidence: [
+                {
+                  url: 'https://www.foxnews.com/politics/infrastructure-bill-vote',
+                  title: 'Fox News covers the infrastructure bill vote',
+                  snippet: 'Coverage of the vote is mixed across factions.',
+                  source: 'foxnews.com',
+                },
+              ],
+            },
           },
           bias_indicators: {
             logical_fallacies: [],
@@ -43,7 +98,7 @@ const COMPLETED_JOB_STATUS = {
       },
     ],
   },
-}
+} satisfies JobStatusResponse
 
 Given('the analysis API will answer with a completed news-video job', async ({ page }) => {
   await page.route('**/analyze/jobs**', async (route) => {
@@ -51,7 +106,7 @@ Given('the analysis API will answer with a completed news-video job', async ({ p
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ job_id: JOB_ID }),
+        body: JSON.stringify(CREATE_JOB_RESPONSE),
       })
       return
     }
