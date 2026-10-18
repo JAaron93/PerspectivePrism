@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Playwright BDD (generated specs and run artifacts)
+.features-gen
+test-results
+playwright-report
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

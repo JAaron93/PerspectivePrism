@@ -433,6 +433,26 @@ pytest -m bdd tests/
 pytest tests/test_reliability.py
 ```
 
+### Frontend Tests
+The frontend has fast `node --test` component unit tests and executable Gherkin BDD acceptance scenarios using `playwright-bdd` on the Playwright runner.
+```bash
+cd frontend
+# Run component unit tests
+npm test
+
+# First run / after version bumps: provision the Playwright-pinned Chromium build
+# (browsers are NOT installed by npm install)
+npx playwright install chromium
+
+# Run Gherkin BDD scenarios — two-phase: generate specs, then run (see .agents/rules/frontend_invariants.md §6)
+npx bddgen && npx playwright test
+
+# BDD scenario domains (frontend/tests/features/, step defs in frontend/tests/steps/):
+#   analysis_submission - URL submission through the real UI flow to rendered results
+#   (API endpoints are mocked via Playwright page.route; scenarios run against the
+#    Vite dev server that Playwright boots automatically — never a live backend)
+```
+
 ### Chrome Extension Tests
 The Chrome Extension has unit tests using Vitest and integration tests using Playwright.
 ```bash

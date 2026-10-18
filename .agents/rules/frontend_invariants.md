@@ -77,7 +77,7 @@ This document defines the implementation guidelines, compiler architecture, and 
 ## 6. Gherkin BDD Acceptance Testing (`playwright-bdd` — Adopted Standard)
 
 > [!NOTE]
-> **Decision (2026-10-17, following the backend pytest-bdd expansion, PR #112)**: User-facing Gherkin acceptance scenarios for the React SPA use **`playwright-bdd`** on the Playwright runner. This section codifies the decision, its tradeoffs, and what future agents need to execute these scenarios. The harness may not be installed yet — when implementing, follow this section verbatim.
+> **Decision (2026-10-17, following the backend pytest-bdd expansion, PR #112)**: User-facing Gherkin acceptance scenarios for the React SPA use **`playwright-bdd`** on the Playwright runner. This section codifies the decision, its tradeoffs, and what future agents need to execute these scenarios. The harness is implemented in `frontend/` (PR #114: deps, `playwright.config.ts`, first scenario verified live in chromium against the webServer-booted Vite dev server) — new scenarios MUST follow this section, including the mandatory `npx bddgen` pre-step.
 
 * **Decision & Rationale**:
   - Mirrors the acceptance-level BDD precedent established by `pytest-bdd` in `backend/tests/bdd/` (`.feature`-first workflow, declarative business-language scenarios, `test(bdd):` conventional commits).

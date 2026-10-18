@@ -38,6 +38,13 @@ npm test
 ```
 Executes component unit tests (`components.test.tsx`) asserting disclaimer rendering, force-override actions, and epistemic lens quote expansion.
 
+### Gherkin BDD Acceptance Scenarios
+```bash
+npx playwright install chromium   # first run / after version bumps — browsers are NOT installed by npm install
+npx bddgen && npx playwright test
+```
+Runs executable Gherkin scenarios (`tests/features/`, step definitions in `tests/steps/`) via `playwright-bdd` on the Playwright runner. **`npx bddgen` is a required pre-step before every run** — `playwright test` does not generate specs from `.feature` files, and edited features keep running as stale specs until regeneration. Playwright boots the Vite dev server automatically (`webServer`), and all backend traffic is mocked via `page.route`, so scenarios run fully offline. Convention details: `.agents/rules/frontend_invariants.md` §6.
+
 ### Linting
 ```bash
 npm run lint
@@ -69,9 +76,15 @@ frontend/
 │   ├── App.css          # Application layout styles
 │   ├── index.css        # Global CSS variables and resets
 │   └── main.tsx         # Application entry point
+├── tests/
+│   ├── features/        # Gherkin BDD feature files (per-domain)
+│   └── steps/           # playwright-bdd step definitions
 ├── eslint.config.js     # Flat ESLint configuration
+├── playwright.config.ts # BDD features/steps wiring + Vite webServer + chromium
 ├── tsconfig.json        # Solution-level TypeScript project configuration
 ├── tsconfig.app.json    # Application TypeScript compiler options
-├── tsconfig.node.json   # Vite/Node TypeScript configuration
+├── tsconfig.node.json   # Vite/Node TypeScript configuration (incl. BDD steps)
 └── package.json         # Dependencies and scripts
 ```
+
+> Generated BDD specs (`.features-gen/`) and Playwright run artifacts (`test-results/`, `playwright-report/`) are gitignored build artifacts — never edit or commit them.
