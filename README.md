@@ -417,8 +417,17 @@ cd backend
 # Run all tests
 pytest
 
-# Run executable Gherkin BDD acceptance scenarios
+# Run executable Gherkin BDD acceptance scenarios (pytest-bdd)
 pytest -m bdd tests/
+
+# BDD scenario domains (backend/tests/features/, step defs in backend/tests/bdd/):
+#   byok_supadata          - BYOK key precedence, Supadata errors, local fallback
+#   analysis_pipeline      - end-to-end orchestration, verdicts, incremental results
+#   pre_classification_gate - eligibility fast path, LLM gate, force override
+#   evidence_retrieval     - per-perspective search scoping, quota/outage resilience
+#   model_resilience       - circuit breaker fallback, tripping, health reporting
+#   job_lifecycle          - validation, truncation, TTL purge
+#   sanitizer_guardrails   - injection rejection, special-character sanitization
 
 # Run specific reliability tests
 pytest tests/test_reliability.py
