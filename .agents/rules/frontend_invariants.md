@@ -72,4 +72,39 @@ This document defines the implementation guidelines, compiler architecture, and 
   - **Anti-pattern (reject in code review)**: Tests that construct their own fetch calls instead of calling through the component's action functions (`startAnalysis`) bypass the actual submit/header-forwarding/error-routing logic. Such tests pass even if the real forwarding is removed — Greptile will flag this as "tests bypass the actual page".
   - **Extracted helpers**: Internal logic branches (e.g. `getJobErrorMessage(statusData)` for error-code routing) should be exported as named functions so they are independently unit-testable without requiring a full component render.
 
+---
+
+## 6. Gherkin BDD Acceptance Testing (`playwright-bdd` — Adopted Standard)
+
+> [!NOTE]
+> **Decision (2026-10-17, following the backend pytest-bdd expansion, PR #112)**: User-facing Gherkin acceptance scenarios for the React SPA use **`playwright-bdd`** on the Playwright runner. This section codifies the decision, its tradeoffs, and what future agents need to execute these scenarios. The harness may not be installed yet — when implementing, follow this section verbatim.
+
+* **Decision & Rationale**:
+  - Mirrors the acceptance-level BDD precedent established by `pytest-bdd` in `backend/tests/bdd/` (`.feature`-first workflow, declarative business-language scenarios, `test(bdd):` conventional commits).
+  - Reuses the repository's proven Playwright harness knowledge (pinned Chromium provisioning, host-resolver test backends, `xvfb-run`/`headless: false` Linux CI rules from `testing_and_hygiene.md`) — one browser-automation stack across the Chrome extension and the SPA.
+  - Delivers real-browser fidelity with auto-waiting, tracing, and screenshots. `cucumber-js` + jsdom was evaluated and rejected: lighter, but lower fidelity and a more DIY ecosystem.
+* **Dependency Set**: `frontend/` devDependencies require `playwright-bdd` and `@playwright/test`; provision the browser with `npx playwright install chromium` (first run and after version bumps). Do NOT introduce `cucumber-js`, `vitest-cucumber`, or any jsdom Gherkin runner.
+* **File Layout (mirrors backend)**:
+  - Feature files: `frontend/tests/features/<domain>/*.feature`.
+  - Step definitions: `frontend/tests/steps/<domain>.ts` using `createBdd()` from `playwright-bdd`; custom shared fixtures extend `test as base` imported from `playwright-bdd` (NOT `@playwright/test`).
+  - Wiring: `defineBddConfig({ features: 'tests/features/**/*.feature', steps: 'tests/steps/**/*.ts' })` in `frontend/playwright.config.ts`; the returned `testDir` feeds Playwright's `defineConfig`.
+* **Step Async Semantics**: `playwright-bdd` step functions are `async` and receive Playwright fixtures (`{ page }`, custom fixtures) as their first argument. This is the OPPOSITE of the backend pytest-bdd 9.0 sync-step invariant (`backend_invariants.md` §5) — never "fix" async BDD steps here to `def`-style sync wrappers; that rule is Python-scoped.
+* **Dev Server Requirement**: Scenarios execute against a running app. Configure Playwright's `webServer` to boot `npm run dev` (port 5173) or `vite preview` after `npm run build` so suite runs are self-contained; do not depend on a manually started server.
+* **API Mocking (No Live Backend / LLM)**:
+  - Default: Playwright `page.route()` / `context.route()` interception of FastAPI endpoints (`/analyze/jobs*`) with canned `JobResponse` / `JobStatusResponse` payloads. Zero app-code changes, and the component's real `fetch`/polling/submit logic executes — per the section 5 anti-pattern rule, scenarios MUST drive the UI's own action flows, never synthetic fetches that bypass them.
+  - MSW v2 remains the shared handler-authoring surface (as in `chrome-extension/`). If browser-level MSW parity is desired, run the MSW **browser worker** gated behind a Vite env flag (e.g. `VITE_ENABLE_MSW`) so production builds stay clean. Critical gotcha: MSW's Node `setupServer` used in the Playwright runner process does NOT intercept in-browser fetches.
+* **Runner Discovery Isolation**: Two runner types coexist in `frontend/`: `node --test` unit suites (`src/**/__tests__/*.test.tsx`, esbuild-bundled per section 5) and Playwright BDD specs. Discovery MUST stay mutually exclusive: Playwright's `testDir` must never overlap `src/`, and the generated BDD spec output directory (configurable via `defineBddConfig`'s `outputDir`) MUST be gitignored, never hand-edited, and excluded from `tsconfig.app.json` compilation per the section 5 compiler-scope separation.
+* **Commands**:
+  ```bash
+  cd frontend
+  npx playwright install chromium   # first run / after version bumps
+  npx playwright test              # runs Gherkin scenarios (specs auto-generated at test time)
+  ```
+  Scenario runs MUST be fully offline: mocked endpoints only, zero Vertex AI / Supadata / Google CSE traffic.
+* **Fixture Discipline**: Domain-relevant journalism/news video URLs only — never Rick Astley or `dQw4w9WgXcQ` (per `testing_and_hygiene.md`). Scenarios follow the backend BDD precedent: scenario-first red → green, one labelled commit per domain.
+* **Accepted Tradeoffs (by design, not defects)**:
+  - Slower than `node --test` unit suites (browser boot + dev server): BDD scenarios complement, never replace, the section 5 component tests.
+  - Each suite run pays a Vite dev-server spin-up plus route mocking — the accepted price of real-browser acceptance fidelity over a jsdom runner.
+  - Continuous-mode `npx playwright test` requires the webServer handoff; debugging single scenarios uses `npx playwright test --grep "<scenario name>"` with the same mocks.
+
 
