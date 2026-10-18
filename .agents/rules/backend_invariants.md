@@ -157,6 +157,14 @@ This document defines the implementation guidelines, security invariants, testin
         asyncio.run(_run())
     ```
   - **Do NOT** decorate async step functions with `@pytest.mark.anyio` or call `asyncio.get_event_loop().run_until_complete()` — only `asyncio.run()` inside a sync step body is safe with pytest-bdd 9.0's synchronous runner.
+* **BDD Scenario State Isolation (`tests/bdd/conftest.py`)**:
+  - Every executable Gherkin scenario shares the module-level singletons in `app.main`, and the root-conftest reset covers only `cb_failures`/`cb_open` on `analysis_service` — insufficient for circuit-breaker behavior scenarios.
+  - `backend/tests/bdd/conftest.py` MUST register an `autouse=True` fixture (`isolate_bdd_state`) that, before and after each scenario: clears the `app.main.jobs` store AND resets all five circuit-breaker fields (`cb_failures`, `cb_open`, `cb_half_open`, `cb_probing`, `cb_last_failure_time`) on all three circuit-breaker owners (`analysis_service`, `analysis_service.alethiology_service`, `content_classifier`).
+  - Without the half-open/probing reset, a breaker opened by one scenario silently redirects later scenarios to backup-model mocks, producing order-dependent false passes.
+* **BDD Mid-Flight Assertions via Snapshot-in-Mock**:
+  - With `httpx.AsyncClient(transport=ASGITransport(app=app))`, Starlette runs `BackgroundTasks` *within* the POST call cycle: `POST /analyze/jobs` does not return until `process_analysis` reaches a terminal state. Polling can therefore never observe in-flight pipeline state.
+  - To assert incremental result publishing, mocks MUST capture state at their invocation point: deep-copy the sole in-flight job result (`jobs[job_id]["result"].model_copy(deep=True)` — the shared `snapshot_sole_job_result()` helper in `tests/bdd/conftest.py` also enforces the one-job-per-scenario invariant) inside the seam mock that runs mid-pipeline (e.g. `analyze_bias_and_deception`, the 5th task in the `asyncio.gather` phase).
+  - Determinism relies on no-yield mocks completing FIFO under `asyncio.gather`; never poll with sleeps to catch intermediate states.
 
 ---
 
