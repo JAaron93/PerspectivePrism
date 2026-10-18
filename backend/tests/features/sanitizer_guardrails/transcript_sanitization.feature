@@ -9,6 +9,7 @@ Feature: Transcript sanitization guardrails
     Then the job completes successfully
     And the result contains exactly 1 claim
     And the claim reports a sanitization failure
+    And the extraction model was never invoked
 
   Scenario: A benign transcript with special characters is sanitized and extracted
     Given a video whose transcript contains quotes and special characters

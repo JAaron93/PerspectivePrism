@@ -118,6 +118,11 @@ def given_injection_transcript(guardrails, monkeypatch):
         claim_extractor, "get_transcript",
         AsyncMock(return_value=_make_transcript(_INJECTION_TEXT, video_id="hostile_vid")),
     )
+    # Keep the failure offline: if sanitization ever stops rejecting this
+    # input, the seam must fail the test instead of reaching the provider.
+    claims_agent = AsyncMock(return_value=None)
+    monkeypatch.setattr("app.services.claim_extractor.execute_adk_agent", claims_agent)
+    guardrails.captured["claims_agent"] = claims_agent
 
 
 @given("a video whose transcript contains quotes and special characters")
@@ -177,6 +182,13 @@ def then_sanitization_error_claim(guardrails):
     assert claim_text == "Error: Transcript failed sanitization check", claim_text
 
 
+@then("the extraction model was never invoked")
+def then_extraction_model_never_invoked(guardrails):
+    claims_agent = guardrails.captured.get("claims_agent")
+    assert claims_agent is not None, "The claim-extraction LLM seam was not patched for this scenario."
+    claims_agent.assert_not_awaited()
+
+
 @then("the claim text matches the extracted claim")
 def then_claim_text_extracted(guardrails):
     claim_text = guardrails.status_data["result"]["claims"][0]["claim_text"]
@@ -189,4 +201,8 @@ def then_prompt_carried_sanitized_transcript(guardrails):
     assert prompts, "The claim-extraction LLM seam was never invoked."
     prompt = prompts[0]
     assert "[00:00]" in prompt, prompt[:500]
+    # escape_special_characters forms: quotes -> \", backslash -> \\, braces -> \{ \}
+    assert '\\"the bill costs $500M\\"' in prompt, prompt[:500]
+    assert '\\\\ and \\{claimed\\}' in prompt, prompt[:500]
+    assert '\\} savings' in prompt, prompt[:500]
     assert "infrastructure" in prompt, prompt[:500]
