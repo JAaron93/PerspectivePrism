@@ -40,7 +40,7 @@
 ## Track 1 — Phase 1 / PR 1: BYOK Supadata Configuration
 > Self-contained feature verifying local storage, secret masking, accordion toggling, and request header forwarding.
 
-- [ ] **T1.1 — Create BYOK Gherkin Feature (`tests/features/byok_supadata/byok_configuration.feature`)**
+- [x] **T1.1 — Create BYOK Gherkin Feature (`tests/features/byok_supadata/byok_configuration.feature`)**
   - **Description**: Author Gherkin feature file with 6 scenarios:
     1. Toggling BYOK configuration accordion (`#byok-toggle-btn` toggles `#byok-config-panel` and `aria-expanded`).
     2. Saving Supadata API key persists in `localStorage` and updates toggle button label to "🔑 Supadata API Key (Configured) ▼".
@@ -51,7 +51,7 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR8, FR9, FR10, FR11, FR12
 
-- [ ] **T1.2 — Implement BYOK Step Definitions (`tests/steps/byok_supadata.ts`)**
+- [x] **T1.2 — Implement BYOK Step Definitions (`tests/steps/byok_supadata.ts`)**
   - **Description**: Implement step definitions using `createBdd()` from `playwright-bdd`:
     - Intercept `localStorage` state via `page.evaluate()` or UI interactions.
     - Intercept `page.route('**/analyze/jobs**')` and capture request headers into test context.
@@ -59,7 +59,7 @@
   - **Dependencies**: T1.1
   - **Traceability**: FR8, FR9, FR10, FR11, FR12, NFR1, NFR2
 
-- [ ] **T1.3 — Compile & Run Phase 1 BDD Acceptance Tests**
+- [x] **T1.3 — Compile & Run Phase 1 BDD Acceptance Tests**
   - **Description**: Run `npx bddgen && npx playwright test tests/features/byok_supadata` in `frontend/`.
   - **Verification**: 6 passed scenarios in headless Chromium.
   - **Dependencies**: T1.2
