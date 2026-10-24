@@ -5,6 +5,7 @@ import {
   createMockJob,
   createMockFailedStatus,
 } from '../support/mock_jobs.ts'
+import { releasePendingPostHold } from './analysis_submission.ts'
 
 const { Given, Then } = createBdd()
 
@@ -104,5 +105,9 @@ Given('an active error banner is displayed', async ({ page }) => {
 })
 
 Then('the active error banner is immediately dismissed', async ({ page }) => {
-  await expect(page.locator('.error')).toHaveCount(0)
+  try {
+    await expect(page.locator('.error')).toHaveCount(0)
+  } finally {
+    releasePendingPostHold()
+  }
 })

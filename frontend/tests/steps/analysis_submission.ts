@@ -5,10 +5,11 @@ import {
   createMockJob,
   createMockCompletedStatus,
   createMockStreamingStatus,
+  createMockPendingStatus,
   createMockClaim,
 } from '../support/mock_jobs.ts'
 
-const { Given, When, Then } = createBdd()
+const { Given, When, Then, After } = createBdd()
 
 const JOB_ID = 'bdd-smoke-job-1'
 const CREATE_JOB_RESPONSE = createMockJob(JOB_ID)
@@ -16,6 +17,18 @@ const COMPLETED_JOB_STATUS = createMockCompletedStatus(JOB_ID)
 
 let interceptedPostCount = 0
 let streamPhase: 'analyzing' | 'streaming' | 'completed' = 'analyzing'
+let releasePostHold: (() => void) | null = null
+
+export function releasePendingPostHold() {
+  if (releasePostHold) {
+    releasePostHold()
+    releasePostHold = null
+  }
+}
+
+After(async () => {
+  releasePendingPostHold()
+})
 
 Given('the analysis API will answer with a completed news-video job', async ({ page }) => {
   await page.route('**/analyze/jobs**', async (route) => {
@@ -42,6 +55,22 @@ Given('the user navigates to the Perspective Prism web app', async ({ page }) =>
 
 When('the user submits the form with an empty YouTube URL', async ({ page }) => {
   interceptedPostCount = 0
+  await page.route('**/analyze/jobs**', async (route) => {
+    if (route.request().method() === 'POST') {
+      interceptedPostCount++
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockJob()),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(createMockCompletedStatus()),
+    })
+  })
   await page.locator('#youtube-url').fill('')
   await page.getByRole('button', { name: 'Analyze', exact: true }).click()
 })
@@ -141,9 +170,15 @@ Given('a previous analysis has rendered results on the screen', async ({ page })
 })
 
 When('the user submits a new YouTube news video URL', async ({ page }) => {
-  // Mock subsequent job with slow status so we observe the immediate results wipe
+  releasePendingPostHold()
+  const postHoldPromise = new Promise<void>((resolve) => {
+    releasePostHold = resolve
+  })
+
+  // Hold the POST response so job creation remains pending while we assert UI state clearing
   await page.route('**/analyze/jobs**', async (route) => {
     if (route.request().method() === 'POST') {
+      await postHoldPromise
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -154,7 +189,7 @@ When('the user submits a new YouTube news video URL', async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(createMockStreamingStatus('subsequent-job', [])),
+      body: JSON.stringify(createMockPendingStatus('subsequent-job')),
     })
   })
   await page
@@ -164,7 +199,11 @@ When('the user submits a new YouTube news video URL', async ({ page }) => {
 })
 
 Then('the previous results are immediately removed from the DOM', async ({ page }) => {
-  await expect(page.locator('.results')).toHaveCount(0)
+  try {
+    await expect(page.locator('.results')).toHaveCount(0)
+  } finally {
+    releasePendingPostHold()
+  }
 })
 
 When('the user submits a YouTube news video URL', async ({ page }) => {
