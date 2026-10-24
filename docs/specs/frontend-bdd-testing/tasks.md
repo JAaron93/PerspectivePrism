@@ -109,7 +109,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 3 can be developed independently of Track 4 and Track 5.
 
-- [ ] **T3.1 — Create Eligibility Disclaimer Feature (`tests/features/pre_classification_gate/eligibility_disclaimer.feature`)**
+- [x] **T3.1 — Create Eligibility Disclaimer Feature (`tests/features/pre_classification_gate/eligibility_disclaimer.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Ineligible video displays disclaimer banner with warning icon, title "Analysis Skipped", category badge ("Entertainment • 95% Match"), and topic chips.
     2. Educational tip recommends navigating to news or documentary videos.
@@ -118,12 +118,12 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR6, FR7
 
-- [ ] **T3.2 — Implement Pre-Classification Step Definitions (`tests/steps/pre_classification_gate.ts`)**
+- [x] **T3.2 — Implement Pre-Classification Step Definitions (`tests/steps/pre_classification_gate.ts`)**
   - **Description**: Implement steps with `createMockIneligibleStatus()`. Intercept outbound `POST /analyze/jobs` request payload and assert `body.url` matches the pinned URL and `body.force_override === true`.
   - **Dependencies**: T3.1
   - **Traceability**: FR6, FR7, NFR1, NFR2
 
-- [ ] **T3.3 — Compile & Run Phase 3 BDD Acceptance Tests**
+- [x] **T3.3 — Compile & Run Phase 3 BDD Acceptance Tests**
   - **Description**: Run `npx bddgen && npx playwright test tests/features/pre_classification_gate`.
   - **Verification**: All scenarios green.
   - **Dependencies**: T3.2
