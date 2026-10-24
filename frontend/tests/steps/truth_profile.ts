@@ -182,9 +182,12 @@ Then(
       'Confidence: 70%',
       'Confidence: 60%',
     ])
-    const explanations = page.locator('.perspective-card .explanation')
-    await expect(explanations).toHaveCount(4)
-    await expect(explanations.nth(0)).toContainText('Budget documents confirm')
+    await expect(page.locator('.perspective-card .explanation')).toHaveText([
+      'Budget documents confirm the allocation.',
+      'Multiple outlets report the same figure.',
+      'Commentators dispute the projection.',
+      'Coverage is mixed.',
+    ])
   }
 )
 

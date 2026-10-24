@@ -202,9 +202,12 @@ Then(
 )
 
 Then('{int} quote blockquotes are rendered', async ({ page }, count: number) => {
-  await expect(
-    page.locator('#quote-evidences-drawer blockquote.epistemic-quote')
-  ).toHaveCount(count)
+  const quotes = page.locator('#quote-evidences-drawer blockquote.epistemic-quote')
+  await expect(quotes).toHaveCount(count)
+  await expect(quotes).toHaveText([
+    '"allocates 500 billion dollars over ten years"',
+    '"funds critical infrastructure upgrades across fifty states"',
+  ])
 })
 
 Given('a completed claim analysis with no alethiology data', async ({ page }) => {
@@ -239,5 +242,8 @@ Given('a completed claim analysis with no alethiology data', async ({ page }) =>
 })
 
 Then('no epistemic lens card is rendered in the DOM', async ({ page }) => {
+  await expect(page.locator('.results')).toBeVisible()
+  await expect(page.locator('.truth-profile')).toBeVisible()
+  await expect(page.locator('.claim-header h3')).toHaveText('Claim 1')
   await expect(page.locator('.epistemic-lens-card')).toHaveCount(0)
 })
