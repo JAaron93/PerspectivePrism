@@ -38,6 +38,9 @@ This document defines the implementation guidelines, compiler architecture, and 
 * `npm run build`: Sub-second production compilation (`tsc -b && vite build`).
 * `npm run lint`: Runs ESLint across TypeScript and TSX source files.
 * `npm test`: Runs fast component unit tests via `node --test` and esbuild.
+* `npm run test:bdd`: Compiles feature specs and executes all 37 Gherkin acceptance tests in Chromium (`npx bddgen && npx playwright test`).
+* `npm run test:bdd:gen`: Compiles `.feature` files into `.features-gen/` Playwright test specs (`npx bddgen`).
+* `npm run test:bdd:ui`: Launches the interactive Playwright BDD test runner UI (`npx bddgen && npx playwright test --ui`).
 * `npm run preview`: Previews the production build bundle locally.
 
 ---
@@ -94,19 +97,38 @@ This document defines the implementation guidelines, compiler architecture, and 
   - Default: Playwright `page.route()` / `context.route()` interception of FastAPI endpoints (`/analyze/jobs**` or regex `/\/analyze\/jobs/`) with canned `JobResponse` / `JobStatusResponse` payloads (trailing `**` matches both initial job submission and `/analyze/jobs/{job_id}` polling; single `*` fails to match `/`). Zero app-code changes, and the component's real `fetch`/polling/submit logic executes — per the section 5 anti-pattern rule, scenarios MUST drive the UI's own action flows, never synthetic fetches that bypass them.
   - MSW v2 remains the shared handler-authoring surface (as in `chrome-extension/`). If browser-level MSW parity is desired, run the MSW **browser worker** gated behind a Vite env flag (e.g. `VITE_ENABLE_MSW`) so production builds stay clean. Critical gotcha: MSW's Node `setupServer` used in the Playwright runner process does NOT intercept in-browser fetches.
 * **Runner Discovery Isolation**: Two runner types coexist in `frontend/`: `node --test` unit suites (`src/**/__tests__/*.test.tsx`, esbuild-bundled per section 5) and Playwright BDD specs. Discovery MUST stay mutually exclusive: Playwright's `testDir` must never overlap `src/`, and the generated BDD spec output directory (`.features-gen/` by default, configurable via `defineBddConfig`'s `outputDir`) MUST be gitignored, never hand-edited, and excluded from `tsconfig.app.json` compilation per the section 5 compiler-scope separation.
-* **Commands (two-phase: generate, then run)**:
-  ```bash
-  cd frontend
-  npx playwright install chromium   # first run / after version bumps
-  npx bddgen                        # compile .feature files -> generated specs (REQUIRED pre-step)
-  npx playwright test               # run the generated specs
-  ```
-  `npx playwright test` does NOT generate specs from `.feature` files by itself: with only the `defineBddConfig` wiring above, a clean checkout reports "No tests found" and a full run generates nothing (verified empirically on playwright-bdd 9.2.1). `npx bddgen` is a mandatory pre-step before EVERY test invocation — including filtered runs — and MUST be re-run after ANY `.feature` edit; stale specs otherwise execute silently (an edited scenario keeps running under its old text until regeneration).
+* **Commands (Dedicated NPM Scripts & Targeted Execution)**:
+  - Run the full suite: `npm run test:bdd` (auto-runs `bddgen` and executes all 37 scenarios across 6 workers in ~16s).
+  - Run a specific feature domain: `npm run test:bdd -- tests/features/<domain>` (e.g. `npm run test:bdd -- tests/features/byok_supadata`).
+  - Run a single scenario by name: `npm run test:bdd -- --grep "<scenario name>"` (e.g. `npm run test:bdd -- --grep "Force analyze pins to the original URL"`).
+  - Interactive UI mode: `npm run test:bdd:ui` (launches the Playwright visual runner with time-travel trace viewer).
+  - Low-level two-phase CLI execution:
+    ```bash
+    cd frontend
+    npx playwright install chromium   # first run / after version bumps
+    npx bddgen                        # compile .feature files -> generated specs (REQUIRED pre-step)
+    npx playwright test               # run the generated specs
+    ```
+  `npx playwright test` does NOT generate specs from `.feature` files by itself: with only the `defineBddConfig` wiring above, a clean checkout reports "No tests found" and a full run generates nothing (verified empirically on playwright-bdd 9.2.1). `npx bddgen` is a mandatory pre-step before EVERY test invocation — including filtered runs — and MUST be re-run after ANY `.feature` edit; stale specs otherwise execute silently (an edited scenario keeps running under its old text until regeneration). The `npm run test:bdd` script packages `npx bddgen && npx playwright test` into a single atomic invocation.
   Scenario runs MUST be fully offline: mocked endpoints only, zero Vertex AI / Supadata / Google CSE traffic.
+* **Feature Domain Directory Layout (`frontend/tests/features/`)**:
+  - `byok_supadata/byok_configuration.feature`: Supadata API key storage, secret visibility toggling, clear functionality, and `X-Supadata-Key` outbound header inclusion/omission.
+  - `analysis_submission/submission_lifecycle.feature`: Empty form validation, button loading/streaming states, and unconditional state resets on submit.
+  - `error_handling/error_recovery.feature`: Actionable error guidance (`SUPADATA_KEY_REQUIRED` auto-expanding BYOK, `SUPADATA_QUOTA_EXHAUSTED` pricing links), server error alert banners, and error dismissal on retry.
+  - `pre_classification_gate/eligibility_disclaimer.feature`: Entertainment video skipping, educational advice tips, force override ("⚡ Analyze Anyway"), and immutable `analyzedUrl` target pinning.
+  - `truth_profile/truth_profile_rendering.feature`: Multi-claim rendering, timestamps, truth classification badges, 4 perspective cards & confidence bars, and deception score severity tiers.
+  - `epistemic_lens/epistemic_lens_analysis.feature`: 6 canonical truth theory chips (`theory-*`), epistemic summary paragraphs, collapsible transcript quote drawers (`[hidden]`), and graceful alethiology omission.
+  - `job_polling/polling_and_streaming.feature`: Partial claims progressive streaming, perspective and epistemic framework `<ThinkingComponent>` spinners, null deception score indicators, and completed status transitions.
+  - `ui_resilience/edge_cases.feature`: Empty claims array resilience (`claims: []`), and long claim text (500+ characters) layout wrapping without overflow or vertical clipping.
+  - `accessibility/keyboard_and_aria.feature`: Full keyboard tab navigation, Enter key submission, BYOK keyboard controls, ARIA live regions (`role="status"`, `aria-live="polite"`), and alert banners (`role="alert"`).
+* **Shared Mock Response Factory (`frontend/tests/support/mock_jobs.ts`)**:
+  All step definitions must import and reuse the centralized mock factory helpers (`createMockJob`, `createMockCompletedStatus`, `createMockStreamingStatus`, `createMockPendingStatus`, `createMockIneligibleStatus`, `createMockFailedStatus`, `createMockClaim`, `createDefaultPerspectives`, `createDefaultAlethiology`, `createDefaultBiasIndicators`) to maintain strong typing and avoid response shape drift.
+* **Keyboard Navigation & Accessibility Testing Invariants**:
+  - Tabbing through interactive controls in steps must be bounded with a maximum attempt limit (e.g. `attempts < MAX_TAB_ATTEMPTS`) rather than open-ended `while` loops, and assert focus using `expect(locator, message).toBeFocused()` to provide immediate, actionable failure diagnostics if tab ordering breaks.
 * **Fixture Discipline**: Domain-relevant journalism/news video URLs only — never Rick Astley or `dQw4w9WgXcQ` (per `testing_and_hygiene.md`). Scenarios follow the backend BDD precedent: scenario-first red → green, one labelled commit per domain.
 * **Accepted Tradeoffs (by design, not defects)**:
   - Slower than `node --test` unit suites (browser boot + dev server): BDD scenarios complement, never replace, the section 5 component tests.
   - Each suite run pays a Vite dev-server spin-up plus route mocking — the accepted price of real-browser acceptance fidelity over a jsdom runner.
-  - Continuous-mode `npx playwright test` requires the webServer handoff; debugging single scenarios uses `npx bddgen && npx playwright test --grep "<scenario name>"` with the same mocks — the `bddgen` pre-step applies to filtered runs too.
+  - Continuous-mode `npx playwright test` requires the webServer handoff; debugging single scenarios uses `npm run test:bdd -- --grep "<scenario name>"` with the same mocks — the `bddgen` pre-step applies to filtered runs too.
 
 
