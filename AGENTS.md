@@ -154,7 +154,7 @@ Future AI agents, pair programmers, and automated tooling must adhere to this ru
 
 Detailed engineering invariants and implementation guidelines are maintained in the following modular rulebooks:
 
-* **[Backend Invariants](.agents/rules/backend_invariants.md)**: Python FastAPI rules, ADK 2.0 patterns, Rust PyO3 input sanitizer compilation, `pydantic-settings` dependency injection, SDK mock safety, and concurrency testing.
+* **[Backend Invariants](.agents/rules/backend_invariants.md)**: Python FastAPI rules, ADK 2.0 patterns, Rust PyO3 input sanitizer compilation, `pydantic-settings` dependency injection, SDK mock safety, Modal app & health probe invariants, evaluation runners, and concurrency testing.
 * **[Frontend Invariants](.agents/rules/frontend_invariants.md)**: React 19 standards, TypeScript 7.0 Go native compiler architecture (ADR 004), `@typescript/typescript6` ESLint bridge, custom CSS conventions, API schema interfaces, and Gherkin BDD acceptance standards (`playwright-bdd` + Vite dev server + route/MSW mocking).
 * **[Chrome Extension Invariants](.agents/rules/chrome_extension_invariants.md)**: Manifest V3 zero-build vanilla JS architecture (ADR 004), `checkJs: true` semantic typechecking, ambient `globals.d.ts`, content script load order, BYOK storage isolation (`chrome.storage.local`), IPC origin verification, native Side Panel UI, and cache key content hashing.
 * **[Testing & Hygiene Invariants](.agents/rules/testing_and_hygiene.md)**: Playwright persistent context integration test harness, domain-relevant news fixtures, MSW v2 mocking, Vitest script execution, accessibility scanning (axe-core vs a11y-debugging), git merge 2-parent verification, GitHub CLI (`gh`) guardrails, and Antigravity 2.0 CLI-first architecture.

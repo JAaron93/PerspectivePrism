@@ -157,13 +157,13 @@ This document defines the implementation guidelines, security invariants, testin
         asyncio.run(_run())
     ```
   - **Do NOT** decorate async step functions with `@pytest.mark.anyio` or call `asyncio.get_event_loop().run_until_complete()` — only `asyncio.run()` inside a sync step body is safe with pytest-bdd 9.0's synchronous runner.
-* **BDD Scenario State Isolation (`tests/bdd/conftest.py`)**:
+* **BDD Scenario State Isolation (`backend/tests/bdd/conftest.py`)**:
   - Every executable Gherkin scenario shares the module-level singletons in `app.main`, and the root-conftest reset covers only `cb_failures`/`cb_open` on `analysis_service` — insufficient for circuit-breaker behavior scenarios.
   - `backend/tests/bdd/conftest.py` MUST register an `autouse=True` fixture (`isolate_bdd_state`) that, before and after each scenario: clears the `app.main.jobs` store AND resets all five circuit-breaker fields (`cb_failures`, `cb_open`, `cb_half_open`, `cb_probing`, `cb_last_failure_time`) on all three circuit-breaker owners (`analysis_service`, `analysis_service.alethiology_service`, `content_classifier`).
   - Without the half-open/probing reset, a breaker opened by one scenario silently redirects later scenarios to backup-model mocks, producing order-dependent false passes.
 * **BDD Mid-Flight Assertions via Snapshot-in-Mock**:
   - With `httpx.AsyncClient(transport=ASGITransport(app=app))`, Starlette runs `BackgroundTasks` *within* the POST call cycle: `POST /analyze/jobs` does not return until `process_analysis` reaches a terminal state. Polling can therefore never observe in-flight pipeline state.
-  - To assert incremental result publishing, mocks MUST capture state at their invocation point: deep-copy the sole in-flight job result (`jobs[job_id]["result"].model_copy(deep=True)` — the shared `snapshot_sole_job_result()` helper in `tests/bdd/conftest.py` also enforces the one-job-per-scenario invariant) inside the seam mock that runs mid-pipeline (e.g. `analyze_bias_and_deception`, the 5th task in the `asyncio.gather` phase).
+  - To assert incremental result publishing, mocks MUST capture state at their invocation point: deep-copy the sole in-flight job result (`jobs[job_id]["result"].model_copy(deep=True)` — the shared `snapshot_sole_job_result()` helper in `backend/tests/bdd/conftest.py` also enforces the one-job-per-scenario invariant) inside the seam mock that runs mid-pipeline (e.g. `analyze_bias_and_deception`, the 5th task in the `asyncio.gather` phase).
   - Determinism relies on no-yield mocks completing FIFO under `asyncio.gather`; never poll with sleeps to catch intermediate states.
 
 ---
@@ -227,7 +227,7 @@ This document defines the implementation guidelines, security invariants, testin
 
 ---
 
-## 7. Modal App & Health Probe Invariants
+## 9. Modal App & Health Probe Invariants
 
 * **Modal SDK `_is_web_endpoint` Callable Guard**:
   - In `test_modal_app.py`, never assert `modal_app.fastapi_app._is_web_endpoint is True` directly. In current Modal SDK versions (`>=1.5`), `_is_web_endpoint` is a **bound method**, not a boolean attribute — bare `is True` comparisons always fail. Use a callable guard for forward-compatibility across SDK versions:
@@ -272,11 +272,11 @@ This document defines the implementation guidelines, security invariants, testin
 
 ---
 
-## 8. Deployment Documentation Accuracy
+## 10. Deployment Documentation Accuracy
 
 * **Verify Route Response Shapes Before Writing Docs**:
   - Before writing or updating health check response examples in deployment guides (`docs/modal_deployment_guide.md`, `README.md`), always inspect the actual route handler in `backend/app/main.py` to confirm the exact JSON response shape. Do NOT guess or extrapolate fields.
   - **`GET /health`**: Returns ONLY `{"status": "healthy"}`. Do NOT document non-existent `app_name` or `version` fields.
   - **`GET /health/llm?probe=true`** (on success): Returns `primary_model`, `gemini_tier`, `max_concurrency`, `circuit_breaker_open`, `features` (dict with `backup_configured`, `failures_count`), `probe` (dict with `success`, `model`, `total_tokens`), `status`, and `message`. Do NOT simplify to a subset of these keys.
 * **No `file:///` Absolute Paths in Committed Docs**:
-  - All committed markdown (deployment guides, READMEs, walkthroughs) MUST use portable repository-relative links (`../README.md#setup-installation`), never machine-local absolute paths (`file:///Users/...`). Violations cause Greptile review failures and break cross-platform link resolution.
+  - All committed markdown (deployment guides, READMEs, walkthroughs) MUST use portable repository-relative links (`../README.md#setup-installation`), never machine-local absolute paths (such as `file:///` URIs pointing to local user home directories). Violations cause Greptile review failures and break cross-platform link resolution.
