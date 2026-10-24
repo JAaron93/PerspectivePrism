@@ -7,10 +7,15 @@ import {
 
 const { Given, When, Then } = createBdd()
 
+const MAX_TAB_ATTEMPTS = 10
+
 When('the user tabs to the YouTube URL input', async ({ page }) => {
   await page.keyboard.press('Tab')
   const urlInput = page.locator('#youtube-url')
-  await expect(urlInput).toBeFocused()
+  await expect(
+    urlInput,
+    'Expected YouTube URL input (#youtube-url) to receive focus on first Tab press'
+  ).toBeFocused()
 })
 
 When(
@@ -29,12 +34,19 @@ When('the user presses the Enter key', async ({ page }) => {
 When(
   'the user tabs to the BYOK toggle button and presses Enter',
   async ({ page }) => {
-    // Navigate from initial page load or current focus to BYOK toggle button
     const toggleBtn = page.locator('#byok-toggle-btn')
-    while (!(await toggleBtn.evaluate((el) => document.activeElement === el))) {
+    let attempts = 0
+    while (
+      attempts < MAX_TAB_ATTEMPTS &&
+      !(await toggleBtn.evaluate((el) => document.activeElement === el))
+    ) {
       await page.keyboard.press('Tab')
+      attempts++
     }
-    await expect(toggleBtn).toBeFocused()
+    await expect(
+      toggleBtn,
+      `Expected BYOK toggle button (#byok-toggle-btn) to receive focus within ${MAX_TAB_ATTEMPTS} Tab presses`
+    ).toBeFocused()
     await page.keyboard.press('Enter')
   }
 )
@@ -43,10 +55,18 @@ When(
   'the user tabs to the API key input and enters {string}',
   async ({ page }, key: string) => {
     const keyInput = page.locator('#supadata-key-input')
-    while (!(await keyInput.evaluate((el) => document.activeElement === el))) {
+    let attempts = 0
+    while (
+      attempts < MAX_TAB_ATTEMPTS &&
+      !(await keyInput.evaluate((el) => document.activeElement === el))
+    ) {
       await page.keyboard.press('Tab')
+      attempts++
     }
-    await expect(keyInput).toBeFocused()
+    await expect(
+      keyInput,
+      `Expected Supadata key input (#supadata-key-input) to receive focus within ${MAX_TAB_ATTEMPTS} Tab presses`
+    ).toBeFocused()
     await page.keyboard.type(key)
     await expect(keyInput).toHaveValue(key)
   }
@@ -56,10 +76,18 @@ When(
   'the user tabs to the Save Key button and presses Enter',
   async ({ page }) => {
     const saveBtn = page.locator('#byok-save-btn')
-    while (!(await saveBtn.evaluate((el) => document.activeElement === el))) {
+    let attempts = 0
+    while (
+      attempts < MAX_TAB_ATTEMPTS &&
+      !(await saveBtn.evaluate((el) => document.activeElement === el))
+    ) {
       await page.keyboard.press('Tab')
+      attempts++
     }
-    await expect(saveBtn).toBeFocused()
+    await expect(
+      saveBtn,
+      `Expected BYOK Save Key button (#byok-save-btn) to receive focus within ${MAX_TAB_ATTEMPTS} Tab presses`
+    ).toBeFocused()
     await page.keyboard.press('Enter')
   }
 )
