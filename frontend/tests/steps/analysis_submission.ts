@@ -31,7 +31,9 @@ Given('the analysis API will answer with a completed news-video job', async ({ p
 })
 
 When('the user submits a YouTube news video URL', async ({ page }) => {
-  await page.goto('/')
+  if (page.url() === 'about:blank') {
+    await page.goto('/')
+  }
   await page.getByLabel('YouTube URL').fill(NEWS_VIDEO_URL)
   await page.getByRole('button', { name: 'Analyze', exact: true }).click()
 })
