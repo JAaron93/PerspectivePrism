@@ -8,13 +8,16 @@ Feature: BYOK Supadata API key management
     When the user clicks the BYOK toggle button
     Then the BYOK configuration panel is expanded
     And the toggle button has aria-expanded set to true
+    When the user clicks the BYOK toggle button
+    Then the BYOK configuration panel is collapsed
+    And the toggle button has aria-expanded set to false
 
   Scenario: Saving Supadata API key persists to localStorage and updates button
     Given the user is on the main page with unconfigured BYOK settings
     And the BYOK configuration panel is open
-    When the user enters "sd_live_abcdef123456" into the API key input
+    When the user enters "  sd_live_abcdef123456  " into the API key input
     And the user clicks "Save Key"
-    Then the key is stored in localStorage
+    Then the trimmed key "sd_live_abcdef123456" is stored in localStorage
     And a status message confirms "API Key saved."
     And the toggle button displays "Supadata API Key (Configured)"
 
@@ -23,9 +26,15 @@ Feature: BYOK Supadata API key management
     And the BYOK configuration panel is open
     When the user enters "sd_live_secret_key" into the API key input
     Then the API key input has type "password"
+    And the visibility button has aria-label "Show API key"
     When the user clicks the "Show" visibility button
     Then the API key input has type "text"
     And the visibility button label changes to "Hide"
+    And the visibility button has aria-label "Hide API key"
+    When the user clicks the "Hide" visibility button
+    Then the API key input has type "password"
+    And the visibility button label changes to "Show"
+    And the visibility button has aria-label "Show API key"
 
   Scenario: Clearing saved API key resets configuration
     Given a Supadata API key "sd_live_stored_key" is saved in localStorage
