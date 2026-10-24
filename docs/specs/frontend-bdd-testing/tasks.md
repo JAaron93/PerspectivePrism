@@ -167,7 +167,7 @@
 ## Track 5 — Phase 5 / PR 5: Progressive Streaming, Thinking States & UI Resilience
 > Verifies real-time streaming transitions, partial updates, pending thinking indicators, polling backoff, and layout robustness.
 
-- [ ] **T5.1 — Create Progressive Streaming Feature (`tests/features/job_polling/polling_and_streaming.feature`)**
+- [x] **T5.1 — Create Progressive Streaming Feature (`tests/features/job_polling/polling_and_streaming.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Partial claims trigger transition to streaming mode (`isStreaming = true`, button displays "Streaming...").
     2. Pending perspective triggers active `<ThinkingComponent>` spinner with context ("Analyzing Scientific perspective...").
@@ -177,19 +177,19 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR4, FR5
 
-- [ ] **T5.2 — Create UI Resilience & Edge Cases Feature (`tests/features/ui_resilience/edge_cases.feature`)**
+- [x] **T5.2 — Create UI Resilience & Edge Cases Feature (`tests/features/ui_resilience/edge_cases.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Completed job with empty claims array (`claims: []`) renders video header without error.
     2. Very long claim text (500+ characters) renders without horizontal scroll overflow or layout truncation.
   - **Dependencies**: T0.1
   - **Traceability**: NFR6
 
-- [ ] **T5.3 — Implement Step Definitions (`tests/steps/job_polling.ts` & `tests/steps/ui_resilience.ts`)**
+- [x] **T5.3 — Implement Step Definitions (`tests/steps/job_polling.ts` & `tests/steps/ui_resilience.ts`)**
   - **Description**: Implement step definitions controlling polling responses sequence: first call returns processing with partial claim, second call returns completed. Assert thinking component roles (`role="status"`).
   - **Dependencies**: T5.1, T5.2
   - **Traceability**: FR4, FR5, NFR1, NFR2
 
-- [ ] **T5.4 — Compile & Run Phase 5 BDD Acceptance Tests**
+- [x] **T5.4 — Compile & Run Phase 5 BDD Acceptance Tests**
   - **Description**: Run `npx bddgen && npx playwright test tests/features/job_polling tests/features/ui_resilience`.
   - **Verification**: All scenarios green.
   - **Dependencies**: T5.3
