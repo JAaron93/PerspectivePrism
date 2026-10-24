@@ -134,7 +134,7 @@
 ## Track 4 — Phase 4 / PR 4: Truth Profile, Perspectives & Epistemic Lens
 > Tests multi-claim rendering, verdict badges, 4 perspective cards, confidence meters, deception ratings, and Alethiology truth theory chips.
 
-- [ ] **T4.1 — Create Truth Profile Feature (`tests/features/truth_profile/truth_profile_rendering.feature`)**
+- [x] **T4.1 — Create Truth Profile Feature (`tests/features/truth_profile/truth_profile_rendering.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Multi-claim rendering with ordinal labels ("Claim 1", "Claim 2") and formatted timestamps (`00:00 - 00:08`).
     2. Overall assessment verdicts apply correct CSS styling (`assessment-likely-true`, `assessment-likely-false`, `assessment-mixed`).
@@ -143,7 +143,7 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR16, FR17, FR18, FR20
 
-- [ ] **T4.2 — Create Epistemic Lens Feature (`tests/features/epistemic_lens/epistemic_lens_analysis.feature`)**
+- [x] **T4.2 — Create Epistemic Lens Feature (`tests/features/epistemic_lens/epistemic_lens_analysis.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Renders primary theory chip (`Correspondence (Empirical)`) with theory color styling and optional secondary theory chip (`Coherence (Systemic Narrative)`).
     2. Renders descriptive epistemic summary.
@@ -151,12 +151,12 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR19
 
-- [ ] **T4.3 — Implement Step Definitions (`tests/steps/truth_profile.ts` & `tests/steps/epistemic_lens.ts`)**
+- [x] **T4.3 — Implement Step Definitions (`tests/steps/truth_profile.ts` & `tests/steps/epistemic_lens.ts`)**
   - **Description**: Implement step definitions verifying DOM classes, text content, inline styles, and accordion expansion.
   - **Dependencies**: T4.1, T4.2
   - **Traceability**: FR16, FR17, FR18, FR19, FR20, NFR2
 
-- [ ] **T4.4 — Compile & Run Phase 4 BDD Acceptance Tests**
+- [x] **T4.4 — Compile & Run Phase 4 BDD Acceptance Tests**
   - **Description**: Run `npx bddgen && npx playwright test tests/features/truth_profile tests/features/epistemic_lens`.
   - **Verification**: All scenarios green.
   - **Dependencies**: T4.3
