@@ -11,6 +11,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "esbuild src/components/__tests__/*.test.tsx --bundle --platform=node --format=esm --packages=external --loader:.css=empty --jsx=automatic --outdir=dist/test-dist && node --test dist/test-dist/*.js",
+    "test:bdd": "npx bddgen && npx playwright test",
+    "test:bdd:gen": "npx bddgen",
+    "test:bdd:ui": "npx bddgen && npx playwright test --ui",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -380,8 +380,8 @@ function App({
       </section>
 
       {loading && (
-        <div className="loading">
-          <div className="spinner"></div>
+        <div className="loading" role="status" aria-live="polite">
+          <div className="spinner" aria-hidden="true"></div>
           <p>Analyzing video transcript... This may take a few minutes. Please wait.</p>
         </div>
       )}
