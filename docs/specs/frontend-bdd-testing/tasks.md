@@ -73,7 +73,7 @@
 > [!TIP] PARALLEL EXECUTION
 > Track 2 can be developed in parallel with Track 3 once Track 0/Track 1 patterns are merged.
 
-- [ ] **T2.1 — Create Submission Lifecycle Feature (`tests/features/analysis_submission/submission_lifecycle.feature`)**
+- [x] **T2.1 — Create Submission Lifecycle Feature (`tests/features/analysis_submission/submission_lifecycle.feature`)**
   - **Description**: Author Gherkin scenarios verifying:
     1. Form validation prevents submission on empty input.
     2. Submit button state transitions ("Analyzing...", "Streaming...", disabled).
@@ -81,7 +81,7 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR1, FR2, FR3
 
-- [ ] **T2.2 — Create Error Recovery Feature (`tests/features/error_handling/error_recovery.feature`)**
+- [x] **T2.2 — Create Error Recovery Feature (`tests/features/error_handling/error_recovery.feature`)**
   - **Description**: Author Gherkin scenarios verifying:
     1. `SUPADATA_KEY_REQUIRED` error automatically opens the BYOK configuration panel and renders actionable links ("Get Free Key", "Enter API Key").
     2. `SUPADATA_QUOTA_EXHAUSTED` error renders actionable link to `https://supadata.ai/pricing`.
@@ -90,12 +90,12 @@
   - **Dependencies**: T0.1
   - **Traceability**: FR13, FR14, FR15
 
-- [ ] **T2.3 — Implement Step Definitions (`tests/steps/error_handling.ts` & update `analysis_submission.ts`)**
+- [x] **T2.3 — Implement Step Definitions (`tests/steps/error_handling.ts` & update `analysis_submission.ts`)**
   - **Description**: Implement step bindings using mock builder `createMockFailedStatus()`. Assert DOM alert elements (`role="alert"`), href targets, and panel expansion states.
   - **Dependencies**: T2.1, T2.2
   - **Traceability**: FR1, FR2, FR3, FR13, FR14, FR15, NFR2
 
-- [ ] **T2.4 — Compile & Run Phase 2 BDD Acceptance Tests**
+- [x] **T2.4 — Compile & Run Phase 2 BDD Acceptance Tests**
   - **Description**: Run `npx bddgen && npx playwright test tests/features/analysis_submission tests/features/error_handling`.
   - **Verification**: All scenarios green.
   - **Dependencies**: T2.3
