@@ -1,104 +1,16 @@
 import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
-import type { JobResponse, JobStatusResponse } from '../../src/types'
+import {
+  DEFAULT_NEWS_VIDEO_URL as NEWS_VIDEO_URL,
+  createMockJob,
+  createMockCompletedStatus,
+} from '../support/mock_jobs.ts'
 
 const { Given, When, Then } = createBdd()
 
-const NEWS_VIDEO_URL = 'https://www.youtube.com/watch?v=PBSNewsHour_BudgetBriefing'
 const JOB_ID = 'bdd-smoke-job-1'
-
-const CREATE_JOB_RESPONSE = { job_id: JOB_ID } satisfies JobResponse
-
-const COMPLETED_JOB_STATUS = {
-  job_id: JOB_ID,
-  status: 'completed',
-  error: null,
-  error_code: null,
-  result: {
-    video_id: 'PBSNewsHour_BudgetBriefing',
-    metadata: { analyzed_at: '2026-10-17T12:00:00Z' },
-    eligibility: null,
-    claims: [
-      {
-        claim_text: 'The infrastructure bill allocates 500 billion dollars over ten years.',
-        video_timestamp_start: 0,
-        video_timestamp_end: 8,
-        truth_profile: {
-          overall_assessment: 'Likely True',
-          perspectives: {
-            Scientific: {
-              perspective: 'Scientific',
-              stance: 'Support',
-              confidence: 0.9,
-              explanation: 'Budget documents confirm the allocation.',
-              evidence: [
-                {
-                  url: 'https://www.nature.com/articles/infrastructure-analysis',
-                  title: 'Nature analysis of infrastructure spending',
-                  snippet: 'Budget documents confirm the 500 billion dollar allocation.',
-                  source: 'nature.com',
-                },
-              ],
-            },
-            Journalistic: {
-              perspective: 'Journalistic',
-              stance: 'Support',
-              confidence: 0.85,
-              explanation: 'Multiple outlets report the same figure.',
-              evidence: [
-                {
-                  url: 'https://www.reuters.com/world/us/infrastructure-bill-breakdown',
-                  title: 'Reuters breaks down the infrastructure bill',
-                  snippet: 'Reuters reviews the ten-year spending schedule.',
-                  source: 'reuters.com',
-                },
-              ],
-            },
-            'Partisan (Left)': {
-              perspective: 'Partisan (Left)',
-              stance: 'Refute',
-              confidence: 0.7,
-              explanation: 'Commentators dispute the projection.',
-              evidence: [
-                {
-                  url: 'https://www.vox.com/policy/infrastructure-spending-analysis',
-                  title: 'Vox questions the infrastructure job projections',
-                  snippet: 'Policy analysts dispute the projected job growth.',
-                  source: 'vox.com',
-                },
-              ],
-            },
-            'Partisan (Right)': {
-              perspective: 'Partisan (Right)',
-              stance: 'Ambiguous',
-              confidence: 0.6,
-              explanation: 'Coverage is mixed.',
-              evidence: [
-                {
-                  url: 'https://www.foxnews.com/politics/infrastructure-bill-vote',
-                  title: 'Fox News covers the infrastructure bill vote',
-                  snippet: 'Coverage of the vote is mixed across factions.',
-                  source: 'foxnews.com',
-                },
-              ],
-            },
-          },
-          bias_indicators: {
-            logical_fallacies: [],
-            emotional_manipulation: [],
-            deception_score: 2.5,
-          },
-          alethiology: {
-            primary_theory: 'Correspondence (Empirical)',
-            secondary_theory: null,
-            epistemic_summary: 'The speaker grounds the claim in budget documents.',
-            quote_evidences: ['allocates 500 billion dollars'],
-          },
-        },
-      },
-    ],
-  },
-} satisfies JobStatusResponse
+const CREATE_JOB_RESPONSE = createMockJob(JOB_ID)
+const COMPLETED_JOB_STATUS = createMockCompletedStatus(JOB_ID)
 
 Given('the analysis API will answer with a completed news-video job', async ({ page }) => {
   await page.route('**/analyze/jobs**', async (route) => {
