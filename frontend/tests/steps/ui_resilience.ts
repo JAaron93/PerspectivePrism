@@ -76,6 +76,41 @@ Then('the full 500 character claim text is rendered in the DOM', async ({ page }
   const claimTextLocator = page.locator('.claim-text')
   await expect(claimTextLocator).toBeVisible()
   await expect(claimTextLocator).toHaveText(LONG_CLAIM_TEXT)
+
+  // Verify element does not suffer from horizontal overflow or clipping
+  const layoutMetrics = await claimTextLocator.evaluate((el) => {
+    const style = window.getComputedStyle(el)
+    return {
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      textOverflow: style.textOverflow,
+    }
+  })
+
+  // Horizontal overflow check: content must fit within client width
+  expect(layoutMetrics.scrollWidth).toBeLessThanOrEqual(layoutMetrics.clientWidth)
+
+  // Vertical clipping check: content must not be clipped by a constrained container
+  expect(layoutMetrics.scrollHeight).toBeLessThanOrEqual(layoutMetrics.clientHeight)
+
+  // Truncation check: ensure ellipsis and hidden clipping are not active
+  expect(layoutMetrics.textOverflow).not.toBe('ellipsis')
+  expect(layoutMetrics.overflowY).not.toBe('hidden')
+
+  // Bounding box check: long text should wrap across multiple lines
+  const boundingBox = await claimTextLocator.boundingBox()
+  expect(boundingBox).not.toBeNull()
+  expect(boundingBox!.height).toBeGreaterThan(50)
+
+  // Document horizontal scroll check: page must not develop horizontal overflow
+  const pageHasHorizontalOverflow = await page.evaluate(() => {
+    return document.documentElement.scrollWidth > document.documentElement.clientWidth
+  })
+  expect(pageHasHorizontalOverflow).toBe(false)
 })
 
 Then('the truth profile container is displayed', async ({ page }) => {
