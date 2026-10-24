@@ -4,7 +4,7 @@
 
 Perspective Prism operates on a **Cross-Cloud Hybrid Architecture** designed for high-reasoning accuracy, cost efficiency, and zero server maintenance:
 * **Modal Labs Tier (Serverless Compute)**: Hosts the containerized FastAPI backend, executes the compiled Rust PyO3 native core engine (`prism_sanitizer_rs`), manages asynchronous job polling state, and scales to zero when idle to conserve Modal's $30/month free-tier compute credits.
-* **Google Cloud Platform Tier (Foundation Models & Search)**: Hosts Vertex AI for high-throughput Gemini 3.8 Flash model execution (under [ADR 003](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md) and [ADR 007](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/docs/adr/007-gemini-38-flash-capability-optimization.md)), along with Google Custom Search JSON API for multi-perspective evidence retrieval.
+* **Google Cloud Platform Tier (Foundation Models & Search)**: Hosts Vertex AI for high-throughput Gemini 3.8 Flash model execution (under [ADR 003](../adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md) and [ADR 007](../adr/007-gemini-38-flash-capability-optimization.md)), along with Google Custom Search JSON API for multi-perspective evidence retrieval.
 * **Client Tier (Chrome Extension)**: Manifest V3 Native Side Panel (`sidepanel.html`, `sidepanel.js`) interacting with the backend via polling, with graceful degradation to a self-hosting CTA upon credit exhaustion.
 
 ---
@@ -75,7 +75,7 @@ GCP credentials, search keys, and extension origins are provisioned securely via
    * `BACKEND_CORS_ORIGINS`: Comma-separated allowed web origins.
    * `SUPADATA_API_KEY`: (Optional) Server-side Supadata API key serving as the default fallback for requests made from the standalone web frontend and server-side integration tests. Extension users provide their own BYOK key via the `X-Supadata-Key` request header.
 2. **Container Startup Hook**: In `backend/modal_app.py`, a startup initialization hook reads `os.environ["GCP_SERVICE_ACCOUNT_JSON"]`, writes it to `/tmp/gcp_sa.json`, and sets `os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/gcp_sa.json"`.
-3. **No AI Studio Keys**: Legacy `GEMINI_API_KEY` is completely absent, ensuring 100% compliance with [ADR 003](file:///Users/pretermodernist/Developer/Personal/PerspectivePrism/docs/adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md).
+3. **No AI Studio Keys**: Legacy `GEMINI_API_KEY` is completely absent, ensuring 100% compliance with [ADR 003](../adr/003-mandatory-vertex-ai-paid-tier-and-async-io-standard.md).
 
 ---
 

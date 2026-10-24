@@ -17,11 +17,11 @@ This document defines repository-wide test execution standards, test fixture dis
 * **No Extension Restarts in Integration Tests**: Playwright cannot observe a restarted extension service worker (`chrome.runtime.reload()` produces no new `serviceworker` event and no change in `context.serviceWorkers()`). Reconfigure behavior through storage or fixture surfaces (e.g. the host-resolver rule) instead of restarting the extension mid-test.
 * **Dual-Runner Discovery Isolation (Vitest vs. Playwright)**:
   - In hybrid codebases where both Vitest (in-memory unit/JSDOM integration tests) and Playwright (real browser end-to-end specs) coexist, test runner discovery patterns MUST NOT shadow or omit test files.
-  - When narrowing Vitest's `include` pattern to prevent it from executing Playwright browser tests, verify that existing non-browser integration tests (e.g. `tests/integration/test-memory-usage.test.js`) are not dropped from execution.
+  - When narrowing Vitest's `include` pattern to prevent it from executing Playwright browser tests, verify that existing non-browser integration tests (e.g. `chrome-extension/tests/integration/test-memory-usage.test.js`) are not dropped from execution.
   - Vitest configurations must explicitly include both unit tests and Vitest-based integration tests (`include: ['tests/unit/**/*.test.js', 'tests/integration/test-memory-usage.test.js']`), or enforce strict file-extension separation (`*.spec.js` for Playwright browser tests, `*.test.js` for Vitest).
 * **Playwright Config `testDir` CLI Path Resolution**:
-  - When invoking Playwright via CLI with a configuration file residing in a subdirectory (e.g. `tests/integration/playwright.config.js` defining `testDir: "./"`), Playwright resolves test path arguments relative to `testDir`.
-  - Do NOT pass full repository-relative paths (e.g. `tests/integration/byok-onboarding.test.js`), which causes `Error: No tests found`.
+  - When invoking Playwright via CLI with a configuration file residing in a subdirectory (e.g. `chrome-extension/tests/integration/playwright.config.js` defining `testDir: "./"`), Playwright resolves test path arguments relative to `testDir`.
+  - Do NOT pass full repository-relative paths (e.g. `chrome-extension/tests/integration/byok-onboarding.test.js`), which causes `Error: No tests found`.
   - Pass the file path relative to `testDir` (e.g. `byok-onboarding.test.js`), or invoke via the package script: `npm run test:integration -- <file>`.
 * **Selective Outbound HTTP Mocking in ASGI Integration & BDD Tests**:
   - In FastAPI integration tests utilizing `httpx.AsyncClient` with `ASGITransport` to poll `/analyze/jobs/{job_id}`, monkeypatching `httpx.AsyncClient.get` globally intercepts both outbound API calls and internal test client polling requests.
