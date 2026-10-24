@@ -12,6 +12,9 @@ import type {
 export const DEFAULT_NEWS_VIDEO_URL =
   'https://www.youtube.com/watch?v=PBSNewsHour_BudgetBriefing'
 export const DEFAULT_VIDEO_ID = 'PBSNewsHour_BudgetBriefing'
+export const DEFAULT_ENTERTAINMENT_VIDEO_URL =
+  'https://www.youtube.com/watch?v=Minecraft_Gameplay_Speedrun'
+export const DEFAULT_ENTERTAINMENT_VIDEO_ID = 'Minecraft_Gameplay_Speedrun'
 export const DEFAULT_JOB_ID = 'bdd-test-job-1'
 
 export function createMockJob(jobId: string = DEFAULT_JOB_ID): JobResponse {
@@ -186,7 +189,7 @@ export function createMockIneligibleStatus(
     error: null,
     error_code: null,
     result: {
-      video_id: details?.videoId ?? DEFAULT_VIDEO_ID,
+      video_id: details?.videoId ?? DEFAULT_ENTERTAINMENT_VIDEO_ID,
       metadata: { analyzed_at: '2026-10-17T12:00:00Z' },
       eligibility,
       claims: [],
