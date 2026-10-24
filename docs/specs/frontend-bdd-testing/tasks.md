@@ -200,14 +200,14 @@
 ## Track 6 — Phase 6 / PR 6: Accessibility, Screen Readers & Keyboard Usability
 > Validates assistive technology support, live region announcements, and keyboard-only usability.
 
-- [ ] **T6.1 — Create Accessibility Feature (`tests/features/accessibility/keyboard_and_aria.feature`)**
+- [x] **T6.1 — Create Accessibility Feature (`tests/features/accessibility/keyboard_and_aria.feature`)**
   - **Description**: Author Gherkin scenarios:
     1. Full keyboard tab navigation: user tabs through input, submits via Enter key, navigates into BYOK controls.
     2. Assistive live regions: loading spinner and thinking components have `role="status"` and `aria-live="polite"`. Error containers have `role="alert"`.
   - **Dependencies**: T0.1
   - **Traceability**: NFR5, FR1, FR8
 
-- [ ] **T6.2 — Implement Accessibility Step Definitions (`tests/steps/accessibility.ts`)**
+- [x] **T6.2 — Implement Accessibility Step Definitions (`tests/steps/accessibility.ts`)**
   - **Description**: Use Playwright `page.keyboard.press('Tab')`, `page.keyboard.press('Enter')`, and attribute assertions (`expect(locator).toHaveAttribute('role', 'status')`).
   - **Dependencies**: T6.1
   - **Traceability**: NFR5
@@ -217,7 +217,7 @@
 ## Track 7 — Test Script Modernization & CI Integration
 > Wires npm scripts and documents execution commands.
 
-- [ ] **T7.1 — Add Dedicated BDD NPM Scripts in `frontend/package.json`**
+- [x] **T7.1 — Add Dedicated BDD NPM Scripts in `frontend/package.json`**
   - **Description**: Add npm convenience scripts to `frontend/package.json`:
     - `"test:bdd"`: `"npx bddgen && npx playwright test"`
     - `"test:bdd:gen"`: `"npx bddgen"`
@@ -225,7 +225,7 @@
   - **Dependencies**: None
   - **Traceability**: NFR3
 
-- [ ] **T7.2 — End-to-End Suite Verification & Full Run Benchmark**
+- [x] **T7.2 — End-to-End Suite Verification & Full Run Benchmark**
   - **Description**: Execute `npm run test:bdd` across all 37 scenarios. Ensure total suite runtime is under 60 seconds and zero flaky tests occur.
   - **Dependencies**: Tracks 1 through 6
   - **Traceability**: NFR3, NFR4
