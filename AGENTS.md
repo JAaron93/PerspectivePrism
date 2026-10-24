@@ -126,6 +126,8 @@ The analysis pipeline follows four core stages:
 * **Dev Server**: `npm run dev` (port 5173)
 * **Build**: `npm run build` (sub-second compile via `tsc -b && vite build`)
 * **Lint**: `npm run lint`
+* **Unit Tests**: `npm test` (`node --test` + esbuild, <300ms)
+* **BDD Acceptance Tests**: `npm run test:bdd` (all 37 scenarios via `playwright-bdd` in ~16s)
 
 ### 3. Chrome Extension (`chrome-extension/`)
 * **Stack**: Manifest V3, zero-build vanilla JS (ADR 004), Native Side Panel API, JSDoc static semantic type checking (`checkJs: true`).
