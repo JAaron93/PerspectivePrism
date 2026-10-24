@@ -39,7 +39,7 @@ All BDD tests must adhere strictly to the invariants codified in [`.agents/rules
 
 2. **100% Offline Route Interception**:
    - Zero network requests to live backend, GCP Vertex AI, or Supadata APIs.
-   - All tests use Playwright's `page.route('**/analyze/jobs*')` to fulfill deterministic `JobResponse` and `JobStatusResponse` mock payloads.
+   - All tests use Playwright's `page.route('**/analyze/jobs**')` (or regex `/\/analyze\/jobs/`) to fulfill deterministic `JobResponse` and `JobStatusResponse` mock payloads. (Note: Trailing `**` is required so that both job creation `/analyze/jobs` and status polling `/analyze/jobs/{job_id}` are intercepted, as single `*` does not match `/`).
 
 3. **Real DOM Interactions (No Synthetic Bypasses)**:
    - Tests must type into `#youtube-url`, click `.analyze-button`, toggle `#byok-toggle-btn`, and click `#pp-force-analyze-btn`.

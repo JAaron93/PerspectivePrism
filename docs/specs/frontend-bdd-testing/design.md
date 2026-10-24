@@ -41,7 +41,7 @@ PR #114 introduced the `playwright-bdd` harness and proved the setup with a sing
                          │      │                                         │
                          │      ├─► DOM Interactions (Fill, Click, Focus) │
                          │      │                                         │
-                         │      └─► fetch('/analyze/jobs*')               │
+                         │      └─► fetch('/analyze/jobs/**')             │
                          └────────────────────────┬───────────────────────┘
                                                   │
                                                   ▼ (Network Interception)
@@ -85,9 +85,10 @@ Per `frontend_invariants.md` §1 & §5:
 ### 3.1 Network Boundary Interception (`page.route()`)
 Per `frontend_invariants.md` §6:
 - **Zero Live Cloud Traffic**: Acceptance tests MUST NEVER hit live GCP Vertex AI, Supadata, or Google CSE endpoints. All tests run offline.
-- **In-Browser Route Interception**: Playwright's `page.route('**/analyze/jobs*', handler)` intercepts in-flight requests made by the browser runtime:
+- **In-Browser Route Interception**: Playwright's `page.route('**/analyze/jobs**', handler)` (or regex `/\/analyze\/jobs/`) intercepts in-flight requests made by the browser runtime:
   - `POST /analyze/jobs`: Intercepts analysis job creation, inspects headers (such as `X-Supadata-Key`) and body payload (`url`, `force_override`), returning `{ job_id: "..." }`.
   - `GET /analyze/jobs/{job_id}`: Intercepts polling requests, returning canned `JobStatusResponse` objects reflecting pending, processing (with partial claims), completed, or failed states.
+  - **Pattern Matching Invariant**: The glob pattern MUST use trailing double asterisks (`**/analyze/jobs**`) rather than a single asterisk (`**/analyze/jobs*`). In Playwright glob syntax, a single `*` does not match the `/` path separator, which would cause polling requests to `/analyze/jobs/{job_id}` to slip through to the live backend unmocked.
 - **Real Application Code Execution**: Scenarios drive the application's actual input elements and submit handlers. Synthetic `fetch()` triggers or bypassing component state are strictly prohibited.
 
 ### 3.2 Shared Mock Factory (`frontend/tests/support/mock_jobs.ts`)

@@ -54,7 +54,7 @@
 - [ ] **T1.2 — Implement BYOK Step Definitions (`tests/steps/byok_supadata.ts`)**
   - **Description**: Implement step definitions using `createBdd()` from `playwright-bdd`:
     - Intercept `localStorage` state via `page.evaluate()` or UI interactions.
-    - Intercept `page.route('**/analyze/jobs*')` and capture request headers into test context.
+    - Intercept `page.route('**/analyze/jobs**')` and capture request headers into test context.
     - Assert `aria-expanded`, input types, status messages, and header values.
   - **Dependencies**: T1.1
   - **Traceability**: FR8, FR9, FR10, FR11, FR12, NFR1, NFR2
