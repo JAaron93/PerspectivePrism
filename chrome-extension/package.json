@@ -18,7 +18,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.308",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "archiver": "^8.0.0",
     "clean-css": "^5.3.3",
     "eslint": "^10.10.0",
@@ -28,7 +28,7 @@
     "terser": "^5.51.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "dompurify": "^3.4.17"
