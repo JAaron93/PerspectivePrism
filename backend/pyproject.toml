@@ -13,7 +13,6 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "httpx",
-  "httpx2",
   "pydantic",
   "pydantic-settings",
   "youtube-transcript-api",

@@ -3,7 +3,8 @@
     "tsBuildInfoFile": "./.tsbuildinfo.node",
     "target": "ES2023",
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM"
     ],
     "module": "ESNext",
     "types": [
@@ -27,6 +28,7 @@
   "include": [
     "vite.config.ts",
     "playwright.config.ts",
-    "tests/steps/**/*.ts"
+    "tests/steps/**/*.ts",
+    "tests/support/**/*.ts"
   ]
 }

@@ -10,6 +10,10 @@
   --color-text-secondary: rgba(255, 255, 255, 0.7);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app {
   max-width: 1400px;
   margin: 0 auto;
@@ -638,6 +642,10 @@
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.75rem;
+}
+
+.quote-evidences-drawer[hidden] {
+  display: none;
 }
 
 .epistemic-quote {

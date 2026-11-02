@@ -1,108 +1,39 @@
 import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
-import type { JobResponse, JobStatusResponse } from '../../src/types'
+import {
+  DEFAULT_NEWS_VIDEO_URL as NEWS_VIDEO_URL,
+  createMockJob,
+  createMockCompletedStatus,
+  createMockStreamingStatus,
+  createMockPendingStatus,
+  createMockClaim,
+} from '../support/mock_jobs.ts'
 
-const { Given, When, Then } = createBdd()
+const { Given, When, Then, After } = createBdd()
 
-const NEWS_VIDEO_URL = 'https://www.youtube.com/watch?v=PBSNewsHour_BudgetBriefing'
 const JOB_ID = 'bdd-smoke-job-1'
+const CREATE_JOB_RESPONSE = createMockJob(JOB_ID)
+const COMPLETED_JOB_STATUS = createMockCompletedStatus(JOB_ID)
 
-const CREATE_JOB_RESPONSE = { job_id: JOB_ID } satisfies JobResponse
+let interceptedPostCount = 0
+let streamPhase: 'analyzing' | 'streaming' | 'completed' = 'analyzing'
+let releasePostHold: (() => void) | null = null
 
-const COMPLETED_JOB_STATUS = {
-  job_id: JOB_ID,
-  status: 'completed',
-  error: null,
-  error_code: null,
-  result: {
-    video_id: 'PBSNewsHour_BudgetBriefing',
-    metadata: { analyzed_at: '2026-10-17T12:00:00Z' },
-    eligibility: null,
-    claims: [
-      {
-        claim_text: 'The infrastructure bill allocates 500 billion dollars over ten years.',
-        video_timestamp_start: 0,
-        video_timestamp_end: 8,
-        truth_profile: {
-          overall_assessment: 'Likely True',
-          perspectives: {
-            Scientific: {
-              perspective: 'Scientific',
-              stance: 'Support',
-              confidence: 0.9,
-              explanation: 'Budget documents confirm the allocation.',
-              evidence: [
-                {
-                  url: 'https://www.nature.com/articles/infrastructure-analysis',
-                  title: 'Nature analysis of infrastructure spending',
-                  snippet: 'Budget documents confirm the 500 billion dollar allocation.',
-                  source: 'nature.com',
-                },
-              ],
-            },
-            Journalistic: {
-              perspective: 'Journalistic',
-              stance: 'Support',
-              confidence: 0.85,
-              explanation: 'Multiple outlets report the same figure.',
-              evidence: [
-                {
-                  url: 'https://www.reuters.com/world/us/infrastructure-bill-breakdown',
-                  title: 'Reuters breaks down the infrastructure bill',
-                  snippet: 'Reuters reviews the ten-year spending schedule.',
-                  source: 'reuters.com',
-                },
-              ],
-            },
-            'Partisan (Left)': {
-              perspective: 'Partisan (Left)',
-              stance: 'Refute',
-              confidence: 0.7,
-              explanation: 'Commentators dispute the projection.',
-              evidence: [
-                {
-                  url: 'https://www.vox.com/policy/infrastructure-spending-analysis',
-                  title: 'Vox questions the infrastructure job projections',
-                  snippet: 'Policy analysts dispute the projected job growth.',
-                  source: 'vox.com',
-                },
-              ],
-            },
-            'Partisan (Right)': {
-              perspective: 'Partisan (Right)',
-              stance: 'Ambiguous',
-              confidence: 0.6,
-              explanation: 'Coverage is mixed.',
-              evidence: [
-                {
-                  url: 'https://www.foxnews.com/politics/infrastructure-bill-vote',
-                  title: 'Fox News covers the infrastructure bill vote',
-                  snippet: 'Coverage of the vote is mixed across factions.',
-                  source: 'foxnews.com',
-                },
-              ],
-            },
-          },
-          bias_indicators: {
-            logical_fallacies: [],
-            emotional_manipulation: [],
-            deception_score: 2.5,
-          },
-          alethiology: {
-            primary_theory: 'Correspondence (Empirical)',
-            secondary_theory: null,
-            epistemic_summary: 'The speaker grounds the claim in budget documents.',
-            quote_evidences: ['allocates 500 billion dollars'],
-          },
-        },
-      },
-    ],
-  },
-} satisfies JobStatusResponse
+export function releasePendingPostHold() {
+  if (releasePostHold) {
+    releasePostHold()
+    releasePostHold = null
+  }
+}
+
+After(async () => {
+  releasePendingPostHold()
+})
 
 Given('the analysis API will answer with a completed news-video job', async ({ page }) => {
   await page.route('**/analyze/jobs**', async (route) => {
     if (route.request().method() === 'POST') {
+      interceptedPostCount++
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -118,8 +49,167 @@ Given('the analysis API will answer with a completed news-video job', async ({ p
   })
 })
 
-When('the user submits a YouTube news video URL', async ({ page }) => {
+Given('the user navigates to the Perspective Prism web app', async ({ page }) => {
   await page.goto('/')
+})
+
+When('the user submits the form with an empty YouTube URL', async ({ page }) => {
+  interceptedPostCount = 0
+  await page.route('**/analyze/jobs**', async (route) => {
+    if (route.request().method() === 'POST') {
+      interceptedPostCount++
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockJob()),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(createMockCompletedStatus()),
+    })
+  })
+  await page.locator('#youtube-url').fill('')
+  await page.getByRole('button', { name: 'Analyze', exact: true }).click()
+})
+
+Then('the browser prevents submission via HTML5 validation', async ({ page }) => {
+  const isValid = await page.locator('#youtube-url').evaluate(
+    (el: HTMLInputElement) => el.checkValidity()
+  )
+  expect(isValid).toBe(false)
+})
+
+Then('no analysis job request is sent to the backend', async () => {
+  expect(interceptedPostCount).toBe(0)
+})
+
+Given('the analysis API will stream partial claims before completing', async ({ page }) => {
+  streamPhase = 'analyzing'
+  await page.route('**/analyze/jobs**', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockJob('stream-job-1')),
+      })
+      return
+    }
+    if (streamPhase === 'analyzing') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockStreamingStatus('stream-job-1', [])),
+      })
+      return
+    }
+    if (streamPhase === 'streaming') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          createMockStreamingStatus('stream-job-1', [createMockClaim()])
+        ),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        createMockCompletedStatus('stream-job-1', {
+          claims: [createMockClaim()],
+        })
+      ),
+    })
+  })
+})
+
+Then('the submit button is disabled', async ({ page }) => {
+  await expect(page.locator('.analyze-button')).toBeDisabled()
+})
+
+Then('the submit button displays {string}', async ({ page }, buttonText: string) => {
+  await expect(page.locator('.analyze-button')).toHaveText(buttonText)
+})
+
+When('the backend streams partial claims', async () => {
+  streamPhase = 'streaming'
+})
+
+When('the job finishes processing', async () => {
+  streamPhase = 'completed'
+})
+
+Then('the submit button is enabled', async ({ page }) => {
+  await expect(page.locator('.analyze-button')).toBeEnabled()
+})
+
+Given('a previous analysis has rendered results on the screen', async ({ page }) => {
+  await page.route('**/analyze/jobs**', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockJob('prev-job')),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(createMockCompletedStatus('prev-job')),
+    })
+  })
+  await page.goto('/')
+  await page.getByLabel('YouTube URL').fill(NEWS_VIDEO_URL)
+  await page.getByRole('button', { name: 'Analyze', exact: true }).click()
+  await expect(page.locator('.results')).toBeVisible()
+})
+
+When('the user submits a new YouTube news video URL', async ({ page }) => {
+  releasePendingPostHold()
+  const postHoldPromise = new Promise<void>((resolve) => {
+    releasePostHold = resolve
+  })
+
+  // Hold the POST response so job creation remains pending while we assert UI state clearing
+  await page.route('**/analyze/jobs**', async (route) => {
+    if (route.request().method() === 'POST') {
+      await postHoldPromise
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createMockJob('subsequent-job')),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(createMockPendingStatus('subsequent-job')),
+    })
+  })
+  await page
+    .getByLabel('YouTube URL')
+    .fill('https://www.youtube.com/watch?v=Reuters_ClimateSummit')
+  await page.getByRole('button', { name: 'Analyze', exact: true }).click()
+})
+
+Then('the previous results are immediately removed from the DOM', async ({ page }) => {
+  try {
+    await expect(page.locator('.results')).toHaveCount(0)
+  } finally {
+    releasePendingPostHold()
+  }
+})
+
+When('the user submits a YouTube news video URL', async ({ page }) => {
+  if (page.url() === 'about:blank') {
+    await page.goto('/')
+  }
   await page.getByLabel('YouTube URL').fill(NEWS_VIDEO_URL)
   await page.getByRole('button', { name: 'Analyze', exact: true }).click()
 })

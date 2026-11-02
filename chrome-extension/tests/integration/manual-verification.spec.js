@@ -3,8 +3,8 @@ import path from "node:path";
 import fs from "node:fs";
 
 function getScreenshotPath(filename) {
-  const customDir = process.env.ARTIFACT_DIR || "/Users/pretermodernist/.gemini/antigravity/brain/2492ab57-fd8a-4fd5-9dfe-193fd82ca654";
-  if (fs.existsSync(customDir)) {
+  const customDir = process.env.ARTIFACT_DIR;
+  if (customDir && fs.existsSync(customDir)) {
     return path.join(customDir, filename);
   }
   const fallbackDir = path.join(process.cwd(), "test-results");

@@ -144,6 +144,13 @@ This rulebook defines the core architectural invariants, security boundaries, an
     - **Anti-Oscillation & Sanitization Rejection Boundary**: Candidate model outputs and benchmark prompts must be passed through the application input sanitizer (`sanitize_candidate_output` / `sanitize_benchmark_prompt`) first so prompt injections immediately raise `SanitizationError` and safely fall back (`is_fallback = True`). Valid outputs are then stripped of instruction delimiters and escaped within XML sandboxes (`escape_xml_sandbox_tags`) with per-request 16-byte random nonces (`===JUDGE DATA <nonce> START===`). Do NOT oscillate between demanding pre-neutralization of candidate text and demanding strict sanitizer rejection.
   * In pointwise quantitative runners (`backend/app/evals/runners/quantitative_runner.py`):
     - Category vocabulary normalization (`normalize_content_category`) must evaluate captionless/raw footage indicators first, followed by specific domain categories (gaming, art, cooking, wellness, pets, music) before generic tutorials, and map documentary essays to `Science & Technology`, to prevent vocabulary mismatch from corrupting multi-class F1 and accuracy metrics.
+* **Modal App & Health Probe Invariants**:
+  * Modal FastAPI function assertions must guard `_is_web_endpoint` with a callable check (`modal_app.fastapi_app._is_web_endpoint() if callable(...) else ... is True`) for forward compatibility across Modal SDK versions.
+  * Live LLM health probe (`GET /health/llm?probe=true`) MUST require `X-Probe-Key: <PROBE_SECRET>` returning HTTP 401 on failure, and return HTTP 503 with generic sanitized error strings on probe execution failure.
+  * Secret and GCP SA JSON credential file creation MUST use `os.open` with `0o600` permissions atomically (`os.O_CREAT | os.O_WRONLY | os.O_TRUNC`).
+* **Deployment Documentation Invariants**:
+  * Health check responses documented in guides MUST match actual route returns (`GET /health` returns ONLY `{"status": "healthy"}`).
+  * Committed markdown documentation MUST NOT contain `file:///` machine-local absolute paths.
 
 ---
 
