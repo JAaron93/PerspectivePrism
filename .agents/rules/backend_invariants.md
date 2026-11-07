@@ -165,6 +165,39 @@ This document defines the implementation guidelines, security invariants, testin
   - With `httpx.AsyncClient(transport=ASGITransport(app=app))`, Starlette runs `BackgroundTasks` *within* the POST call cycle: `POST /analyze/jobs` does not return until `process_analysis` reaches a terminal state. Polling can therefore never observe in-flight pipeline state.
   - To assert incremental result publishing, mocks MUST capture state at their invocation point: deep-copy the sole in-flight job result (`jobs[job_id]["result"].model_copy(deep=True)` — the shared `snapshot_sole_job_result()` helper in `backend/tests/bdd/conftest.py` also enforces the one-job-per-scenario invariant) inside the seam mock that runs mid-pipeline (e.g. `analyze_bias_and_deception`, the 5th task in the `asyncio.gather` phase).
   - Determinism relies on no-yield mocks completing FIFO under `asyncio.gather`; never poll with sleeps to catch intermediate states.
+* **Fully Offline Integration Tests (Pipeline Network-Edge Stubbing)**:
+  - Backend tests exercising `/analyze/jobs` MUST stub every pipeline network edge: transcript
+    retrieval (`claim_extractor.get_transcript`), evidence retrieval
+    (`evidence_retriever.retrieve_evidence`), the Pre-Classification Gate LLM executor
+    (`app.services.content_classifier.execute_adk_agent`), and the per-claim analyses
+    (`analyze_perspective`, `analyze_bias_and_deception`, `analyze_alethiology`). Un-stubbed edges
+    open real TLS connections to the Vertex AI endpoint — leaking keepalive SSL transport pairs
+    that surface as GC-displaced `ResourceWarning: unclosed transport` warnings — hang tests
+    through the 120s retry budget, and add minutes of hidden suite latency.
+  - `backend/tests/test_integration.py` ships an autouse fixture (`stub_pipeline_llm_edges`)
+    covering the two historically-missed seams (`content_classifier.execute_adk_agent` -> benign
+    eligible `ContentEligibilityResult`; `analysis_service.analyze_alethiology` -> benign
+    `AlethiologyAnalysis`). New tests in that module inherit it automatically; any new test module
+    posting `/analyze/jobs` MUST replicate equivalent stubs.
+* **Pytest `filterwarnings` Governance (Root-Cause-First, No Blanket Filters)**:
+  - Entries in `backend/pyproject.toml` exist ONLY for verified-unfixable third-party warnings,
+    each scoped to exact message prefix + exact warning class + exact emitting module. Never add
+    class-wide or message-fragment ResourceWarning filters (e.g. `ignore:unclosed *`).
+  - First-party warnings (`unclosed transport`, `coroutine ... never awaited`) are leak canaries:
+    root-cause and fix at source. Removed ignores stay removed; a canary firing again means a NEW
+    leak, not a regression.
+  - Warning node attribution is GC-timing lottery: when a ResourceWarning fires under an
+    arbitrary test, attribute it with a scratch per-test-boundary `gc.collect()` plugin (never
+    committed) before touching any filter.
+  - Standing scoped filters (anyio `CallSpec2`, starlette `httpx2`, google-genai
+    `AiohttpClientSession`) and the Python 3.17 `_UnionGenericAlias` forward-compat guard are
+    documented in-place in `backend/pyproject.toml`; extend only with the same verification trail.
+* **Async Stub Discipline (`unittest.mock.AsyncMock`)**:
+  - Backend tests stubbing async callables MUST use `unittest.mock.AsyncMock` (or ensure
+    production code awaits the fake end-to-end). Bare `MagicMock(return_value=...)` at async call
+    sites or plain functions wired into `asyncio.run()` wrappers leave un-awaited coroutines
+    (`RuntimeWarning: coroutine ... was never awaited`) — fixed for `test_eval_cli.py` in
+    1a560b8 via `AsyncMock` on `_run_native_components`.
 
 ---
 
