@@ -1,8 +1,9 @@
 import pytest
 import asyncio
+from unittest.mock import AsyncMock
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.models.schemas import JobStatus
+from app.models.schemas import AlethiologyAnalysis, ContentEligibilityResult, JobStatus
 
 async def _poll_until_done(ac: AsyncClient, job_id: str) -> dict:
     for _ in range(20):
@@ -13,6 +14,60 @@ async def _poll_until_done(ac: AsyncClient, job_id: str) -> dict:
             return status_data
         await asyncio.sleep(0.5)
     return status_data
+
+@pytest.fixture(autouse=True)
+def stub_pipeline_llm_edges(monkeypatch):
+    """
+    Root-cause fix for the flaky `unclosed transport <asyncio._SSLProtocolTransport>`
+    ResourceWarnings (unclosed SSL + _SelectorSocketTransport fd 16/17 pairs) and for
+    the occasional single-test multi-minute runs observed in this module.
+
+    Deterministic per-test-boundary gc.collect() spike runs pinned the leak to
+    `test_integration_successful_schema_payload`: its /analyze/jobs background job
+    reaches two UNMOCKED live LLM edges of the pipeline:
+      1. Pre-Classification Guardrail Gate - content_classifier.classify_video ->
+         execute_adk_agent builds a real ADK Runner + genai.Client and opens a real
+         TLS connection to the Vertex AI endpoint (GCP_PROJECT=test-project). A
+         failed/aborted call leaves a keepalive SSL transport pair unreferenced;
+         when a later GC sweep destroys it, the unclosed-transport ResourceWarning
+         fires from whichever test is running at that moment. A hung call instead
+         burns the full 120s HTTP retry budget, producing the anomalously slow runs.
+      2. Per-claim alethiology analysis - analysis_service.analyze_alethiology
+         (main.py gather step) makes the same live Vertex AI call per claim.
+
+    In test mode both edges fail closed to benign defaults, so stubbing these two
+    seams changes no observed behavior while making this module fully offline and
+    deterministic. Every other test module already stubs these seams
+    (test_content_classifier.py, tests/bdd/*); this module was the last hole.
+    Tests that patch these edges themselves still override this stub, and
+    force_override requests bypass the gate entirely - no behavioral interaction.
+    """
+    monkeypatch.setattr(
+        "app.services.content_classifier.execute_adk_agent",
+        AsyncMock(
+            return_value=ContentEligibilityResult(
+                is_analysable=True,
+                confidence_score=0.9,
+                detected_category="News / Commentary",
+                disclaimer_title="",
+                disclaimer_message="",
+                key_topics_found=[],
+            )
+        ),
+    )
+    from app.main import analysis_service
+    monkeypatch.setattr(
+        analysis_service,
+        "analyze_alethiology",
+        AsyncMock(
+            return_value=AlethiologyAnalysis(
+                primary_theory="Perspectivism (Lived Experience)",
+                secondary_theory=None,
+                epistemic_summary="Stubbed offline alethiology analysis.",
+                quote_evidences=[],
+            )
+        ),
+    )
 
 @pytest.mark.asyncio
 async def test_integration_outbound_schema_and_sanitization(monkeypatch):

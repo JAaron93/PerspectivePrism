@@ -198,6 +198,16 @@ This is a **Catch-22 Oscillation boundary**: any review finding that demands a n
     - Visual QA screenshot suites must resolve target paths dynamically (checking environment variables or local directories) with safe fallback to `test-results/` rather than hardcoding developer absolute paths.
 * **Benchmark & Documentation Integrity**: `.benchmarks/**/*` and documentation (`*.md`) must be checked for factual accuracy against the codebase state.
 * **Historical Specification Immutability**: All specification files located under `docs/archive/specs/` are permanent historical artifacts representing completed milestones. Greptile must NOT request modifications, task appending, or requirements updates to archived specs during code reviews. All ongoing architectural discussions, new tasks, or post-launch enhancements belong in `README.md`, `docs/adr/`, or a new dedicated feature specification.
+* **Fully Offline Backend Integration Tests & Warning-Filter Canaries**: Backend tests exercising
+  `/analyze/jobs` must keep every pipeline network edge stubbed — transcript/evidence retrieval,
+  the Pre-Classification Gate LLM executor (`app.services.content_classifier.execute_adk_agent`),
+  and per-claim analyses (`analyze_perspective`, `analyze_bias_and_deception`,
+  `analyze_alethiology`); `backend/tests/test_integration.py` enforces this via an autouse
+  fixture. Do not flag these stubs as over-mocking, and do not recommend re-adding class-wide
+  `unclosed`/ResourceWarning `filterwarnings` ignores — pytest filters only ever scope
+  verified-unfixable third-party deprecations. First-party leak warnings (`unclosed transport`,
+  `coroutine never awaited`) are canaries to be root-caused at source; their appearance means a
+  new leak, not a regression to filter.
 
 ---
 

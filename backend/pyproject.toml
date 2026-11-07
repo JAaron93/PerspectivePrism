@@ -46,9 +46,11 @@ markers = [
 ]
 filterwarnings = [
     "ignore:BaseAgentConfig is deprecated:DeprecationWarning:google\\.adk\\.agents\\..*",
+    # Python 3.17 forward-compat guard (added in 4f88aa8): typing._UnionGenericAlias
+    # deprecation surfaced by third-party typing consumers. Inert on the current
+    # Python 3.10-3.13 floor (never fires on 3.13); kept message-scoped so it
+    # cannot mask anything else.
     "ignore:.*_UnionGenericAlias.*is deprecated:DeprecationWarning",
-    "ignore:unclosed transport <_SelectorSocketTransport:ResourceWarning",
-    "ignore:unclosed <socket.socket:ResourceWarning",
     # --- Bucket B: scoped third-party deprecation filters -----------------
     # All three verified unpatched in the newest in-constraint releases
     # (anyio 4.16.0, starlette 1.10.0, google-genai 2.34.0 / aiohttp 3.14.5).
