@@ -101,7 +101,7 @@ class TestAgentsCLIFallback:
 
         with (
             patch("app.evals.cli.shutil.which", return_value=None),
-            patch("app.evals.cli.asyncio.run", return_value=0) as mock_run,
+            patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner,
         ):
             exit_code = self._run_adk_eval(
                 config_path=config_path,
@@ -111,8 +111,8 @@ class TestAgentsCLIFallback:
                 component="all",
                 limit=None,
             )
-            # asyncio.run must have been invoked (native runner called)
-            mock_run.assert_called_once()
+            # Native runner must have been invoked exactly once (asyncio.run consumed it)
+            mock_runner.assert_awaited_once()
             assert exit_code == 0
 
     def test_fallback_warning_is_logged(self, tmp_path, caplog):
@@ -123,7 +123,7 @@ class TestAgentsCLIFallback:
 
         with (
             patch("app.evals.cli.shutil.which", return_value=None),
-            patch("app.evals.cli.asyncio.run", return_value=0),
+            patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)),
             caplog.at_level(logging.WARNING, logger="app.evals.cli"),
         ):
             self._run_adk_eval(
@@ -241,7 +241,7 @@ class TestAgentsCLIFallback:
         with (
             patch("app.evals.cli.shutil.which", return_value="/usr/local/bin/agents-cli"),
             patch("app.evals.cli.subprocess.run", return_value=mock_proc),
-            patch("app.evals.cli.asyncio.run", return_value=0) as mock_asyncio,
+            patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner,
         ):
             exit_code = self._run_adk_eval(
                 config_path=config_path,
@@ -251,7 +251,7 @@ class TestAgentsCLIFallback:
                 component="all",
                 limit=None,
             )
-            mock_asyncio.assert_called_once()
+            mock_runner.assert_awaited_once()
             assert exit_code == 0
 
 
@@ -367,30 +367,29 @@ class TestCLIMainIntegration:
 
     def test_main_with_no_args_succeeds(self):
         """main([]) with mocked native runner must return 0."""
-        with patch("app.evals.cli.asyncio.run", return_value=0):
+        with patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner:
             exit_code = self.main([])
         assert exit_code == 0
+        assert mock_runner.call_args.kwargs["component"] == "all"
 
     def test_main_adk_eval_without_binary_falls_back(self, tmp_path):
         """main(['--adk-eval']) without agents-cli falls back to native runner."""
         with (
             patch("app.evals.cli.shutil.which", return_value=None),
-            patch("app.evals.cli.asyncio.run", return_value=0) as mock_run,
+            patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner,
         ):
             exit_code = self.main(["--adk-eval"])
-            mock_run.assert_called_once()
+            mock_runner.assert_awaited_once()
             assert exit_code == 0
 
     def test_main_component_filter_passed(self):
-        """--component flag is correctly parsed and passed to runner."""
-        with patch("app.evals.cli.asyncio.run", return_value=0) as mock_run:
+        """--component flag is correctly parsed and passed to the native runner."""
+        with patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner:
             self.main(["--component", "pre_classifier"])
-            call_kwargs = mock_run.call_args[0][0]
-            # asyncio.run is called with a coroutine from _run_native_components
-            assert mock_run.called
+            assert mock_runner.call_args.kwargs["component"] == "pre_classifier"
 
     def test_main_limit_flag(self):
         """--limit flag is passed through correctly."""
-        with patch("app.evals.cli.asyncio.run", return_value=0) as mock_run:
+        with patch("app.evals.cli._run_native_components", new=AsyncMock(return_value=0)) as mock_runner:
             self.main(["--limit", "3"])
-            assert mock_run.called
+            assert mock_runner.call_args.kwargs["limit"] == 3
