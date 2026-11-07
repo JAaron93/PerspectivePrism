@@ -91,8 +91,13 @@ async function logWelcomePageView() {
  */
 async function checkSetupStatus() {
   try {
-    const result = await chrome.storage.sync.get('config');
-    const config = result.config;
+    const localResult = await chrome.storage.local.get('config');
+    let config = localResult ? localResult.config : null;
+
+    if (!config && chrome.storage && chrome.storage.sync) {
+      const syncResult = await chrome.storage.sync.get('config');
+      config = syncResult ? syncResult.config : null;
+    }
     
     if (config && config.backendUrl) {
       // User has configured backend URL
