@@ -118,6 +118,9 @@ const createChromeMock = () => {
 const chrome = createChromeMock();
 global.chrome = chrome;
 
+// Preserve Node runtime fetch before mock assignment for MSW v3 interception
+global.__nativeFetch = globalThis.fetch;
+
 // Mock fetch API for tests
 global.fetch = vi.fn();
 
