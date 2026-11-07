@@ -45,8 +45,16 @@ markers = [
     "bdd: mark test as a BDD acceptance scenario (Gherkin .feature file)",
 ]
 filterwarnings = [
-    "ignore:BaseAgentConfig is deprecated:DeprecationWarning",
+    "ignore:BaseAgentConfig is deprecated:DeprecationWarning:google\\.adk\\.agents\\..*",
     "ignore:.*_UnionGenericAlias.*is deprecated:DeprecationWarning",
     "ignore:unclosed transport <_SelectorSocketTransport:ResourceWarning",
     "ignore:unclosed <socket.socket:ResourceWarning",
+    # --- Bucket B: scoped third-party deprecation filters -----------------
+    # All three verified unpatched in the newest in-constraint releases
+    # (anyio 4.16.0, starlette 1.10.0, google-genai 2.34.0 / aiohttp 3.14.5).
+    # Each filter scopes to the exact warning class AND the exact emitting
+    # module (stacklevel-derived origin frame) — no blanket ignores.
+    "ignore:_pytest\\.python\\.CallSpec2 has been renamed:_pytest.warning_types.PytestRemovedIn10Warning:anyio\\.pytest_plugin",
+    "ignore:Using .httpx. with .starlette\\.testclient. is deprecated:starlette.exceptions.StarletteDeprecationWarning:fastapi\\.testclient",
+    "ignore:Inheritance class AiohttpClientSession from ClientSession is discouraged:DeprecationWarning:google\\.genai\\._api_client",
 ]
