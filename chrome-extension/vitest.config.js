@@ -1,6 +1,20 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Benchmark-vetted scheduling defaults (2026-11-08, 16-run A/B audit): this config
+  // intentionally omits `pool`, `isolate`, and `maxWorkers` overrides. Do NOT "optimize"
+  // this file with commonly documented alternatives — each was measured and disqualified:
+  //   * isolate:false (forks or threads) -> cold-run flaky (1 file fails ~50% of cold runs);
+  //     no speed win on forks (8.6s vs 8.1-8.6s baseline)
+  //   * pool:'threads' (isolated)        -> green but 11.3-12.0s (+35%)
+  //   * maxWorkers 6/8/14                -> green but all slower (10.7-13.7s)
+  //   * environment:'happy-dom'          -> 24 test failures / 2 files (shims need jsdom API)
+  //   * vmThreads                        -> broken under this suite
+  // jsdom environment setup is 71-84% of wall time, which makes "swap the environment"
+  // the most tempting optimization — happy-dom is the measurement-backed dead end.
+  // NOTE: Vitest's own end-of-run perf hint recommends exactly the two disqualified flags
+  // (vmThreads / isolate:false) — that suggestion was part of this audit; disregard it here.
+  // Baseline evidence: 26 files / 402 tests green at 8.06-8.59s (2 consecutive runs).
   test: {
     // Test environment configuration
     environment: 'jsdom',
