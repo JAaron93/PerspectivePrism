@@ -14,7 +14,7 @@ Perspective Prism utilizes a cross-cloud architecture combining serverless compu
   1. Installs essential Debian packages (`curl`, `build-essential`, `pkg-config`, `gcc`).
   2. Installs the Rust toolchain via `rustup` (`cargo`, `rustc`).
   3. Copies the local `backend/prism_sanitizer_rs` source directory into `/root/prism_sanitizer_rs`.
-  4. Compiles and installs the native Rust extension directly into the container's Python environment via `PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs` (utilizing `maturin>=1.15,<2.0`), executing within the subshell so that `$PATH` expands dynamically and preserves standard Linux binary directories (`/usr/local/bin`, `/usr/bin`, `/bin`).
+  4. Compiles and installs the native Rust extension directly into the container's Python environment via `PATH="/root/.cargo/bin:$PATH" pip install -e /root/prism_sanitizer_rs` (utilizing `maturin` 1.x series), executing within the subshell so that `$PATH` expands dynamically and preserves standard Linux binary directories (`/usr/local/bin`, `/usr/bin`, `/bin`).
   5. Installs all remaining Python dependencies from `backend/requirements.txt` (excluding the already installed editable crate) and copies `backend/app`.
 - **FR3 - Cross-Cloud Secret Management (Option A)**: The deployment MUST inject GCP credentials, search keys, and extension configuration using Modal Secrets (`perspective-prism-gcp-secrets`):
   1. Store the GCP Service Account JSON key content as a Modal Secret string (`GCP_SERVICE_ACCOUNT_JSON`).
