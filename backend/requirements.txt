@@ -10,12 +10,15 @@ pytest==9.2.0
 pytest-asyncio==1.4.1.post1
 pytest-bdd>=9.0.1
 google-genai>=2.30.0,<3.0.0
-google-adk>=2.13.0,<3.0.0
+google-adk>=2.14.0,<3.0.0
 pyyaml==6.0.3
 maturin>=1.16.0,<2.0
 -e ./prism_sanitizer_rs
-opentelemetry-api>=1.39.0,<=1.44.0
-opentelemetry-sdk>=1.39.0,<=1.44.0
+# opentelemetry floor = CVE-2026-114603 fix release (TraceState parser; inbound tracestate
+# header parsing, resource amplification). Ceiling mirrors the active google-adk release's
+# core Requires-Dist range — verify via importlib.metadata / PyPI requires_dist before bumping.
+opentelemetry-api>=1.45.1,<=1.45.2
+opentelemetry-sdk>=1.45.1,<=1.45.2
 tabulate>=0.10.0
 modal>=1.6.0
 aiohttp>=3.14.5
