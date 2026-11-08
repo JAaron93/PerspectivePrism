@@ -32,4 +32,5 @@ soupsieve>=2.9.0  # PYSEC-2026-4170/4171: CSS selector ReDoS (bs4 selector paths
 pyasn1>=0.6.5  # CVE-2026-119194..119197: ASN.1 quadratic-CPU decode
 joserfc>=1.7.6  # CVE-2026-119284: JWS compact limits applied after split (memory amplification)
 filelock>=4.2.1  # CVE-2026-1129xx cluster: local symlink/ACL/marker lock defects (hygiene; single-tenant containers)
+cryptography>=50.0.0  # PYSEC-2026-3552: PKCS#7 EnvelopedData decryption Bleichenbacher oracle (distinguishable errors/timing)
 
