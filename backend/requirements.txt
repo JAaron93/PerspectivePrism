@@ -19,3 +19,17 @@ opentelemetry-sdk>=1.39.0,<=1.44.0
 tabulate>=0.10.0
 modal>=1.6.0
 aiohttp>=3.14.5
+# --- Transitive security floors (2026-11-07 pip-audit sweep) ---
+# These are resolved transitively (google-*/modal chains); fresh installs already exceed the
+# floors — they defend cached/long-lived environments re-installed from this manifest.
+# Each floor equals or exceeds the minimum published fix for its advisory; extend with the
+# same verification trail (pip-audit --path <venv>/site-packages + full pytest).
+certifi>=2026.10.18  # PYSEC-2026-4320: compromised eMudhra root CA shipped in trust bundle (outbound TLS MITM)
+urllib3>=2.8.0  # PYSEC-2026-4175/4176/4177: proxy TLS context not applied; streaming decompress memory amplification
+anyio>=4.14.2  # PYSEC-2026-4023/4024/4025: extra_groups fork bug; process-pool stderr pipe deadlock; IDNA TLS edge
+multidict>=6.9.1  # PYSEC-2026-4244: items-view ref leak (remote, unbounded unreclaimable memory growth)
+soupsieve>=2.9.0  # PYSEC-2026-4170/4171: CSS selector ReDoS (bs4 selector paths)
+pyasn1>=0.6.5  # CVE-2026-119194..119197: ASN.1 quadratic-CPU decode
+joserfc>=1.7.6  # CVE-2026-119284: JWS compact limits applied after split (memory amplification)
+filelock>=4.2.1  # CVE-2026-1129xx cluster: local symlink/ACL/marker lock defects (hygiene; single-tenant containers)
+
