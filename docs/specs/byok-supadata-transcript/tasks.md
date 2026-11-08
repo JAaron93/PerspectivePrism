@@ -331,9 +331,9 @@
 
 - [x] **T6.1 — Install `pytest-bdd` and Register `bdd` Marker**
   - **Description**:
-    1. Add `pytest-bdd>=9.0.0` to `[project.optional-dependencies] dev` in `backend/pyproject.toml`.
+    1. Add the manifest-declared `pytest-bdd` series (9.x) to `[project.optional-dependencies] dev` in `backend/pyproject.toml`.
     2. Add `"bdd: mark test as a BDD acceptance scenario (Gherkin .feature file)"` to `[tool.pytest.ini_options] markers` in `pyproject.toml`.
-    3. Add `pytest-bdd>=9.0.0` to `backend/requirements.txt` (dev section comment).
+    3. Add the manifest-declared `pytest-bdd` series (9.x) to `backend/requirements.txt` (dev section comment).
     4. Create the directory `backend/tests/features/byok_supadata/` to house all `.feature` files for this spec.
     5. Create `backend/tests/bdd/__init__.py` (empty) and `backend/tests/bdd/conftest.py` importing shared fixtures from the root `tests/conftest.py`.
   - **TDD**: Run `pytest --co -q backend/tests/bdd/` and assert it collects without errors before any `.feature` files exist.
@@ -436,7 +436,7 @@
 
 - [x] **T6.3 — Implement Step Definitions for Backend-Scope Scenarios via ASGITransport**
   - **Description**: Create `backend/tests/bdd/test_byok_supadata.py`. Implement `pytest-bdd` step definitions using `@given`, `@when`, `@then` decorators and the `scenarios()` collector for all four backend `.feature` files:
-    - Use `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:` for all HTTP steps (matching `httpx>=0.28.1`).
+    - Use `transport = ASGITransport(app=app)` and `async with AsyncClient(transport=transport, base_url="http://test") as ac:` for all HTTP steps (matching the `httpx` release in `backend/requirements.txt`).
     - Control `settings.SUPADATA_FALLBACK_LOCAL` and `settings.SUPADATA_API_KEY` via `pytest` `monkeypatch`.
     - Mock Supadata responses via `unittest.mock.patch("httpx.AsyncClient.get")`.
     - Assert `status == "failed"` and `error_code` matching scenario specifications.

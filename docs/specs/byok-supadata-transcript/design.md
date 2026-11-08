@@ -163,7 +163,7 @@ The options page (`options.html` / `options.js`) gains a matching "API Keys" sec
 - The key flows as a positional argument: `create_analysis_job()` → `process_analysis()` → `ClaimExtractor.get_transcript()`. Never stored in `os.environ`, `jobs{}`, or any persistent state.
 - Supadata HTTP call uses `httpx.AsyncClient` (non-blocking, consistent with ADR 003 async I/O standard).
 - `JobStatusResponse` schema MUST include `error_code: Optional[str] = None`. When background processing encounters a domain exception (such as `SupadataQuotaExhaustedError` or `SupadataKeyRequiredError`), `process_analysis()` records `jobs[job_id]["error_code"] = e.code` alongside `jobs[job_id]["error"] = str(e)`.
-- **Test Transport Standard**: With `httpx>=0.28.1`, tests MUST NOT pass `app=app` directly to `AsyncClient`. All test suites must instantiate `transport = ASGITransport(app=app)` and pass `AsyncClient(transport=transport, base_url="http://test")`.
+- **Test Transport Standard**: With the `httpx` release pinned in `backend/requirements.txt`, tests MUST NOT pass `app=app` directly to `AsyncClient`. All test suites must instantiate `transport = ASGITransport(app=app)` and pass `AsyncClient(transport=transport, base_url="http://test")`.
 
 ### 3.3 Web Frontend Invariants
 - Standalone web frontend (`frontend/src/App.tsx`) calls `POST /analyze/jobs` directly.

@@ -530,12 +530,14 @@ async def test_claim_extraction_with_mocked_llm(mock_transcript):
 
 **File**: [requirements.txt](backend/requirements.txt)
 
-Added testing dependencies:
+Added testing dependencies (series-only; the authoritative pins live in `backend/requirements.txt`):
 
 ```
-pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest (9.x series — pin in backend/requirements.txt)
+pytest-asyncio (pin in backend/requirements.txt)
 ```
+
+> **Dated drift evidence (Nov 2026)**: this walkthrough's original snippet quoted `pytest==9.1.1` and `pytest-asyncio==1.4.0` after the manifest had already moved to the `9.2.x` / `1.4.1.post1` era — retained as the labeled drift trail under the Version-Free Rules Doctrine.
 
 ---
 

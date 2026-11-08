@@ -87,7 +87,7 @@ The container image must build the PyO3 Rust extension (`prism_sanitizer_rs`) wi
 * **System Packages**: `curl`, `build-essential`, `pkg-config`, `gcc`.
 * **Rust Toolchain**: `rustup` installing stable `rustc` and `cargo`.
 * **Crates**: `pyo3 = "0.29.0"`, `aho-corasick = "1.1.3"`, `unicode-normalization = "0.1.24"`, `regex`, `once_cell`.
-* **Python Build Tool**: `maturin>=1.15,<2.0`.
+* **Python Build Tool**: `maturin` (1.x series; exact range owned by the build manifest).
 
 ### 3.2 Modal Image Layering Strategy
 To avoid virtual environment errors associated with bare `maturin develop` commands, and to prevent literal `$PATH` truncation from `Image.env()`, the image compiles and installs `prism_sanitizer_rs` with dynamic subshell PATH expansion:

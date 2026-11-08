@@ -1,0 +1,19 @@
+# Version-Free Rules allowlist — feeding `vf_verify.sh --allow`
+#
+# Each key is `file:line` exactly as emitted by:
+#   ~/.agents/skills/version-free-rules-auditor/scripts/vf_inventory.sh . | cut -f1 | sort -u
+# Keys are line-sensitive: when prose above a key shifts, re-run the inventory
+# and refresh the affected key. Entries are BY-DESIGN keepers, not drift:
+#
+./AGENTS.md:154
+# labeled dated drift evidence — the Doctrine's own otel-ceiling precedent citation
+./docs/specs/byok-supadata-transcript/tasks.md:45
+# app-config constant (SUPADATA_TIMEOUT field_validator floor), not a dependency constraint
+./docs/specs/frontend-bdd-testing/requirements.md:41
+# app-config constant (deception severity thresholds), not a dependency constraint
+./docs/specs/frontend-bdd-testing/tasks.md:142
+# app-config constant (deception severity thresholds), not a dependency constraint
+./walkthroughs/package_structure_conversion.md:17
+# illustrative pyproject.toml code-fence snippet (conversion-era manifest state, not a directive)
+./walkthroughs/walkthrough_claim_extraction.md:540
+# labeled dated drift evidence — pytest pin era trail per the Version-Free Rules Doctrine

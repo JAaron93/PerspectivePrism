@@ -197,7 +197,7 @@ Perspective Prism features a serverless backend deployed to **Modal Labs** with 
 - **Runtime & Toolchain**:
   - Python 3.10 or higher
   - Rust compiler (`cargo`, `rustc` via rustup) & `maturin` for compiling the input sanitizer
-  - Node.js ^20.19.0 or >=22.12.0 (Node 22 LTS or Node 24 recommended; required by Vite 8 & ESLint 10)
+  - Node.js LTS per the toolchain's declared `engines` range (Vite 8 & ESLint 10; Node 22 LTS or Node 24 recommended)
 - **Authentication & Cloud Credentials**:
   - **Google Cloud Application Default Credentials (ADC)**: `gcloud auth application-default login` linked to a billable `GCP_PROJECT` for Vertex AI Gemini 3.8 Flash access (zero API keys).
   - **Google Custom Search JSON API Key**: Required for evidence retrieval (`GOOGLE_API_KEY`).
