@@ -7,7 +7,7 @@ This document defines the implementation guidelines, security invariants, testin
 ## 1. Environment & Model Invariants
 
 * **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-  - Exclusively uses **Google ADK 2.0** (`google-adk>=2.9.0`) and the **Google GenAI SDK** (`google-genai>=2.23.0`).
+  - Exclusively uses **Google ADK 2.0** and the **Google GenAI SDK** (current major 2.x lines per the vendor lock-in mandate). Version ranges live exclusively in `backend/requirements.txt` / `backend/pyproject.toml` (Version-Free Rules Doctrine) — rule-prose floors/ceilings are prohibited and drift.
   - Provider & auth mode: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM paid quota). AI Studio API keys and free tier throttles are permanently removed.
   - Allowed models: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
   - Forbidden SDKs: `openai`, `AsyncOpenAI`, and legacy `google-generativeai` are permanently forbidden.

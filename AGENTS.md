@@ -20,7 +20,7 @@ Perspective Prism analyzes YouTube video transcripts for claims, bias, and decep
 
 > [!IMPORTANT]
 > **Strict Google Gemini & ADK 2.0 Vendor Lock-In**:
-> - **Framework & SDK**: Exclusively uses **Google ADK 2.0** (`google-adk>=2.9.0`) and the **Google GenAI SDK** (`google-genai>=2.23.0`).
+> - **Framework & SDK**: Exclusively **Google ADK 2.0** and the **Google GenAI SDK**, restricted to their current major lines (2.x). Version ranges are owned exclusively by the manifests (`backend/requirements.txt`, `backend/pyproject.toml`) — prose floors/ceilings are prohibited per the Version-Free Rules Doctrine.
 > - **Provider & Authentication Mode**: Exclusively **GCP Vertex AI Mode** (via `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`, `GCP_LOCATION`, and `GEMINI_TIER=paid` with 300+ RPM high-throughput quota). AI Studio API keys and free tier rate-limit throttles are permanently removed.
 > - **Primary & Backup Models**: Gemini 3.x series models only (`gemini-3.8-flash` primary, `gemini-3.1-flash-lite` backup circuit-breaker fallback). Gemini 2.x and non-Google models are prohibited.
 > - **Zero-Throttling Generation Standards (ADR 007)**: Primary analytical agents (`ClaimExtractor`, `AnalysisService`, `AlethiologyService`, red-team `judge`) use `thinking_level="HIGH"`, `max_output_tokens=65536` (64K ceiling), and 120s HTTP timeouts (`GEMINI_HTTP_TIMEOUT=120.0`). Screening micro-tasks (`PreClassifierService`) use `thinking_level="LOW"` and `max_output_tokens=2048`. Thought signatures and thinking tokens are strictly preserved (`EXCLUDED_TELEMETRY_KEYS`).
@@ -149,6 +149,11 @@ Future AI agents, pair programmers, and automated tooling must adhere to this ru
    * Detailed implementation guardrails, DB/storage mechanics, logging privacy, BDD/test patterns, and hygiene MUST be added to or updated within the appropriate domain file under `.agents/rules/`.
 3. **Proposal Workflow**:
    * Before modifying project rules or adding new constraints (e.g. during `/learn` or code review resolutions), agents MUST draft a proposal/plan outlining the classification, rationale, and diffs, and obtain explicit user approval before writing changes to disk.
+4. **Version-Free Rules Doctrine**:
+   * Constraint-bearing dependency versions (floors, ceilings, exact pins) MUST be stated exactly once, in the manifests (`backend/requirements.txt`, `backend/pyproject.toml`). The advisory source of truth is the vendor's own `Requires-Dist` metadata (`importlib.metadata` on installed distributions or the PyPI JSON for a candidate release).
+   * Rulebooks (`AGENTS.md`, `.agents/rules/**`, `.greptile/rules.md`, README claims) and review directives MUST reference version *series* only (e.g. "ADK 2.x", "Gemini 3.x"). Quoting package floors/ceilings in prose is prohibited — they age into falsehood (precedent: the adk 2.9-era `<=1.42.1` OpenTelemetry ceiling silently outlived by two vendor releases).
+   * Exceptions: archived specs (`docs/archive/specs/**`) are immutable historical snapshots and may quote era-specific versions; within living rulebooks, historical numbers may appear ONLY when explicitly labeled as dated drift evidence.
+   * PR discipline: a diff that changes a manifest constraint MUST NOT also edit rule-prose version numbers (and vice versa); dependency PRs MUST verify resolvability (`pip install --dry-run` of the affected packages against the manifest) before commit.
 
 ---
 
